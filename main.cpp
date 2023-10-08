@@ -3,6 +3,7 @@
 #include "helpers.h"
 #include "insertion-sort.h"
 #include "merge-sort.h"
+#include "quick-sort.h"
 
 int main()
 {
@@ -50,6 +51,15 @@ int main()
 		Measure(k_times_to_measure, "top down merge sort with improvements", [&s]()
 			{
 				MergeSortImproved(s);
+				assert(IsSorted(s));
+			});
+	}
+	{
+		std::vector<int> arr_cpy = arr;
+		std::span<int> s{ arr_cpy };
+		Measure(k_times_to_measure, "quick sort", [&s]()
+			{
+				QuickSort(s);
 				assert(IsSorted(s));
 			});
 	}

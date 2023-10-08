@@ -66,3 +66,15 @@ void Measure(int times_to_run, const std::string& tag, Function func)
     measures /= static_cast<double>(times_to_run);
     std::cout << "Measuring " << tag << ", averaged over " << times_to_run << " iterations: " << std::fixed << std::setprecision(3) << measures << " ms\n";
 }
+
+template <typename T>
+void Shuffle(std::span<T>& arr)
+{
+    std::mt19937 e;
+	for (int i = 0; i < arr.size(); i++)
+	{
+		std::uniform_int_distribution<T> dist(0, arr.size() - i - 1);
+        const int r = i + dist(e);
+		std::swap(arr[i], arr[r]);
+	}
+}

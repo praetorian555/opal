@@ -32,5 +32,8 @@
     <ClInclude Include="merge-sort.h">
       <Filter>Header Files\sort</Filter>
     </ClInclude>
+    <ClInclude Include="quick-sort.h">
+      <Filter>Header Files\sort</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
