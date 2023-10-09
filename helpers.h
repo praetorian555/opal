@@ -20,10 +20,10 @@ bool IsSorted(const std::span<T>& arr)
 }
 
 template <typename T>
-std::vector<T> CreateRandomArray(int size, int seed)
+std::vector<T> CreateRandomArray(int size, int seed, T lo = std::numeric_limits<T>::min(), T hi = std::numeric_limits<T>::max())
 {
 	std::default_random_engine e(seed);
-	std::uniform_int_distribution<T> dist(std::numeric_limits<T>::min());
+	std::uniform_int_distribution<T> dist(lo, hi);
 	std::vector<T> ret(size);
 	for (int i = 0; i < size; i++)
 	{

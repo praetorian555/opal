@@ -8,7 +8,8 @@
 int main()
 {
 	constexpr int k_times_to_measure = 50;
-	std::vector<int> arr = CreateRandomArray<int>(10'000, 5);
+	const std::vector<int> arr = CreateRandomArray<int>(10'000, 5);
+	const std::vector<int> arr_eq = CreateRandomArray<int>(10'000, 5, 1, 3);
 	{
 		std::vector<int> arr_cpy = arr;
 		std::span<int> s{ arr_cpy };
@@ -78,6 +79,43 @@ int main()
 		Measure(k_times_to_measure, "quick sort with improvements", [&s]()
 			{
 				QuickSortImproved(s);
+				assert(IsSorted(s));
+			});
+	}
+	std::cout << "\n";
+	{
+		std::vector<int> arr_cpy = arr_eq;
+		std::span<int> s{ arr_cpy };
+		Measure(k_times_to_measure, "std::sort many equal values", [&s]()
+			{
+				std::sort(s.begin(), s.end());
+				assert(IsSorted(s));
+			});
+	}
+	{
+		std::vector<int> arr_cpy = arr_eq;
+		std::span<int> s{ arr_cpy };
+		Measure(k_times_to_measure, "improved quick sort many equal values", [&s]()
+			{
+				QuickSortImproved(s);
+				assert(IsSorted(s));
+			});
+	}
+	{
+		std::vector<int> arr_cpy = arr_eq;
+		std::span<int> s{ arr_cpy };
+		Measure(k_times_to_measure, "quick sort three way many equal values", [&s]()
+			{
+				QuickSortThreeWay(s);
+				assert(IsSorted(s));
+			});
+	}
+	{
+		std::vector<int> arr_cpy = arr_eq;
+		std::span<int> s{ arr_cpy };
+		Measure(k_times_to_measure, "top down merge sort with improvements many equal values", [&s]()
+			{
+				MergeSortImproved(s);
 				assert(IsSorted(s));
 			});
 	}
