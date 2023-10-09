@@ -30,6 +30,15 @@ int main()
 	{
 		std::vector<int> arr_cpy = arr;
 		std::span<int> s{ arr_cpy };
+		Measure(k_times_to_measure, "std::sort", [&s]()
+			{
+				std::sort(s.begin(), s.end());
+				assert(IsSorted(s));
+			});
+	}
+	{
+		std::vector<int> arr_cpy = arr;
+		std::span<int> s{ arr_cpy };
 		Measure(k_times_to_measure, "top down merge sort", [&s]()
 			{
 				MergeSort(s);
@@ -60,6 +69,15 @@ int main()
 		Measure(k_times_to_measure, "quick sort", [&s]()
 			{
 				QuickSort(s);
+				assert(IsSorted(s));
+			});
+	}
+	{
+		std::vector<int> arr_cpy = arr;
+		std::span<int> s{ arr_cpy };
+		Measure(k_times_to_measure, "quick sort with improvements", [&s]()
+			{
+				QuickSortImproved(s);
 				assert(IsSorted(s));
 			});
 	}
