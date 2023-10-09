@@ -5,7 +5,32 @@
 #include "merge-sort.h"
 #include "quick-sort.h"
 
+namespace Test
+{
+}
+
+void SortRunTimes();
+
 int main()
+{
+	//{
+	//	std::vector<int> arr = CreateRandomArray<int>(10'000, 5);
+	//	std::span<int> s{ arr };
+	//	Test::InsertionSort(s);
+	//	assert(IsSorted(s));
+	//}
+	//{
+	//	std::vector<int> arr = CreateRandomArray<int>(1'000'000, 5);
+	//	std::span<int> s{ arr };
+	//	Test::MergeSort(s);
+	//	assert(IsSorted(s));
+	//}
+
+	SortRunTimes();
+	return 0;
+}
+
+void SortRunTimes()
 {
 	constexpr int k_times_to_measure = 50;
 	const std::vector<int> arr = CreateRandomArray<int>(10'000, 5);
@@ -119,6 +144,4 @@ int main()
 				assert(IsSorted(s));
 			});
 	}
-
-	return 0;
 }

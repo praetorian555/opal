@@ -88,9 +88,13 @@ namespace PrivateMergeSort
 		const int mid = lo + (hi - lo) / 2;
 		MergeSortImproved(aux, arr, lo, mid);
 		MergeSortImproved(aux, arr, mid + 1, hi);
-		if (arr[mid] > arr[mid + 1])
+		if (aux[mid] > aux[mid + 1])
 		{
 			MergeImproved(arr, aux, lo, mid, hi);
+		}
+		else
+		{
+			std::copy(aux.begin() + lo, aux.begin() + hi + 1, arr.begin() + lo);
 		}
 	}
 }
