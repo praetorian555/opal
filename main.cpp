@@ -5,53 +5,15 @@
 #include "merge-sort.h"
 #include "quick-sort.h"
 #include "queue.h"
+#include "stack.h"
 
 namespace Test
 {
-	void Merge(std::span<int>& arr, std::span<int>& aux, int lo, int mid, int hi)
-	{
-		std::copy(arr.begin() + lo, arr.begin() + hi + 1, aux.begin() + lo);
-
-		int i = lo;
-		int j = mid + 1;
-		for (int k = lo; k <= hi; k++)
-		{
-			if (i > mid)
-			{
-				arr[k] = aux[j++];
-			}
-			else if (j > hi)
-			{
-				arr[k] = aux[i++];
-			}
-			else if (aux[i] < aux[j])
-			{
-				arr[k] = aux[i++];
-			}
-			else
-			{
-				arr[k] = aux[j++];
-			}
-		}
-	}
-
-	void MergeSortBottomUp(std::span<int>& arr)
-	{
-		std::vector<int> aux(arr.begin(), arr.end());
-		std::span<int> aux_s(aux.begin(), aux.end());
-		for (int sz = 1; sz < arr.size(); sz *= 2)
-		{
-			for (int i = 0; i < arr.size(); i += 2 * sz)
-			{
-				int hi = std::min(i + sz + sz - 1, (int)arr.size() - 1);
-				Merge(arr, aux_s, i, i + sz - 1, hi);
-			}
-		}
-	}
 }
 
 void SortRunTimes();
 void TestQueue();
+void TestStack();
 
 int main()
 {
@@ -83,6 +45,7 @@ int main()
 	SortRunTimes();
 
 	TestQueue();
+	TestStack();
 
 	return 0;
 }
@@ -238,5 +201,21 @@ void TestQueue()
 			assert(arr[fetch_count + i] == q.Dequeue());
 		}
 		fetch_count += random_fetch_count;
+	}
+}
+
+void TestStack()
+{
+	UniformRandomIntGenerator gen(5);
+	constexpr int k_arr_size = 10'000;
+	const std::vector<int> arr = gen.GetRandomIntArray(k_arr_size);
+	Stack<int> s;
+	for (int i = 0; i < arr.size(); i++)
+	{
+		s.Push(arr[i]);
+	}
+	for (int i = arr.size() - 1; i >= 0; i--)
+	{
+		assert(s.Pop() == arr[i]);
 	}
 }
