@@ -19,19 +19,6 @@ bool IsSorted(const std::span<T>& arr)
 	return true;
 }
 
-template <typename T>
-std::vector<T> CreateRandomArray(int size, int seed, T lo = std::numeric_limits<T>::min(), T hi = std::numeric_limits<T>::max())
-{
-	std::default_random_engine e(seed);
-	std::uniform_int_distribution<T> dist(lo, hi);
-	std::vector<T> ret(size);
-	for (int i = 0; i < size; i++)
-	{
-		ret[i] = dist(e);
-	}
-	return ret;
-}
-
 class Stopwatch
 {
 public:
@@ -67,14 +54,24 @@ void Measure(int times_to_run, const std::string& tag, Function func)
 	std::cout << "Measuring " << tag << ", averaged over " << times_to_run << " iterations: " << std::fixed << std::setprecision(3) << measures << " ms\n";
 }
 
+class UniformRandomIntGenerator
+{
+public:
+	UniformRandomIntGenerator(int32_t seed);
+	int32_t GetRandomInt(int32_t lo = std::numeric_limits<int32_t>::min(), int32_t hi = std::numeric_limits<int32_t>::max());
+	std::vector<int32_t> GetRandomIntArray(int32_t size, int32_t lo = std::numeric_limits<int32_t>::min(), int32_t hi = std::numeric_limits<int32_t>::max());
+
+private:
+	std::mt19937_64 m_generator;
+};
+
 template <typename T>
 void Shuffle(std::span<T>& arr)
 {
-	std::mt19937_64 gen;
+	UniformRandomIntGenerator generator(0);
 	for (int i = 0; i < arr.size(); i++)
 	{
-		std::uniform_int_distribution<T> dist(0, arr.size() - i - 1);
-		const int r = i + dist(gen);
+		const int r = i + generator.GetRandomInt(0, arr.size() - i - 1);
 		std::swap(arr[i], arr[r]);
 	}
 }
