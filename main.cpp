@@ -6,6 +6,7 @@
 #include "quick-sort.h"
 #include "queue.h"
 #include "stack.h"
+#include "priority-queue.h"
 
 namespace Test
 {
@@ -14,6 +15,7 @@ namespace Test
 void SortRunTimes();
 void TestQueue();
 void TestStack();
+void TestPQ();
 
 int main()
 {
@@ -42,10 +44,12 @@ int main()
 	//	assert(IsSorted(s));
 	//}
 
-	SortRunTimes();
+	//SortRunTimes();
 
 	TestQueue();
 	TestStack();
+
+	TestPQ();
 
 	return 0;
 }
@@ -217,5 +221,23 @@ void TestStack()
 	for (int i = arr.size() - 1; i >= 0; i--)
 	{
 		assert(s.Pop() == arr[i]);
+	}
+}
+
+void TestPQ()
+{
+	UniformRandomIntGenerator gen(5);
+	constexpr int k_arr_size = 10'000;
+	std::vector<int> arr = gen.GetRandomIntArray(k_arr_size);
+	PriorityQueue<int> pq;
+	for (int i = 0; i < arr.size(); i++)
+	{
+		pq.Enqueue(arr[i]);
+	}
+	auto comp = std::greater<int>();
+	std::sort(arr.begin(), arr.end(), comp);
+	for (int i = 0; i < arr.size(); i++)
+	{
+		assert(arr[i] == pq.PopTop());
 	}
 }
