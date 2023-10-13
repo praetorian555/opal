@@ -29,6 +29,18 @@ public:
 		Swim(m_size);
 	}
 
+	T& GetTop()
+	{
+		assert(m_size > 0);
+		return m_data[1];
+	}
+
+	const T& GetTop() const
+	{
+		assert(m_size > 0);
+		return m_data[1];
+	}
+
 	T PopTop()
 	{
 		assert(m_size > 0);

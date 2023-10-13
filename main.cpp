@@ -238,6 +238,7 @@ void TestPQ()
 	std::sort(arr.begin(), arr.end(), comp);
 	for (int i = 0; i < arr.size(); i++)
 	{
+		assert(arr[i] == pq.GetTop());
 		assert(arr[i] == pq.PopTop());
 	}
 }
