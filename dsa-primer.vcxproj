@@ -133,6 +133,7 @@
     <ClCompile Include="main.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="heap-sort.h" />
     <ClInclude Include="helpers.h" />
     <ClInclude Include="insertion-sort.h" />
     <ClInclude Include="merge-sort.h" />

@@ -1,9 +1,11 @@
 #include <cassert>
 
+#include "heap-sort.h"
 #include "helpers.h"
 #include "insertion-sort.h"
 #include "merge-sort.h"
 #include "quick-sort.h"
+#include "heap-sort.h"
 #include "queue.h"
 #include "stack.h"
 #include "priority-queue.h"
@@ -44,7 +46,7 @@ int main()
 	//	assert(IsSorted(s));
 	//}
 
-	//SortRunTimes();
+	SortRunTimes();
 
 	TestQueue();
 	TestStack();
@@ -129,6 +131,15 @@ void SortRunTimes()
 		Measure(k_times_to_measure, "quick sort with improvements", [&s]()
 			{
 				QuickSortImproved(s);
+				assert(IsSorted(s));
+			});
+	}
+	{
+		std::vector<int> arr_cpy = arr;
+		std::span<int> s{ arr_cpy };
+		Measure(k_times_to_measure, "heap sort", [&s]()
+			{
+				HeapSort(s);
 				assert(IsSorted(s));
 			});
 	}

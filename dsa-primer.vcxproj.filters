@@ -41,5 +41,14 @@
     <ClInclude Include="queue.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="priority-queue.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="stack.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="heap-sort.h">
+      <Filter>Header Files\sort</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
