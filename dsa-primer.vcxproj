@@ -136,6 +136,7 @@
     <ClInclude Include="helpers.h" />
     <ClInclude Include="insertion-sort.h" />
     <ClInclude Include="merge-sort.h" />
+    <ClInclude Include="priority-queue.h" />
     <ClInclude Include="queue.h" />
     <ClInclude Include="quick-sort.h" />
     <ClInclude Include="stack.h" />

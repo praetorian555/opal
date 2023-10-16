@@ -226,19 +226,60 @@ void TestStack()
 
 void TestPQ()
 {
-	UniformRandomIntGenerator gen(5);
-	constexpr int k_arr_size = 10'000;
-	std::vector<int> arr = gen.GetRandomIntArray(k_arr_size);
-	PriorityQueue<int> pq;
-	for (int i = 0; i < arr.size(); i++)
 	{
-		pq.Enqueue(arr[i]);
+		UniformRandomIntGenerator gen(5);
+		constexpr int k_arr_size = 10'000;
+		std::vector<int> arr = gen.GetRandomIntArray(k_arr_size);
+		PriorityQueue<int> pq;
+		for (int i = 0; i < arr.size(); i++)
+		{
+			pq.Enqueue(arr[i]);
+		}
+		auto comp = std::greater<int>();
+		std::sort(arr.begin(), arr.end(), comp);
+		for (int i = 0; i < arr.size(); i++)
+		{
+			assert(arr[i] == pq.GetTop());
+			assert(arr[i] == pq.PopTop());
+		}
 	}
-	auto comp = std::greater<int>();
-	std::sort(arr.begin(), arr.end(), comp);
-	for (int i = 0; i < arr.size(); i++)
 	{
-		assert(arr[i] == pq.GetTop());
-		assert(arr[i] == pq.PopTop());
+		UniformRandomIntGenerator gen(5);
+		constexpr int k_arr_size = 10'000;
+		std::vector<int> arr = gen.GetRandomIntArray(k_arr_size);
+		IndexPriorityQueue<int> pq(std::less<int>{}, k_arr_size + 1);
+		for (int i = 0; i < arr.size(); i++)
+		{
+			pq.Enqueue(i, arr[i]);
+		}
+		auto comp = std::greater<int>();
+		std::sort(arr.begin(), arr.end(), comp);
+		for (int i = 0; i < arr.size(); i++)
+		{
+			assert(arr[i] == pq.GetTop());
+			assert(arr[i] == pq.PopTop());
+		}
+	}
+	{
+		UniformRandomIntGenerator gen(5);
+		constexpr int k_arr_size = 10'000;
+		std::vector<int> arr = gen.GetRandomIntArray(k_arr_size);
+		IndexPriorityQueue<int> pq(std::less<int>{}, k_arr_size + 1);
+		for (int i = 0; i < arr.size(); i++)
+		{
+			pq.Enqueue(i, arr[i]);
+		}
+		for (int i = 0; i < arr.size(); i++)
+		{
+			assert(pq.Contains(i));
+			assert(arr[i] == pq.GetValueOf(i));
+		}
+		pq.DeleteValue(10);
+		assert(!pq.Contains(10));
+
+		const int old_value = pq.GetValueOf(15);
+		pq.ChangeValue(15, 10);
+		assert(old_value != pq.GetValueOf(15));
+		assert(10 == pq.GetValueOf(15));
 	}
 }
