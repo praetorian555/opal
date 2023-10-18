@@ -45,6 +45,30 @@ int main()
 	//	Test::MergeSortBottomUp(s);
 	//	assert(IsSorted(s));
 	//}
+	//{
+	//	uniformrandomintgenerator gen(5);
+	//	std::vector<int> arr = gen.getrandomintarray(1024 * 1024);
+	//	std::span<int> s{ arr };
+	//	test::heapsort(s);
+	//	assert(issorted(s));
+	//}
+	//{
+	//	UniformRandomIntGenerator gen(5);
+	//	constexpr int k_arr_size = 10'000;
+	//	std::vector<int> arr = gen.GetRandomIntArray(k_arr_size);
+	//	Test::PriorityQueue pq(k_arr_size);
+	//	for (int i = 0; i < arr.size(); i++)
+	//	{
+	//		pq.Enqueue(arr[i]);
+	//	}
+	//	auto comp = std::greater<int>();
+	//	std::sort(arr.begin(), arr.end(), comp);
+	//	for (int i = 0; i < arr.size(); i++)
+	//	{
+	//		assert(arr[i] == pq.GetTop());
+	//		assert(arr[i] == pq.PopTop());
+	//	}
+	//}
 
 	SortRunTimes();
 
