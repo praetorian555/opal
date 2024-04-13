@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdlib>
 #include <cstdint>
+#include <cstdlib>
 
 namespace Opal
 {
@@ -17,10 +17,17 @@ public:
     using SizeType = uint32_t;
 
     DynamicArray() = default;
-
     explicit DynamicArray(SizeType count);
-
     DynamicArray(SizeType count, const T& default_value);
+    // TODO: Implement constructors that take iterators as input
+    // TODO: Implement constructors that take std::initializer_list as input
+    DynamicArray(const DynamicArray& other);
+    DynamicArray(DynamicArray&& other) noexcept;
+
+    ~DynamicArray();
+
+    DynamicArray& operator=(const DynamicArray& other);
+    DynamicArray& operator=(DynamicArray&& other) noexcept;
 
     [[nodiscard]] SizeType GetCapacity() const;
     [[nodiscard]] SizeType GetSize() const;
@@ -68,6 +75,35 @@ Opal::DynamicArray<T>::DynamicArray(SizeType count, const T& default_value)
     {
         new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
     }
+}
+
+template <typename T>
+Opal::DynamicArray<T>::DynamicArray(const DynamicArray& other) : m_capacity(other.m_capacity), m_size(other.m_size)
+{
+    m_data = Allocate(m_capacity * sizeof(T));
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
+    }
+}
+
+template <typename T>
+Opal::DynamicArray<T>::DynamicArray(DynamicArray&& other) noexcept
+    : m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
+{
+    other.m_capacity = 0;
+    other.m_size = 0;
+    other.m_data = nullptr;
+}
+
+template <typename T>
+Opal::DynamicArray<T>::~DynamicArray()
+{
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        m_data[i].~T();  // Invokes destructor on allocated memory
+    }
+    Deallocate(m_data);
 }
 
 template <typename T>
