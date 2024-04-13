@@ -10,10 +10,13 @@
 #include "stack.h"
 #include "priority-queue.h"
 
+#include "container/dynamic-array.h"
+
 namespace Test
 {
 }
 
+void TestDynamicArray();
 void SortRunTimes();
 void TestQueue();
 void TestStack();
@@ -70,12 +73,14 @@ int main()
 	//	}
 	//}
 
-	SortRunTimes();
+	//SortRunTimes();
 
-	TestQueue();
-	TestStack();
+	//TestQueue();
+	//TestStack();
 
-	TestPQ();
+	//TestPQ();
+
+	TestDynamicArray();
 
 	return 0;
 }
@@ -316,5 +321,63 @@ void TestPQ()
 		pq.ChangeValue(15, 10);
 		assert(old_value != pq.GetValueOf(15));
 		assert(10 == pq.GetValueOf(15));
+	}
+}
+
+void TestDynamicArray()
+{
+	// Test default constructor
+	{
+		DynamicArray<int32_t> int_arr;
+		assert(int_arr.GetCapacity() == 4);
+		assert(int_arr.GetSize() == 0);
+		assert(int_arr.GetData() == nullptr);
+	}
+	// Test count constructor
+	{
+		// POD type, initial count smaller then default capacity
+		{
+			DynamicArray<int32_t> int_arr(3);
+			assert(int_arr.GetCapacity() == 4);
+			assert(int_arr.GetSize() == 3);
+			assert(int_arr.GetData() != nullptr);
+			assert(int_arr.GetData()[0] == 0);
+			assert(int_arr.GetData()[1] == 0);
+			assert(int_arr.GetData()[2] == 0);
+		}
+		// Pointer type, initial count smaller then default capacity
+		{
+			DynamicArray<int32_t*> ptr_arr(3);
+			assert(ptr_arr.GetCapacity() == 4);
+			assert(ptr_arr.GetSize() == 3);
+			assert(ptr_arr.GetData() != nullptr);
+			assert(ptr_arr.GetData()[0] == nullptr);
+			assert(ptr_arr.GetData()[1] == nullptr);
+			assert(ptr_arr.GetData()[2] == nullptr);
+		}
+		// POD type, initial count larger then default capacity
+		{
+			DynamicArray<int32_t> int_arr(5);
+			assert(int_arr.GetCapacity() == 5);
+			assert(int_arr.GetSize() == 5);
+			assert(int_arr.GetData() != nullptr);
+			assert(int_arr.GetData()[0] == 0);
+			assert(int_arr.GetData()[1] == 0);
+			assert(int_arr.GetData()[2] == 0);
+			assert(int_arr.GetData()[3] == 0);
+			assert(int_arr.GetData()[4] == 0);
+		}
+		// Pointer type, initial count larger then default capacity
+		{
+			DynamicArray<int32_t*> ptr_arr(5);
+			assert(ptr_arr.GetCapacity() == 5);
+			assert(ptr_arr.GetSize() == 5);
+			assert(ptr_arr.GetData() != nullptr);
+			assert(ptr_arr.GetData()[0] == nullptr);
+			assert(ptr_arr.GetData()[1] == nullptr);
+			assert(ptr_arr.GetData()[2] == nullptr);
+			assert(ptr_arr.GetData()[3] == nullptr);
+			assert(ptr_arr.GetData()[4] == nullptr);
+		}
 	}
 }
