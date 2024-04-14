@@ -16,7 +16,7 @@ public:
     using ValueType = T;
     using SizeType = uint32_t;
 
-    DynamicArray() = default;
+    DynamicArray();
     explicit DynamicArray(SizeType count);
     DynamicArray(SizeType count, const T& default_value);
     // TODO: Implement constructors that take iterators as input
@@ -35,10 +35,12 @@ public:
     const T* GetData() const;
 
 private:
+    static constexpr SizeType k_default_capacity = 4;
+
     T* Allocate(SizeType byte_count);
     void Deallocate(T* data);
 
-    SizeType m_capacity = 4;
+    SizeType m_capacity = k_default_capacity;
     SizeType m_size = 0;
     T* m_data = nullptr;
 };
@@ -46,6 +48,12 @@ private:
 }  // namespace Opal
 
 /***************************************** Implementation *****************************************/
+
+template <typename T>
+Opal::DynamicArray<T>::DynamicArray()
+{
+    m_data = Allocate(m_capacity * sizeof(T));
+}
 
 template <typename T>
 Opal::DynamicArray<T>::DynamicArray(SizeType count)
@@ -99,11 +107,59 @@ Opal::DynamicArray<T>::DynamicArray(DynamicArray&& other) noexcept
 template <typename T>
 Opal::DynamicArray<T>::~DynamicArray()
 {
+    if (m_data != nullptr)
+    {
+        for (SizeType i = 0; i < m_size; i++)
+        {
+            m_data[i].~T();  // Invokes destructor on allocated memory
+        }
+        Deallocate(m_data);
+    }
+}
+
+template <typename T>
+Opal::DynamicArray<T>& Opal::DynamicArray<T>::operator=(const DynamicArray& other)
+{
+    if (m_data != nullptr)
+    {
+        for (SizeType i = 0; i < m_size; i++)
+        {
+            m_data[i].~T();  // Invokes destructor on allocated memory
+        }
+    }
+    if (m_capacity < other.m_size)
+    {
+        Deallocate(m_data);
+        m_capacity = other.m_size;
+        m_data = Allocate(m_capacity * sizeof(T));
+    }
+    m_size = other.m_size;
     for (SizeType i = 0; i < m_size; i++)
     {
-        m_data[i].~T();  // Invokes destructor on allocated memory
+        new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
     }
-    Deallocate(m_data);
+    return *this;
+}
+
+template <typename T>
+Opal::DynamicArray<T>& Opal::DynamicArray<T>::operator=(DynamicArray&& other) noexcept
+{
+    if (m_data != nullptr)
+    {
+        for (SizeType i = 0; i < m_size; i++)
+        {
+            m_data[i].~T();  // Invokes destructor on allocated memory
+        }
+        Deallocate(m_data);
+        m_data = nullptr;
+    }
+    m_capacity = other.m_capacity;
+    m_size = other.m_size;
+    m_data = other.m_data;
+    other.m_capacity = 0;
+    other.m_size = 0;
+    other.m_data = nullptr;
+    return *this;
 }
 
 template <typename T>
