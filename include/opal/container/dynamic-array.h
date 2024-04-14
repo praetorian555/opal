@@ -1,8 +1,6 @@
 #pragma once
 
-#include <malloc.h>
-#include <cstdint>
-
+#include "opal/types.h"
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/container/expected.h"
@@ -20,7 +18,7 @@ public:
     using ValueType = T;
     using Reference = T&;
     using ConstReference = const T&;
-    using SizeType = uint32_t;
+    using SizeType = u64;
 
     DynamicArray();
     explicit DynamicArray(SizeType count);

@@ -4,27 +4,27 @@
 
 namespace
 {
-int32_t g_default_call_count = 0;
-int32_t g_value_call_count = 0;
-int32_t g_copy_call_count = 0;
-int32_t g_copy_assign_call_count = 0;
-int32_t g_destroy_call_count = 0;
+i32 g_default_call_count = 0;
+i32 g_value_call_count = 0;
+i32 g_copy_call_count = 0;
+i32 g_copy_assign_call_count = 0;
+i32 g_destroy_call_count = 0;
 struct NonPod
 {
-    int32_t* ptr = nullptr;
+    i32* ptr = nullptr;
     NonPod()
     {
-        ptr = new int32_t(5);
+        ptr = new i32(5);
         g_default_call_count++;
     }
-    explicit NonPod(int32_t value)
+    explicit NonPod(i32 value)
     {
-        ptr = new int32_t(value);
+        ptr = new i32(value);
         g_value_call_count++;
     }
     NonPod(const NonPod& other)
     {
-        ptr = new int32_t(*other.ptr);
+        ptr = new i32(*other.ptr);
         g_copy_call_count++;
     }
     NonPod& operator=(const NonPod& other)
@@ -32,7 +32,7 @@ struct NonPod
         if (this != &other)
         {
             delete ptr;
-            ptr = new int32_t(*other.ptr);
+            ptr = new i32(*other.ptr);
         }
         g_copy_assign_call_count++;
         return *this;
@@ -62,7 +62,7 @@ TEST_CASE("Construction with POD data", "[DynamicArray]")
     {
         SECTION("Initial size smaller then default capacity")
         {
-            Opal::DynamicArray<int32_t> int_arr(3);
+            Opal::DynamicArray<i32> int_arr(3);
             REQUIRE(int_arr.GetCapacity() == 4);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -72,7 +72,7 @@ TEST_CASE("Construction with POD data", "[DynamicArray]")
         }
         SECTION("Initial size larger then default capacity")
         {
-            Opal::DynamicArray<int32_t> int_arr(5);
+            Opal::DynamicArray<i32> int_arr(5);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -85,7 +85,7 @@ TEST_CASE("Construction with POD data", "[DynamicArray]")
     }
     SECTION("Size and default value constructor")
     {
-        Opal::DynamicArray<int32_t> int_arr(3, 42);
+        Opal::DynamicArray<i32> int_arr(3, 42);
         REQUIRE(int_arr.GetCapacity() == 4);
         REQUIRE(int_arr.GetSize() == 3);
         REQUIRE(int_arr.GetData() != nullptr);
@@ -95,8 +95,8 @@ TEST_CASE("Construction with POD data", "[DynamicArray]")
     }
     SECTION("Copy constructor")
     {
-        Opal::DynamicArray<int32_t> int_arr(3, 42);
-        Opal::DynamicArray<int32_t> int_arr_copy(int_arr);
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32> int_arr_copy(int_arr);
         REQUIRE(int_arr.GetCapacity() == 4);
         REQUIRE(int_arr.GetSize() == 3);
         REQUIRE(int_arr.GetData() != nullptr);
@@ -112,8 +112,8 @@ TEST_CASE("Construction with POD data", "[DynamicArray]")
     }
     SECTION("Move constructor")
     {
-        Opal::DynamicArray<int32_t> int_arr(3, 42);
-        Opal::DynamicArray<int32_t> int_arr_copy(std::move(int_arr));
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32> int_arr_copy(std::move(int_arr));
         REQUIRE(int_arr.GetCapacity() == 0);
         REQUIRE(int_arr.GetSize() == 0);
         REQUIRE(int_arr.GetData() == nullptr);
@@ -245,8 +245,8 @@ TEST_CASE("Copy assignment", "[DynamicArray]")
     {
         SECTION("Copy default array")
         {
-            Opal::DynamicArray<int32_t> int_arr;
-            Opal::DynamicArray<int32_t> int_arr_copy;
+            Opal::DynamicArray<i32> int_arr;
+            Opal::DynamicArray<i32> int_arr_copy;
             int_arr_copy = int_arr;
             REQUIRE(int_arr.GetCapacity() == 4);
             REQUIRE(int_arr.GetSize() == 0);
@@ -257,8 +257,8 @@ TEST_CASE("Copy assignment", "[DynamicArray]")
         }
         SECTION("Receiver array has less allocated memory")
         {
-            Opal::DynamicArray<int32_t> int_arr(5, 25);
-            Opal::DynamicArray<int32_t> int_arr_copy(3, 42);
+            Opal::DynamicArray<i32> int_arr(5, 25);
+            Opal::DynamicArray<i32> int_arr_copy(3, 42);
             int_arr_copy = int_arr;
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
@@ -279,8 +279,8 @@ TEST_CASE("Copy assignment", "[DynamicArray]")
         }
         SECTION("Receiver array has more allocated memory")
         {
-            Opal::DynamicArray<int32_t> int_arr(3, 42);
-            Opal::DynamicArray<int32_t> int_arr_copy(5, 25);
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            Opal::DynamicArray<i32> int_arr_copy(5, 25);
             int_arr_copy = int_arr;
             REQUIRE(int_arr.GetCapacity() == 4);
             REQUIRE(int_arr.GetSize() == 3);
@@ -389,8 +389,8 @@ TEST_CASE("Move assignment", "[DynamicArray]")
     {
         SECTION("Move empty array")
         {
-            Opal::DynamicArray<int32_t> int_arr;
-            Opal::DynamicArray<int32_t> int_arr_copy;
+            Opal::DynamicArray<i32> int_arr;
+            Opal::DynamicArray<i32> int_arr_copy;
             int_arr_copy = std::move(int_arr);
             REQUIRE(int_arr.GetCapacity() == 0);
             REQUIRE(int_arr.GetSize() == 0);
@@ -401,8 +401,8 @@ TEST_CASE("Move assignment", "[DynamicArray]")
         }
         SECTION("Move non-empty array")
         {
-            Opal::DynamicArray<int32_t> int_arr(3, 42);
-            Opal::DynamicArray<int32_t> int_arr_copy(5, 25);
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            Opal::DynamicArray<i32> int_arr_copy(5, 25);
             int_arr_copy = std::move(int_arr);
             REQUIRE(int_arr.GetCapacity() == 0);
             REQUIRE(int_arr.GetSize() == 0);
@@ -471,7 +471,7 @@ TEST_CASE("Assign with POD data", "[DynamicArray]")
 {
     SECTION("Assign count less then current size")
     {
-        Opal::DynamicArray<int32_t> int_arr(5, 25);
+        Opal::DynamicArray<i32> int_arr(5, 25);
         int_arr.Assign(3, 42);
         REQUIRE(int_arr.GetCapacity() == 5);
         REQUIRE(int_arr.GetSize() == 3);
@@ -482,7 +482,7 @@ TEST_CASE("Assign with POD data", "[DynamicArray]")
     }
     SECTION("Assign count larger then current size")
     {
-        Opal::DynamicArray<int32_t> int_arr(3, 42);
+        Opal::DynamicArray<i32> int_arr(3, 42);
         int_arr.Assign(5, 25);
         REQUIRE(int_arr.GetCapacity() == 5);
         REQUIRE(int_arr.GetSize() == 5);
@@ -547,7 +547,7 @@ TEST_CASE("Access element with At", "[DynamicArray]")
 {
     SECTION("POD data")
     {
-        Opal::DynamicArray<int32_t> int_arr(3, 42);
+        Opal::DynamicArray<i32> int_arr(3, 42);
         REQUIRE(int_arr.At(0).GetValue() == 42);
         REQUIRE(int_arr.At(1).GetValue() == 42);
         REQUIRE(int_arr.At(2).GetValue() == 42);
