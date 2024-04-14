@@ -56,53 +56,34 @@ struct NonPod
 };
 }  // namespace
 
-TEST_CASE("Construction of DynamicArray with POD", "[DynamicArray]")
+TEST_CASE("Construction with POD data", "[DynamicArray]")
 {
-    SECTION("POD type, initial count smaller then default capacity")
+    SECTION("Size constructor")
     {
-        Opal::DynamicArray<int32_t> int_arr(3);
-        REQUIRE(int_arr.GetCapacity() == 4);
-        REQUIRE(int_arr.GetSize() == 3);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 0);
-        REQUIRE(int_arr.GetData()[1] == 0);
-        REQUIRE(int_arr.GetData()[2] == 0);
+        SECTION("Initial size smaller then default capacity")
+        {
+            Opal::DynamicArray<int32_t> int_arr(3);
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 3);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr.GetData()[0] == 0);
+            REQUIRE(int_arr.GetData()[1] == 0);
+            REQUIRE(int_arr.GetData()[2] == 0);
+        }
+        SECTION("Initial size larger then default capacity")
+        {
+            Opal::DynamicArray<int32_t> int_arr(5);
+            REQUIRE(int_arr.GetCapacity() == 5);
+            REQUIRE(int_arr.GetSize() == 5);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr.GetData()[0] == 0);
+            REQUIRE(int_arr.GetData()[1] == 0);
+            REQUIRE(int_arr.GetData()[2] == 0);
+            REQUIRE(int_arr.GetData()[3] == 0);
+            REQUIRE(int_arr.GetData()[4] == 0);
+        }
     }
-    SECTION("Pointer type, initial count smaller then default capacity")
-    {
-        Opal::DynamicArray<int32_t*> ptr_arr(3);
-        REQUIRE(ptr_arr.GetCapacity() == 4);
-        REQUIRE(ptr_arr.GetSize() == 3);
-        REQUIRE(ptr_arr.GetData() != nullptr);
-        REQUIRE(ptr_arr.GetData()[0] == nullptr);
-        REQUIRE(ptr_arr.GetData()[1] == nullptr);
-        REQUIRE(ptr_arr.GetData()[2] == nullptr);
-    }
-    SECTION("POD type, initial count larger then default capacity")
-    {
-        Opal::DynamicArray<int32_t> int_arr(5);
-        REQUIRE(int_arr.GetCapacity() == 5);
-        REQUIRE(int_arr.GetSize() == 5);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 0);
-        REQUIRE(int_arr.GetData()[1] == 0);
-        REQUIRE(int_arr.GetData()[2] == 0);
-        REQUIRE(int_arr.GetData()[3] == 0);
-        REQUIRE(int_arr.GetData()[4] == 0);
-    }
-    SECTION("Pointer type, initial count larger then default capacity")
-    {
-        Opal::DynamicArray<int32_t*> ptr_arr(5);
-        REQUIRE(ptr_arr.GetCapacity() == 5);
-        REQUIRE(ptr_arr.GetSize() == 5);
-        REQUIRE(ptr_arr.GetData() != nullptr);
-        REQUIRE(ptr_arr.GetData()[0] == nullptr);
-        REQUIRE(ptr_arr.GetData()[1] == nullptr);
-        REQUIRE(ptr_arr.GetData()[2] == nullptr);
-        REQUIRE(ptr_arr.GetData()[3] == nullptr);
-        REQUIRE(ptr_arr.GetData()[4] == nullptr);
-    }
-    SECTION("POD type, initial count and default value")
+    SECTION("Size and default value constructor")
     {
         Opal::DynamicArray<int32_t> int_arr(3, 42);
         REQUIRE(int_arr.GetCapacity() == 4);
@@ -112,18 +93,7 @@ TEST_CASE("Construction of DynamicArray with POD", "[DynamicArray]")
         REQUIRE(int_arr.GetData()[1] == 42);
         REQUIRE(int_arr.GetData()[2] == 42);
     }
-    SECTION("Pointer type, initial count and default value")
-    {
-        int32_t default_value = 42;
-        Opal::DynamicArray<int32_t*> ptr_arr(3, &default_value);
-        REQUIRE(ptr_arr.GetCapacity() == 4);
-        REQUIRE(ptr_arr.GetSize() == 3);
-        REQUIRE(ptr_arr.GetData() != nullptr);
-        REQUIRE(ptr_arr.GetData()[0] == &default_value);
-        REQUIRE(ptr_arr.GetData()[1] == &default_value);
-        REQUIRE(ptr_arr.GetData()[2] == &default_value);
-    }
-    SECTION("POD copy")
+    SECTION("Copy constructor")
     {
         Opal::DynamicArray<int32_t> int_arr(3, 42);
         Opal::DynamicArray<int32_t> int_arr_copy(int_arr);
@@ -140,25 +110,7 @@ TEST_CASE("Construction of DynamicArray with POD", "[DynamicArray]")
         REQUIRE(int_arr_copy.GetData()[1] == 42);
         REQUIRE(int_arr_copy.GetData()[2] == 42);
     }
-    SECTION("Pointer copy")
-    {
-        int32_t default_value = 42;
-        Opal::DynamicArray<int32_t*> ptr_arr(3, &default_value);
-        Opal::DynamicArray<int32_t*> ptr_arr_copy(ptr_arr);
-        REQUIRE(ptr_arr.GetCapacity() == 4);
-        REQUIRE(ptr_arr.GetSize() == 3);
-        REQUIRE(ptr_arr.GetData() != nullptr);
-        REQUIRE(ptr_arr.GetData()[0] == &default_value);
-        REQUIRE(ptr_arr.GetData()[1] == &default_value);
-        REQUIRE(ptr_arr.GetData()[2] == &default_value);
-        REQUIRE(ptr_arr_copy.GetCapacity() == 4);
-        REQUIRE(ptr_arr_copy.GetSize() == 3);
-        REQUIRE(ptr_arr_copy.GetData() != nullptr);
-        REQUIRE(ptr_arr_copy.GetData()[0] == &default_value);
-        REQUIRE(ptr_arr_copy.GetData()[1] == &default_value);
-        REQUIRE(ptr_arr_copy.GetData()[2] == &default_value);
-    }
-    SECTION("POD move")
+    SECTION("Move constructor")
     {
         Opal::DynamicArray<int32_t> int_arr(3, 42);
         Opal::DynamicArray<int32_t> int_arr_copy(std::move(int_arr));
@@ -172,60 +124,48 @@ TEST_CASE("Construction of DynamicArray with POD", "[DynamicArray]")
         REQUIRE(int_arr_copy.GetData()[1] == 42);
         REQUIRE(int_arr_copy.GetData()[2] == 42);
     }
-    SECTION("Pointer move")
-    {
-        int32_t default_value = 42;
-        Opal::DynamicArray<int32_t*> ptr_arr(3, &default_value);
-        Opal::DynamicArray<int32_t*> ptr_arr_copy(std::move(ptr_arr));
-        REQUIRE(ptr_arr.GetCapacity() == 0);
-        REQUIRE(ptr_arr.GetSize() == 0);
-        REQUIRE(ptr_arr.GetData() == nullptr);
-        REQUIRE(ptr_arr_copy.GetCapacity() == 4);
-        REQUIRE(ptr_arr_copy.GetSize() == 3);
-        REQUIRE(ptr_arr_copy.GetData() != nullptr);
-        REQUIRE(ptr_arr_copy.GetData()[0] == &default_value);
-        REQUIRE(ptr_arr_copy.GetData()[1] == &default_value);
-        REQUIRE(ptr_arr_copy.GetData()[2] == &default_value);
-    }
 }
 
-TEST_CASE("Construction of DynamicArray with non-POD", "[DynamicArray]")
+TEST_CASE("Construction with non-POD data", "[DynamicArray]")
 {
-    SECTION("Non-POD type, initial count smaller then default capacity")
+    SECTION("Size constructor")
     {
-        g_default_call_count = 0;
-        g_destroy_call_count = 0;
+        SECTION("Initial size smaller then default capacity")
         {
-            Opal::DynamicArray<NonPod> non_pod_arr(3);
-            REQUIRE(non_pod_arr.GetCapacity() == 4);
-            REQUIRE(non_pod_arr.GetSize() == 3);
-            REQUIRE(non_pod_arr.GetData() != nullptr);
-            REQUIRE(*non_pod_arr.GetData()[0].ptr == 5);
-            REQUIRE(*non_pod_arr.GetData()[1].ptr == 5);
-            REQUIRE(*non_pod_arr.GetData()[2].ptr == 5);
-            REQUIRE(g_default_call_count == 3);
+            g_default_call_count = 0;
+            g_destroy_call_count = 0;
+            {
+                Opal::DynamicArray<NonPod> non_pod_arr(3);
+                REQUIRE(non_pod_arr.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetSize() == 3);
+                REQUIRE(non_pod_arr.GetData() != nullptr);
+                REQUIRE(*non_pod_arr.GetData()[0].ptr == 5);
+                REQUIRE(*non_pod_arr.GetData()[1].ptr == 5);
+                REQUIRE(*non_pod_arr.GetData()[2].ptr == 5);
+                REQUIRE(g_default_call_count == 3);
+            }
+            REQUIRE(g_destroy_call_count == 3);
         }
-        REQUIRE(g_destroy_call_count == 3);
-    }
-    SECTION("Non-POD type, initial count larger then default capacity")
-    {
-        g_default_call_count = 0;
-        g_destroy_call_count = 0;
+        SECTION("Initial size larger then default capacity")
         {
-            Opal::DynamicArray<NonPod> non_pod_arr(5);
-            REQUIRE(non_pod_arr.GetCapacity() == 5);
-            REQUIRE(non_pod_arr.GetSize() == 5);
-            REQUIRE(non_pod_arr.GetData() != nullptr);
-            REQUIRE(*non_pod_arr.GetData()[0].ptr == 5);
-            REQUIRE(*non_pod_arr.GetData()[1].ptr == 5);
-            REQUIRE(*non_pod_arr.GetData()[2].ptr == 5);
-            REQUIRE(*non_pod_arr.GetData()[3].ptr == 5);
-            REQUIRE(*non_pod_arr.GetData()[4].ptr == 5);
-            REQUIRE(g_default_call_count == 5);
+            g_default_call_count = 0;
+            g_destroy_call_count = 0;
+            {
+                Opal::DynamicArray<NonPod> non_pod_arr(5);
+                REQUIRE(non_pod_arr.GetCapacity() == 5);
+                REQUIRE(non_pod_arr.GetSize() == 5);
+                REQUIRE(non_pod_arr.GetData() != nullptr);
+                REQUIRE(*non_pod_arr.GetData()[0].ptr == 5);
+                REQUIRE(*non_pod_arr.GetData()[1].ptr == 5);
+                REQUIRE(*non_pod_arr.GetData()[2].ptr == 5);
+                REQUIRE(*non_pod_arr.GetData()[3].ptr == 5);
+                REQUIRE(*non_pod_arr.GetData()[4].ptr == 5);
+                REQUIRE(g_default_call_count == 5);
+            }
+            REQUIRE(g_destroy_call_count == 5);
         }
-        REQUIRE(g_destroy_call_count == 5);
     }
-    SECTION("Non-POD type, initial count and default value")
+    SECTION("Size and default value constructor")
     {
         g_value_call_count = 0;
         g_copy_call_count = 0;
@@ -240,6 +180,57 @@ TEST_CASE("Construction of DynamicArray with non-POD", "[DynamicArray]")
             REQUIRE(*non_pod_arr.GetData()[0].ptr == 42);
             REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
             REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
+            REQUIRE(g_value_call_count == 1);
+            REQUIRE(g_copy_call_count == 3);
+            REQUIRE(g_copy_assign_call_count == 0);
+        }
+        REQUIRE(g_destroy_call_count == 4);
+    }
+    SECTION("Copy constructor")
+    {
+        g_value_call_count = 0;
+        g_copy_call_count = 0;
+        g_copy_assign_call_count = 0;
+        g_destroy_call_count = 0;
+        {
+            Opal::DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+            Opal::DynamicArray<NonPod> non_pod_arr_copy(non_pod_arr);
+            REQUIRE(non_pod_arr.GetCapacity() == 4);
+            REQUIRE(non_pod_arr.GetSize() == 3);
+            REQUIRE(non_pod_arr.GetData() != nullptr);
+            REQUIRE(*non_pod_arr.GetData()[0].ptr == 42);
+            REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
+            REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
+            REQUIRE(non_pod_arr_copy.GetCapacity() == 4);
+            REQUIRE(non_pod_arr_copy.GetSize() == 3);
+            REQUIRE(non_pod_arr_copy.GetData() != nullptr);
+            REQUIRE(*non_pod_arr_copy.GetData()[0].ptr == 42);
+            REQUIRE(*non_pod_arr_copy.GetData()[1].ptr == 42);
+            REQUIRE(*non_pod_arr_copy.GetData()[2].ptr == 42);
+            REQUIRE(g_value_call_count == 1);
+            REQUIRE(g_copy_call_count == 6);
+            REQUIRE(g_copy_assign_call_count == 0);
+        }
+        REQUIRE(g_destroy_call_count == 7);
+    }
+    SECTION("Move constructor")
+    {
+        g_value_call_count = 0;
+        g_copy_call_count = 0;
+        g_copy_assign_call_count = 0;
+        g_destroy_call_count = 0;
+        {
+            Opal::DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+            Opal::DynamicArray<NonPod> non_pod_arr_copy(std::move(non_pod_arr));
+            REQUIRE(non_pod_arr.GetCapacity() == 0);
+            REQUIRE(non_pod_arr.GetSize() == 0);
+            REQUIRE(non_pod_arr.GetData() == nullptr);
+            REQUIRE(non_pod_arr_copy.GetCapacity() == 4);
+            REQUIRE(non_pod_arr_copy.GetSize() == 3);
+            REQUIRE(non_pod_arr_copy.GetData() != nullptr);
+            REQUIRE(*non_pod_arr_copy.GetData()[0].ptr == 42);
+            REQUIRE(*non_pod_arr_copy.GetData()[1].ptr == 42);
+            REQUIRE(*non_pod_arr_copy.GetData()[2].ptr == 42);
             REQUIRE(g_value_call_count == 1);
             REQUIRE(g_copy_call_count == 3);
             REQUIRE(g_copy_assign_call_count == 0);
