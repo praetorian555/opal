@@ -1,4 +1,6 @@
-add_executable(opal_test dynamic-array-test.cpp)
+add_executable(opal_test
+        dynamic-array-test.cpp
+        expected-test.cpp)
 target_link_libraries(opal_test opal)
 target_link_libraries(opal_test catch2)
 target_link_libraries(opal_test opal_warnings)
