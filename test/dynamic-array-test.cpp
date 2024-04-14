@@ -542,3 +542,33 @@ TEST_CASE("Assign with non-POD data", "[DynamicArray]")
         REQUIRE(g_destroy_call_count == 10);
     }
 }
+
+TEST_CASE("Access element with At", "[DynamicArray]")
+{
+    SECTION("POD data")
+    {
+        Opal::DynamicArray<int32_t> int_arr(3, 42);
+        REQUIRE(int_arr.At(0).GetValue() == 42);
+        REQUIRE(int_arr.At(1).GetValue() == 42);
+        REQUIRE(int_arr.At(2).GetValue() == 42);
+        REQUIRE(int_arr.At(3).HasValue() == false);
+    }
+    SECTION("Non-POD data")
+    {
+        g_value_call_count = 0;
+        g_copy_call_count = 0;
+        g_copy_assign_call_count = 0;
+        g_destroy_call_count = 0;
+        {
+            Opal::DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+            REQUIRE(*non_pod_arr.At(0).GetValue().ptr == 42);
+            REQUIRE(*non_pod_arr.At(1).GetValue().ptr == 42);
+            REQUIRE(*non_pod_arr.At(2).GetValue().ptr == 42);
+            REQUIRE(non_pod_arr.At(3).HasValue() == false);
+            REQUIRE(g_value_call_count == 1);
+            REQUIRE(g_copy_call_count == 3);
+            REQUIRE(g_copy_assign_call_count == 0);
+        }
+        REQUIRE(g_destroy_call_count == 4);
+    }
+}
