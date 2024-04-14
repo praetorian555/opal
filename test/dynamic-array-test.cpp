@@ -466,3 +466,79 @@ TEST_CASE("Move assignment", "[DynamicArray]")
         }
     }
 }
+
+TEST_CASE("Assign with POD data", "[DynamicArray]")
+{
+    SECTION("Assign count less then current size")
+    {
+        Opal::DynamicArray<int32_t> int_arr(5, 25);
+        int_arr.Assign(3, 42);
+        REQUIRE(int_arr.GetCapacity() == 5);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 42);
+        REQUIRE(int_arr.GetData()[2] == 42);
+    }
+    SECTION("Assign count larger then current size")
+    {
+        Opal::DynamicArray<int32_t> int_arr(3, 42);
+        int_arr.Assign(5, 25);
+        REQUIRE(int_arr.GetCapacity() == 5);
+        REQUIRE(int_arr.GetSize() == 5);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 25);
+        REQUIRE(int_arr.GetData()[1] == 25);
+        REQUIRE(int_arr.GetData()[2] == 25);
+        REQUIRE(int_arr.GetData()[3] == 25);
+        REQUIRE(int_arr.GetData()[4] == 25);
+    }
+}
+
+TEST_CASE("Assign with non-POD data", "[DynamicArray]")
+{
+    SECTION("Assign count less then current size")
+    {
+        g_value_call_count = 0;
+        g_copy_call_count = 0;
+        g_copy_assign_call_count = 0;
+        g_destroy_call_count = 0;
+        {
+            Opal::DynamicArray<NonPod> non_pod_arr(5, NonPod(42));
+            non_pod_arr.Assign(3, NonPod(24));
+            REQUIRE(non_pod_arr.GetCapacity() == 5);
+            REQUIRE(non_pod_arr.GetSize() == 3);
+            REQUIRE(non_pod_arr.GetData() != nullptr);
+            REQUIRE(*non_pod_arr.GetData()[0].ptr == 24);
+            REQUIRE(*non_pod_arr.GetData()[1].ptr == 24);
+            REQUIRE(*non_pod_arr.GetData()[2].ptr == 24);
+            REQUIRE(g_value_call_count == 2);
+            REQUIRE(g_copy_call_count == 8);
+            REQUIRE(g_copy_assign_call_count == 0);
+        }
+        REQUIRE(g_destroy_call_count == 10);
+    }
+    SECTION("Assign count larger then current size")
+    {
+        g_value_call_count = 0;
+        g_copy_call_count = 0;
+        g_copy_assign_call_count = 0;
+        g_destroy_call_count = 0;
+        {
+            Opal::DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+            non_pod_arr.Assign(5, NonPod(24));
+            REQUIRE(non_pod_arr.GetCapacity() == 5);
+            REQUIRE(non_pod_arr.GetSize() == 5);
+            REQUIRE(non_pod_arr.GetData() != nullptr);
+            REQUIRE(*non_pod_arr.GetData()[0].ptr == 24);
+            REQUIRE(*non_pod_arr.GetData()[1].ptr == 24);
+            REQUIRE(*non_pod_arr.GetData()[2].ptr == 24);
+            REQUIRE(*non_pod_arr.GetData()[3].ptr == 24);
+            REQUIRE(*non_pod_arr.GetData()[4].ptr == 24);
+            REQUIRE(g_value_call_count == 2);
+            REQUIRE(g_copy_call_count == 8);
+            REQUIRE(g_copy_assign_call_count == 0);
+        }
+        REQUIRE(g_destroy_call_count == 10);
+    }
+}

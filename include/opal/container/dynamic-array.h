@@ -34,6 +34,9 @@ public:
     T* GetData();
     const T* GetData() const;
 
+    void Assign(SizeType count, const T& value);
+    // TODO: Implement assign that takes iterators as input
+
 private:
     static constexpr SizeType k_default_capacity = 4;
 
@@ -184,6 +187,26 @@ template <typename T>
 inline const T* Opal::DynamicArray<T>::GetData() const
 {
     return m_data;
+}
+
+template <typename T>
+void Opal::DynamicArray<T>::Assign(DynamicArray::SizeType count, const T& value)
+{
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        m_data[i].~T();  // Invokes destructor on allocated memory
+    }
+    if (count > m_capacity)
+    {
+        Deallocate(m_data);
+        m_capacity = count;
+        m_data = Allocate(m_capacity * sizeof(T));
+    }
+    m_size = count;
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T(value);  // Invokes copy constructor on allocated memory
+    }
 }
 
 template <typename T>
