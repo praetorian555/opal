@@ -108,7 +108,9 @@ public:
     using IteratorType = DynamicArrayIterator<DynamicArray<T, Allocator>>;
     using ConstIteratorType = DynamicArrayConstIterator<DynamicArray<T, Allocator>>;
 
-    static_assert(k_is_same_value<ValueType, typename AllocatorType::ValueType>);
+    static_assert(k_is_same_value<ValueType, typename Allocator::ValueType>, "Allocator type must match value type");
+    static_assert(!k_is_reference_value<ValueType>, "Value type must be a reference");
+    static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
 
     DynamicArray();
     explicit DynamicArray(SizeType count);
