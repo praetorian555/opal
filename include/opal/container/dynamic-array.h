@@ -66,6 +66,8 @@ public:
 
     void PushBack(const T& value);
     void PushBack(T&& value);
+
+    void PopBack();
 private:
     static constexpr SizeType k_default_capacity = 4;
     static constexpr f64 k_resize_factor = 1.5;
@@ -413,4 +415,15 @@ void Opal::DynamicArray<T, Allocator>::PushBack(T&& value)
     }
     new (&m_data[m_size]) T(Move(value));  // Invokes move constructor on allocated memory
     m_size++;
+}
+
+template <typename T, typename Allocator>
+void Opal::DynamicArray<T, Allocator>::PopBack()
+{
+    if (m_size == 0)
+    {
+        return;
+    }
+    m_data[m_size - 1].~T();  // Invokes destructor on allocated memory
+    m_size--;
 }

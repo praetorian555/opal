@@ -1156,3 +1156,70 @@ TEST_CASE("Push back", "[DynamicArray]")
         }
     }
 }
+
+TEST_CASE("Pop back", "[DynamicArray]")
+{
+    SECTION("POD data")
+    {
+        SECTION("Empty array")
+        {
+            Opal::DynamicArray<i32> int_arr;
+            int_arr.PopBack();
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 0);
+            REQUIRE(int_arr.GetData() != nullptr);
+        }
+        SECTION("Non-empty array")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            int_arr.PopBack();
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 2);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+        }
+    }
+    SECTION("Non-POD data")
+    {
+        SECTION("Empty array")
+        {
+            g_value_call_count = 0;
+            g_copy_call_count = 0;
+            g_copy_assign_call_count = 0;
+            g_destroy_call_count = 0;
+            {
+                Opal::DynamicArray<NonPod> non_pod_arr;
+                non_pod_arr.PopBack();
+                REQUIRE(non_pod_arr.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetSize() == 0);
+                REQUIRE(non_pod_arr.GetData() != nullptr);
+                REQUIRE(g_value_call_count == 0);
+                REQUIRE(g_copy_call_count == 0);
+                REQUIRE(g_copy_assign_call_count == 0);
+            }
+            REQUIRE(g_destroy_call_count == 0);
+        }
+        SECTION("Non-empty array")
+        {
+            g_value_call_count = 0;
+            g_copy_call_count = 0;
+            g_copy_assign_call_count = 0;
+            g_destroy_call_count = 0;
+            {
+                Opal::DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+                non_pod_arr.PopBack();
+                REQUIRE(non_pod_arr.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetSize() == 2);
+                REQUIRE(non_pod_arr.GetData() != nullptr);
+                REQUIRE(*non_pod_arr[0].ptr == 42);
+                REQUIRE(*non_pod_arr[1].ptr == 42);
+                REQUIRE(g_value_call_count == 1);
+                REQUIRE(g_copy_call_count == 3);
+                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_destroy_call_count == 2);
+            }
+            REQUIRE(g_destroy_call_count == 4);
+        }
+    }
+}
