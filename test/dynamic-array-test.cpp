@@ -53,6 +53,8 @@ struct NonPod
         delete ptr;
         g_destroy_call_count++;
     }
+
+    bool operator==(const NonPod& other) const { return *ptr == *other.ptr; }
 };
 }  // namespace
 
@@ -464,6 +466,40 @@ TEST_CASE("Move assignment", "[DynamicArray]")
             }
             REQUIRE(g_destroy_call_count == 10);
         }
+    }
+}
+
+TEST_CASE("Compare", "[DynamicArray]")
+{
+    SECTION("POD data")
+    {
+        Opal::DynamicArray<i32> int_arr1(3, 42);
+        Opal::DynamicArray<i32> int_arr2(3, 42);
+        Opal::DynamicArray<i32> int_arr3(3, 24);
+        Opal::DynamicArray<i32> int_arr4(2, 42);
+        REQUIRE(int_arr1 == int_arr2);
+        REQUIRE(int_arr1 != int_arr3);
+        REQUIRE(int_arr1 != int_arr4);
+    }
+    SECTION("Non-POD data")
+    {
+        g_value_call_count = 0;
+        g_copy_call_count = 0;
+        g_copy_assign_call_count = 0;
+        g_destroy_call_count = 0;
+        {
+            Opal::DynamicArray<NonPod> non_pod_arr1(3, NonPod(42));
+            Opal::DynamicArray<NonPod> non_pod_arr2(3, NonPod(42));
+            Opal::DynamicArray<NonPod> non_pod_arr3(3, NonPod(24));
+            Opal::DynamicArray<NonPod> non_pod_arr4(2, NonPod(42));
+            REQUIRE(non_pod_arr1 == non_pod_arr2);
+            REQUIRE(non_pod_arr1 != non_pod_arr3);
+            REQUIRE(non_pod_arr1 != non_pod_arr4);
+            REQUIRE(g_value_call_count == 4);
+            REQUIRE(g_copy_call_count == 11);
+            REQUIRE(g_copy_assign_call_count == 0);
+        }
+        REQUIRE(g_destroy_call_count == 15);
     }
 }
 

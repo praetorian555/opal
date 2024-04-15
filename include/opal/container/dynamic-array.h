@@ -34,6 +34,8 @@ public:
     DynamicArray& operator=(const DynamicArray& other);
     DynamicArray& operator=(DynamicArray&& other) noexcept;
 
+    bool operator==(const DynamicArray& other) const;
+
     void Assign(SizeType count, const T& value);
     // TODO: Implement assign that takes iterators as input
 
@@ -198,6 +200,23 @@ Opal::DynamicArray<T, Allocator>& Opal::DynamicArray<T, Allocator>::operator=(Dy
     other.m_size = 0;
     other.m_data = nullptr;
     return *this;
+}
+
+template <typename T, typename Allocator>
+bool Opal::DynamicArray<T, Allocator>::operator==(const DynamicArray& other) const
+{
+    if (m_size != other.m_size)
+    {
+        return false;
+    }
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        if (m_data[i] != other.m_data[i])
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 template <typename T, typename Allocator>
