@@ -61,6 +61,8 @@ public:
 
     void Resize(SizeType new_size);
     void Resize(SizeType new_size, const T& default_value);
+
+    void Clear();
 private:
     static constexpr SizeType k_default_capacity = 4;
 
@@ -375,4 +377,14 @@ void Opal::DynamicArray<T, Allocator>::Resize(DynamicArray::SizeType new_size, c
         }
         m_size = new_size;
     }
+}
+
+template <typename T, typename Allocator>
+void Opal::DynamicArray<T, Allocator>::Clear()
+{
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        m_data[i].~T();  // Invokes destructor on allocated memory
+    }
+    m_size = 0;
 }
