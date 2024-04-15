@@ -245,6 +245,17 @@ TEST_CASE("Copy assignment", "[DynamicArray]")
 {
     SECTION("POD type")
     {
+        SECTION("Copy into itself")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            int_arr = int_arr;
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 3);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr.GetData()[0] == 42);
+            REQUIRE(int_arr.GetData()[1] == 42);
+            REQUIRE(int_arr.GetData()[2] == 42);
+        }
         SECTION("Copy default array")
         {
             Opal::DynamicArray<i32> int_arr;
@@ -389,6 +400,17 @@ TEST_CASE("Move assignment", "[DynamicArray]")
 {
     SECTION("Pod type")
     {
+        SECTION("Move into itself")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            int_arr = std::move(int_arr);
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 3);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr.GetData()[0] == 42);
+            REQUIRE(int_arr.GetData()[1] == 42);
+            REQUIRE(int_arr.GetData()[2] == 42);
+        }
         SECTION("Move empty array")
         {
             Opal::DynamicArray<i32> int_arr;

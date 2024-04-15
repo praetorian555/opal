@@ -159,6 +159,10 @@ Opal::DynamicArray<T, Allocator>::~DynamicArray()
 template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>& Opal::DynamicArray<T, Allocator>::operator=(const DynamicArray& other)
 {
+    if (this == &other)
+    {
+        return *this;
+    }
     if (m_data != nullptr)
     {
         for (SizeType i = 0; i < m_size; i++)
@@ -184,6 +188,10 @@ Opal::DynamicArray<T, Allocator>& Opal::DynamicArray<T, Allocator>::operator=(co
 template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>& Opal::DynamicArray<T, Allocator>::operator=(DynamicArray&& other) noexcept
 {
+    if (this == &other)
+    {
+        return *this;
+    }
     if (m_data != nullptr)
     {
         for (SizeType i = 0; i < m_size; i++)
