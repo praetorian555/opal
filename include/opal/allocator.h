@@ -3,6 +3,7 @@
 #include <malloc.h>
 
 #include "opal/types.h"
+#include "opal/type-traits.h"
 
 namespace Opal
 {
@@ -10,6 +11,10 @@ namespace Opal
 template <typename T>
 struct DefaultAllocator
 {
+    static_assert(sizeof(T) > 0, "Type must have a size greater than 0");
+    static_assert(!k_is_reference_value<T>, "Type must not be a reference");
+    static_assert(!k_is_const_value<T>, "Type must not be const");
+
     using ValueType = T;
     using PointerType = T*;
     using DifferenceType = i64;
