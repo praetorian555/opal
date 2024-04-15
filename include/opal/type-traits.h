@@ -31,25 +31,19 @@ RemoveReferenceType<T>&& Move(T&& value)
 }
 
 template <typename T>
-struct IsReference
-{
-    static constexpr bool k_value = false;
-};
+inline constexpr bool k_is_reference_value = false;
 
 template <typename T>
-struct IsReference<T&>
-{
-    static constexpr bool k_value = true;
-};
+inline constexpr bool k_is_reference_value<T&> = true;
 
 template <typename T>
-struct IsReference<T&&>
-{
-    static constexpr bool k_value = true;
-};
+inline constexpr bool k_is_reference_value<T&&> = true;
 
 template <typename T>
-constexpr bool k_is_reference_value = IsReference<T>::k_value;
+inline constexpr bool k_is_const_value = false;
+
+template <typename T>
+inline constexpr bool k_is_const_value<const T> = true;
 
 template <bool k_test, typename T1, typename T2>
 struct Conditional
