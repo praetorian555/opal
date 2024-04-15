@@ -40,10 +40,17 @@ public:
     Reference operator[](SizeType index);
     ConstReference operator[](SizeType index) const;
 
-    [[nodiscard]] SizeType GetCapacity() const;
-    [[nodiscard]] SizeType GetSize() const;
+    Expected<Reference, ErrorCode> Front();
+    Expected<ConstReference, ErrorCode> Front() const;
+
+    Expected<Reference, ErrorCode> Back();
+    Expected<ConstReference, ErrorCode> Back() const;
+
     T* GetData();
     const T* GetData() const;
+
+    [[nodiscard]] SizeType GetCapacity() const;
+    [[nodiscard]] SizeType GetSize() const;
 
     void Assign(SizeType count, const T& value);
     // TODO: Implement assign that takes iterators as input
@@ -192,18 +199,6 @@ inline Opal::DynamicArray<T, Allocator>::SizeType Opal::DynamicArray<T, Allocato
 }
 
 template <typename T, typename Allocator>
-inline T* Opal::DynamicArray<T, Allocator>::GetData()
-{
-    return m_data;
-}
-
-template <typename T, typename Allocator>
-inline const T* Opal::DynamicArray<T, Allocator>::GetData() const
-{
-    return m_data;
-}
-
-template <typename T, typename Allocator>
 void Opal::DynamicArray<T, Allocator>::Assign(DynamicArray::SizeType count, const T& value)
 {
     for (SizeType i = 0; i < m_size; i++)
@@ -261,4 +256,64 @@ typename Opal::DynamicArray<T, Allocator>::ConstReference Opal::DynamicArray<T, 
 {
     OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
+}
+
+template <typename T, typename Allocator>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::Reference, Opal::ErrorCode>
+Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::Front()
+{
+    using ReturnType = Expected<Reference, ErrorCode>;
+    if (m_size == 0)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[0]);
+}
+
+template <typename T, typename Allocator>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ConstReference , Opal::ErrorCode>
+Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::Front() const
+{
+    using ReturnType = Expected<Reference, ErrorCode>;
+    if (m_size == 0)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[0]);
+}
+
+template <typename T, typename Allocator>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::Reference, Opal::ErrorCode>
+Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::Back()
+{
+    using ReturnType = Expected<Reference, ErrorCode>;
+    if (m_size == 0)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[m_size - 1]);
+}
+
+template <typename T, typename Allocator>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ConstReference , Opal::ErrorCode>
+Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::Back() const
+{
+    using ReturnType = Expected<Reference, ErrorCode>;
+    if (m_size == 0)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[m_size - 1]);
+}
+
+template <typename T, typename Allocator>
+inline T* Opal::DynamicArray<T, Allocator>::GetData()
+{
+    return m_data;
+}
+
+template <typename T, typename Allocator>
+inline const T* Opal::DynamicArray<T, Allocator>::GetData() const
+{
+    return m_data;
 }
