@@ -66,4 +66,10 @@ struct Conditional<false, T1, T2>
 template <bool k_test, typename T1, typename T2>
 using ConditionalType = typename Conditional<k_test, T1, T2>::Type;
 
+template <typename, typename>
+inline constexpr bool k_is_same_value = false;
+
+template <typename T>
+inline constexpr bool k_is_same_value<T, T> = true;
+
 }  // namespace Opal
