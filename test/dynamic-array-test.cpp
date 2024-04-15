@@ -2,8 +2,6 @@
 
 #include "opal/container/dynamic-array.h"
 
-#include <vector>
-
 namespace
 {
 i32 g_default_call_count = 0;
