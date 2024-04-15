@@ -63,8 +63,12 @@ public:
     void Resize(SizeType new_size, const T& default_value);
 
     void Clear();
+
+    void PushBack(const T& value);
+    void PushBack(T&& value);
 private:
     static constexpr SizeType k_default_capacity = 4;
+    static constexpr f64 k_resize_factor = 1.5;
 
     Allocator m_allocator;
     SizeType m_capacity = k_default_capacity;
@@ -387,4 +391,26 @@ void Opal::DynamicArray<T, Allocator>::Clear()
         m_data[i].~T();  // Invokes destructor on allocated memory
     }
     m_size = 0;
+}
+
+template <typename T, typename Allocator>
+void Opal::DynamicArray<T, Allocator>::PushBack(const T& value)
+{
+    if (m_size == m_capacity)
+    {
+        Reserve(static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0));
+    }
+    new (&m_data[m_size]) T(value);  // Invokes copy constructor on allocated memory
+    m_size++;
+}
+
+template <typename T, typename Allocator>
+void Opal::DynamicArray<T, Allocator>::PushBack(T&& value)
+{
+    if (m_size == m_capacity)
+    {
+        Reserve(static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0));
+    }
+    new (&m_data[m_size]) T(Move(value));  // Invokes move constructor on allocated memory
+    m_size++;
 }

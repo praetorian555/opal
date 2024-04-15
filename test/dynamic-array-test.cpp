@@ -990,3 +990,169 @@ TEST_CASE("Clear", "[DynamicArray]")
         REQUIRE(g_destroy_call_count == 4);
     }
 }
+
+TEST_CASE("Push back", "[DynamicArray]")
+{
+    SECTION("POD data")
+    {
+        SECTION("with copy")
+        {
+            SECTION("with enough capacity")
+            {
+                Opal::DynamicArray<i32> int_arr(3, 42);
+                const i32 val = 25;
+                int_arr.PushBack(val);
+                REQUIRE(int_arr.GetCapacity() == 4);
+                REQUIRE(int_arr.GetSize() == 4);
+                REQUIRE(int_arr.GetData() != nullptr);
+                REQUIRE(int_arr[0] == 42);
+                REQUIRE(int_arr[1] == 42);
+                REQUIRE(int_arr[2] == 42);
+                REQUIRE(int_arr[3] == 25);
+            }
+            SECTION("without enough capacity")
+            {
+                Opal::DynamicArray<i32> int_arr(4, 42);
+                const i32 val = 25;
+                int_arr.PushBack(val);
+                REQUIRE(int_arr.GetCapacity() == 7);
+                REQUIRE(int_arr.GetSize() == 5);
+                REQUIRE(int_arr.GetData() != nullptr);
+                REQUIRE(int_arr[0] == 42);
+                REQUIRE(int_arr[1] == 42);
+                REQUIRE(int_arr[2] == 42);
+                REQUIRE(int_arr[3] == 42);
+                REQUIRE(int_arr[4] == 25);
+            }
+        }
+        SECTION("With move")
+        {
+            SECTION("With enough capacity")
+            {
+                Opal::DynamicArray<i32> int_arr(3, 42);
+                int_arr.PushBack(25);
+                REQUIRE(int_arr.GetCapacity() == 4);
+                REQUIRE(int_arr.GetSize() == 4);
+                REQUIRE(int_arr.GetData() != nullptr);
+                REQUIRE(int_arr[0] == 42);
+                REQUIRE(int_arr[1] == 42);
+                REQUIRE(int_arr[2] == 42);
+                REQUIRE(int_arr[3] == 25);
+            }
+            SECTION("Without enough capacity")
+            {
+                Opal::DynamicArray<i32> int_arr(4, 42);
+                int_arr.PushBack(25);
+                REQUIRE(int_arr.GetCapacity() == 7);
+                REQUIRE(int_arr.GetSize() == 5);
+                REQUIRE(int_arr.GetData() != nullptr);
+                REQUIRE(int_arr[0] == 42);
+                REQUIRE(int_arr[1] == 42);
+                REQUIRE(int_arr[2] == 42);
+                REQUIRE(int_arr[3] == 42);
+                REQUIRE(int_arr[4] == 25);
+            }
+        }
+    }
+    SECTION("Non-POD data")
+    {
+        SECTION("With copy")
+        {
+            SECTION("With enough capacity")
+            {
+                g_value_call_count = 0;
+                g_copy_call_count = 0;
+                g_copy_assign_call_count = 0;
+                g_destroy_call_count = 0;
+                {
+                    Opal::DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+                    const NonPod val(25);
+                    non_pod_arr.PushBack(val);
+                    REQUIRE(non_pod_arr.GetCapacity() == 4);
+                    REQUIRE(non_pod_arr.GetSize() == 4);
+                    REQUIRE(non_pod_arr.GetData() != nullptr);
+                    REQUIRE(*non_pod_arr[0].ptr == 42);
+                    REQUIRE(*non_pod_arr[1].ptr == 42);
+                    REQUIRE(*non_pod_arr[2].ptr == 42);
+                    REQUIRE(*non_pod_arr[3].ptr == 25);
+                    REQUIRE(g_value_call_count == 2);
+                    REQUIRE(g_copy_call_count == 4);
+                    REQUIRE(g_copy_assign_call_count == 0);
+                }
+                REQUIRE(g_destroy_call_count == 6);
+            }
+            SECTION("Without enough capacity")
+            {
+                g_value_call_count = 0;
+                g_copy_call_count = 0;
+                g_copy_assign_call_count = 0;
+                g_destroy_call_count = 0;
+                {
+                    Opal::DynamicArray<NonPod> non_pod_arr(4, NonPod(42));
+                    const NonPod val(25);
+                    non_pod_arr.PushBack(val);
+                    REQUIRE(non_pod_arr.GetCapacity() == 7);
+                    REQUIRE(non_pod_arr.GetSize() == 5);
+                    REQUIRE(non_pod_arr.GetData() != nullptr);
+                    REQUIRE(*non_pod_arr[0].ptr == 42);
+                    REQUIRE(*non_pod_arr[1].ptr == 42);
+                    REQUIRE(*non_pod_arr[2].ptr == 42);
+                    REQUIRE(*non_pod_arr[3].ptr == 42);
+                    REQUIRE(*non_pod_arr[4].ptr == 25);
+                    REQUIRE(g_value_call_count == 2);
+                    REQUIRE(g_copy_call_count == 5);
+                    REQUIRE(g_copy_assign_call_count == 0);
+                }
+                REQUIRE(g_destroy_call_count == 7);
+            }
+        }
+        SECTION("With move")
+        {
+            SECTION("With enough capacity")
+            {
+                g_value_call_count = 0;
+                g_copy_call_count = 0;
+                g_copy_assign_call_count = 0;
+                g_destroy_call_count = 0;
+                {
+                    Opal::DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+                    non_pod_arr.PushBack(NonPod(25));
+                    REQUIRE(non_pod_arr.GetCapacity() == 4);
+                    REQUIRE(non_pod_arr.GetSize() == 4);
+                    REQUIRE(non_pod_arr.GetData() != nullptr);
+                    REQUIRE(*non_pod_arr[0].ptr == 42);
+                    REQUIRE(*non_pod_arr[1].ptr == 42);
+                    REQUIRE(*non_pod_arr[2].ptr == 42);
+                    REQUIRE(*non_pod_arr[3].ptr == 25);
+                    REQUIRE(g_value_call_count == 2);
+                    REQUIRE(g_copy_call_count == 3);
+                    REQUIRE(g_copy_assign_call_count == 0);
+                }
+                REQUIRE(g_destroy_call_count == 6);
+            }
+            SECTION("Without enough capacity")
+            {
+                g_value_call_count = 0;
+                g_copy_call_count = 0;
+                g_copy_assign_call_count = 0;
+                g_destroy_call_count = 0;
+                {
+                    Opal::DynamicArray<NonPod> non_pod_arr(4, NonPod(42));
+                    non_pod_arr.PushBack(NonPod(25));
+                    REQUIRE(non_pod_arr.GetCapacity() == 7);
+                    REQUIRE(non_pod_arr.GetSize() == 5);
+                    REQUIRE(non_pod_arr.GetData() != nullptr);
+                    REQUIRE(*non_pod_arr[0].ptr == 42);
+                    REQUIRE(*non_pod_arr[1].ptr == 42);
+                    REQUIRE(*non_pod_arr[2].ptr == 42);
+                    REQUIRE(*non_pod_arr[3].ptr == 42);
+                    REQUIRE(*non_pod_arr[4].ptr == 25);
+                    REQUIRE(g_value_call_count == 2);
+                    REQUIRE(g_copy_call_count == 4);
+                    REQUIRE(g_copy_assign_call_count == 0);
+                }
+                REQUIRE(g_destroy_call_count == 7);
+            }
+        }
+    }
+}
