@@ -106,7 +106,7 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const T& default_
     {
         m_capacity = count;
     }
-    m_data = m_allocator.Allocate(count);
+    m_data = m_allocator.Allocate(m_capacity);
     OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
     m_size = count;
     for (SizeType i = 0; i < m_size; i++)
