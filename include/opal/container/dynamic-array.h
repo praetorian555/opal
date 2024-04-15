@@ -58,6 +58,9 @@ public:
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
 
     void Reserve(SizeType new_capacity);
+
+    void Resize(SizeType new_size);
+    void Resize(SizeType new_size, const T& default_value);
 private:
     static constexpr SizeType k_default_capacity = 4;
 
@@ -337,4 +340,39 @@ void Opal::DynamicArray<T, Allocator>::Reserve(DynamicArray::SizeType new_capaci
     m_allocator.Deallocate(m_data, 1);
     m_data = new_data;
     m_capacity = new_capacity;
+}
+
+template <typename T, typename Allocator>
+void Opal::DynamicArray<T, Allocator>::Resize(DynamicArray::SizeType new_size)
+{
+    Resize(new_size, T());
+}
+
+template <typename T, typename Allocator>
+void Opal::DynamicArray<T, Allocator>::Resize(DynamicArray::SizeType new_size, const T& default_value)
+{
+    if (new_size == m_size)
+    {
+        return;
+    }
+    if (new_size < m_size)
+    {
+        for (SizeType i = new_size; i < m_size; i++)
+        {
+            m_data[i].~T();  // Invokes destructor on allocated memory
+        }
+        m_size = new_size;
+    }
+    else
+    {
+        if (new_size > m_capacity)
+        {
+            Reserve(new_size);
+        }
+        for (SizeType i = m_size; i < new_size; i++)
+        {
+            new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
+        }
+        m_size = new_size;
+    }
 }
