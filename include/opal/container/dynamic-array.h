@@ -34,6 +34,9 @@ public:
     DynamicArray& operator=(const DynamicArray& other);
     DynamicArray& operator=(DynamicArray&& other) noexcept;
 
+    void Assign(SizeType count, const T& value);
+    // TODO: Implement assign that takes iterators as input
+
     Expected<Reference, ErrorCode> At(SizeType index);
     Expected<ConstReference, ErrorCode> At(SizeType index) const;
 
@@ -52,9 +55,9 @@ public:
     [[nodiscard]] SizeType GetCapacity() const;
     [[nodiscard]] SizeType GetSize() const;
 
-    void Assign(SizeType count, const T& value);
-    // TODO: Implement assign that takes iterators as input
+    [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
 
+    void Reserve(SizeType new_capacity);
 private:
     static constexpr SizeType k_default_capacity = 4;
 
@@ -316,4 +319,22 @@ template <typename T, typename Allocator>
 inline const T* Opal::DynamicArray<T, Allocator>::GetData() const
 {
     return m_data;
+}
+
+template <typename T, typename Allocator>
+void Opal::DynamicArray<T, Allocator>::Reserve(DynamicArray::SizeType new_capacity)
+{
+    if (new_capacity <= m_capacity)
+    {
+        return;
+    }
+    T* new_data = m_allocator.Allocate(new_capacity);
+    OPAL_ASSERT(new_data != nullptr, "Failed to allocate memory for DynamicArray");
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&new_data[i]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
+    }
+    m_allocator.Deallocate(m_data, 1);
+    m_data = new_data;
+    m_capacity = new_capacity;
 }
