@@ -8,6 +8,7 @@ project(
 )
 
 option(OPAL_BUILD_TESTS "Build tests" ON)
+option(OPAL_HARDENING "Enable hardening options" ON)
 message(STATUS "OPAL_BUILD_TESTS: ${OPAL_BUILD_TESTS}")
 
 if (NOT CMAKE_CXX_STANDARD)
@@ -21,6 +22,11 @@ add_library(opal_warnings INTERFACE)
 add_library(opal_options INTERFACE)
 setup_compiler_warnings(opal_warnings)
 setup_compiler_options(opal_options)
+
+if (OPAL_HARDENING)
+    include(cmake/sanitizers.cmake)
+    setup_sanitizers(opal_options)
+endif ()
 
 add_subdirectory(third-party/catch2)
 add_subdirectory(src)
