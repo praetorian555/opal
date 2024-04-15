@@ -3,6 +3,7 @@
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/container/expected.h"
+#include "opal/error-codes.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -33,8 +34,8 @@ public:
     DynamicArray& operator=(const DynamicArray& other);
     DynamicArray& operator=(DynamicArray&& other) noexcept;
 
-    Expected<Reference, bool> At(SizeType index);
-    Expected<ConstReference, bool> At(SizeType index) const;
+    Expected<Reference, ErrorCode> At(SizeType index);
+    Expected<ConstReference, ErrorCode> At(SizeType index) const;
 
     Reference operator[](SizeType index);
     ConstReference operator[](SizeType index) const;
@@ -224,24 +225,26 @@ void Opal::DynamicArray<T, Allocator>::Assign(DynamicArray::SizeType count, cons
 }
 
 template <typename T, typename Allocator>
-Opal::Expected<typename Opal::DynamicArray<T, Allocator>::Reference, bool> Opal::DynamicArray<T, Allocator>::At(SizeType index)
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::Reference, Opal::ErrorCode> Opal::DynamicArray<T, Allocator>::At(SizeType index)
 {
-    using ReturnType = Expected<Reference, bool>;
+    using ReturnType = Expected<Reference, ErrorCode>;
     if (index >= m_size)
     {
-        return ReturnType(false);
+        return ReturnType(ErrorCode::OutOfBounds);
     }
     return ReturnType(m_data[index]);
 }
 
 template <typename T, typename Allocator>
-Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ConstReference, bool> Opal::DynamicArray<T, Allocator>::At(SizeType index) const
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ConstReference, Opal::ErrorCode> Opal::DynamicArray<T, Allocator>::At(
+    SizeType index) const
 {
+    using ReturnType = Expected<Reference, ErrorCode>;
     if (index >= m_size)
     {
-        return false;
+        return ReturnType(ErrorCode::OutOfBounds);
     }
-    return m_data[index];
+    return ReturnType(m_data[index]);
 }
 
 template <typename T, typename Allocator>
