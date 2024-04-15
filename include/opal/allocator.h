@@ -2,12 +2,18 @@
 
 #include <malloc.h>
 
+#include "opal/types.h"
+
 namespace Opal
 {
 
 template <typename T>
 struct DefaultAllocator
 {
+    using ValueType = T;
+    using PointerType = T*;
+    using DifferenceType = i64;
+
     DefaultAllocator() = default;
     DefaultAllocator(const DefaultAllocator& other) = default;
     DefaultAllocator(DefaultAllocator&& other) = default;
