@@ -572,3 +572,31 @@ TEST_CASE("Access element with At", "[DynamicArray]")
         REQUIRE(g_destroy_call_count == 4);
     }
 }
+
+TEST_CASE("Access element with operator[]", "[DynamicArray]")
+{
+    SECTION("POD data")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        REQUIRE(int_arr[0] == 42);
+        REQUIRE(int_arr[1] == 42);
+        REQUIRE(int_arr[2] == 42);
+    }
+    SECTION("Non-POD data")
+    {
+        g_value_call_count = 0;
+        g_copy_call_count = 0;
+        g_copy_assign_call_count = 0;
+        g_destroy_call_count = 0;
+        {
+            Opal::DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+            REQUIRE(*non_pod_arr[0].ptr == 42);
+            REQUIRE(*non_pod_arr[1].ptr == 42);
+            REQUIRE(*non_pod_arr[2].ptr == 42);
+            REQUIRE(g_value_call_count == 1);
+            REQUIRE(g_copy_call_count == 3);
+            REQUIRE(g_copy_assign_call_count == 0);
+        }
+        REQUIRE(g_destroy_call_count == 4);
+    }
+}

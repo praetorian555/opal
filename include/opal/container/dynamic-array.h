@@ -1,9 +1,9 @@
 #pragma once
 
-#include "opal/types.h"
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/container/expected.h"
+#include "opal/types.h"
 
 namespace Opal
 {
@@ -35,6 +35,9 @@ public:
 
     Expected<Reference, bool> At(SizeType index);
     Expected<ConstReference, bool> At(SizeType index) const;
+
+    Reference operator[](SizeType index);
+    ConstReference operator[](SizeType index) const;
 
     [[nodiscard]] SizeType GetCapacity() const;
     [[nodiscard]] SizeType GetSize() const;
@@ -238,5 +241,21 @@ Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ConstReference, bool> 
     {
         return false;
     }
+    return m_data[index];
+}
+
+template <typename T, typename Allocator>
+typename Opal::DynamicArray<T, Allocator>::Reference Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::operator[](
+    DynamicArray::SizeType index)
+{
+    OPAL_ASSERT(index < m_size, "Index out of bounds");
+    return m_data[index];
+}
+
+template <typename T, typename Allocator>
+typename Opal::DynamicArray<T, Allocator>::ConstReference Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::operator[](
+    DynamicArray::SizeType index) const
+{
+    OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
 }
