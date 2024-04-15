@@ -9,6 +9,48 @@
 namespace Opal
 {
 
+template <typename MyDynamicArray>
+class DynamicArrayIterator
+{
+public:
+    using ValueType = typename MyDynamicArray::ValueType;
+    using ReferenceType = typename MyDynamicArray::Reference;
+    using PointerType = typename MyDynamicArray::AllocatorType::PointerType;
+    using DifferenceType = typename MyDynamicArray::AllocatorType::DifferenceType;
+
+    DynamicArrayIterator() = default;
+    explicit DynamicArrayIterator(PointerType ptr) : m_ptr(ptr) {}
+
+    bool operator==(const DynamicArrayIterator& other) const { return m_ptr == other.m_ptr; }
+    bool operator>(const DynamicArrayIterator& other) const;
+    bool operator>=(const DynamicArrayIterator& other) const;
+    bool operator<(const DynamicArrayIterator& other) const;
+    bool operator<=(const DynamicArrayIterator& other) const;
+
+    DynamicArrayIterator& operator++();
+    DynamicArrayIterator operator++(int);
+    DynamicArrayIterator& operator--();
+    DynamicArrayIterator operator--(int);
+
+    DynamicArrayIterator operator+(DifferenceType n) const;
+    DynamicArrayIterator operator-(DifferenceType n) const;
+    DynamicArrayIterator& operator+=(DifferenceType n);
+    DynamicArrayIterator& operator-=(DifferenceType n);
+
+    DifferenceType operator-(const DynamicArrayIterator& other) const;
+
+    ReferenceType operator[](DifferenceType n) const;
+    ReferenceType operator*() const;
+    PointerType operator->() const;
+
+private:
+    PointerType m_ptr = nullptr;
+};
+
+template <typename MyDynamicArray>
+DynamicArrayIterator<MyDynamicArray> operator+(typename DynamicArrayIterator<MyDynamicArray>::DifferenceType n,
+                                               const DynamicArrayIterator<MyDynamicArray>& it);
+
 /**
  * Alternative to std::vector.
  */
@@ -20,6 +62,10 @@ public:
     using Reference = T&;
     using ConstReference = const T&;
     using SizeType = u64;
+    using AllocatorType = Allocator;
+    using IteratorType = DynamicArrayIterator<DynamicArray<T, Allocator>>;
+
+    static_assert(k_is_same_value<ValueType, typename AllocatorType::ValueType>);
 
     DynamicArray();
     explicit DynamicArray(SizeType count);
@@ -70,6 +116,14 @@ public:
     void PushBack(T&& value);
 
     void PopBack();
+
+    IteratorType Begin() { return IteratorType(m_data); }
+    IteratorType End() { return IteratorType(m_data + m_size); }
+
+    // Compatible with std::begin and std::end
+    IteratorType begin() { return IteratorType(m_data); }
+    IteratorType end() { return IteratorType(m_data + m_size); }
+
 private:
     static constexpr SizeType k_default_capacity = 4;
     static constexpr f64 k_resize_factor = 1.5;
@@ -312,7 +366,7 @@ Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::Front()
 }
 
 template <typename T, typename Allocator>
-Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ConstReference , Opal::ErrorCode>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ConstReference, Opal::ErrorCode>
 Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::Front() const
 {
     using ReturnType = Expected<Reference, ErrorCode>;
@@ -336,7 +390,7 @@ Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::Back()
 }
 
 template <typename T, typename Allocator>
-Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ConstReference , Opal::ErrorCode>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ConstReference, Opal::ErrorCode>
 Opal::DynamicArray<T, Allocator>::DynamicArray<T, Allocator>::Back() const
 {
     using ReturnType = Expected<Reference, ErrorCode>;
@@ -453,4 +507,117 @@ void Opal::DynamicArray<T, Allocator>::PopBack()
     }
     m_data[m_size - 1].~T();  // Invokes destructor on allocated memory
     m_size--;
+}
+
+template <typename MyDynamicArray>
+bool Opal::DynamicArrayIterator<MyDynamicArray>::operator>(const DynamicArrayIterator& other) const
+{
+    return m_ptr > other.m_ptr;
+}
+
+template <typename MyDynamicArray>
+bool Opal::DynamicArrayIterator<MyDynamicArray>::operator>=(const DynamicArrayIterator& other) const
+{
+    return m_ptr >= other.m_ptr;
+}
+
+template <typename MyDynamicArray>
+bool Opal::DynamicArrayIterator<MyDynamicArray>::operator<(const DynamicArrayIterator& other) const
+{
+    return m_ptr < other.m_ptr;
+}
+
+template <typename MyDynamicArray>
+bool Opal::DynamicArrayIterator<MyDynamicArray>::operator<=(const DynamicArrayIterator& other) const
+{
+    return m_ptr <= other.m_ptr;
+}
+
+template <typename MyDynamicArray>
+Opal::DynamicArrayIterator<MyDynamicArray>& Opal::DynamicArrayIterator<MyDynamicArray>::operator++()
+{
+    m_ptr++;
+    return *this;
+}
+
+template <typename MyDynamicArray>
+Opal::DynamicArrayIterator<MyDynamicArray> Opal::DynamicArrayIterator<MyDynamicArray>::operator++(int)
+{
+    DynamicArrayIterator temp = *this;
+    m_ptr++;
+    return temp;
+}
+
+template <typename MyDynamicArray>
+Opal::DynamicArrayIterator<MyDynamicArray>& Opal::DynamicArrayIterator<MyDynamicArray>::operator--()
+{
+    m_ptr--;
+    return *this;
+}
+
+template <typename MyDynamicArray>
+Opal::DynamicArrayIterator<MyDynamicArray> Opal::DynamicArrayIterator<MyDynamicArray>::operator--(int)
+{
+    DynamicArrayIterator temp = *this;
+    m_ptr--;
+    return temp;
+}
+
+template <typename MyDynamicArray>
+Opal::DynamicArrayIterator<MyDynamicArray> Opal::DynamicArrayIterator<MyDynamicArray>::operator+(DifferenceType n) const
+{
+    return DynamicArrayIterator(m_ptr + n);
+}
+
+template <typename MyDynamicArray>
+Opal::DynamicArrayIterator<MyDynamicArray> Opal::DynamicArrayIterator<MyDynamicArray>::operator-(DifferenceType n) const
+{
+    return DynamicArrayIterator(m_ptr - n);
+}
+
+template <typename MyDynamicArray>
+Opal::DynamicArrayIterator<MyDynamicArray>& Opal::DynamicArrayIterator<MyDynamicArray>::operator+=(DifferenceType n)
+{
+    m_ptr += n;
+    return *this;
+}
+
+template <typename MyDynamicArray>
+Opal::DynamicArrayIterator<MyDynamicArray>& Opal::DynamicArrayIterator<MyDynamicArray>::operator-=(DifferenceType n)
+{
+    m_ptr -= n;
+    return *this;
+}
+
+template <typename MyDynamicArray>
+typename Opal::DynamicArrayIterator<MyDynamicArray>::DifferenceType Opal::DynamicArrayIterator<MyDynamicArray>::operator-(
+    const DynamicArrayIterator& other) const
+{
+    return m_ptr - other.m_ptr;
+}
+
+template <typename MyDynamicArray>
+typename Opal::DynamicArrayIterator<MyDynamicArray>::ReferenceType Opal::DynamicArrayIterator<MyDynamicArray>::operator[](
+    DifferenceType n) const
+{
+    return *(m_ptr + n);
+}
+
+template <typename MyDynamicArray>
+typename Opal::DynamicArrayIterator<MyDynamicArray>::ReferenceType Opal::DynamicArrayIterator<MyDynamicArray>::operator*() const
+{
+    return *m_ptr;
+}
+
+template <typename MyDynamicArray>
+typename Opal::DynamicArrayIterator<MyDynamicArray>::PointerType Opal::DynamicArrayIterator<MyDynamicArray>::operator->() const
+{
+    return m_ptr;
+}
+
+template <typename MyDynamicArray>
+Opal::DynamicArrayIterator<MyDynamicArray> Opal::operator+(typename DynamicArrayIterator<MyDynamicArray>::DifferenceType n,
+                                                           const DynamicArrayIterator<MyDynamicArray>& it)
+{
+    return it + n;
 }

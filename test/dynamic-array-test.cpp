@@ -2,6 +2,8 @@
 
 #include "opal/container/dynamic-array.h"
 
+#include <vector>
+
 namespace
 {
 i32 g_default_call_count = 0;
@@ -1279,5 +1281,166 @@ TEST_CASE("Pop back", "[DynamicArray]")
             }
             REQUIRE(g_destroy_call_count == 4);
         }
+    }
+}
+
+TEST_CASE("Iterator", "[DynamicArray]")
+{
+    SECTION("Difference")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it1 = int_arr.Begin();
+        Opal::DynamicArray<i32>::IteratorType it2 = int_arr.End();
+        REQUIRE(it2 - it1 == 3);
+    }
+    SECTION("Increment")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.Begin();
+        REQUIRE(*it == 42);
+        ++it;
+        REQUIRE(*it == 42);
+        ++it;
+        REQUIRE(*it == 42);
+        ++it;
+        REQUIRE(it == int_arr.End());
+    }
+    SECTION("Post increment")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.Begin();
+        REQUIRE(*it == 42);
+        it++;
+        REQUIRE(*it == 42);
+        it++;
+        REQUIRE(*it == 42);
+        Opal::DynamicArray<i32>::IteratorType prev = it++;
+        REQUIRE(it - prev == 1);
+        REQUIRE(it == int_arr.End());
+    }
+    SECTION("Decrement")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.End();
+        --it;
+        REQUIRE(*it == 42);
+        --it;
+        REQUIRE(*it == 42);
+        --it;
+        REQUIRE(*it == 42);
+        REQUIRE(it == int_arr.Begin());
+    }
+    SECTION("Post decrement")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.End();
+        it--;
+        REQUIRE(*it == 42);
+        it--;
+        REQUIRE(*it == 42);
+        Opal::DynamicArray<i32>::IteratorType prev = it--;
+        REQUIRE(prev - it == 1);
+        REQUIRE(it == int_arr.Begin());
+    }
+    SECTION("Add")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.Begin();
+        REQUIRE(*(it + 0) == 42);
+        REQUIRE(*(it + 1) == 42);
+        REQUIRE(*(it + 2) == 42);
+        REQUIRE((it + 3) == int_arr.End());
+
+        Opal::DynamicArray<i32>::IteratorType it2 = int_arr.Begin();
+        REQUIRE((3 + it2) == int_arr.End());
+    }
+    SECTION("Add assignment")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.Begin();
+        REQUIRE(*(it += 0) == 42);
+        REQUIRE(*(it += 1) == 42);
+        REQUIRE(*(it += 1) == 42);
+        REQUIRE((it += 1) == int_arr.End());
+    }
+    SECTION("Subtract")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.End();
+        REQUIRE((it - 0) == int_arr.End());
+        REQUIRE(*(it - 1) == 42);
+        REQUIRE(*(it - 2) == 42);
+        REQUIRE(*(it - 3) == 42);
+        REQUIRE((it - 3) == int_arr.Begin());
+    }
+    SECTION("Subtract assignment")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.End();
+        REQUIRE((it -= 0) == int_arr.End());
+        REQUIRE(*(it -= 1) == 42);
+        REQUIRE(*(it -= 1) == 42);
+        REQUIRE(*(it -= 1) == 42);
+        REQUIRE(it == int_arr.Begin());
+    }
+    SECTION("Access")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.Begin();
+        REQUIRE(it[0] == 42);
+        REQUIRE(it[1] == 42);
+        REQUIRE(it[2] == 42);
+    }
+    SECTION("Dereference")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it = int_arr.Begin();
+        REQUIRE(*it == 42);
+    }
+    SECTION("Pointer")
+    {
+        Opal::DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+        Opal::DynamicArray<NonPod>::IteratorType it = non_pod_arr.Begin();
+        REQUIRE(*(it->ptr) == 42);
+    }
+    SECTION("Compare")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32>::IteratorType it1 = int_arr.Begin();
+        Opal::DynamicArray<i32>::IteratorType it2 = int_arr.Begin();
+        REQUIRE(it1 == it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it1 >= it2);
+        REQUIRE_FALSE(it1 != it2);
+        REQUIRE_FALSE(it1 < it2);
+        REQUIRE_FALSE(it1 > it2);
+
+        it2++;
+        REQUIRE(it1 != it2);
+        REQUIRE(it1 < it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it2 > it1);
+        REQUIRE(it2 >= it1);
+        REQUIRE_FALSE(it1 == it2);
+    }
+    SECTION("For loop")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        i32 sum = 0;
+        for (Opal::DynamicArray<i32>::IteratorType it = int_arr.Begin(); it != int_arr.End(); ++it)
+        {
+            sum += *it;
+        }
+        REQUIRE(sum == 126);
+    }
+    SECTION("Modern for loop")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        i32 sum = 0;
+        for (i32 val : int_arr)
+        {
+            sum += val;
+        }
+        REQUIRE(sum == 126);
     }
 }
