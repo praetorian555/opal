@@ -24,4 +24,27 @@ struct DefaultAllocator
     void Reset();
 };
 
+struct LinearAllocator
+{
+    explicit LinearAllocator(u64 size);
+    LinearAllocator(const LinearAllocator& other) = delete;
+    LinearAllocator(LinearAllocator&& other) = delete;
+
+    ~LinearAllocator();
+
+    LinearAllocator& operator=(const LinearAllocator& other) = default;
+    LinearAllocator& operator=(LinearAllocator&& other) = default;
+
+    bool operator==(const LinearAllocator& other) const;
+
+    void* Allocate(size_t size, size_t alignment = 8);
+    void Deallocate(void* ptr);
+    void Reset();
+
+private:
+    void* m_memory;
+    u64 m_offset = 0;
+    u64 m_size = 0;
+};
+
 }  // namespace Opal

@@ -1,4 +1,5 @@
 add_executable(opal_test
+        allocator-test.cpp
         dynamic-array-test.cpp
         expected-test.cpp)
 target_link_libraries(opal_test opal)
