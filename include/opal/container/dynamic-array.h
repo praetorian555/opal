@@ -232,6 +232,20 @@ public:
      */
     void PopBack();
 
+    /**
+     * Insert a new element at the specified position.
+     * @param position Iterator pointing to the position where the new element should be inserted.
+     * @param value Value of the new element.
+     * @return Iterator pointing to the newly inserted element or ErrorCode::BadInput if the position is invalid,
+     * ErrorCode::OutOfMemory if memory allocation failed.
+     */
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, const T& value);
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, T&& value);
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, SizeType count, const T& value);
+
+    template <typename InputIt>
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, InputIt start, InputIt end);
+
     IteratorType Begin() { return IteratorType(m_data); }
     IteratorType End() { return IteratorType(m_data + m_size); }
     ConstIteratorType ConstBegin() const { return ConstIteratorType(m_data); }
@@ -820,6 +834,35 @@ void Opal::DynamicArray<T, Allocator>::PopBack()
     }
     m_data[m_size - 1].~T();  // Invokes destructor on allocated memory
     m_size--;
+}
+
+template <typename T, typename Allocator>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::DynamicArray<T, Allocator>::Insert(
+    ConstIteratorType position, const T& value)
+{
+    if (position < ConstBegin() || position > ConstEnd())
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+    }
+    if (m_size == m_capacity)
+    {
+        const SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        ErrorCode err = Reserve(new_capacity);
+        if (err != ErrorCode::Success)
+        {
+            return Expected<IteratorType, ErrorCode>(err);
+        }
+    }
+    IteratorType it = End();
+    IteratorType mut_position = Begin() + (position - ConstBegin());
+    while (it > mut_position)
+    {
+        *it = *(it - 1);
+        --it;
+    }
+    *mut_position = value;
+    m_size++;
+    return Expected<IteratorType, ErrorCode>(mut_position);
 }
 
 template <typename T, typename Allocator>
