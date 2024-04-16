@@ -126,6 +126,66 @@ TEST_CASE("Construction with POD data", "[DynamicArray]")
         REQUIRE(int_arr_copy.GetData()[1] == 42);
         REQUIRE(int_arr_copy.GetData()[2] == 42);
     }
+    SECTION("Allocator default constructor")
+    {
+        Opal::DefaultAllocator allocator;
+        Opal::DynamicArray<i32> int_arr(allocator);
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() != nullptr);
+    }
+    SECTION("Allocator move default constructor")
+    {
+        Opal::DefaultAllocator allocator;
+        Opal::DynamicArray<i32> int_arr(Move(allocator));
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() != nullptr);
+    }
+    SECTION("Allocator size constructor")
+    {
+        Opal::DefaultAllocator allocator;
+        Opal::DynamicArray<i32> int_arr(3, allocator);
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 0);
+        REQUIRE(int_arr.GetData()[1] == 0);
+        REQUIRE(int_arr.GetData()[2] == 0);
+    }
+    SECTION("Allocator move size constructor")
+    {
+        Opal::DefaultAllocator allocator;
+        Opal::DynamicArray<i32> int_arr(3, Move(allocator));
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 0);
+        REQUIRE(int_arr.GetData()[1] == 0);
+        REQUIRE(int_arr.GetData()[2] == 0);
+    }
+    SECTION("Allocator size and default value constructor")
+    {
+        Opal::DefaultAllocator allocator;
+        Opal::DynamicArray<i32> int_arr(3, 42, allocator);
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 42);
+        REQUIRE(int_arr.GetData()[2] == 42);
+    }
+    SECTION("Allocator move size and default value constructor")
+    {
+        Opal::DefaultAllocator allocator;
+        Opal::DynamicArray<i32> int_arr(3, 42, Move(allocator));
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 42);
+        REQUIRE(int_arr.GetData()[2] == 42);
+    }
 }
 
 TEST_CASE("Construction with non-POD data", "[DynamicArray]")

@@ -115,10 +115,13 @@ public:
 
     DynamicArray();
     explicit DynamicArray(const Allocator& allocator);
+    explicit DynamicArray(Allocator&& allocator);
     explicit DynamicArray(SizeType count);
     DynamicArray(SizeType count, const Allocator& allocator);
+    DynamicArray(SizeType count, Allocator&& allocator);
     DynamicArray(SizeType count, const T& default_value);
     DynamicArray(SizeType count, const T& default_value, const Allocator& allocator);
+    DynamicArray(SizeType count, const T& default_value, Allocator&& allocator);
     // TODO: Implement constructors that take iterators as input
     // TODO: Implement constructors that take std::initializer_list as input
     DynamicArray(const DynamicArray& other);
@@ -209,6 +212,13 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(const Allocator& allocator) : m_a
 }
 
 template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(Allocator&& allocator) : m_allocator(Move(allocator))
+{
+    m_data = Allocate(m_capacity);
+    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+}
+
+template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count)
 {
     if (count > m_capacity)
@@ -241,6 +251,22 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const Allocator& 
 }
 
 template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, Allocator&& allocator) : m_allocator(Move(allocator))
+{
+    if (count > m_capacity)
+    {
+        m_capacity = count;
+    }
+    m_data = Allocate(count);
+    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    m_size = count;
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T();  // Invokes default constructor on allocated memory
+    }
+}
+
+template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const T& default_value)
 {
     if (count > m_capacity)
@@ -258,6 +284,22 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const T& default_
 
 template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const T& default_value, const Allocator& allocator) : m_allocator(allocator)
+{
+    if (count > m_capacity)
+    {
+        m_capacity = count;
+    }
+    m_data = Allocate(m_capacity);
+    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    m_size = count;
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
+    }
+}
+
+template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const T& default_value, Allocator&& allocator) : m_allocator(Move(allocator))
 {
     if (count > m_capacity)
     {
@@ -410,7 +452,8 @@ void Opal::DynamicArray<T, Allocator>::Assign(DynamicArray::SizeType count, cons
 }
 
 template <typename T, typename Allocator>
-Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ReferenceType, Opal::ErrorCode> Opal::DynamicArray<T, Allocator>::At(SizeType index)
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::ReferenceType, Opal::ErrorCode> Opal::DynamicArray<T, Allocator>::At(
+    SizeType index)
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (index >= m_size)
