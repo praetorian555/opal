@@ -161,12 +161,25 @@ public:
     Expected<ReferenceType, ErrorCode> At(SizeType index);
     Expected<ConstReferenceType, ErrorCode> At(SizeType index) const;
 
+    /**
+     * Get a reference to the element at specified index. No index bounds checking.
+     * @param index Index of the element in the array.
+     * @return Reference to the element.
+     */
     ReferenceType operator[](SizeType index);
     ConstReferenceType operator[](SizeType index) const;
 
+    /**
+     * Get a reference to the first element in the array.
+     * @return Reference to the first element or ErrorCode::OutOfBounds if the array is empty.
+     */
     Expected<ReferenceType, ErrorCode> Front();
     Expected<ConstReferenceType, ErrorCode> Front() const;
 
+    /**
+     * Get a reference to the last element in the array.
+     * @return Reference to the last element or ErrorCode::OutOfBounds if the array is empty.
+     */
     Expected<ReferenceType, ErrorCode> Back();
     Expected<ConstReferenceType, ErrorCode> Back() const;
 
@@ -178,16 +191,45 @@ public:
 
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
 
-    void Reserve(SizeType new_capacity);
+    /**
+     * Increase the capacity of the array to a value `new_capacity` if its greater then current capacity, otherwise do nothing.
+     * @param new_capacity New capacity of the array.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
+    ErrorCode Reserve(SizeType new_capacity);
 
-    void Resize(SizeType new_size);
-    void Resize(SizeType new_size, const T& default_value);
+    /**
+     * Change the size of the array to `new_size`. If `new_size` is greater than current size, new elements are default constructed.
+     * @param new_size New size of the array.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
+    ErrorCode Resize(SizeType new_size);
 
+    /**
+     * Change the size of the array to `new_size`. If `new_size` is greater than current size, new elements are copy constructed from
+     * `default_value`.
+     * @param new_size New size of the array.
+     * @param default_value Value to copy construct new elements from.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
+    ErrorCode Resize(SizeType new_size, const T& default_value);
+
+    /**
+     * Clear the array and set its size to 0. Does not deallocate memory.
+     */
     void Clear();
 
-    void PushBack(const T& value);
-    void PushBack(T&& value);
+    /**
+     * Add a new element to the end of the array. If the array is full, it will be resized.
+     * @param value Value of the new element.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
+    ErrorCode PushBack(const T& value);
+    ErrorCode PushBack(T&& value);
 
+    /**
+     * Remove the last element from the array.
+     */
     void PopBack();
 
     IteratorType Begin() { return IteratorType(m_data); }
@@ -664,14 +706,17 @@ inline const T* Opal::DynamicArray<T, Allocator>::GetData() const
 }
 
 template <typename T, typename Allocator>
-void Opal::DynamicArray<T, Allocator>::Reserve(DynamicArray::SizeType new_capacity)
+Opal::ErrorCode Opal::DynamicArray<T, Allocator>::Reserve(DynamicArray::SizeType new_capacity)
 {
     if (new_capacity <= m_capacity)
     {
-        return;
+        return ErrorCode::Success;
     }
     T* new_data = Allocate(new_capacity);
-    OPAL_ASSERT(new_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (new_data == nullptr)
+    {
+        return ErrorCode::OutOfMemory;
+    }
     for (SizeType i = 0; i < m_size; i++)
     {
         new (&new_data[i]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
@@ -679,20 +724,21 @@ void Opal::DynamicArray<T, Allocator>::Reserve(DynamicArray::SizeType new_capaci
     Deallocate(m_data);
     m_data = new_data;
     m_capacity = new_capacity;
+    return ErrorCode::Success;
 }
 
 template <typename T, typename Allocator>
-void Opal::DynamicArray<T, Allocator>::Resize(DynamicArray::SizeType new_size)
+Opal::ErrorCode Opal::DynamicArray<T, Allocator>::Resize(DynamicArray::SizeType new_size)
 {
-    Resize(new_size, T());
+    return Resize(new_size, T());
 }
 
 template <typename T, typename Allocator>
-void Opal::DynamicArray<T, Allocator>::Resize(DynamicArray::SizeType new_size, const T& default_value)
+Opal::ErrorCode Opal::DynamicArray<T, Allocator>::Resize(DynamicArray::SizeType new_size, const T& default_value)
 {
     if (new_size == m_size)
     {
-        return;
+        return ErrorCode::Success;
     }
     if (new_size < m_size)
     {
@@ -706,7 +752,11 @@ void Opal::DynamicArray<T, Allocator>::Resize(DynamicArray::SizeType new_size, c
     {
         if (new_size > m_capacity)
         {
-            Reserve(new_size);
+            ErrorCode err = Reserve(new_size);
+            if (err != ErrorCode::Success)
+            {
+                return err;
+            }
         }
         for (SizeType i = m_size; i < new_size; i++)
         {
@@ -714,6 +764,7 @@ void Opal::DynamicArray<T, Allocator>::Resize(DynamicArray::SizeType new_size, c
         }
         m_size = new_size;
     }
+    return ErrorCode::Success;
 }
 
 template <typename T, typename Allocator>
@@ -727,25 +778,37 @@ void Opal::DynamicArray<T, Allocator>::Clear()
 }
 
 template <typename T, typename Allocator>
-void Opal::DynamicArray<T, Allocator>::PushBack(const T& value)
+Opal::ErrorCode Opal::DynamicArray<T, Allocator>::PushBack(const T& value)
 {
     if (m_size == m_capacity)
     {
-        Reserve(static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0));
+        const SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        ErrorCode err = Reserve(new_capacity);
+        if (err != ErrorCode::Success)
+        {
+            return err;
+        }
     }
     new (&m_data[m_size]) T(value);  // Invokes copy constructor on allocated memory
     m_size++;
+    return ErrorCode::Success;
 }
 
 template <typename T, typename Allocator>
-void Opal::DynamicArray<T, Allocator>::PushBack(T&& value)
+Opal::ErrorCode Opal::DynamicArray<T, Allocator>::PushBack(T&& value)
 {
     if (m_size == m_capacity)
     {
-        Reserve(static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0));
+        const SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        ErrorCode err = Reserve(new_capacity);
+        if (err != ErrorCode::Success)
+        {
+            return err;
+        }
     }
     new (&m_data[m_size]) T(Move(value));  // Invokes move constructor on allocated memory
     m_size++;
+    return ErrorCode::Success;
 }
 
 template <typename T, typename Allocator>
