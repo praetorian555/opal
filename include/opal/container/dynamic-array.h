@@ -222,21 +222,36 @@ template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>::DynamicArray()
 {
     m_data = Allocate(m_capacity);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
 }
 
 template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>::DynamicArray(const Allocator& allocator) : m_allocator(allocator)
 {
     m_data = Allocate(m_capacity);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
 }
 
 template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>::DynamicArray(Allocator&& allocator) : m_allocator(Move(allocator))
 {
     m_data = Allocate(m_capacity);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
 }
 
 template <typename T, typename Allocator>
@@ -247,7 +262,12 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count)
         m_capacity = count;
     }
     m_data = Allocate(count);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
     m_size = count;
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -263,7 +283,12 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const Allocator& 
         m_capacity = count;
     }
     m_data = Allocate(count);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
     m_size = count;
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -279,7 +304,12 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, Allocator&& alloc
         m_capacity = count;
     }
     m_data = Allocate(count);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
     m_size = count;
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -295,7 +325,12 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const T& default_
         m_capacity = count;
     }
     m_data = Allocate(m_capacity);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
     m_size = count;
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -311,7 +346,12 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const T& default_
         m_capacity = count;
     }
     m_data = Allocate(m_capacity);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
     m_size = count;
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -327,7 +367,12 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const T& default_
         m_capacity = count;
     }
     m_data = Allocate(m_capacity);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
     m_size = count;
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -339,7 +384,12 @@ template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>::DynamicArray(const DynamicArray& other) : m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
-    OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
     for (SizeType i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
@@ -387,7 +437,12 @@ Opal::DynamicArray<T, Allocator>& Opal::DynamicArray<T, Allocator>::operator=(co
         Deallocate(m_data);
         m_capacity = other.m_size;
         m_data = Allocate(m_capacity);
-        OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+        if (m_data == nullptr)
+        {
+            m_size = 0;
+            OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+            return *this;
+        }
     }
     m_size = other.m_size;
     for (SizeType i = 0; i < m_size; i++)
