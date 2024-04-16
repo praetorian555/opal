@@ -1594,7 +1594,7 @@ TEST_CASE("Const iterator", "[DynamicArray]")
     }
     SECTION("Modern for loop")
     {
-        Opal::DynamicArray<i32> int_arr(3, 42);
+        const Opal::DynamicArray<i32> int_arr(3, 42);
         i32 sum = 0;
         for (const i32& val : int_arr)
         {
