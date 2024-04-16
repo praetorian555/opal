@@ -1,5 +1,5 @@
 add_library(opal
-        empty.cpp
+        allocator.cpp
         ../include/opal/assert.h
         ../include/opal/type-traits.h
         ../include/opal/allocator.h
