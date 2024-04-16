@@ -94,7 +94,7 @@ DynamicArrayConstIterator<MyDynamicArray> operator+(typename DynamicArrayConstIt
                                                     const DynamicArrayConstIterator<MyDynamicArray>& it);
 
 /**
- * Alternative to std::vector.
+ * Represents continuous memory storage that can dynamically grow in size.
  */
 template <typename T, typename Allocator = DefaultAllocator>
 class DynamicArray
@@ -134,9 +134,30 @@ public:
 
     bool operator==(const DynamicArray& other) const;
 
-    void Assign(SizeType count, const T& value);
-    // TODO: Implement assign that takes iterators as input
+    /**
+     * Clears the array and adds `count` new elements with value `value`.
+     * @param count How many new elements to add.
+     * @param value Value of the new elements.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
+    ErrorCode Assign(SizeType count, const T& value);
 
+    /**
+     * Clears the array and adds new elements based on the input iterator range.
+     * @tparam InputIt Input iterator type.
+     * @param start Start of the range, inclusive.
+     * @param end End of the range, exclusive.
+     * @param return ErrorCode::Success if the operation was successful, ErrorCode::BadInput if start > end, ErrorCode::OutOfMemory if
+     * memory allocation failed.
+     */
+    template <typename InputIt>
+    ErrorCode AssignIt(InputIt start, InputIt end);
+
+    /**
+     * Get a reference to the element at specified index.
+     * @param index Index of the element in the array.
+     * @return Returns reference to the element or ErrorCode::OutOfBounds if the index is out of bounds.
+     */
     Expected<ReferenceType, ErrorCode> At(SizeType index);
     Expected<ConstReferenceType, ErrorCode> At(SizeType index) const;
 
@@ -431,7 +452,7 @@ inline Opal::DynamicArray<T, Allocator>::SizeType Opal::DynamicArray<T, Allocato
 }
 
 template <typename T, typename Allocator>
-void Opal::DynamicArray<T, Allocator>::Assign(DynamicArray::SizeType count, const T& value)
+Opal::ErrorCode Opal::DynamicArray<T, Allocator>::Assign(DynamicArray::SizeType count, const T& value)
 {
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -442,13 +463,49 @@ void Opal::DynamicArray<T, Allocator>::Assign(DynamicArray::SizeType count, cons
         Deallocate(m_data);
         m_capacity = count;
         m_data = Allocate(m_capacity);
-        OPAL_ASSERT(m_data != nullptr, "Failed to allocate memory for DynamicArray");
+        if (m_data == nullptr)
+        {
+            return ErrorCode::OutOfMemory;
+        }
     }
     m_size = count;
     for (SizeType i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(value);  // Invokes copy constructor on allocated memory
     }
+    return ErrorCode::Success;
+}
+
+template <typename T, typename Allocator>
+template <typename InputIt>
+Opal::ErrorCode Opal::DynamicArray<T, Allocator>::AssignIt(InputIt start, InputIt end)
+{
+    if (start > end)
+    {
+        return ErrorCode::BadInput;
+    }
+    SizeType count = static_cast<SizeType>(end - start);
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        m_data[i].~T();  // Invokes destructor on allocated memory
+    }
+    if (count > m_capacity)
+    {
+        Deallocate(m_data);
+        m_capacity = count;
+        m_data = Allocate(m_capacity);
+        if (m_data == nullptr)
+        {
+            return ErrorCode::OutOfMemory;
+        }
+    }
+    m_size = count;
+    InputIt current = start;
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T(*(current + i));  // Invokes copy constructor on allocated memory
+    }
+    return ErrorCode::Success;
 }
 
 template <typename T, typename Allocator>

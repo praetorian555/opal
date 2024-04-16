@@ -611,6 +611,52 @@ TEST_CASE("Assign with POD data", "[DynamicArray]")
         REQUIRE(int_arr.GetData()[3] == 25);
         REQUIRE(int_arr.GetData()[4] == 25);
     }
+    SECTION("Assign 0 elements")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        int_arr.Assign(0, 25);
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() != nullptr);
+    }
+    SECTION("Assign with iterators")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        std::array<i32, 5> values = {25, 26, 27, 28, 29};
+        Opal::ErrorCode err = int_arr.AssignIt(values.begin(), values.end());
+        REQUIRE(err == Opal::ErrorCode::Success);
+        REQUIRE(int_arr.GetCapacity() == 5);
+        REQUIRE(int_arr.GetSize() == 5);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 25);
+        REQUIRE(int_arr.GetData()[1] == 26);
+        REQUIRE(int_arr.GetData()[2] == 27);
+        REQUIRE(int_arr.GetData()[3] == 28);
+        REQUIRE(int_arr.GetData()[4] == 29);
+    }
+    SECTION("Assign with bad iterators")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        std::array<i32, 5> values = {25, 26, 27, 28, 29};
+        Opal::ErrorCode err = int_arr.AssignIt(values.end(), values.begin());
+        REQUIRE(err == Opal::ErrorCode::BadInput);
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 42);
+        REQUIRE(int_arr.GetData()[2] == 42);
+    }
+    SECTION("Assign with equal iterators")
+    {
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        std::array<i32, 5> values = {25, 26, 27, 28, 29};
+        Opal::ErrorCode err = int_arr.AssignIt(values.begin(), values.begin());
+        REQUIRE(err == Opal::ErrorCode::Success);
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() != nullptr);
+    }
 }
 
 TEST_CASE("Assign with non-POD data", "[DynamicArray]")
