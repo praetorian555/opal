@@ -1,5 +1,8 @@
 #pragma once
 
+namespace Opal
+{
+
 using i8 = signed char;
 using i16 = short;
 using i32 = int;
@@ -33,3 +36,5 @@ static_assert(sizeof(f64) == 8);
 static_assert(sizeof(c8) == 1);
 static_assert(sizeof(c16) == 2);
 static_assert(sizeof(c32) == 4);
+
+}  // namespace Opal

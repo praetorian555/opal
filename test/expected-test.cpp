@@ -4,39 +4,41 @@
 
 #include "opal/container/expected.h"
 
+using namespace Opal;
+
 TEST_CASE("Expected", "[Expected]")
 {
     SECTION("Regular type")
     {
         SECTION("Default construction")
         {
-            Opal::Expected<int32_t, std::string> expected;
+            Expected<int32_t, std::string> expected;
             REQUIRE(expected.HasValue() == true);
             REQUIRE(expected.GetValue() == 0);
         }
         SECTION("Construction with value")
         {
-            Opal::Expected<int32_t, std::string> expected(42);
+            Expected<int32_t, std::string> expected(42);
             REQUIRE(expected.HasValue() == true);
             REQUIRE(expected.GetValue() == 42);
         }
         SECTION("Construction with error")
         {
-            Opal::Expected<int32_t, std::string> expected("Error");
+            Expected<int32_t, std::string> expected("Error");
             REQUIRE(expected.HasValue() == false);
             REQUIRE(expected.GetError() == "Error");
         }
         SECTION("Copy construction")
         {
-            Opal::Expected<int32_t, std::string> expected(42);
-            Opal::Expected<int32_t, std::string> copy(expected);
+            Expected<int32_t, std::string> expected(42);
+            Expected<int32_t, std::string> copy(expected);
             REQUIRE(copy.HasValue() == true);
             REQUIRE(copy.GetValue() == 42);
         }
         SECTION("Move construction")
         {
-            Opal::Expected<int32_t, std::string> expected(42);
-            Opal::Expected<int32_t, std::string> move(std::move(expected));
+            Expected<int32_t, std::string> expected(42);
+            Expected<int32_t, std::string> move(std::move(expected));
             REQUIRE(move.HasValue() == true);
             REQUIRE(move.GetValue() == 42);
             REQUIRE(expected.HasValue() == true);
@@ -47,28 +49,28 @@ TEST_CASE("Expected", "[Expected]")
     {
         SECTION("Default construction")
         {
-            Opal::Expected<int32_t&, std::string> expected;
+            Expected<int32_t&, std::string> expected;
             REQUIRE(expected.HasValue() == false);
         }
         SECTION("Construction with value")
         {
             int32_t value = 42;
-            Opal::Expected<int32_t&, std::string> expected(value);
+            Expected<int32_t&, std::string> expected(value);
             REQUIRE(expected.HasValue() == true);
             REQUIRE(expected.GetValue() == 42);
             REQUIRE(&expected.GetValue() == &value);
         }
         SECTION("Construction with error")
         {
-            Opal::Expected<int32_t&, std::string> expected("Error");
+            Expected<int32_t&, std::string> expected("Error");
             REQUIRE(expected.HasValue() == false);
             REQUIRE(expected.GetError() == "Error");
         }
         SECTION("Copy construction")
         {
             int32_t value = 42;
-            Opal::Expected<int32_t&, std::string> expected(value);
-            Opal::Expected<int32_t&, std::string> copy(expected);
+            Expected<int32_t&, std::string> expected(value);
+            Expected<int32_t&, std::string> copy(expected);
             REQUIRE(copy.HasValue() == true);
             REQUIRE(copy.GetValue() == 42);
             REQUIRE(&copy.GetValue() == &value);
@@ -78,8 +80,8 @@ TEST_CASE("Expected", "[Expected]")
         SECTION("Move construction")
         {
             int32_t value = 42;
-            Opal::Expected<int32_t&, std::string> expected(value);
-            Opal::Expected<int32_t&, std::string> move(std::move(expected));
+            Expected<int32_t&, std::string> expected(value);
+            Expected<int32_t&, std::string> move(std::move(expected));
             REQUIRE(move.HasValue() == true);
             REQUIRE(move.GetValue() == 42);
             REQUIRE(&move.GetValue() == &value);
@@ -94,8 +96,8 @@ TEST_CASE("Assignment of expected", "[Expected]")
     {
         SECTION("Copy assignment with expected value")
         {
-            Opal::Expected<int32_t, std::string> expected(42);
-            Opal::Expected<int32_t, std::string> copy;
+            Expected<int32_t, std::string> expected(42);
+            Expected<int32_t, std::string> copy;
             copy = expected;
             REQUIRE(copy.HasValue() == true);
             REQUIRE(copy.GetValue() == 42);
@@ -104,8 +106,8 @@ TEST_CASE("Assignment of expected", "[Expected]")
         }
         SECTION("Copy assignment with error")
         {
-            Opal::Expected<int32_t, std::string> expected("Error");
-            Opal::Expected<int32_t, std::string> copy;
+            Expected<int32_t, std::string> expected("Error");
+            Expected<int32_t, std::string> copy;
             copy = expected;
             REQUIRE(copy.HasValue() == false);
             REQUIRE(copy.GetError() == "Error");
@@ -114,16 +116,16 @@ TEST_CASE("Assignment of expected", "[Expected]")
         }
         SECTION("Move assignment with expected value")
         {
-            Opal::Expected<int32_t, std::string> expected(42);
-            Opal::Expected<int32_t, std::string> move;
+            Expected<int32_t, std::string> expected(42);
+            Expected<int32_t, std::string> move;
             move = std::move(expected);
             REQUIRE(move.HasValue() == true);
             REQUIRE(move.GetValue() == 42);
         }
         SECTION("Move assignment with error")
         {
-            Opal::Expected<int32_t, std::string> expected("Error");
-            Opal::Expected<int32_t, std::string> move;
+            Expected<int32_t, std::string> expected("Error");
+            Expected<int32_t, std::string> move;
             move = std::move(expected);
             REQUIRE(move.HasValue() == false);
             REQUIRE(move.GetError() == "Error");
@@ -134,8 +136,8 @@ TEST_CASE("Assignment of expected", "[Expected]")
         SECTION("Copy assignment with expected value")
         {
             int32_t value = 42;
-            Opal::Expected<int32_t&, std::string> expected(value);
-            Opal::Expected<int32_t&, std::string> copy;
+            Expected<int32_t&, std::string> expected(value);
+            Expected<int32_t&, std::string> copy;
             copy = expected;
             REQUIRE(copy.HasValue() == true);
             REQUIRE(copy.GetValue() == 42);
@@ -145,8 +147,8 @@ TEST_CASE("Assignment of expected", "[Expected]")
         }
         SECTION("Copy assignment with error")
         {
-            Opal::Expected<int32_t&, std::string> expected("Error");
-            Opal::Expected<int32_t&, std::string> copy;
+            Expected<int32_t&, std::string> expected("Error");
+            Expected<int32_t&, std::string> copy;
             copy = expected;
             REQUIRE(copy.HasValue() == false);
             REQUIRE(copy.GetError() == "Error");
@@ -156,8 +158,8 @@ TEST_CASE("Assignment of expected", "[Expected]")
         SECTION("Move assignment with expected value")
         {
             int32_t value = 42;
-            Opal::Expected<int32_t&, std::string> expected(value);
-            Opal::Expected<int32_t&, std::string> move;
+            Expected<int32_t&, std::string> expected(value);
+            Expected<int32_t&, std::string> move;
             move = std::move(expected);
             REQUIRE(move.HasValue() == true);
             REQUIRE(move.GetValue() == 42);
@@ -165,8 +167,8 @@ TEST_CASE("Assignment of expected", "[Expected]")
         }
         SECTION("Move assignment with error")
         {
-            Opal::Expected<int32_t&, std::string> expected("Error");
-            Opal::Expected<int32_t&, std::string> move;
+            Expected<int32_t&, std::string> expected("Error");
+            Expected<int32_t&, std::string> move;
             move = std::move(expected);
             REQUIRE(move.HasValue() == false);
             REQUIRE(move.GetError() == "Error");

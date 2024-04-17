@@ -4,9 +4,9 @@
 
 namespace
 {
-u64 AlignForward(u64 address, u64 alignment)
+Opal::u64 AlignForward(Opal::u64 address, Opal::u64 alignment)
 {
-    u64 modulo = address & (alignment - 1);
+    Opal::u64 modulo = address & (alignment - 1);
     if (modulo != 0)
     {
         return address + (alignment - modulo);
