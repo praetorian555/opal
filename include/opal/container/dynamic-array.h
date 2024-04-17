@@ -147,7 +147,7 @@ public:
      * @tparam InputIt Input iterator type.
      * @param start Start of the range, inclusive.
      * @param end End of the range, exclusive.
-     * @param return ErrorCode::Success if the operation was successful, ErrorCode::BadInput if start > end, ErrorCode::OutOfMemory if
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::BadInput if start > end, ErrorCode::OutOfMemory if
      * memory allocation failed.
      */
     template <typename InputIt>
@@ -241,8 +241,28 @@ public:
      */
     Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, const T& value);
     Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, T&& value);
+
+    /**
+     * Insert `count` new elements with value `value` at the specified position.
+     * @param position Iterator pointing to the position where the new elements should be inserted. Can be ConstEnd() to insert at the
+     * end.
+     * @param count How many new elements to insert.
+     * @param value Value of the new elements.
+     * @return Iterator pointing to the first newly inserted element or ErrorCode::BadInput if the position is invalid, ErrorCode::BadInput
+     * if count is 0, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, SizeType count, const T& value);
 
+    /**
+     * Insert new elements from the range [start, end) at the specified position.
+     * @tparam InputIt Input iterator type.
+     * @param position Iterator pointing to the position where the new elements should be inserted. Can be ConstEnd() to insert at the
+     * end.
+     * @param start Start of the range, inclusive.
+     * @param end End of the range, exclusive.
+     * @return Iterator pointing to the first newly inserted element or ErrorCode::BadInput if the position is invalid, ErrorCode::BadInput
+     * if start >= end, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     template <typename InputIt>
     Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType position, InputIt start, InputIt end);
 
