@@ -937,6 +937,48 @@ Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::Er
 }
 
 template <typename T, typename Allocator>
+template <typename InputIt>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::DynamicArray<T, Allocator>::InsertIt(
+    DynamicArray::ConstIteratorType position, InputIt start, InputIt end)
+{
+    if (position < ConstBegin() || position > ConstEnd())
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+    }
+    if (start >= end)
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+    }
+    SizeType pos_offset = position - ConstBegin();
+    SizeType count = static_cast<SizeType>(end - start);
+    if (m_size + count > m_capacity)
+    {
+        SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        new_capacity = m_size + count > new_capacity ? m_size + count : new_capacity;
+        ErrorCode err = Reserve(new_capacity);
+        if (err != ErrorCode::Success)
+        {
+            return Expected<IteratorType, ErrorCode>(err);
+        }
+    }
+    IteratorType it = End() + count - 1;
+    IteratorType mut_position = Begin() + pos_offset;
+    for (SizeType i = 0; i < count; i++)
+    {
+        *it = Move(*(it - count));
+        --it;
+    }
+    IteratorType return_it = mut_position;
+    for (InputIt current = start; current < end; ++current)
+    {
+        *mut_position = *current;
+        ++mut_position;
+    }
+    m_size += count;
+    return Expected<IteratorType, ErrorCode>(return_it);
+}
+
+template <typename T, typename Allocator>
 T* Opal::DynamicArray<T, Allocator>::Allocate(SizeType count)
 {
     return static_cast<T*>(m_allocator.Allocate(count * sizeof(T)));
