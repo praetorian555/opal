@@ -1875,7 +1875,7 @@ TEST_CASE("Insert", "[DynamicArray]")
             DynamicArray<i32> int_arr(3, 42);
             i32 val = 25;
             ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, val).GetError();
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::OutOfBounds);
             REQUIRE(int_arr.GetCapacity() == 4);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1887,7 +1887,7 @@ TEST_CASE("Insert", "[DynamicArray]")
         {
             DynamicArray<i32> int_arr(3, 42);
             ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, 25).GetError();
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::OutOfBounds);
             REQUIRE(int_arr.GetCapacity() == 4);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1945,7 +1945,7 @@ TEST_CASE("Insert", "[DynamicArray]")
             DynamicArray<i32> int_arr(3, 42);
             i32 val = 25;
             ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, 2, val).GetError();
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::OutOfBounds);
             REQUIRE(int_arr.GetCapacity() == 4);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2019,7 +2019,7 @@ TEST_CASE("Insert", "[DynamicArray]")
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(2, 5);
             ErrorCode err = int_arr.InsertIt(int_arr.ConstEnd() + 1, other.ConstBegin(), other.ConstEnd()).GetError();
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::OutOfBounds);
             REQUIRE(int_arr.GetCapacity() == 4);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);

@@ -242,7 +242,7 @@ public:
      * Insert a new element at the specified position.
      * @param position Iterator pointing to the position where the new element should be inserted.
      * @param value Value of the new element.
-     * @return Iterator pointing to the newly inserted element or ErrorCode::BadInput if the position is invalid,
+     * @return Iterator pointing to the newly inserted element or ErrorCode::OutOfBounds if the position is invalid,
      * ErrorCode::OutOfMemory if memory allocation failed.
      */
     Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, const T& value);
@@ -254,7 +254,7 @@ public:
      * end.
      * @param count How many new elements to insert.
      * @param value Value of the new elements.
-     * @return Iterator pointing to the first newly inserted element or ErrorCode::BadInput if the position is invalid, ErrorCode::BadInput
+     * @return Iterator pointing to the first newly inserted element or ErrorCode::OutOfBounds if the position is invalid, ErrorCode::BadInput
      * if count is 0, ErrorCode::OutOfMemory if memory allocation failed.
      */
     Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, SizeType count, const T& value);
@@ -266,7 +266,7 @@ public:
      * end.
      * @param start Start of the range, inclusive.
      * @param end End of the range, exclusive.
-     * @return Iterator pointing to the first newly inserted element or ErrorCode::BadInput if the position is invalid, ErrorCode::BadInput
+     * @return Iterator pointing to the first newly inserted element or ErrorCode::OutOfBounds if the position is invalid, ErrorCode::BadInput
      * if start >= end, ErrorCode::OutOfMemory if memory allocation failed.
      */
     template <typename InputIt>
@@ -284,7 +284,7 @@ public:
      * @param start Iterator pointing to the first element to erase.
      * @param end Iterator pointing to the element following the last element to erase.
      * @return Iterator pointing to the element following the last erased element or ErrorCode::BadInput if start > end,
-     * ErrorCode::OutOfBounds if start or end are invalid.
+     * ErrorCode::OutOfBounds if start or end are out of bounds.
      */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType start, ConstIteratorType end);
 
@@ -1006,7 +1006,7 @@ Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::Er
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
     }
     SizeType pos_offset = position - ConstBegin();
     if (m_size == m_capacity)
@@ -1036,7 +1036,7 @@ Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::Er
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
     }
     SizeType pos_offset = position - ConstBegin();
     if (m_size == m_capacity)
@@ -1066,7 +1066,7 @@ Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::Er
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
     }
     if (count == 0)
     {
@@ -1107,7 +1107,7 @@ Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::Er
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
     }
     if (start >= end)
     {
