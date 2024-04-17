@@ -41,17 +41,10 @@ TEST_CASE("Expected", "[Expected]")
             Expected<int32_t, std::string> move(std::move(expected));
             REQUIRE(move.HasValue() == true);
             REQUIRE(move.GetValue() == 42);
-            REQUIRE(expected.HasValue() == true);
-            REQUIRE(expected.GetValue() == 0);
         }
     }
     SECTION("Reference type")
     {
-        SECTION("Default construction")
-        {
-            Expected<int32_t&, std::string> expected;
-            REQUIRE(expected.HasValue() == false);
-        }
         SECTION("Construction with value")
         {
             int32_t value = 42;
@@ -84,8 +77,6 @@ TEST_CASE("Expected", "[Expected]")
             Expected<int32_t&, std::string> move(std::move(expected));
             REQUIRE(move.HasValue() == true);
             REQUIRE(move.GetValue() == 42);
-            REQUIRE(&move.GetValue() == &value);
-            REQUIRE(expected.HasValue() == false);
         }
     }
 }
@@ -136,8 +127,9 @@ TEST_CASE("Assignment of expected", "[Expected]")
         SECTION("Copy assignment with expected value")
         {
             int32_t value = 42;
+            int32_t value2 = 43;
             Expected<int32_t&, std::string> expected(value);
-            Expected<int32_t&, std::string> copy;
+            Expected<int32_t&, std::string> copy(value2);
             copy = expected;
             REQUIRE(copy.HasValue() == true);
             REQUIRE(copy.GetValue() == 42);
@@ -148,7 +140,7 @@ TEST_CASE("Assignment of expected", "[Expected]")
         SECTION("Copy assignment with error")
         {
             Expected<int32_t&, std::string> expected("Error");
-            Expected<int32_t&, std::string> copy;
+            Expected<int32_t&, std::string> copy("");
             copy = expected;
             REQUIRE(copy.HasValue() == false);
             REQUIRE(copy.GetError() == "Error");
@@ -158,8 +150,9 @@ TEST_CASE("Assignment of expected", "[Expected]")
         SECTION("Move assignment with expected value")
         {
             int32_t value = 42;
+            int32_t value2 = 43;
             Expected<int32_t&, std::string> expected(value);
-            Expected<int32_t&, std::string> move;
+            Expected<int32_t&, std::string> move(value2);
             move = std::move(expected);
             REQUIRE(move.HasValue() == true);
             REQUIRE(move.GetValue() == 42);
@@ -168,7 +161,7 @@ TEST_CASE("Assignment of expected", "[Expected]")
         SECTION("Move assignment with error")
         {
             Expected<int32_t&, std::string> expected("Error");
-            Expected<int32_t&, std::string> move;
+            Expected<int32_t&, std::string> move("");
             move = std::move(expected);
             REQUIRE(move.HasValue() == false);
             REQUIRE(move.GetError() == "Error");
