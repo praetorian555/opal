@@ -266,6 +266,22 @@ public:
     template <typename InputIt>
     Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType position, InputIt start, InputIt end);
 
+    /**
+     * Erase the element at the specified position. Does not deallocate memory.
+     * @param position Iterator pointing to the element to erase.
+     * @return Iterator pointing to the element following the erased element or ErrorCode::OutOfBounds if the position is invalid.
+     */
+    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType position);
+
+    /**
+     * Erase elements in the range [start, end). Does not deallocate memory.
+     * @param start Iterator pointing to the first element to erase.
+     * @param end Iterator pointing to the element following the last element to erase.
+     * @return Iterator pointing to the element following the last erased element or ErrorCode::BadInput if start > end, ErrorCode::OutOfBounds
+     * if start or end are invalid.
+     */
+    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType start, ConstIteratorType end);
+
     IteratorType Begin() { return IteratorType(m_data); }
     IteratorType End() { return IteratorType(m_data + m_size); }
     ConstIteratorType ConstBegin() const { return ConstIteratorType(m_data); }
@@ -996,6 +1012,62 @@ Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::Er
     }
     m_size += count;
     return Expected<IteratorType, ErrorCode>(return_it);
+}
+
+template <typename T, typename Allocator>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::DynamicArray<T, Allocator>::Erase(
+    DynamicArray::ConstIteratorType position)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (position < ConstBegin() || position >= ConstEnd())
+    {
+        return ReturnType{ErrorCode::OutOfBounds};
+    }
+    SizeType pos_offset = position - ConstBegin();
+    IteratorType mut_position = Begin() + pos_offset;
+    (*mut_position).~T();  // Invokes destructor on allocated memory
+    while (mut_position < End() - 1)
+    {
+        *mut_position = Move(*(mut_position + 1));
+        ++mut_position;
+    }
+    m_size--;
+    return ReturnType{Begin() + pos_offset};
+}
+
+template <typename T, typename Allocator>
+Opal::Expected<typename Opal::DynamicArray<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::DynamicArray<T, Allocator>::Erase(
+    DynamicArray::ConstIteratorType start, DynamicArray::ConstIteratorType end)
+{
+    if (start > end)
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+    }
+    if (start < ConstBegin() || end > ConstEnd())
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    if (start == end)
+    {
+        return Expected<IteratorType, ErrorCode>(Begin() + (start - ConstBegin()));
+    }
+    const SizeType start_offset = start - ConstBegin();
+    const SizeType end_offset = end - ConstBegin();
+    for (SizeType i = start_offset; i < end_offset; i++)
+    {
+        m_data[i].~T();  // Invokes destructor on allocated memory
+    }
+    IteratorType mut_start = Begin() + start_offset;
+    IteratorType mut_end = Begin() + end_offset;
+    while (mut_end < End())
+    {
+        *mut_start = Move(*mut_end);
+        ++mut_start;
+        ++mut_end;
+    }
+    m_size += start_offset - end_offset;
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    return ReturnType{Begin() + start_offset};
 }
 
 template <typename T, typename Allocator>
