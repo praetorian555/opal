@@ -113,6 +113,7 @@ public:
     static_assert(!k_is_reference_value<ValueType>, "Value type must be a reference");
     static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
 
+    // Constructors
     DynamicArray();
     explicit DynamicArray(const Allocator& allocator);
     explicit DynamicArray(Allocator&& allocator);
@@ -122,10 +123,15 @@ public:
     DynamicArray(SizeType count, const T& default_value);
     DynamicArray(SizeType count, const T& default_value, const Allocator& allocator);
     DynamicArray(SizeType count, const T& default_value, Allocator&& allocator);
-    // TODO: Implement constructors that take iterators as input
-    // TODO: Implement constructors that take std::initializer_list as input
+    DynamicArray(T* data, SizeType count);
+    DynamicArray(T* data, SizeType count, const Allocator& allocator);
+    DynamicArray(T* data, SizeType count, Allocator&& allocator);
     DynamicArray(const DynamicArray& other);
+    DynamicArray(const DynamicArray& other, const Allocator& allocator);
+    DynamicArray(const DynamicArray& other, Allocator&& allocator);
     DynamicArray(DynamicArray&& other) noexcept;
+    DynamicArray(DynamicArray&& other, const Allocator& allocator) noexcept;
+    DynamicArray(DynamicArray&& other, Allocator&& allocator) noexcept;
 
     ~DynamicArray();
 
@@ -277,11 +283,12 @@ public:
      * Erase elements in the range [start, end). Does not deallocate memory.
      * @param start Iterator pointing to the first element to erase.
      * @param end Iterator pointing to the element following the last element to erase.
-     * @return Iterator pointing to the element following the last erased element or ErrorCode::BadInput if start > end, ErrorCode::OutOfBounds
-     * if start or end are invalid.
+     * @return Iterator pointing to the element following the last erased element or ErrorCode::BadInput if start > end,
+     * ErrorCode::OutOfBounds if start or end are invalid.
      */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType start, ConstIteratorType end);
 
+    // Iterators
     IteratorType Begin() { return IteratorType(m_data); }
     IteratorType End() { return IteratorType(m_data + m_size); }
     ConstIteratorType ConstBegin() const { return ConstIteratorType(m_data); }
@@ -473,7 +480,110 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(SizeType count, const T& default_
 }
 
 template <typename T, typename Allocator>
-Opal::DynamicArray<T, Allocator>::DynamicArray(const DynamicArray& other) : m_capacity(other.m_capacity), m_size(other.m_size)
+Opal::DynamicArray<T, Allocator>::DynamicArray(T* data, SizeType count) : m_capacity(count), m_size(count)
+{
+    if (m_capacity == 0)
+    {
+        m_data = nullptr;
+        OPAL_ASSERT(false, "Invalid size for DynamicArray");
+        return;
+    }
+    m_data = Allocate(m_capacity);
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T(data[i]);  // Invokes copy constructor on allocated memory
+    }
+}
+
+template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(T* data, SizeType count, const Allocator& allocator)
+    : m_allocator(allocator), m_capacity(count), m_size(count)
+{
+    if (m_capacity == 0)
+    {
+        m_data = nullptr;
+        OPAL_ASSERT(false, "Invalid size for DynamicArray");
+        return;
+    }
+    m_data = Allocate(m_capacity);
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T(data[i]);  // Invokes copy constructor on allocated memory
+    }
+}
+
+template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(T* data, SizeType count, Allocator&& allocator)
+    : m_allocator(Move(allocator)), m_capacity(count), m_size(count)
+{
+    if (m_capacity == 0)
+    {
+        m_data = nullptr;
+        OPAL_ASSERT(false, "Invalid size for DynamicArray");
+        return;
+    }
+    m_data = Allocate(m_capacity);
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T(data[i]);  // Invokes copy constructor on allocated memory
+    }
+}
+
+template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(const DynamicArray& other)
+    : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+{
+    m_data = Allocate(m_capacity);
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
+    }
+}
+
+template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(const DynamicArray& other, const Allocator& allocator)
+    : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+{
+    m_data = Allocate(m_capacity);
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        OPAL_ASSERT(false, "Failed to allocate memory for DynamicArray");
+        return;
+    }
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
+    }
+}
+
+template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(const DynamicArray& other, Allocator&& allocator)
+    : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -490,7 +600,25 @@ Opal::DynamicArray<T, Allocator>::DynamicArray(const DynamicArray& other) : m_ca
 
 template <typename T, typename Allocator>
 Opal::DynamicArray<T, Allocator>::DynamicArray(DynamicArray&& other) noexcept
-    : m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
+    : m_allocator(Move(other.m_allocator)), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
+{
+    other.m_capacity = 0;
+    other.m_size = 0;
+    other.m_data = nullptr;
+}
+
+template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(DynamicArray&& other, const Allocator& allocator) noexcept
+    : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
+{
+    other.m_capacity = 0;
+    other.m_size = 0;
+    other.m_data = nullptr;
+}
+
+template <typename T, typename Allocator>
+Opal::DynamicArray<T, Allocator>::DynamicArray(DynamicArray&& other, Allocator&& allocator) noexcept
+    : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
 {
     other.m_capacity = 0;
     other.m_size = 0;

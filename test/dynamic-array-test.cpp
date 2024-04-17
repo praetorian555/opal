@@ -58,6 +58,8 @@ struct NonPod
 };
 }  // namespace
 
+using namespace Opal;
+
 TEST_CASE("Construction with POD data", "[DynamicArray]")
 {
     SECTION("Size constructor")
@@ -112,10 +114,76 @@ TEST_CASE("Construction with POD data", "[DynamicArray]")
         REQUIRE(int_arr_copy.GetData()[1] == 42);
         REQUIRE(int_arr_copy.GetData()[2] == 42);
     }
+    SECTION("Copy constructor with allocator")
+    {
+        DefaultAllocator allocator;
+        DynamicArray<i32> int_arr(3, 42);
+        DynamicArray<i32> int_arr_copy(int_arr, allocator);
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 42);
+        REQUIRE(int_arr.GetData()[2] == 42);
+        REQUIRE(int_arr_copy.GetCapacity() == 4);
+        REQUIRE(int_arr_copy.GetSize() == 3);
+        REQUIRE(int_arr_copy.GetData() != nullptr);
+        REQUIRE(int_arr_copy.GetData()[0] == 42);
+        REQUIRE(int_arr_copy.GetData()[1] == 42);
+        REQUIRE(int_arr_copy.GetData()[2] == 42);
+    }
+    SECTION("Copy constructor with move allocator")
+    {
+        DefaultAllocator allocator;
+        DynamicArray<i32> int_arr(3, 42);
+        DynamicArray<i32> int_arr_copy(int_arr, Move(allocator));
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 42);
+        REQUIRE(int_arr.GetData()[2] == 42);
+        REQUIRE(int_arr_copy.GetCapacity() == 4);
+        REQUIRE(int_arr_copy.GetSize() == 3);
+        REQUIRE(int_arr_copy.GetData() != nullptr);
+        REQUIRE(int_arr_copy.GetData()[0] == 42);
+        REQUIRE(int_arr_copy.GetData()[1] == 42);
+        REQUIRE(int_arr_copy.GetData()[2] == 42);
+    }
     SECTION("Move constructor")
     {
         Opal::DynamicArray<i32> int_arr(3, 42);
         Opal::DynamicArray<i32> int_arr_copy(std::move(int_arr));
+        REQUIRE(int_arr.GetCapacity() == 0);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() == nullptr);
+        REQUIRE(int_arr_copy.GetCapacity() == 4);
+        REQUIRE(int_arr_copy.GetSize() == 3);
+        REQUIRE(int_arr_copy.GetData() != nullptr);
+        REQUIRE(int_arr_copy.GetData()[0] == 42);
+        REQUIRE(int_arr_copy.GetData()[1] == 42);
+        REQUIRE(int_arr_copy.GetData()[2] == 42);
+    }
+    SECTION("Move constructor with allocator")
+    {
+        DefaultAllocator allocator;
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32> int_arr_copy(Move(int_arr), allocator);
+        REQUIRE(int_arr.GetCapacity() == 0);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() == nullptr);
+        REQUIRE(int_arr_copy.GetCapacity() == 4);
+        REQUIRE(int_arr_copy.GetSize() == 3);
+        REQUIRE(int_arr_copy.GetData() != nullptr);
+        REQUIRE(int_arr_copy.GetData()[0] == 42);
+        REQUIRE(int_arr_copy.GetData()[1] == 42);
+        REQUIRE(int_arr_copy.GetData()[2] == 42);
+    }
+    SECTION("Move constructor with move allocator")
+    {
+        DefaultAllocator allocator;
+        Opal::DynamicArray<i32> int_arr(3, 42);
+        Opal::DynamicArray<i32> int_arr_copy(Move(int_arr), Move(allocator));
         REQUIRE(int_arr.GetCapacity() == 0);
         REQUIRE(int_arr.GetSize() == 0);
         REQUIRE(int_arr.GetData() == nullptr);
@@ -185,6 +253,44 @@ TEST_CASE("Construction with POD data", "[DynamicArray]")
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetData()[1] == 42);
         REQUIRE(int_arr.GetData()[2] == 42);
+    }
+    SECTION("Pointer and size constructor")
+    {
+        i32* data = new i32[3]{42, 43, 44};
+        DynamicArray<i32> int_arr(data, 3);
+        REQUIRE(int_arr.GetCapacity() == 3);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 43);
+        REQUIRE(int_arr.GetData()[2] == 44);
+        delete[] data;
+    }
+    SECTION("Pointer, size and allocator constructor")
+    {
+        i32* data = new i32[3]{42, 43, 44};
+        DefaultAllocator allocator;
+        DynamicArray<i32> int_arr(data, 3, allocator);
+        REQUIRE(int_arr.GetCapacity() == 3);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 43);
+        REQUIRE(int_arr.GetData()[2] == 44);
+        delete[] data;
+    }
+    SECTION("Pointer, size and move allocator constructor")
+    {
+        i32* data = new i32[3]{42, 43, 44};
+        DefaultAllocator allocator;
+        DynamicArray<i32> int_arr(data, 3, Move(allocator));
+        REQUIRE(int_arr.GetCapacity() == 3);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 43);
+        REQUIRE(int_arr.GetData()[2] == 44);
+        delete[] data;
     }
 }
 
