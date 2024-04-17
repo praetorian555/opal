@@ -1727,6 +1727,18 @@ TEST_CASE("Insert", "[DynamicArray]")
             REQUIRE(int_arr[2] == 42);
             REQUIRE(int_arr[3] == 42);
         }
+        SECTION("In mid move")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            Opal::DynamicArray<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin() + 1, 25).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 4);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 25);
+            REQUIRE(int_arr[2] == 42);
+            REQUIRE(int_arr[3] == 42);
+        }
         SECTION("At the end")
         {
             Opal::DynamicArray<i32> int_arr(3, 42);
@@ -1740,11 +1752,106 @@ TEST_CASE("Insert", "[DynamicArray]")
             REQUIRE(int_arr[2] == 42);
             REQUIRE(int_arr[3] == 25);
         }
+        SECTION("At the end move")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            Opal::DynamicArray<i32>::IteratorType it = int_arr.Insert(int_arr.ConstEnd(), 25).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 4);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+            REQUIRE(int_arr[2] == 42);
+            REQUIRE(int_arr[3] == 25);
+        }
         SECTION("Bad position")
         {
             Opal::DynamicArray<i32> int_arr(3, 42);
             i32 val = 25;
             Opal::ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, val).GetError();
+            REQUIRE(err == Opal::ErrorCode::BadInput);
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 3);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+            REQUIRE(int_arr[2] == 42);
+        }
+        SECTION("Bad position move")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            Opal::ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, 25).GetError();
+            REQUIRE(err == Opal::ErrorCode::BadInput);
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 3);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+            REQUIRE(int_arr[2] == 42);
+        }
+    }
+    SECTION("Insert multiple same elements")
+    {
+        SECTION("In mid")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            i32 val = 25;
+            Opal::DynamicArray<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin() + 1, 2, val).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 7);
+            REQUIRE(int_arr.GetSize() == 5);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 25);
+            REQUIRE(int_arr[2] == 25);
+            REQUIRE(int_arr[3] == 42);
+            REQUIRE(int_arr[4] == 42);
+        }
+        SECTION("At the end")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            i32 val = 25;
+            Opal::DynamicArray<i32>::IteratorType it = int_arr.Insert(int_arr.ConstEnd(), 2, val).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 7);
+            REQUIRE(int_arr.GetSize() == 5);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+            REQUIRE(int_arr[2] == 42);
+            REQUIRE(int_arr[3] == 25);
+            REQUIRE(int_arr[4] == 25);
+        }
+        SECTION("At beginning")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            i32 val = 25;
+            Opal::DynamicArray<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin(), 2, val).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 7);
+            REQUIRE(int_arr.GetSize() == 5);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 25);
+            REQUIRE(int_arr[1] == 25);
+            REQUIRE(int_arr[2] == 42);
+            REQUIRE(int_arr[3] == 42);
+            REQUIRE(int_arr[4] == 42);
+        }
+        SECTION("Bad position")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            i32 val = 25;
+            Opal::ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, 2, val).GetError();
+            REQUIRE(err == Opal::ErrorCode::BadInput);
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 3);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+            REQUIRE(int_arr[2] == 42);
+        }
+        SECTION("Bad count")
+        {
+            Opal::DynamicArray<i32> int_arr(3, 42);
+            i32 val = 25;
+            Opal::ErrorCode err = int_arr.Insert(int_arr.ConstBegin(), 0, val).GetError();
             REQUIRE(err == Opal::ErrorCode::BadInput);
             REQUIRE(int_arr.GetCapacity() == 4);
             REQUIRE(int_arr.GetSize() == 3);
