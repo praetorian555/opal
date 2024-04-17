@@ -278,6 +278,8 @@ public:
      * @return Iterator pointing to the element following the erased element or ErrorCode::OutOfBounds if the position is invalid.
      */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType position);
+    
+    // TODO: Add EraseWithSwap to avoid moving elements around
 
     /**
      * Erase elements in the range [start, end). Does not deallocate memory.
