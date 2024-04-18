@@ -2093,6 +2093,54 @@ TEST_CASE("Erase", "[Array]")
             REQUIRE(int_arr[2] == 42);
         }
     }
+    SECTION("Single element with swap")
+    {
+        SECTION("from mid")
+        {
+            Array<i32> int_arr(3, 42);
+            Array<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.ConstBegin() + 1).GetValue();
+            REQUIRE(it - int_arr.Begin() == 1);
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 2);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+        }
+        SECTION("from end")
+        {
+            Array<i32> int_arr(3, 42);
+            Array<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.ConstEnd() - 1).GetValue();
+            REQUIRE(it - int_arr.Begin() == int_arr.ConstEnd() - int_arr.ConstBegin());
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 2);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+        }
+        SECTION("from beginning")
+        {
+            Array<i32> int_arr(3, 42);
+            Array<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.ConstBegin()).GetValue();
+            REQUIRE(it == int_arr.Begin());
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 2);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+        }
+        SECTION("out of bounds")
+        {
+            Array<i32> int_arr(3, 42);
+            ErrorCode err = int_arr.EraseWithSwap(int_arr.ConstEnd()).GetError();
+            REQUIRE(err == ErrorCode::OutOfBounds);
+            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetSize() == 3);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+            REQUIRE(int_arr[2] == 42);
+        }
+    }
     SECTION("Multiple elements")
     {
         SECTION("From mid")

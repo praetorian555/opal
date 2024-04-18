@@ -48,8 +48,7 @@ private:
 };
 
 template <typename MyArray>
-ArrayIterator<MyArray> operator+(typename ArrayIterator<MyArray>::DifferenceType n,
-                                               const ArrayIterator<MyArray>& it);
+ArrayIterator<MyArray> operator+(typename ArrayIterator<MyArray>::DifferenceType n, const ArrayIterator<MyArray>& it);
 
 template <typename MyArray>
 class ArrayConstIterator
@@ -90,8 +89,7 @@ private:
 };
 
 template <typename MyArray>
-ArrayConstIterator<MyArray> operator+(typename ArrayConstIterator<MyArray>::DifferenceType n,
-                                                    const ArrayConstIterator<MyArray>& it);
+ArrayConstIterator<MyArray> operator+(typename ArrayConstIterator<MyArray>::DifferenceType n, const ArrayConstIterator<MyArray>& it);
 
 /**
  * Represents continuous memory storage on the heap that can dynamically grow in size. Similar to std::vector.
@@ -254,8 +252,8 @@ public:
      * end.
      * @param count How many new elements to insert.
      * @param value Value of the new elements.
-     * @return Iterator pointing to the first newly inserted element or ErrorCode::OutOfBounds if the position is invalid, ErrorCode::BadInput
-     * if count is 0, ErrorCode::OutOfMemory if memory allocation failed.
+     * @return Iterator pointing to the first newly inserted element or ErrorCode::OutOfBounds if the position is invalid,
+     * ErrorCode::BadInput if count is 0, ErrorCode::OutOfMemory if memory allocation failed.
      */
     Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, SizeType count, const T& value);
 
@@ -266,8 +264,8 @@ public:
      * end.
      * @param start Start of the range, inclusive.
      * @param end End of the range, exclusive.
-     * @return Iterator pointing to the first newly inserted element or ErrorCode::OutOfBounds if the position is invalid, ErrorCode::BadInput
-     * if start >= end, ErrorCode::OutOfMemory if memory allocation failed.
+     * @return Iterator pointing to the first newly inserted element or ErrorCode::OutOfBounds if the position is invalid,
+     * ErrorCode::BadInput if start >= end, ErrorCode::OutOfMemory if memory allocation failed.
      */
     template <typename InputIt>
     Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType position, InputIt start, InputIt end);
@@ -278,8 +276,13 @@ public:
      * @return Iterator pointing to the element following the erased element or ErrorCode::OutOfBounds if the position is invalid.
      */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType position);
-    
-    // TODO: Add EraseWithSwap to avoid moving elements around
+
+    /**
+     * Erase the element at the specified position by swapping it with the last element. Does not deallocate memory.
+     * @param position Iterator pointing to the element to erase.
+     * @return Iterator pointing to the new element at the position or ErrorCode::OutOfBounds if the position is invalid.
+     */
+    Expected<IteratorType, ErrorCode> EraseWithSwap(ConstIteratorType position);
 
     /**
      * Erase elements in the range [start, end). Does not deallocate memory.
@@ -550,8 +553,7 @@ Opal::Array<T, Allocator>::Array(T* data, SizeType count, Allocator&& allocator)
 }
 
 template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(const Array& other)
-    : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+Opal::Array<T, Allocator>::Array(const Array& other) : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -786,8 +788,7 @@ Opal::ErrorCode Opal::Array<T, Allocator>::AssignIt(InputIt start, InputIt end)
 }
 
 template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::At(
-    SizeType index)
+Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::At(SizeType index)
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (index >= m_size)
@@ -798,8 +799,7 @@ Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCod
 }
 
 template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ConstReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::At(
-    SizeType index) const
+Opal::Expected<typename Opal::Array<T, Allocator>::ConstReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::At(SizeType index) const
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (index >= m_size)
@@ -810,8 +810,7 @@ Opal::Expected<typename Opal::Array<T, Allocator>::ConstReferenceType, Opal::Err
 }
 
 template <typename T, typename Allocator>
-typename Opal::Array<T, Allocator>::ReferenceType Opal::Array<T, Allocator>::Array<T, Allocator>::operator[](
-    Array::SizeType index)
+typename Opal::Array<T, Allocator>::ReferenceType Opal::Array<T, Allocator>::Array<T, Allocator>::operator[](Array::SizeType index)
 {
     OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
@@ -826,8 +825,7 @@ typename Opal::Array<T, Allocator>::ConstReferenceType Opal::Array<T, Allocator>
 }
 
 template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCode>
-Opal::Array<T, Allocator>::Array<T, Allocator>::Front()
+Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::Array<T, Allocator>::Front()
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -850,8 +848,7 @@ Opal::Array<T, Allocator>::Array<T, Allocator>::Front() const
 }
 
 template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCode>
-Opal::Array<T, Allocator>::Array<T, Allocator>::Back()
+Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::Array<T, Allocator>::Back()
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -1166,6 +1163,27 @@ Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode
 }
 
 template <typename T, typename Allocator>
+Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::Array<T, Allocator>::EraseWithSwap(
+    Array::ConstIteratorType position)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (position < ConstBegin() || position >= ConstEnd())
+    {
+        return ReturnType{ErrorCode::OutOfBounds};
+    }
+    IteratorType mut_position = Begin() + (position - ConstBegin());
+    (*mut_position).~T();  // Invokes destructor on allocated memory
+    if (mut_position != End() - 1)
+    {
+        *mut_position = Move(*(End() - 1));
+        m_size--;
+        return ReturnType{mut_position};
+    }
+    m_size--;
+    return ReturnType{End()};
+}
+
+template <typename T, typename Allocator>
 Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::Array<T, Allocator>::Erase(
     Array::ConstIteratorType start, Array::ConstIteratorType end)
 {
@@ -1293,15 +1311,13 @@ Opal::ArrayIterator<MyArray>& Opal::ArrayIterator<MyArray>::operator-=(Differenc
 }
 
 template <typename MyArray>
-typename Opal::ArrayIterator<MyArray>::DifferenceType Opal::ArrayIterator<MyArray>::operator-(
-    const ArrayIterator& other) const
+typename Opal::ArrayIterator<MyArray>::DifferenceType Opal::ArrayIterator<MyArray>::operator-(const ArrayIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
 template <typename MyArray>
-typename Opal::ArrayIterator<MyArray>::ReferenceType Opal::ArrayIterator<MyArray>::operator[](
-    DifferenceType n) const
+typename Opal::ArrayIterator<MyArray>::ReferenceType Opal::ArrayIterator<MyArray>::operator[](DifferenceType n) const
 {
     return *(m_ptr + n);
 }
@@ -1319,8 +1335,7 @@ typename Opal::ArrayIterator<MyArray>::PointerType Opal::ArrayIterator<MyArray>:
 }
 
 template <typename MyArray>
-Opal::ArrayIterator<MyArray> Opal::operator+(typename ArrayIterator<MyArray>::DifferenceType n,
-                                                           const ArrayIterator<MyArray>& it)
+Opal::ArrayIterator<MyArray> Opal::operator+(typename ArrayIterator<MyArray>::DifferenceType n, const ArrayIterator<MyArray>& it)
 {
     return it + n;
 }
@@ -1413,8 +1428,7 @@ typename Opal::ArrayConstIterator<MyArray>::DifferenceType Opal::ArrayConstItera
 }
 
 template <typename MyArray>
-typename Opal::ArrayConstIterator<MyArray>::ReferenceType Opal::ArrayConstIterator<MyArray>::operator[](
-    DifferenceType n) const
+typename Opal::ArrayConstIterator<MyArray>::ReferenceType Opal::ArrayConstIterator<MyArray>::operator[](DifferenceType n) const
 {
     return *(m_ptr + n);
 }
@@ -1433,7 +1447,7 @@ typename Opal::ArrayConstIterator<MyArray>::PointerType Opal::ArrayConstIterator
 
 template <typename MyArray>
 Opal::ArrayConstIterator<MyArray> Opal::operator+(typename ArrayConstIterator<MyArray>::DifferenceType n,
-                                                                const ArrayConstIterator<MyArray>& it)
+                                                  const ArrayConstIterator<MyArray>& it)
 {
     return it + n;
 }
