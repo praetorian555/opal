@@ -167,3 +167,25 @@ TEST_CASE("Is empty", "[Deque]")
         REQUIRE(!deque.IsEmpty());
     }
 }
+
+TEST_CASE("Equality", "[Deque]")
+{
+    SECTION("Equal")
+    {
+        Deque<i32> deque1(5, 10);
+        Deque<i32> deque2(5, 10);
+        REQUIRE(deque1 == deque2);
+    }
+    SECTION("Not equal in size")
+    {
+        Deque<i32> deque1(5, 10);
+        Deque<i32> deque2(4, 10);
+        REQUIRE(deque1 != deque2);
+    }
+    SECTION("Not equal in elements")
+    {
+        Deque<i32> deque1(5, 10);
+        Deque<i32> deque2(5, 20);
+        REQUIRE(deque1 != deque2);
+    }
+}

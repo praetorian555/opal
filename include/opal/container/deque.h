@@ -8,15 +8,15 @@
 namespace Opal
 {
 
-template <typename MyDeque>
-class DequeIterator
-{
-};
-
-template <typename MyDeque>
-class DequeConstIterator
-{
-};
+//template <typename MyDeque>
+//class DequeIterator
+//{
+//};
+//
+//template <typename MyDeque>
+//class DequeConstIterator
+//{
+//};
 
 /**
  * Data structure that provides constant time insertion and deletion at both ends of the container. It also allows
@@ -31,8 +31,8 @@ public:
     using ConstReferenceType = const T&;
     using SizeType = u64;
     using AllocatorType = Allocator;
-    using IteratorType = DequeIterator<Deque<T, Allocator>>;
-    using ConstIteratorType = DequeConstIterator<Deque<T, Allocator>>;
+//    using IteratorType = DequeIterator<Deque<T, Allocator>>;
+//    using ConstIteratorType = DequeConstIterator<Deque<T, Allocator>>;
 
     static_assert(!k_is_reference_value<ValueType>, "Value type must not be a reference");
     static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
@@ -85,35 +85,35 @@ public:
     ErrorCode PushFront(const T& value);
     ErrorCode PushFront(T&& value);
 
-    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, const T& value);
-    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, T&& value);
-    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, SizeType count, const T& value);
-
-    template <typename InputIt>
-    Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType pos, InputIt first, InputIt last);
+//    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, const T& value);
+//    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, T&& value);
+//    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, SizeType count, const T& value);
+//
+//    template <typename InputIt>
+//    Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType pos, InputIt first, InputIt last);
 
     ErrorCode PopBack();
     ErrorCode PopFront();
 
     void Clear();
 
-    ErrorCode Erase(ConstIteratorType pos);
-    ErrorCode Erase(IteratorType pos);
-    ErrorCode Erase(ConstIteratorType first, ConstIteratorType last);
-    ErrorCode Erase(IteratorType first, IteratorType last);
+//    ErrorCode Erase(ConstIteratorType pos);
+//    ErrorCode Erase(IteratorType pos);
+//    ErrorCode Erase(ConstIteratorType first, ConstIteratorType last);
+//    ErrorCode Erase(IteratorType first, IteratorType last);
 
-    IteratorType Begin();
-    ConstIteratorType Begin() const;
-    ConstIteratorType ConstBegin() const;
-    IteratorType End();
-    ConstIteratorType End() const;
-    ConstIteratorType ConstEnd() const;
-
-    // Compatible with std::begin and std::end
-    IteratorType begin();
-    IteratorType end();
-    ConstIteratorType begin() const;
-    ConstIteratorType end() const;
+//    IteratorType Begin();
+//    ConstIteratorType Begin() const;
+//    ConstIteratorType ConstBegin() const;
+//    IteratorType End();
+//    ConstIteratorType End() const;
+//    ConstIteratorType ConstEnd() const;
+//
+//    // Compatible with std::begin and std::end
+//    IteratorType begin();
+//    IteratorType end();
+//    ConstIteratorType begin() const;
+//    ConstIteratorType end() const;
 
 private:
     void Initialize(const T& value);
@@ -325,6 +325,29 @@ TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(Deque&& other) noexcept
         other.m_data = nullptr;
     }
     return *this;
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator==(const Deque& other) const
+{
+    if (m_size != other.m_size)
+    {
+        return false;
+    }
+    if (m_capacity != other.m_capacity)
+    {
+        return false;
+    }
+    for (SizeType i = m_first, last = (m_first + m_size) & (m_capacity - 1); i != last;)
+    {
+        if (m_data[i] != other.m_data[i])
+        {
+            return false;
+        }
+        ++i;
+        i &= (m_capacity - 1);
+    }
+    return true;
 }
 
 TEMPLATE_HEADER
