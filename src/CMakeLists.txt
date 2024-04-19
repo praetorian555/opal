@@ -6,6 +6,7 @@ add_library(opal
         ../include/opal/types.h
         ../include/opal/error-codes.h
         ../include/opal/container/expected.h
+        ../include/opal/container/deque.h
         ../include/opal/container/array.h)
 target_include_directories(opal PUBLIC ../include)
 target_link_libraries(opal PRIVATE opal_warnings)
