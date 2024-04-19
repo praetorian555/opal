@@ -189,3 +189,47 @@ TEST_CASE("Equality", "[Deque]")
         REQUIRE(deque1 != deque2);
     }
 }
+
+TEST_CASE("Assign", "[Deque]")
+{
+    SECTION("with count")
+    {
+        Deque<i32> deque;
+        ErrorCode err = deque.Assign(5);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 0);
+        REQUIRE(deque[1] == 0);
+        REQUIRE(deque[2] == 0);
+        REQUIRE(deque[3] == 0);
+        REQUIRE(deque[4] == 0);
+    }
+    SECTION("with count and value")
+    {
+        Deque<i32> deque;
+        ErrorCode err = deque.Assign(5, 10);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("with iterators")
+    {
+        Deque<i32> deque;
+        const i32 values[] = {1, 2, 3, 4, 5};
+        ErrorCode err = deque.AssignIt(values, values + 5);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 1);
+        REQUIRE(deque[1] == 2);
+        REQUIRE(deque[2] == 3);
+        REQUIRE(deque[3] == 4);
+        REQUIRE(deque[4] == 5);
+    }
+}

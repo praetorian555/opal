@@ -56,6 +56,7 @@ public:
 
     bool operator==(const Deque& other) const;
 
+    ErrorCode Assign(SizeType count);
     ErrorCode Assign(SizeType count, const T& value);
 
     template <typename InputIt>
@@ -348,6 +349,85 @@ bool TEMPLATE_NAMESPACE::operator==(const Deque& other) const
         i &= (m_capacity - 1);
     }
     return true;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::Assign(SizeType count)
+{
+    return Assign(count, T());
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::Assign(SizeType count, const T& value)
+{
+    if (count == 0)
+    {
+        return ErrorCode::Success;
+    }
+    const SizeType last = (m_first + m_size) & (m_capacity - 1);
+    for (SizeType i = m_first; i != last;)
+    {
+        m_data[i].~T();
+        ++i;
+        i &= (m_capacity - 1);
+    }
+    if (count > m_capacity)
+    {
+        Deallocate(m_data);
+        m_capacity = NextPowerOf2(count);
+        m_data = Allocate(m_capacity);
+        if (!m_data)
+        {
+            return ErrorCode::OutOfMemory;
+        }
+    }
+    m_size = count;
+    m_first = 0;
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (m_data + i) T(value);
+    }
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+template <typename InputIt>
+Opal::ErrorCode TEMPLATE_NAMESPACE::AssignIt(InputIt first, InputIt last)
+{
+    if (first > last)
+    {
+        return ErrorCode::BadInput;
+    }
+    if (first == last)
+    {
+        return ErrorCode::Success;
+    }
+    const SizeType count = last - first;
+    const SizeType last_local = (m_first + m_size) & (m_capacity - 1);
+    for (SizeType i = m_first; i != last_local;)
+    {
+        m_data[i].~T();
+        ++i;
+        i &= (m_capacity - 1);
+    }
+    if (count > m_capacity)
+    {
+        Deallocate(m_data);
+        m_capacity = NextPowerOf2(count);
+        m_data = Allocate(m_capacity);
+        if (!m_data)
+        {
+            return ErrorCode::OutOfMemory;
+        }
+    }
+    m_size = count;
+    m_first = 0;
+    for (SizeType i = 0; i < m_size; i++)
+    {
+        new (m_data + i) T(*first);
+        ++first;
+    }
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
