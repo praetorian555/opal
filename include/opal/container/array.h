@@ -108,7 +108,7 @@ public:
     using IteratorType = ArrayIterator<Array<T, Allocator>>;
     using ConstIteratorType = ArrayConstIterator<Array<T, Allocator>>;
 
-    static_assert(!k_is_reference_value<ValueType>, "Value type must be a reference");
+    static_assert(!k_is_reference_value<ValueType>, "Value type must not be a reference");
     static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
 
     // Constructors
