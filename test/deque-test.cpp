@@ -433,3 +433,177 @@ TEST_CASE("Resize", "[Deque]")
         REQUIRE(deque[9] == 0);
     }
 }
+
+TEST_CASE("Push front", "[Deque]")
+{
+    SECTION("Empty deque")
+    {
+        Deque<i32> deque;
+        ErrorCode err = deque.PushFront(10);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetSize() == 1);
+        REQUIRE(deque[0] == 10);
+    }
+    SECTION("Non-empty deque")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.PushFront(20);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 6);
+        REQUIRE(deque[0] == 20);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 10);
+    }
+    SECTION("Triggers resize")
+    {
+        Deque<i32> deque(8, 10);
+        ErrorCode err = deque.PushFront(20);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 16);
+        REQUIRE(deque.GetSize() == 9);
+        REQUIRE(deque[0] == 20);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 10);
+        REQUIRE(deque[6] == 10);
+        REQUIRE(deque[7] == 10);
+        REQUIRE(deque[8] == 10);
+    }
+    SECTION("Empty deque with a copy")
+    {
+        Deque<i32> deque;
+        i32 value = 10;
+        ErrorCode err = deque.PushFront(value);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetSize() == 1);
+        REQUIRE(deque[0] == 10);
+    }
+    SECTION("Non-empty deque with a copy")
+    {
+        Deque<i32> deque(5, 10);
+        i32 value = 20;
+        ErrorCode err = deque.PushFront(value);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 6);
+        REQUIRE(deque[0] == 20);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 10);
+    }
+    SECTION("Triggers resize with a copy")
+    {
+        Deque<i32> deque(8, 10);
+        i32 value = 20;
+        ErrorCode err = deque.PushFront(value);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 16);
+        REQUIRE(deque.GetSize() == 9);
+        REQUIRE(deque[0] == 20);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 10);
+        REQUIRE(deque[6] == 10);
+        REQUIRE(deque[7] == 10);
+        REQUIRE(deque[8] == 10);
+    }
+}
+
+TEST_CASE("Push back", "[Deque]")
+{
+    SECTION("Empty")
+    {
+        Deque<i32> deque;
+        ErrorCode err = deque.PushBack(10);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetSize() == 1);
+        REQUIRE(deque[0] == 10);
+    }
+    SECTION("Empty copy")
+    {
+        Deque<i32> deque;
+        i32 value = 10;
+        ErrorCode err = deque.PushBack(value);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetSize() == 1);
+        REQUIRE(deque[0] == 10);
+    }
+    SECTION("Non-empty deque")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.PushBack(20);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 6);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 20);
+    }
+    SECTION("Non-empty deque copy")
+    {
+        Deque<i32> deque(5, 10);
+        i32 value = 20;
+        ErrorCode err = deque.PushBack(value);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 6);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 20);
+    }
+    SECTION("Triggers resize")
+    {
+        Deque<i32> deque(8, 10);
+        ErrorCode err = deque.PushBack(20);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 16);
+        REQUIRE(deque.GetSize() == 9);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 10);
+        REQUIRE(deque[6] == 10);
+        REQUIRE(deque[7] == 10);
+        REQUIRE(deque[8] == 20);
+    }
+    SECTION("Triggers resize copy")
+    {
+        Deque<i32> deque(8, 10);
+        i32 value = 20;
+        ErrorCode err = deque.PushBack(value);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 16);
+        REQUIRE(deque.GetSize() == 9);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 10);
+        REQUIRE(deque[6] == 10);
+        REQUIRE(deque[7] == 10);
+        REQUIRE(deque[8] == 20);
+    }
+}

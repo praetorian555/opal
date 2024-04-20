@@ -583,10 +583,77 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(SizeType count, const T& value)
 }
 
 TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(const T& value)
+{
+    if (m_size == m_capacity)
+    {
+        ErrorCode err = Reserve(m_capacity * 2);
+        if (err != ErrorCode::Success)
+        {
+            return err;
+        }
+    }
+    const SizeType last = (m_first + m_size) & (m_capacity - 1);
+    new (m_data + last) T(value);
+    ++m_size;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(T&& value)
+{
+    if (m_size == m_capacity)
+    {
+        ErrorCode err = Reserve(m_capacity * 2);
+        if (err != ErrorCode::Success)
+        {
+            return err;
+        }
+    }
+    const SizeType last = (m_first + m_size) & (m_capacity - 1);
+    new (m_data + last) T(Move(value));
+    ++m_size;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::PushFront(const T& value)
+{
+    if (m_size == m_capacity)
+    {
+        ErrorCode err = Reserve(m_capacity * 2);
+        if (err != ErrorCode::Success)
+        {
+            return err;
+        }
+    }
+    m_first = (m_first + m_capacity - 1) & (m_capacity - 1);
+    new (m_data + m_first) T(value);
+    ++m_size;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::PushFront(T&& value)
+{
+    if (m_size == m_capacity)
+    {
+        ErrorCode err = Reserve(m_capacity * 2);
+        if (err != ErrorCode::Success)
+        {
+            return err;
+        }
+    }
+    m_first = (m_first + m_capacity - 1) & (m_capacity - 1);
+    new (m_data + m_first) T(Move(value));
+    ++m_size;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
 void TEMPLATE_NAMESPACE::Clear()
 {
-    const SizeType last = (m_first + m_size) & (m_capacity - 1);
-    for (SizeType i = m_first; i != last;)
+    for (SizeType i = m_first, count = 0; count < m_size; count++)
     {
         m_data[i].~T();
         ++i;
