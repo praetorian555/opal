@@ -230,8 +230,7 @@ TEMPLATE_NAMESPACE::Deque(const Deque& other)
     : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_first(other.m_first)
 {
     m_data = Allocate(m_capacity);
-    const SizeType last = (m_first + m_size) & (m_capacity - 1);
-    for (SizeType i = m_first; i != last;)
+    for (SizeType i = m_first, count = 0; count < m_size; count++)
     {
         new (m_data + i) T(other.m_data[i]);
         ++i;
@@ -252,8 +251,7 @@ TEMPLATE_NAMESPACE::Deque(Deque&& other) noexcept
 TEMPLATE_HEADER
 TEMPLATE_NAMESPACE::~Deque()
 {
-    const SizeType last = (m_first + m_size) & (m_capacity - 1);
-    for (SizeType i = m_first; i != last;)
+    for (SizeType i = m_first, count = 0; count < m_size; count++)
     {
         m_data[i].~T();
         ++i;
@@ -270,8 +268,7 @@ TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(const Deque& other)
 {
     if (this != &other)
     {
-        SizeType last = (m_first + m_size) & (m_capacity - 1);
-        for (SizeType i = m_first; i != last;)
+        for (SizeType i = m_first, count = 0; count < m_size; count++)
         {
             m_data[i].~T();
             ++i;
@@ -288,8 +285,7 @@ TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(const Deque& other)
         m_first = other.m_first;
 
         m_data = Allocate(m_capacity);
-        last = (m_first + m_size) & (m_capacity - 1);
-        for (SizeType i = m_first; i != last;)
+        for (SizeType i = m_first, count = 0; count < m_size; count++)
         {
             new (m_data + i) T(other.m_data[i]);
             ++i;
@@ -304,8 +300,7 @@ TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(Deque&& other) noexcept
 {
     if (this != &other)
     {
-        const SizeType last = (m_first + m_size) & (m_capacity - 1);
-        for (SizeType i = m_first; i != last;)
+        for (SizeType i = m_first, count = 0; count < m_size; count++)
         {
             m_data[i].~T();
             ++i;
@@ -341,7 +336,8 @@ bool TEMPLATE_NAMESPACE::operator==(const Deque& other) const
     {
         return false;
     }
-    for (SizeType i = m_first, last = (m_first + m_size) & (m_capacity - 1); i != last;)
+
+    for (SizeType i = m_first, count = 0; count < m_size; count++)
     {
         if (m_data[i] != other.m_data[i])
         {
@@ -366,8 +362,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Assign(SizeType count, const T& value)
     {
         return ErrorCode::Success;
     }
-    const SizeType last = (m_first + m_size) & (m_capacity - 1);
-    for (SizeType i = m_first; i != last;)
+    for (SizeType i = m_first, iter_count = 0; iter_count < m_size; iter_count++)
     {
         m_data[i].~T();
         ++i;
@@ -405,8 +400,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::AssignIt(InputIt first, InputIt last)
         return ErrorCode::Success;
     }
     const SizeType count = last - first;
-    const SizeType last_local = (m_first + m_size) & (m_capacity - 1);
-    for (SizeType i = m_first; i != last_local;)
+    for (SizeType i = m_first, iter_count = 0; iter_count < m_size; iter_count++)
     {
         m_data[i].~T();
         ++i;
@@ -518,14 +512,13 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Reserve(SizeType new_capacity)
         return ErrorCode::Success;
     }
     new_capacity = NextPowerOf2(new_capacity);
-    T* new_data = Allocate(NextPowerOf2(new_capacity));
+    T* new_data = Allocate(new_capacity);
     if (!new_data)
     {
         return ErrorCode::OutOfMemory;
     }
-    const SizeType last = (m_first + m_size) & (m_capacity - 1);
     SizeType new_it = 0;
-    for (SizeType i = m_first; i != last;)
+    for (SizeType i = m_first, count = 0; count < m_size; count++)
     {
         new (new_data + new_it) T(Move(m_data[i]));
         ++i;
@@ -560,8 +553,8 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(SizeType count, const T& value)
     }
     if (count < m_size)
     {
-        const SizeType last = (m_first + m_size) & (m_capacity - 1);
-        for (SizeType i = ((m_first + count) & (m_capacity - 1)); i != last;)
+        const SizeType first = (m_first + count) & (m_capacity - 1);
+        for (SizeType i = first, iter_count = 0; iter_count < m_size; iter_count++)
         {
             m_data[i].~T();
             ++i;
@@ -578,9 +571,12 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(SizeType count, const T& value)
             return err;
         }
     }
-    for (SizeType i = m_size; i < count; i++)
+    const SizeType first = (m_first + m_size) & (m_capacity - 1);
+    for (SizeType i = first, iter_count = m_size; iter_count < count; iter_count++)
     {
         new (m_data + i) T(value);
+        ++i;
+        i &= (m_capacity - 1);
     }
     m_size = count;
     return ErrorCode::Success;
