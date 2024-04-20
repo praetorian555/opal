@@ -467,6 +467,30 @@ const T& TEMPLATE_NAMESPACE::operator[](SizeType index) const
 }
 
 TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::Front()
+{
+    return At(0);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::Front() const
+{
+    return At(0);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::Back()
+{
+    return At(m_size - 1);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::Back() const
+{
+    return At(m_size - 1);
+}
+
+TEMPLATE_HEADER
 bool TEMPLATE_NAMESPACE::IsEmpty() const
 {
     return m_size == 0;

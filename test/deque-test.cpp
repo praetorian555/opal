@@ -281,3 +281,57 @@ TEST_CASE("At", "[Deque]")
         REQUIRE(deque.At(5).GetError() == ErrorCode::OutOfBounds);
     }
 }
+
+TEST_CASE("Front access", "[Deque]")
+{
+    SECTION("Empty deque")
+    {
+        Deque<i32> deque;
+        REQUIRE(deque.Front().HasValue() == false);
+        REQUIRE(deque.Front().GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Const empty deque")
+    {
+        const Deque<i32> deque;
+        REQUIRE(deque.Front().HasValue() == false);
+        REQUIRE(deque.Front().GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Non-empty deque")
+    {
+        Deque<i32> deque(5, 10);
+        deque.At(0).GetValue() = 20;
+        REQUIRE(deque.Front().GetValue() == 20);
+    }
+    SECTION("Non-empty const deque")
+    {
+        const Deque<i32> deque(5, 10);
+        REQUIRE(deque.Front().GetValue() == 10);
+    }
+}
+
+TEST_CASE("Back access", "[Deque]")
+{
+    SECTION("Empty deque")
+    {
+        Deque<i32> deque;
+        REQUIRE(deque.Back().HasValue() == false);
+        REQUIRE(deque.Back().GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Empty const deque")
+    {
+        const Deque<i32> deque;
+        REQUIRE(deque.Back().HasValue() == false);
+        REQUIRE(deque.Back().GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Non-empty deque")
+    {
+        Deque<i32> deque(5, 10);
+        deque.At(4).GetValue() = 20;
+        REQUIRE(deque.Back().GetValue() == 20);
+    }
+    SECTION("Non-empty const deque")
+    {
+        const Deque<i32> deque(5, 10);
+        REQUIRE(deque.Back().GetValue() == 10);
+    }
+}
