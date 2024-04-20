@@ -801,7 +801,7 @@ Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCod
 template <typename T, typename Allocator>
 Opal::Expected<typename Opal::Array<T, Allocator>::ConstReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::At(SizeType index) const
 {
-    using ReturnType = Expected<ReferenceType, ErrorCode>;
+    using ReturnType = Expected<ConstReferenceType, ErrorCode>;
     if (index >= m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);

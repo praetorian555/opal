@@ -823,6 +823,14 @@ TEST_CASE("Access element with At", "[Array]")
         REQUIRE(int_arr.At(2).GetValue() == 42);
         REQUIRE(int_arr.At(3).HasValue() == false);
     }
+    SECTION("Const POD data")
+    {
+        const Array<i32> int_arr(3, 42);
+        REQUIRE(int_arr.At(0).GetValue() == 42);
+        REQUIRE(int_arr.At(1).GetValue() == 42);
+        REQUIRE(int_arr.At(2).GetValue() == 42);
+        REQUIRE(int_arr.At(3).HasValue() == false);
+    }
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
