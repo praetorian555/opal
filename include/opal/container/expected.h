@@ -42,8 +42,6 @@ template <typename T, typename E>
 class Expected<T&, E>
 {
 public:
-    static_assert(!k_is_const_value<T>, "Expected reference type can't be const");
-
     Expected() = delete;
     explicit Expected(T& value);
     explicit Expected(const E& error);
