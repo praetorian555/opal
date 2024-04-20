@@ -335,3 +335,101 @@ TEST_CASE("Back access", "[Deque]")
         REQUIRE(deque.Back().GetValue() == 10);
     }
 }
+
+TEST_CASE("Clear", "[Deque]")
+{
+    Deque<i32> deque(5, 10);
+    deque.Clear();
+    REQUIRE(deque.GetCapacity() == 8);
+    REQUIRE(deque.GetSize() == 0);
+}
+
+TEST_CASE("Reserve", "[Deque]")
+{
+    SECTION("Increase capacity")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Reserve(10);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 16);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("Decrease capacity")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Reserve(2);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+}
+
+TEST_CASE("Resize", "[Deque]")
+{
+    SECTION("New size smaller then old size")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Resize(2);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 2);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+    }
+    SECTION("New size same as the old size")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Resize(5);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("New size larger then old size but smaller then capacity")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Resize(7);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 7);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 0);
+        REQUIRE(deque[6] == 0);
+    }
+    SECTION("New size larger then capacity")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Resize(10);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 16);
+        REQUIRE(deque.GetSize() == 10);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 0);
+        REQUIRE(deque[6] == 0);
+        REQUIRE(deque[7] == 0);
+        REQUIRE(deque[8] == 0);
+        REQUIRE(deque[9] == 0);
+    }
+}

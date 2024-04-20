@@ -78,6 +78,8 @@ public:
     [[nodiscard]] SizeType GetSize() const;
     [[nodiscard]] SizeType GetCapacity() const;
 
+    ErrorCode Reserve(SizeType new_capacity);
+
     ErrorCode Resize(SizeType count);
     ErrorCode Resize(SizeType count, const T& value);
 
@@ -506,6 +508,96 @@ TEMPLATE_HEADER
 typename TEMPLATE_NAMESPACE::SizeType TEMPLATE_NAMESPACE::GetCapacity() const
 {
     return m_capacity;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::Reserve(SizeType new_capacity)
+{
+    if (new_capacity <= m_capacity)
+    {
+        return ErrorCode::Success;
+    }
+    new_capacity = NextPowerOf2(new_capacity);
+    T* new_data = Allocate(NextPowerOf2(new_capacity));
+    if (!new_data)
+    {
+        return ErrorCode::OutOfMemory;
+    }
+    const SizeType last = (m_first + m_size) & (m_capacity - 1);
+    SizeType new_it = 0;
+    for (SizeType i = m_first; i != last;)
+    {
+        new (new_data + new_it) T(Move(m_data[i]));
+        ++i;
+        i &= (m_capacity - 1);
+        ++new_it;
+    }
+    Deallocate(m_data);
+    m_data = new_data;
+    m_capacity = new_capacity;
+    m_first = 0;
+    return ErrorCode::Success;
+
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(SizeType count)
+{
+    return Resize(count, T());
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(SizeType count, const T& value)
+{
+    if (count == 0)
+    {
+        Clear();
+        return ErrorCode::Success;
+    }
+    if (count == m_size)
+    {
+        return ErrorCode::Success;
+    }
+    if (count < m_size)
+    {
+        const SizeType last = (m_first + m_size) & (m_capacity - 1);
+        for (SizeType i = ((m_first + count) & (m_capacity - 1)); i != last;)
+        {
+            m_data[i].~T();
+            ++i;
+            i &= (m_capacity - 1);
+        }
+        m_size = count;
+        return ErrorCode::Success;
+    }
+    if (count > m_capacity)
+    {
+        ErrorCode err = Reserve(NextPowerOf2(count));
+        if (err != ErrorCode::Success)
+        {
+            return err;
+        }
+    }
+    for (SizeType i = m_size; i < count; i++)
+    {
+        new (m_data + i) T(value);
+    }
+    m_size = count;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+void TEMPLATE_NAMESPACE::Clear()
+{
+    const SizeType last = (m_first + m_size) & (m_capacity - 1);
+    for (SizeType i = m_first; i != last;)
+    {
+        m_data[i].~T();
+        ++i;
+        i &= (m_capacity - 1);
+    }
+    m_size = 0;
+    m_first = 0;
 }
 
 TEMPLATE_HEADER
