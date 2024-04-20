@@ -233,3 +233,51 @@ TEST_CASE("Assign", "[Deque]")
         REQUIRE(deque[4] == 5);
     }
 }
+
+TEST_CASE("At", "[Deque]")
+{
+    SECTION("Good access")
+    {
+        Deque<i32> deque(5, 10);
+        REQUIRE(deque.At(0).GetValue() == 10);
+        REQUIRE(deque.At(1).GetValue() == 10);
+        REQUIRE(deque.At(2).GetValue() == 10);
+        REQUIRE(deque.At(3).GetValue() == 10);
+        REQUIRE(deque.At(4).GetValue() == 10);
+    }
+    SECTION("Modify with good access")
+    {
+        Deque<i32> deque(5, 10);
+        deque.At(0).GetValue() = 20;
+        deque.At(1).GetValue() = 30;
+        deque.At(2).GetValue() = 40;
+        deque.At(3).GetValue() = 50;
+        deque.At(4).GetValue() = 60;
+        REQUIRE(deque.At(0).GetValue() == 20);
+        REQUIRE(deque.At(1).GetValue() == 30);
+        REQUIRE(deque.At(2).GetValue() == 40);
+        REQUIRE(deque.At(3).GetValue() == 50);
+        REQUIRE(deque.At(4).GetValue() == 60);
+    }
+    SECTION("Good access const")
+    {
+        const Deque<i32> deque(5, 10);
+        REQUIRE(deque.At(0).GetValue() == 10);
+        REQUIRE(deque.At(1).GetValue() == 10);
+        REQUIRE(deque.At(2).GetValue() == 10);
+        REQUIRE(deque.At(3).GetValue() == 10);
+        REQUIRE(deque.At(4).GetValue() == 10);
+    }
+    SECTION("Bad access")
+    {
+        Deque<i32> deque(5, 10);
+        REQUIRE(deque.At(5).HasValue() == false);
+        REQUIRE(deque.At(5).GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Bad access const")
+    {
+        const Deque<i32> deque(5, 10);
+        REQUIRE(deque.At(5).HasValue() == false);
+        REQUIRE(deque.At(5).GetError() == ErrorCode::OutOfBounds);
+    }
+}

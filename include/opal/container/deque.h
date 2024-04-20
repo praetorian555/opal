@@ -431,6 +431,30 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::AssignIt(InputIt first, InputIt last)
 }
 
 TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index)
+{
+    const SizeType final_index = (m_first + index) & (m_capacity - 1);
+    const SizeType last = (m_first + m_size) & (m_capacity - 1);
+    if (final_index >= last)
+    {
+        return Expected<T&, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    return Expected<T&, ErrorCode>(m_data[final_index]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index) const
+{
+    const SizeType final_index = (m_first + index) & (m_capacity - 1);
+    const SizeType last = (m_first + m_size) & (m_capacity - 1);
+    if (final_index >= last)
+    {
+        return Expected<const T&, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    return Expected<const T&, ErrorCode>(m_data[final_index]);
+}
+
+TEMPLATE_HEADER
 T& TEMPLATE_NAMESPACE::operator[](SizeType index)
 {
     return m_data[(m_first + index) & (m_capacity - 1)];
