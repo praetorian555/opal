@@ -4,6 +4,41 @@
 
 using namespace Opal;
 
+struct Data
+{
+    Data(i32 val) { value = new i32(val); }
+    Data() { value = new i32(5); }
+    ~Data() { delete value; }
+
+    Data(const Data& other) { value = new i32(*other.value); }
+    Data& operator=(const Data& other)
+    {
+        if (this != &other)
+        {
+            delete value;
+            value = new i32(*other.value);
+        }
+        return *this;
+    }
+
+    Data(Data&& other) noexcept : value(other.value)
+    {
+        other.value = nullptr;
+    }
+    Data& operator=(Data&& other) noexcept
+    {
+        if (this != &other)
+        {
+            delete value;
+            value = other.value;
+            other.value = nullptr;
+        }
+        return *this;
+    }
+
+    i32* value;
+};
+
 TEST_CASE("Constructor", "[Deque]")
 {
     SECTION("Default constructor")
@@ -645,5 +680,327 @@ TEST_CASE("Pop front and back", "[Deque]")
         Deque<i32> deque;
         ErrorCode err = deque.PopBack();
         REQUIRE(err == ErrorCode::OutOfBounds);
+    }
+}
+
+TEST_CASE("Iterator", "[Deque]")
+{
+    SECTION("Difference")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it1 = deque.Begin();
+        Deque<i32>::IteratorType it2 = deque.End();
+        REQUIRE(it2 - it1 == 3);
+    }
+    SECTION("Increment")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.Begin();
+        REQUIRE(*it == 42);
+        ++it;
+        REQUIRE(*it == 42);
+        ++it;
+        REQUIRE(*it == 42);
+        ++it;
+        REQUIRE(it == deque.End());
+    }
+    SECTION("Post increment")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.Begin();
+        REQUIRE(*it == 42);
+        it++;
+        REQUIRE(*it == 42);
+        it++;
+        REQUIRE(*it == 42);
+        Deque<i32>::IteratorType prev = it++;
+        REQUIRE(it - prev == 1);
+        REQUIRE(it == deque.End());
+    }
+    SECTION("Decrement")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.End();
+        --it;
+        REQUIRE(*it == 42);
+        --it;
+        REQUIRE(*it == 42);
+        --it;
+        REQUIRE(*it == 42);
+        REQUIRE(it == deque.Begin());
+    }
+    SECTION("Post decrement")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.End();
+        it--;
+        REQUIRE(*it == 42);
+        it--;
+        REQUIRE(*it == 42);
+        Deque<i32>::IteratorType prev = it--;
+        REQUIRE(prev - it == 1);
+        REQUIRE(it == deque.Begin());
+    }
+    SECTION("Add")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.Begin();
+        REQUIRE(*(it + 0) == 42);
+        REQUIRE(*(it + 1) == 42);
+        REQUIRE(*(it + 2) == 42);
+        REQUIRE((it + 3) == deque.End());
+
+        Deque<i32>::IteratorType it2 = deque.Begin();
+        REQUIRE((3 + it2) == deque.End());
+    }
+    SECTION("Add assignment")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.Begin();
+        REQUIRE(*(it += 0) == 42);
+        REQUIRE(*(it += 1) == 42);
+        REQUIRE(*(it += 1) == 42);
+        REQUIRE((it += 1) == deque.End());
+    }
+    SECTION("Subtract")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.End();
+        REQUIRE((it - 0) == deque.End());
+        REQUIRE(*(it - 1) == 42);
+        REQUIRE(*(it - 2) == 42);
+        REQUIRE(*(it - 3) == 42);
+        REQUIRE((it - 3) == deque.Begin());
+    }
+    SECTION("Subtract assignment")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.End();
+        REQUIRE((it -= 0) == deque.End());
+        REQUIRE(*(it -= 1) == 42);
+        REQUIRE(*(it -= 1) == 42);
+        REQUIRE(*(it -= 1) == 42);
+        REQUIRE(it == deque.Begin());
+    }
+    SECTION("Access")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.Begin();
+        REQUIRE(it[0] == 42);
+        REQUIRE(it[1] == 42);
+        REQUIRE(it[2] == 42);
+    }
+    SECTION("Dereference")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it = deque.Begin();
+        REQUIRE(*it == 42);
+    }
+    SECTION("Pointer")
+    {
+        Deque<Data> deque(3, Data());
+        Deque<Data>::IteratorType it = deque.Begin();
+        REQUIRE(*(it->value) == 5);
+    }
+    SECTION("Compare")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::IteratorType it1 = deque.Begin();
+        Deque<i32>::IteratorType it2 = deque.Begin();
+        REQUIRE(it1 == it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it1 >= it2);
+        REQUIRE_FALSE(it1 != it2);
+        REQUIRE_FALSE(it1 < it2);
+        REQUIRE_FALSE(it1 > it2);
+
+        it2++;
+        REQUIRE(it1 != it2);
+        REQUIRE(it1 < it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it2 > it1);
+        REQUIRE(it2 >= it1);
+        REQUIRE_FALSE(it1 == it2);
+    }
+    SECTION("For loop")
+    {
+        Deque<i32> deque(3, 42);
+        i32 sum = 0;
+        for (Deque<i32>::IteratorType it = deque.Begin(); it != deque.End(); ++it)
+        {
+            sum += *it;
+        }
+        REQUIRE(sum == 126);
+    }
+    SECTION("Modern for loop")
+    {
+        Deque<i32> deque(3, 42);
+        i32 sum = 0;
+        for (i32 val : deque)
+        {
+            sum += val;
+        }
+        REQUIRE(sum == 126);
+    }
+}
+
+TEST_CASE("Const iterator", "[Deque]")
+{
+    SECTION("Difference")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it1 = deque.ConstBegin();
+        Deque<i32>::ConstIteratorType it2 = deque.ConstEnd();
+        REQUIRE(it2 - it1 == 3);
+    }
+    SECTION("Increment")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstBegin();
+        REQUIRE(*it == 42);
+        ++it;
+        REQUIRE(*it == 42);
+        ++it;
+        REQUIRE(*it == 42);
+        ++it;
+        REQUIRE(it == deque.ConstEnd());
+    }
+    SECTION("Post increment")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstBegin();
+        REQUIRE(*it == 42);
+        it++;
+        REQUIRE(*it == 42);
+        it++;
+        REQUIRE(*it == 42);
+        Deque<i32>::ConstIteratorType prev = it++;
+        REQUIRE(it - prev == 1);
+        REQUIRE(it == deque.ConstEnd());
+    }
+    SECTION("Decrement")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstEnd();
+        --it;
+        REQUIRE(*it == 42);
+        --it;
+        REQUIRE(*it == 42);
+        --it;
+        REQUIRE(*it == 42);
+        REQUIRE(it == deque.ConstBegin());
+    }
+    SECTION("Post decrement")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstEnd();
+        it--;
+        REQUIRE(*it == 42);
+        it--;
+        REQUIRE(*it == 42);
+        Deque<i32>::ConstIteratorType prev = it--;
+        REQUIRE(prev - it == 1);
+        REQUIRE(it == deque.ConstBegin());
+    }
+    SECTION("Add")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstBegin();
+        REQUIRE(*(it + 0) == 42);
+        REQUIRE(*(it + 1) == 42);
+        REQUIRE(*(it + 2) == 42);
+        REQUIRE((it + 3) == deque.ConstEnd());
+
+        Deque<i32>::ConstIteratorType it2 = deque.ConstBegin();
+        REQUIRE((3 + it2) == deque.ConstEnd());
+    }
+    SECTION("Add assignment")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstBegin();
+        REQUIRE(*(it += 0) == 42);
+        REQUIRE(*(it += 1) == 42);
+        REQUIRE(*(it += 1) == 42);
+        REQUIRE((it += 1) == deque.ConstEnd());
+    }
+    SECTION("Subtract")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstEnd();
+        REQUIRE((it - 0) == deque.ConstEnd());
+        REQUIRE(*(it - 1) == 42);
+        REQUIRE(*(it - 2) == 42);
+        REQUIRE(*(it - 3) == 42);
+        REQUIRE((it - 3) == deque.ConstBegin());
+    }
+    SECTION("Subtract assignment")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstEnd();
+        REQUIRE((it -= 0) == deque.ConstEnd());
+        REQUIRE(*(it -= 1) == 42);
+        REQUIRE(*(it -= 1) == 42);
+        REQUIRE(*(it -= 1) == 42);
+        REQUIRE(it == deque.ConstBegin());
+    }
+    SECTION("Access")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstBegin();
+        REQUIRE(it[0] == 42);
+        REQUIRE(it[1] == 42);
+        REQUIRE(it[2] == 42);
+    }
+    SECTION("Dereference")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it = deque.ConstBegin();
+        REQUIRE(*it == 42);
+    }
+    SECTION("Pointer")
+    {
+        Deque<Data> deque(3, Data());
+        Deque<Data>::ConstIteratorType it = deque.ConstBegin();
+        REQUIRE(*(it->value) == 5);
+    }
+    SECTION("Compare")
+    {
+        Deque<i32> deque(3, 42);
+        Deque<i32>::ConstIteratorType it1 = deque.ConstBegin();
+        Deque<i32>::ConstIteratorType it2 = deque.ConstBegin();
+        REQUIRE(it1 == it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it1 >= it2);
+        REQUIRE_FALSE(it1 != it2);
+        REQUIRE_FALSE(it1 < it2);
+        REQUIRE_FALSE(it1 > it2);
+
+        it2++;
+        REQUIRE(it1 != it2);
+        REQUIRE(it1 < it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it2 > it1);
+        REQUIRE(it2 >= it1);
+        REQUIRE_FALSE(it1 == it2);
+    }
+    SECTION("For loop")
+    {
+        Deque<i32> deque(3, 42);
+        i32 sum = 0;
+        for (Deque<i32>::ConstIteratorType it = deque.ConstBegin(); it != deque.ConstEnd(); ++it)
+        {
+            sum += *it;
+        }
+        REQUIRE(sum == 126);
+    }
+    SECTION("Modern for loop")
+    {
+        const Deque<i32> deque(3, 42);
+        i32 sum = 0;
+        for (const i32& val : deque)
+        {
+            sum += val;
+        }
+        REQUIRE(sum == 126);
     }
 }

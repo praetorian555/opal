@@ -8,15 +8,94 @@
 namespace Opal
 {
 
-//template <typename MyDeque>
-//class DequeIterator
-//{
-//};
-//
-//template <typename MyDeque>
-//class DequeConstIterator
-//{
-//};
+template <typename MyDeque>
+class DequeIterator
+{
+public:
+    using ValueType = typename MyDeque::ValueType;
+    using ReferenceType = typename MyDeque::ReferenceType;
+    using PointerType = typename MyDeque::PointerType;
+    using DifferenceType = typename MyDeque::DifferenceType;
+    using SizeType = typename MyDeque::SizeType;
+
+    explicit DequeIterator(PointerType data, SizeType capacity, SizeType first, SizeType index);
+
+    bool operator==(const DequeIterator& other) const;
+    bool operator>(const DequeIterator& other) const;
+    bool operator>=(const DequeIterator& other) const;
+    bool operator<(const DequeIterator& other) const;
+    bool operator<=(const DequeIterator& other) const;
+
+    DequeIterator& operator++();
+    DequeIterator operator++(int);
+    DequeIterator& operator--();
+    DequeIterator operator--(int);
+
+    DequeIterator operator+(DifferenceType n) const;
+    DequeIterator operator-(DifferenceType n) const;
+    DequeIterator& operator+=(DifferenceType n);
+    DequeIterator& operator-=(DifferenceType n);
+
+    DifferenceType operator-(const DequeIterator& other) const;
+
+    ReferenceType operator[](DifferenceType n) const;
+    ReferenceType operator*() const;
+    PointerType operator->() const;
+
+private:
+    PointerType m_data = nullptr;
+    SizeType m_capacity = 0;
+    SizeType m_first = 0;
+    SizeType m_index = 0;
+};
+
+template <typename MyDeque>
+DequeIterator<MyDeque> operator+(typename DequeIterator<MyDeque>::DifferenceType n, const DequeIterator<MyDeque>& it);
+
+template <typename MyDeque>
+class DequeConstIterator
+{
+public:
+    using ValueType = typename MyDeque::ValueType;
+    using ReferenceType = typename MyDeque::ConstReferenceType;
+    using PointerType = typename MyDeque::PointerType const;
+    using DifferenceType = typename MyDeque::DifferenceType;
+    using SizeType = typename MyDeque::SizeType;
+
+    DequeConstIterator() = default;
+    explicit DequeConstIterator(PointerType data, SizeType capacity, SizeType first, SizeType index);
+
+    bool operator==(const DequeConstIterator& other) const;
+    bool operator>(const DequeConstIterator& other) const;
+    bool operator>=(const DequeConstIterator& other) const;
+    bool operator<(const DequeConstIterator& other) const;
+    bool operator<=(const DequeConstIterator& other) const;
+
+    DequeConstIterator& operator++();
+    DequeConstIterator operator++(int);
+    DequeConstIterator& operator--();
+    DequeConstIterator operator--(int);
+
+    DequeConstIterator operator+(DifferenceType n) const;
+    DequeConstIterator operator-(DifferenceType n) const;
+    DequeConstIterator& operator+=(DifferenceType n);
+    DequeConstIterator& operator-=(DifferenceType n);
+
+    DifferenceType operator-(const DequeConstIterator& other) const;
+
+    ReferenceType operator[](DifferenceType n) const;
+    ReferenceType operator*() const;
+    PointerType operator->() const;
+
+private:
+    PointerType m_data = nullptr;
+    SizeType m_capacity = 0;
+    SizeType m_first = 0;
+    SizeType m_index = 0;
+};
+
+template <typename MyDeque>
+DequeConstIterator<MyDeque> operator+(typename DequeConstIterator<MyDeque>::DifferenceType n, const DequeConstIterator<MyDeque>& it);
 
 /**
  * Data structure that provides constant time insertion and deletion at both ends of the container. It also allows
@@ -29,10 +108,12 @@ public:
     using ValueType = T;
     using ReferenceType = T&;
     using ConstReferenceType = const T&;
+    using PointerType = T*;
     using SizeType = u64;
     using AllocatorType = Allocator;
-//    using IteratorType = DequeIterator<Deque<T, Allocator>>;
-//    using ConstIteratorType = DequeConstIterator<Deque<T, Allocator>>;
+    using DifferenceType = i64;
+    using IteratorType = DequeIterator<Deque<T, Allocator>>;
+    using ConstIteratorType = DequeConstIterator<Deque<T, Allocator>>;
 
     static_assert(!k_is_reference_value<ValueType>, "Value type must not be a reference");
     static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
@@ -88,35 +169,35 @@ public:
     ErrorCode PushFront(const T& value);
     ErrorCode PushFront(T&& value);
 
-//    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, const T& value);
-//    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, T&& value);
-//    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, SizeType count, const T& value);
-//
-//    template <typename InputIt>
-//    Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType pos, InputIt first, InputIt last);
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, const T& value);
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, T&& value);
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, SizeType count, const T& value);
+
+    template <typename InputIt>
+    Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType pos, InputIt first, InputIt last);
 
     ErrorCode PopBack();
     ErrorCode PopFront();
 
     void Clear();
 
-//    ErrorCode Erase(ConstIteratorType pos);
-//    ErrorCode Erase(IteratorType pos);
-//    ErrorCode Erase(ConstIteratorType first, ConstIteratorType last);
-//    ErrorCode Erase(IteratorType first, IteratorType last);
+    ErrorCode Erase(ConstIteratorType pos);
+    ErrorCode Erase(IteratorType pos);
+    ErrorCode Erase(ConstIteratorType first, ConstIteratorType last);
+    ErrorCode Erase(IteratorType first, IteratorType last);
 
-//    IteratorType Begin();
-//    ConstIteratorType Begin() const;
-//    ConstIteratorType ConstBegin() const;
-//    IteratorType End();
-//    ConstIteratorType End() const;
-//    ConstIteratorType ConstEnd() const;
-//
-//    // Compatible with std::begin and std::end
-//    IteratorType begin();
-//    IteratorType end();
-//    ConstIteratorType begin() const;
-//    ConstIteratorType end() const;
+    IteratorType Begin() { return IteratorType(m_data, m_capacity, m_first, 0); }
+    ConstIteratorType Begin() const { return ConstIteratorType(m_data, m_capacity, m_first, 0); }
+    ConstIteratorType ConstBegin() const { return ConstIteratorType(m_data, m_capacity, m_first, 0); }
+    IteratorType End() { return IteratorType(m_data, m_capacity, m_first, m_size); }
+    ConstIteratorType End() const { return ConstIteratorType(m_data, m_capacity, m_first, m_size); }
+    ConstIteratorType ConstEnd() const { return ConstIteratorType(m_data, m_capacity, m_first, m_size); }
+
+    // Compatible with std::begin and std::end
+    IteratorType begin() { return IteratorType(m_data, m_capacity, m_first, 0); }
+    IteratorType end() { return IteratorType(m_data, m_capacity, m_first, m_size); }
+    ConstIteratorType begin() const { return ConstIteratorType(m_data, m_capacity, m_first, 0); }
+    ConstIteratorType end() const { return ConstIteratorType(m_data, m_capacity, m_first, m_size); }
 
 private:
     void Initialize(const T& value);
@@ -152,7 +233,6 @@ private:
 
     static constexpr u64 Max(u64 a, u64 b) { return a > b ? a : b; }
 
-private:
     constexpr static SizeType k_default_capacity = 4;
 
     AllocatorType m_allocator;
@@ -530,7 +610,6 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Reserve(SizeType new_capacity)
     m_capacity = new_capacity;
     m_first = 0;
     return ErrorCode::Success;
-
 }
 
 TEMPLATE_HEADER
@@ -709,6 +788,272 @@ TEMPLATE_HEADER
 void TEMPLATE_NAMESPACE::Deallocate(T* data)
 {
     m_allocator.Deallocate(data);
+}
+
+#undef TEMPLATE_HEADER
+#undef TEMPLATE_NAMESPACE
+
+#define TEMPLATE_HEADER template <typename MyDeque>
+#define TEMPLATE_NAMESPACE Opal::DequeIterator<MyDeque>
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::DequeIterator(PointerType data, SizeType capacity, SizeType first, SizeType index)
+    : m_data(data), m_capacity(capacity), m_first(first), m_index(index)
+{
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator==(const DequeIterator& other) const
+{
+    return m_data == other.m_data && m_capacity == other.m_capacity && m_first == other.m_first && m_index == other.m_index;
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator>(const DequeIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index > other.m_index;
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator>=(const DequeIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index >= other.m_index;
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator<(const DequeIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index < other.m_index;
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator<=(const DequeIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index <= other.m_index;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator++()
+{
+    ++m_index;
+    return *this;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
+{
+    DequeIterator copy = *this;
+    ++m_index;
+    return copy;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator--()
+{
+    --m_index;
+    return *this;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
+{
+    DequeIterator copy = *this;
+    --m_index;
+    return copy;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator+(DifferenceType n) const
+{
+    return DequeIterator(m_data, m_capacity, m_first, m_index + n);
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator-(DifferenceType n) const
+{
+    return DequeIterator(m_data, m_capacity, m_first, m_index - n);
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator+=(DifferenceType n)
+{
+    m_index += n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator-=(DifferenceType n)
+{
+    m_index -= n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::DifferenceType TEMPLATE_NAMESPACE::operator-(const DequeIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index - other.m_index;
+}
+
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](DifferenceType n) const
+{
+    return m_data[(m_first + m_index + n) & (m_capacity - 1)];
+}
+
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator*() const
+{
+    return m_data[(m_first + m_index) & (m_capacity - 1)];
+}
+
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::PointerType TEMPLATE_NAMESPACE::operator->() const
+{
+    return &m_data[(m_first + m_index) & (m_capacity - 1)];
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE Opal::operator+(typename TEMPLATE_NAMESPACE::DifferenceType n, const DequeIterator<MyDeque>& it)
+{
+    return it + n;
+}
+
+#undef TEMPLATE_HEADER
+#undef TEMPLATE_NAMESPACE
+
+#define TEMPLATE_HEADER template <typename MyDeque>
+#define TEMPLATE_NAMESPACE Opal::DequeConstIterator<MyDeque>
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::DequeConstIterator(PointerType data, SizeType capacity, SizeType first, SizeType index)
+    : m_data(data), m_capacity(capacity), m_first(first), m_index(index)
+{
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator==(const DequeConstIterator& other) const
+{
+    return m_data == other.m_data && m_capacity == other.m_capacity && m_first == other.m_first && m_index == other.m_index;
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator>(const DequeConstIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index > other.m_index;
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator>=(const DequeConstIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index >= other.m_index;
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator<(const DequeConstIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index < other.m_index;
+}
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator<=(const DequeConstIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index <= other.m_index;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator++()
+{
+    ++m_index;
+    return *this;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
+{
+    DequeConstIterator copy = *this;
+    ++m_index;
+    return copy;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator--()
+{
+    --m_index;
+    return *this;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
+{
+    DequeConstIterator copy = *this;
+    --m_index;
+    return copy;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator+(DifferenceType n) const
+{
+    return DequeConstIterator(m_data, m_capacity, m_first, m_index + n);
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator-(DifferenceType n) const
+{
+    return DequeConstIterator(m_data, m_capacity, m_first, m_index - n);
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator+=(DifferenceType n)
+{
+    m_index += n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator-=(DifferenceType n)
+{
+    m_index -= n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::DifferenceType TEMPLATE_NAMESPACE::operator-(const DequeConstIterator& other) const
+{
+    OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
+    return m_index - other.m_index;
+}
+
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](DifferenceType n) const
+{
+    return m_data[(m_first + m_index + n) & (m_capacity - 1)];
+}
+
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator*() const
+{
+    return m_data[(m_first + m_index) & (m_capacity - 1)];
+}
+
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::PointerType TEMPLATE_NAMESPACE::operator->() const
+{
+    return &m_data[(m_first + m_index) & (m_capacity - 1)];
+}
+
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE Opal::operator+(typename TEMPLATE_NAMESPACE::DifferenceType n, const DequeConstIterator<MyDeque>& it)
+{
+    return it + n;
 }
 
 #undef TEMPLATE_HEADER
