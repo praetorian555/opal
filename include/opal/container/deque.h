@@ -651,6 +651,32 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushFront(T&& value)
 }
 
 TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::PopBack()
+{
+    if (m_size == 0)
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    const SizeType last = (m_first + m_size - 1) & (m_capacity - 1);
+    m_data[last].~T();
+    --m_size;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::PopFront()
+{
+    if (m_size == 0)
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    m_data[m_first].~T();
+    m_first = (m_first + 1) & (m_capacity - 1);
+    --m_size;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
 void TEMPLATE_NAMESPACE::Clear()
 {
     for (SizeType i = m_first, count = 0; count < m_size; count++)

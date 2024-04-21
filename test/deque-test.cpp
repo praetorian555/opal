@@ -607,3 +607,43 @@ TEST_CASE("Push back", "[Deque]")
         REQUIRE(deque[8] == 20);
     }
 }
+
+TEST_CASE("Pop front and back", "[Deque]")
+{
+    SECTION("Pop front")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.PopFront();
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 4);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+    }
+    SECTION("Pop front empty")
+    {
+        Deque<i32> deque;
+        ErrorCode err = deque.PopFront();
+        REQUIRE(err == ErrorCode::OutOfBounds);
+    }
+    SECTION("Pop back")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.PopBack();
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 4);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+    }
+    SECTION("Pop back empty")
+    {
+        Deque<i32> deque;
+        ErrorCode err = deque.PopBack();
+        REQUIRE(err == ErrorCode::OutOfBounds);
+    }
+}
