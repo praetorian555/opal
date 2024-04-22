@@ -181,10 +181,10 @@ public:
 
     void Clear();
 
-    ErrorCode Erase(ConstIteratorType pos);
-    ErrorCode Erase(IteratorType pos);
-    ErrorCode Erase(ConstIteratorType first, ConstIteratorType last);
-    ErrorCode Erase(IteratorType first, IteratorType last);
+    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType pos);
+    Expected<IteratorType, ErrorCode> Erase(IteratorType pos);
+    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType first, ConstIteratorType last);
+    Expected<IteratorType, ErrorCode> Erase(IteratorType first, IteratorType last);
 
     IteratorType Begin() { return IteratorType(m_data, m_capacity, m_first, 0); }
     ConstIteratorType Begin() const { return ConstIteratorType(m_data, m_capacity, m_first, 0); }
@@ -913,6 +913,124 @@ void TEMPLATE_NAMESPACE::Clear()
     }
     m_size = 0;
     m_first = 0;
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(ConstIteratorType pos)
+{
+    if (pos < ConstBegin() || pos >= ConstEnd())
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    const SizeType index = pos - ConstBegin();
+    const SizeType final_index = (m_first + index) & (m_capacity - 1);
+    m_data[final_index].~T();
+    for (SizeType i = final_index, count = 0; count < m_size - index; count++)
+    {
+        const SizeType next = (i + 1) & (m_capacity - 1);
+        new (m_data + i) T(Move(m_data[next]));
+        ++i;
+        i &= (m_capacity - 1);
+    }
+    --m_size;
+    return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, index == m_size ? index - 1 : index));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType pos)
+{
+    if (pos < Begin() || pos >= End())
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    const SizeType index = pos - Begin();
+    const SizeType final_index = (m_first + index) & (m_capacity - 1);
+    m_data[final_index].~T();
+    for (SizeType i = final_index, count = 0; count < m_size - index; count++)
+    {
+        const SizeType next = (i + 1) & (m_capacity - 1);
+        new (m_data + i) T(Move(m_data[next]));
+        ++i;
+        i &= (m_capacity - 1);
+    }
+    --m_size;
+    return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, index == m_size ? index - 1 : index));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(ConstIteratorType first,
+                                                                                                     ConstIteratorType last)
+{
+    if (first < ConstBegin() || first > ConstEnd() || last < ConstBegin() || last > ConstEnd())
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    if (first > last)
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+    }
+    if (first == last)
+    {
+        return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, first - ConstBegin()));
+    }
+    const SizeType first_index = first - ConstBegin();
+    const SizeType last_index = last - ConstBegin();
+    const SizeType count = last_index - first_index;
+    const SizeType first_final_index = (m_first + first_index) & (m_capacity - 1);
+    for (SizeType i = first_final_index, iter_count = 0; iter_count < count; iter_count++)
+    {
+        m_data[i].~T();
+        ++i;
+        i &= (m_capacity - 1);
+    }
+    const SizeType count_to_move = m_size - last_index;
+    for (SizeType i = first_final_index, iter_count = 0; iter_count < count_to_move; iter_count++)
+    {
+        const SizeType prev = (i + count) & (m_capacity - 1);
+        new (m_data + i) T(Move(m_data[prev]));
+        --i;
+        i &= (m_capacity - 1);
+    }
+    m_size -= count;
+    return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, first_index));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType first,
+                                                                                                     IteratorType last)
+{
+    if (first < Begin() || first > End() || last < Begin() || last > End())
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    if (first > last)
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+    }
+    if (first == last)
+    {
+        return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, first - Begin()));
+    }
+    const SizeType first_index = first - Begin();
+    const SizeType last_index = last - Begin();
+    const SizeType count = last_index - first_index;
+    const SizeType first_final_index = (m_first + first_index) & (m_capacity - 1);
+    for (SizeType i = first_final_index, iter_count = 0; iter_count < count; iter_count++)
+    {
+        m_data[i].~T();
+        ++i;
+        i &= (m_capacity - 1);
+    }
+    const SizeType count_to_move = m_size - last_index;
+    for (SizeType i = first_final_index, iter_count = 0; iter_count < count_to_move; iter_count++)
+    {
+        const SizeType prev = (i + count) & (m_capacity - 1);
+        new (m_data + i) T(Move(m_data[prev]));
+        --i;
+        i &= (m_capacity - 1);
+    }
+    m_size -= count;
+    return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, first_index));
 }
 
 TEMPLATE_HEADER

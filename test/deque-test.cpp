@@ -1291,3 +1291,178 @@ TEST_CASE("Insert multiple with iterators", "[Deque]")
         REQUIRE(deque[7] == 40);
     }
 }
+
+TEST_CASE("Erase single", "[Deque]")
+{
+    SECTION("Out of bounds")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Erase(deque.ConstEnd()).GetError();
+        REQUIRE(err == ErrorCode::OutOfBounds);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("Erase front")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.ConstBegin()).GetValue();
+        REQUIRE(it == deque.Begin());
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 4);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+    }
+    SECTION("Erase mid")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.ConstBegin() + 2).GetValue();
+        REQUIRE(it == deque.Begin() + 2);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 4);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+    }
+    SECTION("Erase back")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.ConstEnd() - 1).GetValue();
+        REQUIRE(it == deque.End() - 1);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 4);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+    }
+    SECTION("Out of bounds non-const iterator")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Erase(deque.End()).GetError();
+        REQUIRE(err == ErrorCode::OutOfBounds);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("Erase front non-const iterator")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.Begin()).GetValue();
+        REQUIRE(it == deque.Begin());
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 4);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+    }
+    SECTION("Erase mid non-const iterator")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.Begin() + 2).GetValue();
+        REQUIRE(it == deque.Begin() + 2);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 4);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+    }
+    SECTION("Erase back non-const iterator")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.End() - 1).GetValue();
+        REQUIRE(it == deque.End() - 1);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 4);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+    }
+}
+
+TEST_CASE("Erase multiple", "[Deque]")
+{
+    SECTION("Out of bounds")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Erase(deque.ConstEnd(), deque.ConstEnd() + 1).GetError();
+        REQUIRE(err == ErrorCode::OutOfBounds);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("Bad input")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.Erase(deque.ConstEnd(), deque.ConstBegin()).GetError();
+        REQUIRE(err == ErrorCode::BadInput);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("Zero count")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.ConstBegin(), deque.ConstBegin()).GetValue();
+        REQUIRE(it == deque.Begin());
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("Front")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.ConstBegin(), deque.ConstBegin() + 3).GetValue();
+        REQUIRE(it == deque.Begin());
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 2);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+    }
+    SECTION("Back")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.ConstBegin() + 2, deque.ConstEnd()).GetValue();
+        REQUIRE(it == deque.Begin() + 2);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 2);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+    }
+    SECTION("Mid")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.Erase(deque.ConstBegin() + 1, deque.ConstBegin() + 4).GetValue();
+        REQUIRE(it == deque.Begin() + 1);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 2);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+    }
+}
