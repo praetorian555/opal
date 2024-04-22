@@ -277,6 +277,8 @@ public:
      */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType position);
 
+    // TODO: Add Erase APIs with IteratorType
+
     /**
      * Erase the element at the specified position by swapping it with the last element. Does not deallocate memory.
      * @param position Iterator pointing to the element to erase.
