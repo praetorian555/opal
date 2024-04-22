@@ -830,6 +830,53 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
+template <typename InputIt>
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::InsertIt(ConstIteratorType pos,
+                                                                                                        InputIt first, InputIt last)
+{
+    if (pos < ConstBegin() || pos > ConstEnd())
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    if (first > last)
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+    }
+    const SizeType count = last - first;
+    if (count == 0)
+    {
+        return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, pos - ConstBegin()));
+    }
+    if (m_size + count > m_capacity)
+    {
+        ErrorCode err = Reserve(Max(m_capacity * 2, m_size + count));
+        if (err != ErrorCode::Success)
+        {
+            return Expected<IteratorType, ErrorCode>(err);
+        }
+    }
+    const SizeType insert_index = (m_first + (pos - ConstBegin())) & (m_capacity - 1);
+    const SizeType move_start_index = (m_first + m_size - 1) & (m_capacity - 1);
+    const SizeType count_to_move = m_size - (pos - ConstBegin());
+    for (SizeType i = move_start_index, iter_count = 0; iter_count < count_to_move; iter_count++)
+    {
+        const SizeType next = (i + count) & (m_capacity - 1);
+        new (m_data + next) T(Move(m_data[i]));
+        --i;
+        i &= (m_capacity - 1);
+    }
+    for (SizeType i = insert_index, iter_count = 0; iter_count < count; iter_count++)
+    {
+        new (m_data + i) T(*first);
+        ++i;
+        ++first;
+        i &= (m_capacity - 1);
+    }
+    m_size += count;
+    return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, pos - ConstBegin()));
+}
+
+TEMPLATE_HEADER
 Opal::ErrorCode TEMPLATE_NAMESPACE::PopBack()
 {
     if (m_size == 0)

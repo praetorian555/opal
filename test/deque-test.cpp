@@ -1197,3 +1197,97 @@ TEST_CASE("Insert multiple", "[Deque]")
         REQUIRE(deque[7] == 20);
     }
 }
+
+TEST_CASE("Insert multiple with iterators", "[Deque]")
+{
+    SECTION("Bad position")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.InsertIt(deque.ConstEnd() + 1, deque.ConstBegin(), deque.ConstEnd()).GetError();
+        REQUIRE(err == ErrorCode::OutOfBounds);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("Bad input")
+    {
+        Deque<i32> deque(5, 10);
+        ErrorCode err = deque.InsertIt(deque.ConstEnd(), deque.ConstEnd(), deque.ConstBegin()).GetError();
+        REQUIRE(err == ErrorCode::BadInput);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("Zero count")
+    {
+        Deque<i32> deque(5, 10);
+        Deque<i32>::IteratorType it = deque.InsertIt(deque.ConstEnd(), deque.ConstBegin(), deque.ConstBegin()).GetValue();
+        REQUIRE(it == deque.End());
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 5);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+    }
+    SECTION("Insert front")
+    {
+        Deque<i32> deque(5, 10);
+        i32 arr[3] = {20, 30, 40};
+        Deque<i32>::IteratorType it = deque.InsertIt(deque.ConstBegin(), arr, arr + 3).GetValue();
+        REQUIRE(it == deque.Begin());
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 8);
+        REQUIRE(deque[0] == 20);
+        REQUIRE(deque[1] == 30);
+        REQUIRE(deque[2] == 40);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 10);
+        REQUIRE(deque[6] == 10);
+        REQUIRE(deque[7] == 10);
+    }
+    SECTION("Insert mid")
+    {
+        Deque<i32> deque(5, 10);
+        i32 arr[3] = {20, 30, 40};
+        Deque<i32>::IteratorType it = deque.InsertIt(deque.ConstBegin() + 2, arr, arr + 3).GetValue();
+        REQUIRE(it == deque.Begin() + 2);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 8);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 20);
+        REQUIRE(deque[3] == 30);
+        REQUIRE(deque[4] == 40);
+        REQUIRE(deque[5] == 10);
+        REQUIRE(deque[6] == 10);
+        REQUIRE(deque[7] == 10);
+    }
+    SECTION("Insert back")
+    {
+        Deque<i32> deque(5, 10);
+        i32 arr[3] = {20, 30, 40};
+        Deque<i32>::IteratorType it = deque.InsertIt(deque.ConstEnd(), arr, arr + 3).GetValue();
+        REQUIRE(it == deque.End() - 3);
+        REQUIRE(deque.GetCapacity() == 8);
+        REQUIRE(deque.GetSize() == 8);
+        REQUIRE(deque[0] == 10);
+        REQUIRE(deque[1] == 10);
+        REQUIRE(deque[2] == 10);
+        REQUIRE(deque[3] == 10);
+        REQUIRE(deque[4] == 10);
+        REQUIRE(deque[5] == 20);
+        REQUIRE(deque[6] == 30);
+        REQUIRE(deque[7] == 40);
+    }
+}
