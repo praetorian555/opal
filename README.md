@@ -1,2 +1,3 @@
-# dsa-primer
-Implementations of some important algorithms and data structures in C++
+# Opal
+
+Useful data structures and algorithms used for development in C++.
