@@ -1163,6 +1163,26 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType position)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (position < Begin() || position >= End())
+    {
+        return ReturnType{ErrorCode::OutOfBounds};
+    }
+    SizeType pos_offset = position - Begin();
+    IteratorType mut_position = Begin() + pos_offset;
+    (*mut_position).~T();  // Invokes destructor on allocated memory
+    while (mut_position < End() - 1)
+    {
+        *mut_position = Move(*(mut_position + 1));
+        ++mut_position;
+    }
+    m_size--;
+    return ReturnType{Begin() + pos_offset};
+}
+
+TEMPLATE_HEADER
 Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::EraseWithSwap(
     Array::ConstIteratorType position)
 {
@@ -1172,6 +1192,26 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
         return ReturnType{ErrorCode::OutOfBounds};
     }
     IteratorType mut_position = Begin() + (position - ConstBegin());
+    (*mut_position).~T();  // Invokes destructor on allocated memory
+    if (mut_position != End() - 1)
+    {
+        *mut_position = Move(*(End() - 1));
+        m_size--;
+        return ReturnType{mut_position};
+    }
+    m_size--;
+    return ReturnType{End()};
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::EraseWithSwap(IteratorType position)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (position < Begin() || position >= End())
+    {
+        return ReturnType{ErrorCode::OutOfBounds};
+    }
+    IteratorType mut_position = Begin() + (position - Begin());
     (*mut_position).~T();  // Invokes destructor on allocated memory
     if (mut_position != End() - 1)
     {
@@ -1201,6 +1241,40 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
     }
     const SizeType start_offset = start - ConstBegin();
     const SizeType end_offset = end - ConstBegin();
+    for (SizeType i = start_offset; i < end_offset; i++)
+    {
+        m_data[i].~T();  // Invokes destructor on allocated memory
+    }
+    IteratorType mut_start = Begin() + start_offset;
+    IteratorType mut_end = Begin() + end_offset;
+    while (mut_end < End())
+    {
+        *mut_start = Move(*mut_end);
+        ++mut_start;
+        ++mut_end;
+    }
+    m_size += start_offset - end_offset;
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    return ReturnType{Begin() + start_offset};
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType start, IteratorType end)
+{
+    if (start > end)
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+    }
+    if (start < Begin() || end > End())
+    {
+        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    if (start == end)
+    {
+        return Expected<IteratorType, ErrorCode>(Begin() + (start - Begin()));
+    }
+    const SizeType start_offset = start - Begin();
+    const SizeType end_offset = end - Begin();
     for (SizeType i = start_offset; i < end_offset; i++)
     {
         m_data[i].~T();  // Invokes destructor on allocated memory
