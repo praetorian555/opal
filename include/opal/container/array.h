@@ -276,8 +276,7 @@ public:
      * @return Iterator pointing to the element following the erased element or ErrorCode::OutOfBounds if the position is invalid.
      */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType position);
-
-    // TODO: Add Erase APIs with IteratorType
+    Expected<IteratorType, ErrorCode> Erase(IteratorType position);
 
     /**
      * Erase the element at the specified position by swapping it with the last element. Does not deallocate memory.
@@ -285,6 +284,7 @@ public:
      * @return Iterator pointing to the new element at the position or ErrorCode::OutOfBounds if the position is invalid.
      */
     Expected<IteratorType, ErrorCode> EraseWithSwap(ConstIteratorType position);
+    Expected<IteratorType, ErrorCode> EraseWithSwap(IteratorType position);
 
     /**
      * Erase elements in the range [start, end). Does not deallocate memory.
@@ -294,6 +294,7 @@ public:
      * ErrorCode::OutOfBounds if start or end are out of bounds.
      */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType start, ConstIteratorType end);
+    Expected<IteratorType, ErrorCode> Erase(IteratorType start, IteratorType end);
 
     // Iterators
     IteratorType Begin() { return IteratorType(m_data); }
@@ -324,7 +325,10 @@ private:
 
 /***************************************** Implementation *****************************************/
 
-template <typename T, typename Allocator>
+#define TEMPLATE_HEADER template <typename T, typename Allocator>
+#define TEMPLATE_NAMESPACE Opal::Array<T, Allocator>
+
+TEMPLATE_HEADER
 Opal::Array<T, Allocator>::Array()
 {
     m_data = Allocate(m_capacity);
@@ -336,8 +340,8 @@ Opal::Array<T, Allocator>::Array()
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(const Allocator& allocator) : m_allocator(allocator)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(const Allocator& allocator) : m_allocator(allocator)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -348,8 +352,8 @@ Opal::Array<T, Allocator>::Array(const Allocator& allocator) : m_allocator(alloc
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(Allocator&& allocator) : m_allocator(Move(allocator))
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(Allocator&& allocator) : m_allocator(Move(allocator))
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -360,8 +364,8 @@ Opal::Array<T, Allocator>::Array(Allocator&& allocator) : m_allocator(Move(alloc
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(SizeType count)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(SizeType count)
 {
     if (count > m_capacity)
     {
@@ -381,8 +385,8 @@ Opal::Array<T, Allocator>::Array(SizeType count)
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(SizeType count, const Allocator& allocator) : m_allocator(allocator)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(SizeType count, const Allocator& allocator) : m_allocator(allocator)
 {
     if (count > m_capacity)
     {
@@ -402,8 +406,8 @@ Opal::Array<T, Allocator>::Array(SizeType count, const Allocator& allocator) : m
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(SizeType count, Allocator&& allocator) : m_allocator(Move(allocator))
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(SizeType count, Allocator&& allocator) : m_allocator(Move(allocator))
 {
     if (count > m_capacity)
     {
@@ -423,8 +427,8 @@ Opal::Array<T, Allocator>::Array(SizeType count, Allocator&& allocator) : m_allo
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(SizeType count, const T& default_value)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(SizeType count, const T& default_value)
 {
     if (count > m_capacity)
     {
@@ -444,8 +448,8 @@ Opal::Array<T, Allocator>::Array(SizeType count, const T& default_value)
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(SizeType count, const T& default_value, const Allocator& allocator) : m_allocator(allocator)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(SizeType count, const T& default_value, const Allocator& allocator) : m_allocator(allocator)
 {
     if (count > m_capacity)
     {
@@ -465,8 +469,8 @@ Opal::Array<T, Allocator>::Array(SizeType count, const T& default_value, const A
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(SizeType count, const T& default_value, Allocator&& allocator) : m_allocator(Move(allocator))
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(SizeType count, const T& default_value, Allocator&& allocator) : m_allocator(Move(allocator))
 {
     if (count > m_capacity)
     {
@@ -486,8 +490,8 @@ Opal::Array<T, Allocator>::Array(SizeType count, const T& default_value, Allocat
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(T* data, SizeType count) : m_capacity(count), m_size(count)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(T* data, SizeType count) : m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -508,9 +512,8 @@ Opal::Array<T, Allocator>::Array(T* data, SizeType count) : m_capacity(count), m
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(T* data, SizeType count, const Allocator& allocator)
-    : m_allocator(allocator), m_capacity(count), m_size(count)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(T* data, SizeType count, const Allocator& allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -531,9 +534,8 @@ Opal::Array<T, Allocator>::Array(T* data, SizeType count, const Allocator& alloc
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(T* data, SizeType count, Allocator&& allocator)
-    : m_allocator(Move(allocator)), m_capacity(count), m_size(count)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(T* data, SizeType count, Allocator&& allocator) : m_allocator(Move(allocator)), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -554,8 +556,8 @@ Opal::Array<T, Allocator>::Array(T* data, SizeType count, Allocator&& allocator)
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(const Array& other) : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(const Array& other) : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -570,8 +572,8 @@ Opal::Array<T, Allocator>::Array(const Array& other) : m_allocator(other.m_alloc
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(const Array& other, const Allocator& allocator)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(const Array& other, const Allocator& allocator)
     : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
@@ -587,8 +589,8 @@ Opal::Array<T, Allocator>::Array(const Array& other, const Allocator& allocator)
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(const Array& other, Allocator&& allocator)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(const Array& other, Allocator&& allocator)
     : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
@@ -604,8 +606,8 @@ Opal::Array<T, Allocator>::Array(const Array& other, Allocator&& allocator)
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(Array&& other) noexcept
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(Array&& other) noexcept
     : m_allocator(Move(other.m_allocator)), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
 {
     other.m_capacity = 0;
@@ -613,8 +615,8 @@ Opal::Array<T, Allocator>::Array(Array&& other) noexcept
     other.m_data = nullptr;
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(Array&& other, const Allocator& allocator) noexcept
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(Array&& other, const Allocator& allocator) noexcept
     : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
 {
     other.m_capacity = 0;
@@ -622,8 +624,8 @@ Opal::Array<T, Allocator>::Array(Array&& other, const Allocator& allocator) noex
     other.m_data = nullptr;
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::Array(Array&& other, Allocator&& allocator) noexcept
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::Array(Array&& other, Allocator&& allocator) noexcept
     : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
 {
     other.m_capacity = 0;
@@ -631,8 +633,8 @@ Opal::Array<T, Allocator>::Array(Array&& other, Allocator&& allocator) noexcept
     other.m_data = nullptr;
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>::~Array()
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE::~Array()
 {
     if (m_data != nullptr)
     {
@@ -644,8 +646,8 @@ Opal::Array<T, Allocator>::~Array()
     }
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>& Opal::Array<T, Allocator>::operator=(const Array& other)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(const Array& other)
 {
     if (this == &other)
     {
@@ -678,8 +680,8 @@ Opal::Array<T, Allocator>& Opal::Array<T, Allocator>::operator=(const Array& oth
     return *this;
 }
 
-template <typename T, typename Allocator>
-Opal::Array<T, Allocator>& Opal::Array<T, Allocator>::operator=(Array&& other) noexcept
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(Array&& other) noexcept
 {
     if (this == &other)
     {
@@ -703,8 +705,8 @@ Opal::Array<T, Allocator>& Opal::Array<T, Allocator>::operator=(Array&& other) n
     return *this;
 }
 
-template <typename T, typename Allocator>
-bool Opal::Array<T, Allocator>::operator==(const Array& other) const
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator==(const Array& other) const
 {
     if (m_size != other.m_size)
     {
@@ -720,20 +722,20 @@ bool Opal::Array<T, Allocator>::operator==(const Array& other) const
     return true;
 }
 
-template <typename T, typename Allocator>
-inline Opal::Array<T, Allocator>::SizeType Opal::Array<T, Allocator>::GetCapacity() const
+TEMPLATE_HEADER
+inline TEMPLATE_NAMESPACE::SizeType TEMPLATE_NAMESPACE::GetCapacity() const
 {
     return m_capacity;
 }
 
-template <typename T, typename Allocator>
-inline Opal::Array<T, Allocator>::SizeType Opal::Array<T, Allocator>::GetSize() const
+TEMPLATE_HEADER
+inline TEMPLATE_NAMESPACE::SizeType TEMPLATE_NAMESPACE::GetSize() const
 {
     return m_size;
 }
 
-template <typename T, typename Allocator>
-Opal::ErrorCode Opal::Array<T, Allocator>::Assign(Array::SizeType count, const T& value)
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::Assign(Array::SizeType count, const T& value)
 {
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -757,9 +759,9 @@ Opal::ErrorCode Opal::Array<T, Allocator>::Assign(Array::SizeType count, const T
     return ErrorCode::Success;
 }
 
-template <typename T, typename Allocator>
+TEMPLATE_HEADER
 template <typename InputIt>
-Opal::ErrorCode Opal::Array<T, Allocator>::AssignIt(InputIt start, InputIt end)
+Opal::ErrorCode TEMPLATE_NAMESPACE::AssignIt(InputIt start, InputIt end)
 {
     if (start > end)
     {
@@ -789,8 +791,8 @@ Opal::ErrorCode Opal::Array<T, Allocator>::AssignIt(InputIt start, InputIt end)
     return ErrorCode::Success;
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::At(SizeType index)
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::ReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index)
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (index >= m_size)
@@ -800,8 +802,8 @@ Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCod
     return ReturnType(m_data[index]);
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ConstReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::At(SizeType index) const
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::ConstReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index) const
 {
     using ReturnType = Expected<ConstReferenceType, ErrorCode>;
     if (index >= m_size)
@@ -811,23 +813,22 @@ Opal::Expected<typename Opal::Array<T, Allocator>::ConstReferenceType, Opal::Err
     return ReturnType(m_data[index]);
 }
 
-template <typename T, typename Allocator>
-typename Opal::Array<T, Allocator>::ReferenceType Opal::Array<T, Allocator>::Array<T, Allocator>::operator[](Array::SizeType index)
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](Array::SizeType index)
 {
     OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
 }
 
-template <typename T, typename Allocator>
-typename Opal::Array<T, Allocator>::ConstReferenceType Opal::Array<T, Allocator>::Array<T, Allocator>::operator[](
-    Array::SizeType index) const
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ConstReferenceType TEMPLATE_NAMESPACE::operator[](Array::SizeType index) const
 {
     OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::Array<T, Allocator>::Front()
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::ReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Front()
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -837,9 +838,8 @@ Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCod
     return ReturnType(m_data[0]);
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ConstReferenceType, Opal::ErrorCode>
-Opal::Array<T, Allocator>::Array<T, Allocator>::Front() const
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::ConstReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Front() const
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -849,8 +849,8 @@ Opal::Array<T, Allocator>::Array<T, Allocator>::Front() const
     return ReturnType(m_data[0]);
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCode> Opal::Array<T, Allocator>::Array<T, Allocator>::Back()
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::ReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Back()
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -860,9 +860,8 @@ Opal::Expected<typename Opal::Array<T, Allocator>::ReferenceType, Opal::ErrorCod
     return ReturnType(m_data[m_size - 1]);
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::ConstReferenceType, Opal::ErrorCode>
-Opal::Array<T, Allocator>::Array<T, Allocator>::Back() const
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::ConstReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Back() const
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -872,20 +871,20 @@ Opal::Array<T, Allocator>::Array<T, Allocator>::Back() const
     return ReturnType(m_data[m_size - 1]);
 }
 
-template <typename T, typename Allocator>
-inline T* Opal::Array<T, Allocator>::GetData()
+TEMPLATE_HEADER
+inline T* TEMPLATE_NAMESPACE::GetData()
 {
     return m_data;
 }
 
-template <typename T, typename Allocator>
-inline const T* Opal::Array<T, Allocator>::GetData() const
+TEMPLATE_HEADER
+inline const T* TEMPLATE_NAMESPACE::GetData() const
 {
     return m_data;
 }
 
-template <typename T, typename Allocator>
-Opal::ErrorCode Opal::Array<T, Allocator>::Reserve(Array::SizeType new_capacity)
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::Reserve(Array::SizeType new_capacity)
 {
     if (new_capacity <= m_capacity)
     {
@@ -906,14 +905,14 @@ Opal::ErrorCode Opal::Array<T, Allocator>::Reserve(Array::SizeType new_capacity)
     return ErrorCode::Success;
 }
 
-template <typename T, typename Allocator>
-Opal::ErrorCode Opal::Array<T, Allocator>::Resize(Array::SizeType new_size)
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(Array::SizeType new_size)
 {
     return Resize(new_size, T());
 }
 
-template <typename T, typename Allocator>
-Opal::ErrorCode Opal::Array<T, Allocator>::Resize(Array::SizeType new_size, const T& default_value)
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(Array::SizeType new_size, const T& default_value)
 {
     if (new_size == m_size)
     {
@@ -946,8 +945,8 @@ Opal::ErrorCode Opal::Array<T, Allocator>::Resize(Array::SizeType new_size, cons
     return ErrorCode::Success;
 }
 
-template <typename T, typename Allocator>
-void Opal::Array<T, Allocator>::Clear()
+TEMPLATE_HEADER
+void TEMPLATE_NAMESPACE::Clear()
 {
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -956,8 +955,8 @@ void Opal::Array<T, Allocator>::Clear()
     m_size = 0;
 }
 
-template <typename T, typename Allocator>
-Opal::ErrorCode Opal::Array<T, Allocator>::PushBack(const T& value)
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(const T& value)
 {
     if (m_size == m_capacity)
     {
@@ -973,8 +972,8 @@ Opal::ErrorCode Opal::Array<T, Allocator>::PushBack(const T& value)
     return ErrorCode::Success;
 }
 
-template <typename T, typename Allocator>
-Opal::ErrorCode Opal::Array<T, Allocator>::PushBack(T&& value)
+TEMPLATE_HEADER
+Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(T&& value)
 {
     if (m_size == m_capacity)
     {
@@ -990,8 +989,8 @@ Opal::ErrorCode Opal::Array<T, Allocator>::PushBack(T&& value)
     return ErrorCode::Success;
 }
 
-template <typename T, typename Allocator>
-void Opal::Array<T, Allocator>::PopBack()
+TEMPLATE_HEADER
+void TEMPLATE_NAMESPACE::PopBack()
 {
     if (m_size == 0)
     {
@@ -1001,9 +1000,9 @@ void Opal::Array<T, Allocator>::PopBack()
     m_size--;
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::Array<T, Allocator>::Insert(
-    ConstIteratorType position, const T& value)
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Insert(ConstIteratorType position,
+                                                                                                      const T& value)
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
@@ -1031,9 +1030,9 @@ Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode
     return Expected<IteratorType, ErrorCode>(mut_position);
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::Array<T, Allocator>::Insert(
-    Array::ConstIteratorType position, T&& value)
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Insert(Array::ConstIteratorType position,
+                                                                                                      T&& value)
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
@@ -1061,9 +1060,9 @@ Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode
     return Expected<IteratorType, ErrorCode>(mut_position);
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::Array<T, Allocator>::Insert(
-    Array::ConstIteratorType position, Array::SizeType count, const T& value)
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Insert(Array::ConstIteratorType position,
+                                                                                                      Array::SizeType count, const T& value)
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
@@ -1101,10 +1100,10 @@ Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode
     return Expected<IteratorType, ErrorCode>(return_it);
 }
 
-template <typename T, typename Allocator>
+TEMPLATE_HEADER
 template <typename InputIt>
-Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::Array<T, Allocator>::InsertIt(
-    Array::ConstIteratorType position, InputIt start, InputIt end)
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::InsertIt(Array::ConstIteratorType position,
+                                                                                                        InputIt start, InputIt end)
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
@@ -1143,9 +1142,8 @@ Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode
     return Expected<IteratorType, ErrorCode>(return_it);
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::Array<T, Allocator>::Erase(
-    Array::ConstIteratorType position)
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(Array::ConstIteratorType position)
 {
     using ReturnType = Expected<IteratorType, ErrorCode>;
     if (position < ConstBegin() || position >= ConstEnd())
@@ -1164,8 +1162,8 @@ Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode
     return ReturnType{Begin() + pos_offset};
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::Array<T, Allocator>::EraseWithSwap(
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::EraseWithSwap(
     Array::ConstIteratorType position)
 {
     using ReturnType = Expected<IteratorType, ErrorCode>;
@@ -1185,9 +1183,9 @@ Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode
     return ReturnType{End()};
 }
 
-template <typename T, typename Allocator>
-Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode> Opal::Array<T, Allocator>::Erase(
-    Array::ConstIteratorType start, Array::ConstIteratorType end)
+TEMPLATE_HEADER
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(Array::ConstIteratorType start,
+                                                                                                     Array::ConstIteratorType end)
 {
     if (start > end)
     {
@@ -1220,236 +1218,249 @@ Opal::Expected<typename Opal::Array<T, Allocator>::IteratorType, Opal::ErrorCode
     return ReturnType{Begin() + start_offset};
 }
 
-template <typename T, typename Allocator>
-T* Opal::Array<T, Allocator>::Allocate(SizeType count)
+TEMPLATE_HEADER
+T* TEMPLATE_NAMESPACE::Allocate(SizeType count)
 {
     return static_cast<T*>(m_allocator.Allocate(count * sizeof(T)));
 }
 
-template <typename T, typename Allocator>
-void Opal::Array<T, Allocator>::Deallocate(T* ptr)
+TEMPLATE_HEADER
+void TEMPLATE_NAMESPACE::Deallocate(T* ptr)
 {
     m_allocator.Deallocate(ptr);
 }
 
-template <typename MyArray>
-bool Opal::ArrayIterator<MyArray>::operator>(const ArrayIterator& other) const
+#undef TEMPLATE_HEADER
+#undef TEMPLATE_NAMESPACE
+
+#define TEMPLATE_HEADER template <typename MyArray>
+#define TEMPLATE_NAMESPACE Opal::ArrayIterator<MyArray>
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator>(const ArrayIterator& other) const
 {
     return m_ptr > other.m_ptr;
 }
 
-template <typename MyArray>
-bool Opal::ArrayIterator<MyArray>::operator>=(const ArrayIterator& other) const
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator>=(const ArrayIterator& other) const
 {
     return m_ptr >= other.m_ptr;
 }
 
-template <typename MyArray>
-bool Opal::ArrayIterator<MyArray>::operator<(const ArrayIterator& other) const
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator<(const ArrayIterator& other) const
 {
     return m_ptr < other.m_ptr;
 }
 
-template <typename MyArray>
-bool Opal::ArrayIterator<MyArray>::operator<=(const ArrayIterator& other) const
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator<=(const ArrayIterator& other) const
 {
     return m_ptr <= other.m_ptr;
 }
 
-template <typename MyArray>
-Opal::ArrayIterator<MyArray>& Opal::ArrayIterator<MyArray>::operator++()
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator++()
 {
     m_ptr++;
     return *this;
 }
 
-template <typename MyArray>
-Opal::ArrayIterator<MyArray> Opal::ArrayIterator<MyArray>::operator++(int)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
 {
     ArrayIterator temp = *this;
     m_ptr++;
     return temp;
 }
 
-template <typename MyArray>
-Opal::ArrayIterator<MyArray>& Opal::ArrayIterator<MyArray>::operator--()
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator--()
 {
     m_ptr--;
     return *this;
 }
 
-template <typename MyArray>
-Opal::ArrayIterator<MyArray> Opal::ArrayIterator<MyArray>::operator--(int)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
 {
     ArrayIterator temp = *this;
     m_ptr--;
     return temp;
 }
 
-template <typename MyArray>
-Opal::ArrayIterator<MyArray> Opal::ArrayIterator<MyArray>::operator+(DifferenceType n) const
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator+(DifferenceType n) const
 {
     return ArrayIterator(m_ptr + n);
 }
 
-template <typename MyArray>
-Opal::ArrayIterator<MyArray> Opal::ArrayIterator<MyArray>::operator-(DifferenceType n) const
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator-(DifferenceType n) const
 {
     return ArrayIterator(m_ptr - n);
 }
 
-template <typename MyArray>
-Opal::ArrayIterator<MyArray>& Opal::ArrayIterator<MyArray>::operator+=(DifferenceType n)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator+=(DifferenceType n)
 {
     m_ptr += n;
     return *this;
 }
 
-template <typename MyArray>
-Opal::ArrayIterator<MyArray>& Opal::ArrayIterator<MyArray>::operator-=(DifferenceType n)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator-=(DifferenceType n)
 {
     m_ptr -= n;
     return *this;
 }
 
-template <typename MyArray>
-typename Opal::ArrayIterator<MyArray>::DifferenceType Opal::ArrayIterator<MyArray>::operator-(const ArrayIterator& other) const
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::DifferenceType TEMPLATE_NAMESPACE::operator-(const ArrayIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
-template <typename MyArray>
-typename Opal::ArrayIterator<MyArray>::ReferenceType Opal::ArrayIterator<MyArray>::operator[](DifferenceType n) const
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](DifferenceType n) const
 {
     return *(m_ptr + n);
 }
 
-template <typename MyArray>
-typename Opal::ArrayIterator<MyArray>::ReferenceType Opal::ArrayIterator<MyArray>::operator*() const
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator*() const
 {
     return *m_ptr;
 }
 
-template <typename MyArray>
-typename Opal::ArrayIterator<MyArray>::PointerType Opal::ArrayIterator<MyArray>::operator->() const
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::PointerType TEMPLATE_NAMESPACE::operator->() const
 {
     return m_ptr;
 }
 
-template <typename MyArray>
-Opal::ArrayIterator<MyArray> Opal::operator+(typename ArrayIterator<MyArray>::DifferenceType n, const ArrayIterator<MyArray>& it)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE Opal::operator+(typename ArrayIterator<MyArray>::DifferenceType n, const ArrayIterator<MyArray>& it)
 {
     return it + n;
 }
 
-template <typename MyArray>
-bool Opal::ArrayConstIterator<MyArray>::operator>(const ArrayConstIterator& other) const
+#undef TEMPLATE_HEADER
+#undef TEMPLATE_NAMESPACE
+
+#define TEMPLATE_HEADER template <typename MyArray>
+#define TEMPLATE_NAMESPACE Opal::ArrayConstIterator<MyArray>
+
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator>(const ArrayConstIterator& other) const
 {
     return m_ptr > other.m_ptr;
 }
 
-template <typename MyArray>
-bool Opal::ArrayConstIterator<MyArray>::operator>=(const ArrayConstIterator& other) const
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator>=(const ArrayConstIterator& other) const
 {
     return m_ptr >= other.m_ptr;
 }
 
-template <typename MyArray>
-bool Opal::ArrayConstIterator<MyArray>::operator<(const ArrayConstIterator& other) const
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator<(const ArrayConstIterator& other) const
 {
     return m_ptr < other.m_ptr;
 }
 
-template <typename MyArray>
-bool Opal::ArrayConstIterator<MyArray>::operator<=(const ArrayConstIterator& other) const
+TEMPLATE_HEADER
+bool TEMPLATE_NAMESPACE::operator<=(const ArrayConstIterator& other) const
 {
     return m_ptr <= other.m_ptr;
 }
 
-template <typename MyArray>
-Opal::ArrayConstIterator<MyArray>& Opal::ArrayConstIterator<MyArray>::operator++()
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator++()
 {
     m_ptr++;
     return *this;
 }
 
-template <typename MyArray>
-Opal::ArrayConstIterator<MyArray> Opal::ArrayConstIterator<MyArray>::operator++(int)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
 {
     ArrayConstIterator temp = *this;
     m_ptr++;
     return temp;
 }
 
-template <typename MyArray>
-Opal::ArrayConstIterator<MyArray>& Opal::ArrayConstIterator<MyArray>::operator--()
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator--()
 {
     m_ptr--;
     return *this;
 }
 
-template <typename MyArray>
-Opal::ArrayConstIterator<MyArray> Opal::ArrayConstIterator<MyArray>::operator--(int)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
 {
     ArrayConstIterator temp = *this;
     m_ptr--;
     return temp;
 }
 
-template <typename MyArray>
-Opal::ArrayConstIterator<MyArray> Opal::ArrayConstIterator<MyArray>::operator+(DifferenceType n) const
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator+(DifferenceType n) const
 {
     return ArrayConstIterator(m_ptr + n);
 }
 
-template <typename MyArray>
-Opal::ArrayConstIterator<MyArray> Opal::ArrayConstIterator<MyArray>::operator-(DifferenceType n) const
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator-(DifferenceType n) const
 {
     return ArrayConstIterator(m_ptr - n);
 }
 
-template <typename MyArray>
-Opal::ArrayConstIterator<MyArray>& Opal::ArrayConstIterator<MyArray>::operator+=(DifferenceType n)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator+=(DifferenceType n)
 {
     m_ptr += n;
     return *this;
 }
 
-template <typename MyArray>
-Opal::ArrayConstIterator<MyArray>& Opal::ArrayConstIterator<MyArray>::operator-=(DifferenceType n)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator-=(DifferenceType n)
 {
     m_ptr -= n;
     return *this;
 }
 
-template <typename MyArray>
-typename Opal::ArrayConstIterator<MyArray>::DifferenceType Opal::ArrayConstIterator<MyArray>::operator-(
-    const ArrayConstIterator& other) const
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::DifferenceType TEMPLATE_NAMESPACE::operator-(const ArrayConstIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
-template <typename MyArray>
-typename Opal::ArrayConstIterator<MyArray>::ReferenceType Opal::ArrayConstIterator<MyArray>::operator[](DifferenceType n) const
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](DifferenceType n) const
 {
     return *(m_ptr + n);
 }
 
-template <typename MyArray>
-typename Opal::ArrayConstIterator<MyArray>::ReferenceType Opal::ArrayConstIterator<MyArray>::operator*() const
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator*() const
 {
     return *m_ptr;
 }
 
-template <typename MyArray>
-typename Opal::ArrayConstIterator<MyArray>::PointerType Opal::ArrayConstIterator<MyArray>::operator->() const
+TEMPLATE_HEADER
+typename TEMPLATE_NAMESPACE::PointerType TEMPLATE_NAMESPACE::operator->() const
 {
     return m_ptr;
 }
 
-template <typename MyArray>
-Opal::ArrayConstIterator<MyArray> Opal::operator+(typename ArrayConstIterator<MyArray>::DifferenceType n,
-                                                  const ArrayConstIterator<MyArray>& it)
+TEMPLATE_HEADER
+TEMPLATE_NAMESPACE Opal::operator+(typename ArrayConstIterator<MyArray>::DifferenceType n, const ArrayConstIterator<MyArray>& it)
 {
     return it + n;
 }
+
+#undef TEMPLATE_HEADER
+#undef TEMPLATE_NAMESPACE
