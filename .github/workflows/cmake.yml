@@ -38,4 +38,4 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/build
       # Execute tests defined by the CMake configuration.
-      run: ctest -C opal_test ${{matrix.config.build_type}} --output-on-failure --verbose
+      run: ctest -C ${{matrix.config.build_type}} --output-on-failure --verbose
