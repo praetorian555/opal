@@ -1,10 +1,13 @@
 add_library(opal
         allocator.cpp
+        time.cpp
+        ../include/opal/defines.h
         ../include/opal/assert.h
         ../include/opal/type-traits.h
         ../include/opal/allocator.h
         ../include/opal/types.h
         ../include/opal/error-codes.h
+        ../include/opal/time.h
         ../include/opal/container/expected.h
         ../include/opal/container/deque.h
         ../include/opal/container/array.h)
