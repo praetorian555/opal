@@ -20,3 +20,8 @@
 #define OPAL_VERSION_MINOR 1
 
 #define OPAL_VERSION_STRING "0.1"
+
+#if defined(OPAL_COMPILER_MSVC)
+#define OPAL_DISABLE_OPTIMIZATION __pragma(optimize("", off))
+#define OPAL_ENABLE_OPTIMIZATION __pragma(optimize("", on))
+#endif

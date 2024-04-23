@@ -1,8 +1,11 @@
 #include "catch2/catch2.hpp"
 
+#include "opal/defines.h"
 #include "opal/time.h"
 
 using namespace Opal;
+
+OPAL_DISABLE_OPTIMIZATION
 
 TEST_CASE("Get time stamp", "[Time]")
 {
@@ -41,3 +44,5 @@ TEST_CASE("Measuring long time", "[Time]")
     const f64 duration = end - start;
     REQUIRE(duration > 0);
 }
+
+OPAL_ENABLE_OPTIMIZATION
