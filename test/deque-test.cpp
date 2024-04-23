@@ -41,21 +41,21 @@ TEST_CASE("Constructor", "[Deque]")
     SECTION("Default constructor")
     {
         Deque<i32> deque;
-        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetCapacity() == 0);
         REQUIRE(deque.GetSize() == 0);
     }
     SECTION("Default constructor with allocator")
     {
         DefaultAllocator allocator;
         Deque<i32> deque(allocator);
-        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetCapacity() == 0);
         REQUIRE(deque.GetSize() == 0);
     }
     SECTION("Default constructor with move allocator")
     {
         DefaultAllocator allocator;
         Deque<i32> deque(Move(allocator));
-        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetCapacity() == 0);
         REQUIRE(deque.GetSize() == 0);
     }
     SECTION("Constructor with count")
@@ -473,7 +473,7 @@ TEST_CASE("Push front", "[Deque]")
         Deque<i32> deque;
         ErrorCode err = deque.PushFront(10);
         REQUIRE(err == ErrorCode::Success);
-        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetCapacity() == 1);
         REQUIRE(deque.GetSize() == 1);
         REQUIRE(deque[0] == 10);
     }
@@ -514,7 +514,7 @@ TEST_CASE("Push front", "[Deque]")
         i32 value = 10;
         ErrorCode err = deque.PushFront(value);
         REQUIRE(err == ErrorCode::Success);
-        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetCapacity() == 1);
         REQUIRE(deque.GetSize() == 1);
         REQUIRE(deque[0] == 10);
     }
@@ -560,7 +560,7 @@ TEST_CASE("Push back", "[Deque]")
         Deque<i32> deque;
         ErrorCode err = deque.PushBack(10);
         REQUIRE(err == ErrorCode::Success);
-        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetCapacity() == 1);
         REQUIRE(deque.GetSize() == 1);
         REQUIRE(deque[0] == 10);
     }
@@ -570,7 +570,7 @@ TEST_CASE("Push back", "[Deque]")
         i32 value = 10;
         ErrorCode err = deque.PushBack(value);
         REQUIRE(err == ErrorCode::Success);
-        REQUIRE(deque.GetCapacity() == 4);
+        REQUIRE(deque.GetCapacity() == 1);
         REQUIRE(deque.GetSize() == 1);
         REQUIRE(deque[0] == 10);
     }

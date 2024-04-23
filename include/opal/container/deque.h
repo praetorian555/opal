@@ -354,13 +354,13 @@ private:
 
     static constexpr u64 Max(u64 a, u64 b) { return a > b ? a : b; }
 
-    constexpr static SizeType k_default_capacity = 4;
+    constexpr static SizeType k_default_capacity = 0;
 
     AllocatorType m_allocator;
     SizeType m_capacity = 0;
     SizeType m_size = 0;
     SizeType m_first = 0;
-    T* m_data;
+    T* m_data = nullptr;
 };
 
 }  // namespace Opal
@@ -458,7 +458,10 @@ TEMPLATE_NAMESPACE::~Deque()
         ++i;
         i &= (m_capacity - 1);
     }
-    Deallocate(m_data);
+    if (m_data)
+    {
+        Deallocate(m_data);
+    }
     m_size = 0;
     m_capacity = 0;
     m_first = 0;
@@ -787,7 +790,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(const T& value)
 {
     if (m_size == m_capacity)
     {
-        ErrorCode err = Reserve(m_capacity * 2);
+        ErrorCode err = Reserve(m_capacity > 0 ? m_capacity * 2 : 1);
         if (err != ErrorCode::Success)
         {
             return err;
@@ -804,7 +807,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(T&& value)
 {
     if (m_size == m_capacity)
     {
-        ErrorCode err = Reserve(m_capacity * 2);
+        ErrorCode err = Reserve(m_capacity > 0 ? m_capacity * 2 : 1);
         if (err != ErrorCode::Success)
         {
             return err;
@@ -821,7 +824,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushFront(const T& value)
 {
     if (m_size == m_capacity)
     {
-        ErrorCode err = Reserve(m_capacity * 2);
+        ErrorCode err = Reserve(m_capacity > 0 ? m_capacity * 2 : 1);
         if (err != ErrorCode::Success)
         {
             return err;
@@ -838,7 +841,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushFront(T&& value)
 {
     if (m_size == m_capacity)
     {
-        ErrorCode err = Reserve(m_capacity * 2);
+        ErrorCode err = Reserve(m_capacity > 0 ? m_capacity * 2 : 1);
         if (err != ErrorCode::Success)
         {
             return err;
@@ -859,7 +862,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
     }
     if (m_size == m_capacity)
     {
-        ErrorCode err = Reserve(m_capacity * 2);
+        ErrorCode err = Reserve(m_capacity > 0 ? m_capacity * 2 : 1);
         if (err != ErrorCode::Success)
         {
             return Expected<IteratorType, ErrorCode>(err);
@@ -889,7 +892,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
     }
     if (m_size == m_capacity)
     {
-        ErrorCode err = Reserve(m_capacity * 2);
+        ErrorCode err = Reserve(m_capacity > 0 ? m_capacity * 2 : 1);
         if (err != ErrorCode::Success)
         {
             return Expected<IteratorType, ErrorCode>(err);
@@ -1156,6 +1159,10 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 TEMPLATE_HEADER
 void TEMPLATE_NAMESPACE::Initialize(const T& value)
 {
+    if (m_capacity == 0)
+    {
+        return;
+    }
     m_data = Allocate(m_capacity);
     for (SizeType i = 0; i < m_size; i++)
     {
