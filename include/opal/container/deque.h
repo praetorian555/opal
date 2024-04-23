@@ -100,6 +100,8 @@ DequeConstIterator<MyDeque> operator+(typename DequeConstIterator<MyDeque>::Diff
 /**
  * Data structure that provides constant time insertion and deletion at both ends of the container. It also allows
  * constant time random access to elements.
+ *
+ * Capacity will always be a power of 2.
  */
 template <typename T, typename Allocator = DefaultAllocator>
 class Deque
@@ -137,23 +139,59 @@ public:
 
     bool operator==(const Deque& other) const;
 
-    // TODO: Add docs
-
+    /**
+     * Clears the container and assigns new values to it that are default constructed.
+     * @param count Number of elements to assign.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode Assign(SizeType count);
+
+    /**
+     * Clears the container and assigns new values to it that are copies of the provided value.
+     * @param count Number of elements to assign.
+     * @param value Value to assign.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode Assign(SizeType count, const T& value);
 
+    /**
+     * Clears the container and assigns new values to it that are copies of the values in the range [first, last).
+     * @tparam InputIt Type of the input iterator.
+     * @param first Iterator to the first element in the range.
+     * @param last Iterator to the element past the last element in the range.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::BadInput if first > last, ErrorCode::OutOfMemory if memory
+     * allocation failed.
+     */
     template <typename InputIt>
     ErrorCode AssignIt(InputIt first, InputIt last);
 
+    /**
+     * Accesses the element at the specified index.
+     * @param index Index of the element to access.
+     * @return Expected containing a reference to the element if the index is valid, ErrorCode::OutOfBounds otherwise.
+     */
     Expected<T&, ErrorCode> At(SizeType index);
     Expected<const T&, ErrorCode> At(SizeType index) const;
 
+    /**
+     * Accesses the element at the specified index, with no error checking.
+     * @param index Index of the element to access.
+     * @return Reference to the element at the specified index.
+     */
     T& operator[](SizeType index);
     const T& operator[](SizeType index) const;
 
+    /**
+     * Accesses the first element in the container.
+     * @return Expected containing a reference to the first element if the container is not empty, ErrorCode::OutOfBounds otherwise.
+     */
     Expected<T&, ErrorCode> Front();
     Expected<const T&, ErrorCode> Front() const;
 
+    /**
+     * Accesses the last element in the container.
+     * @return Expected containing a reference to the last element if the container is not empty, ErrorCode::OutOfBounds otherwise.
+     */
     Expected<T&, ErrorCode> Back();
     Expected<const T&, ErrorCode> Back() const;
 
@@ -161,30 +199,111 @@ public:
     [[nodiscard]] SizeType GetSize() const;
     [[nodiscard]] SizeType GetCapacity() const;
 
+    /**
+     * Increases the capacity of the container to a value that's greater than or equal to new_capacity. The new capacity will be a power
+     * of 2.
+     * @param new_capacity New capacity of the container.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode Reserve(SizeType new_capacity);
 
+    /**
+     * Resizes the container to contain count elements. If count is greater than the current size, the new elements are default-initialized.
+     * @param count New size of the container.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode Resize(SizeType count);
+
+    /**
+     * Resizes the container to contain count elements. If count is greater than the current size, the new elements are copies of the
+     * provided value.
+     * @param count New size of the container.
+     * @param value Value to copy.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode Resize(SizeType count, const T& value);
 
+    /**
+     * Appends a new element to the end of the container.
+     * @param value Value to append.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode PushBack(const T& value);
     ErrorCode PushBack(T&& value);
+
+    /**
+     * Prepends a new element to the beginning of the container.
+     * @param value Value to prepend.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode PushFront(const T& value);
     ErrorCode PushFront(T&& value);
 
+    /**
+     * Inserts a new element at the specified position.
+     * @param pos Iterator to the position to insert the element at.
+     * @param value Value to insert.
+     * @return Expected containing an iterator to the inserted element if the operation was successful, ErrorCode::OutOfBounds if the
+     * position is invalid, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, const T& value);
     Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, T&& value);
+
+    /**
+     * Inserts count copies of the provided value at the specified position.
+     * @param pos Iterator to the position to insert the elements at.
+     * @param count Number of elements to insert.
+     * @param value Value to insert.
+     * @return Expected containing an iterator to the first inserted element if the operation was successful, ErrorCode::OutOfBounds if the
+     * position is invalid, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     Expected<IteratorType, ErrorCode> Insert(ConstIteratorType pos, SizeType count, const T& value);
 
+    /**
+     * Inserts elements from the range [first, last) at the specified position.
+     * @tparam InputIt Type of the input iterator.
+     * @param pos Iterator to the position to insert the elements at.
+     * @param first Iterator to the first element in the range.
+     * @param last Iterator to the element past the last element in the range.
+     * @return Expected containing an iterator to the first inserted element if the operation was successful, ErrorCode::OutOfBounds if the
+     * position is invalid, ErrorCode::BadInput if first > last, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     template <typename InputIt>
     Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType pos, InputIt first, InputIt last);
 
+    /**
+     * Removes the last element from the container.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfBounds if the container is empty.
+     */
     ErrorCode PopBack();
+
+    /**
+     * Removes the first element from the container.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfBounds if the container is empty.
+     */
     ErrorCode PopFront();
 
+    /**
+     * Removes all the elements from the container. No deallocation is performed.
+     */
     void Clear();
 
+    /**
+     * Removes the element at the specified position.
+     * @param pos Iterator to the position to remove the element at.
+     * @return Expected containing an iterator to the element after the removed element if the operation was successful,
+     * ErrorCode::OutOfBounds if the position is invalid.
+     */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType pos);
     Expected<IteratorType, ErrorCode> Erase(IteratorType pos);
+
+    /**
+     * Removes elements in the range [first, last).
+     * @param first Iterator to the first element in the range.
+     * @param last Iterator to the element past the last element in the range.
+     * @return Expected containing an iterator to the element after the last removed element if the operation was successful,
+     * ErrorCode::BadInput if first > last, ErrorCode::OutOfBounds if the range is invalid.
+     */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType first, ConstIteratorType last);
     Expected<IteratorType, ErrorCode> Erase(IteratorType first, IteratorType last);
 
@@ -998,8 +1117,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType first,
-                                                                                                     IteratorType last)
+Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType first, IteratorType last)
 {
     if (first < Begin() || first > End() || last < Begin() || last > End())
     {
