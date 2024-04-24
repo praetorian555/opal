@@ -2,6 +2,7 @@ add_executable(opal_test
         allocator-test.cpp
         array-test.cpp
         deque-test.cpp
+        span-test.cpp
         expected-test.cpp
         time-test.cpp)
 target_link_libraries(opal_test opal)
