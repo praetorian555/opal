@@ -326,10 +326,10 @@ private:
 /***************************************** Implementation *****************************************/
 
 #define TEMPLATE_HEADER template <typename T, typename Allocator>
-#define TEMPLATE_NAMESPACE Opal::Array<T, Allocator>
+#define CLASS_HEADER Opal::Array<T, Allocator>
 
 TEMPLATE_HEADER
-Opal::Array<T, Allocator>::Array()
+CLASS_HEADER::Array()
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -341,7 +341,7 @@ Opal::Array<T, Allocator>::Array()
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(const Allocator& allocator) : m_allocator(allocator)
+CLASS_HEADER::Array(const Allocator& allocator) : m_allocator(allocator)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -353,7 +353,7 @@ TEMPLATE_NAMESPACE::Array(const Allocator& allocator) : m_allocator(allocator)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(Allocator&& allocator) : m_allocator(Move(allocator))
+CLASS_HEADER::Array(Allocator&& allocator) : m_allocator(Move(allocator))
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -365,7 +365,7 @@ TEMPLATE_NAMESPACE::Array(Allocator&& allocator) : m_allocator(Move(allocator))
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(SizeType count)
+CLASS_HEADER::Array(SizeType count)
 {
     if (count > m_capacity)
     {
@@ -386,7 +386,7 @@ TEMPLATE_NAMESPACE::Array(SizeType count)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(SizeType count, const Allocator& allocator) : m_allocator(allocator)
+CLASS_HEADER::Array(SizeType count, const Allocator& allocator) : m_allocator(allocator)
 {
     if (count > m_capacity)
     {
@@ -407,7 +407,7 @@ TEMPLATE_NAMESPACE::Array(SizeType count, const Allocator& allocator) : m_alloca
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(SizeType count, Allocator&& allocator) : m_allocator(Move(allocator))
+CLASS_HEADER::Array(SizeType count, Allocator&& allocator) : m_allocator(Move(allocator))
 {
     if (count > m_capacity)
     {
@@ -428,7 +428,7 @@ TEMPLATE_NAMESPACE::Array(SizeType count, Allocator&& allocator) : m_allocator(M
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(SizeType count, const T& default_value)
+CLASS_HEADER::Array(SizeType count, const T& default_value)
 {
     if (count > m_capacity)
     {
@@ -449,7 +449,7 @@ TEMPLATE_NAMESPACE::Array(SizeType count, const T& default_value)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(SizeType count, const T& default_value, const Allocator& allocator) : m_allocator(allocator)
+CLASS_HEADER::Array(SizeType count, const T& default_value, const Allocator& allocator) : m_allocator(allocator)
 {
     if (count > m_capacity)
     {
@@ -470,7 +470,7 @@ TEMPLATE_NAMESPACE::Array(SizeType count, const T& default_value, const Allocato
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(SizeType count, const T& default_value, Allocator&& allocator) : m_allocator(Move(allocator))
+CLASS_HEADER::Array(SizeType count, const T& default_value, Allocator&& allocator) : m_allocator(Move(allocator))
 {
     if (count > m_capacity)
     {
@@ -491,7 +491,7 @@ TEMPLATE_NAMESPACE::Array(SizeType count, const T& default_value, Allocator&& al
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(T* data, SizeType count) : m_capacity(count), m_size(count)
+CLASS_HEADER::Array(T* data, SizeType count) : m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -513,7 +513,7 @@ TEMPLATE_NAMESPACE::Array(T* data, SizeType count) : m_capacity(count), m_size(c
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(T* data, SizeType count, const Allocator& allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
+CLASS_HEADER::Array(T* data, SizeType count, const Allocator& allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -535,7 +535,7 @@ TEMPLATE_NAMESPACE::Array(T* data, SizeType count, const Allocator& allocator) :
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(T* data, SizeType count, Allocator&& allocator) : m_allocator(Move(allocator)), m_capacity(count), m_size(count)
+CLASS_HEADER::Array(T* data, SizeType count, Allocator&& allocator) : m_allocator(Move(allocator)), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -557,7 +557,7 @@ TEMPLATE_NAMESPACE::Array(T* data, SizeType count, Allocator&& allocator) : m_al
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(const Array& other) : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+CLASS_HEADER::Array(const Array& other) : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -573,7 +573,7 @@ TEMPLATE_NAMESPACE::Array(const Array& other) : m_allocator(other.m_allocator), 
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(const Array& other, const Allocator& allocator)
+CLASS_HEADER::Array(const Array& other, const Allocator& allocator)
     : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
@@ -590,7 +590,7 @@ TEMPLATE_NAMESPACE::Array(const Array& other, const Allocator& allocator)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(const Array& other, Allocator&& allocator)
+CLASS_HEADER::Array(const Array& other, Allocator&& allocator)
     : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
@@ -607,7 +607,7 @@ TEMPLATE_NAMESPACE::Array(const Array& other, Allocator&& allocator)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(Array&& other) noexcept
+CLASS_HEADER::Array(Array&& other) noexcept
     : m_allocator(Move(other.m_allocator)), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
 {
     other.m_capacity = 0;
@@ -616,7 +616,7 @@ TEMPLATE_NAMESPACE::Array(Array&& other) noexcept
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(Array&& other, const Allocator& allocator) noexcept
+CLASS_HEADER::Array(Array&& other, const Allocator& allocator) noexcept
     : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
 {
     other.m_capacity = 0;
@@ -625,7 +625,7 @@ TEMPLATE_NAMESPACE::Array(Array&& other, const Allocator& allocator) noexcept
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Array(Array&& other, Allocator&& allocator) noexcept
+CLASS_HEADER::Array(Array&& other, Allocator&& allocator) noexcept
     : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
 {
     other.m_capacity = 0;
@@ -634,7 +634,7 @@ TEMPLATE_NAMESPACE::Array(Array&& other, Allocator&& allocator) noexcept
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::~Array()
+CLASS_HEADER::~Array()
 {
     if (m_data != nullptr)
     {
@@ -647,7 +647,7 @@ TEMPLATE_NAMESPACE::~Array()
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(const Array& other)
+CLASS_HEADER& CLASS_HEADER::operator=(const Array& other)
 {
     if (this == &other)
     {
@@ -681,7 +681,7 @@ TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(const Array& other)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(Array&& other) noexcept
+CLASS_HEADER& CLASS_HEADER::operator=(Array&& other) noexcept
 {
     if (this == &other)
     {
@@ -706,7 +706,7 @@ TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(Array&& other) noexcept
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator==(const Array& other) const
+bool CLASS_HEADER::operator==(const Array& other) const
 {
     if (m_size != other.m_size)
     {
@@ -723,19 +723,19 @@ bool TEMPLATE_NAMESPACE::operator==(const Array& other) const
 }
 
 TEMPLATE_HEADER
-inline TEMPLATE_NAMESPACE::SizeType TEMPLATE_NAMESPACE::GetCapacity() const
+inline CLASS_HEADER::SizeType CLASS_HEADER::GetCapacity() const
 {
     return m_capacity;
 }
 
 TEMPLATE_HEADER
-inline TEMPLATE_NAMESPACE::SizeType TEMPLATE_NAMESPACE::GetSize() const
+inline CLASS_HEADER::SizeType CLASS_HEADER::GetSize() const
 {
     return m_size;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::Assign(Array::SizeType count, const T& value)
+Opal::ErrorCode CLASS_HEADER::Assign(Array::SizeType count, const T& value)
 {
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -761,7 +761,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Assign(Array::SizeType count, const T& value
 
 TEMPLATE_HEADER
 template <typename InputIt>
-Opal::ErrorCode TEMPLATE_NAMESPACE::AssignIt(InputIt start, InputIt end)
+Opal::ErrorCode CLASS_HEADER::AssignIt(InputIt start, InputIt end)
 {
     if (start > end)
     {
@@ -792,7 +792,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::AssignIt(InputIt start, InputIt end)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::ReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index)
+Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEADER::At(SizeType index)
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (index >= m_size)
@@ -803,7 +803,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::ReferenceType, Opal::ErrorCode> TEMP
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::ConstReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index) const
+Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS_HEADER::At(SizeType index) const
 {
     using ReturnType = Expected<ConstReferenceType, ErrorCode>;
     if (index >= m_size)
@@ -814,21 +814,21 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::ConstReferenceType, Opal::ErrorCode>
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](Array::SizeType index)
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](Array::SizeType index)
 {
     OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ConstReferenceType TEMPLATE_NAMESPACE::operator[](Array::SizeType index) const
+typename CLASS_HEADER::ConstReferenceType CLASS_HEADER::operator[](Array::SizeType index) const
 {
     OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::ReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Front()
+Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEADER::Front()
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -839,7 +839,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::ReferenceType, Opal::ErrorCode> TEMP
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::ConstReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Front() const
+Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS_HEADER::Front() const
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -850,7 +850,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::ConstReferenceType, Opal::ErrorCode>
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::ReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Back()
+Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEADER::Back()
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -861,7 +861,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::ReferenceType, Opal::ErrorCode> TEMP
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::ConstReferenceType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Back() const
+Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS_HEADER::Back() const
 {
     using ReturnType = Expected<ReferenceType, ErrorCode>;
     if (m_size == 0)
@@ -872,19 +872,19 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::ConstReferenceType, Opal::ErrorCode>
 }
 
 TEMPLATE_HEADER
-inline T* TEMPLATE_NAMESPACE::GetData()
+inline T* CLASS_HEADER::GetData()
 {
     return m_data;
 }
 
 TEMPLATE_HEADER
-inline const T* TEMPLATE_NAMESPACE::GetData() const
+inline const T* CLASS_HEADER::GetData() const
 {
     return m_data;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::Reserve(Array::SizeType new_capacity)
+Opal::ErrorCode CLASS_HEADER::Reserve(Array::SizeType new_capacity)
 {
     if (new_capacity <= m_capacity)
     {
@@ -906,13 +906,13 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Reserve(Array::SizeType new_capacity)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(Array::SizeType new_size)
+Opal::ErrorCode CLASS_HEADER::Resize(Array::SizeType new_size)
 {
     return Resize(new_size, T());
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(Array::SizeType new_size, const T& default_value)
+Opal::ErrorCode CLASS_HEADER::Resize(Array::SizeType new_size, const T& default_value)
 {
     if (new_size == m_size)
     {
@@ -946,7 +946,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(Array::SizeType new_size, const T& de
 }
 
 TEMPLATE_HEADER
-void TEMPLATE_NAMESPACE::Clear()
+void CLASS_HEADER::Clear()
 {
     for (SizeType i = 0; i < m_size; i++)
     {
@@ -956,7 +956,7 @@ void TEMPLATE_NAMESPACE::Clear()
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(const T& value)
+Opal::ErrorCode CLASS_HEADER::PushBack(const T& value)
 {
     if (m_size == m_capacity)
     {
@@ -973,7 +973,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(const T& value)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(T&& value)
+Opal::ErrorCode CLASS_HEADER::PushBack(T&& value)
 {
     if (m_size == m_capacity)
     {
@@ -990,7 +990,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(T&& value)
 }
 
 TEMPLATE_HEADER
-void TEMPLATE_NAMESPACE::PopBack()
+void CLASS_HEADER::PopBack()
 {
     if (m_size == 0)
     {
@@ -1001,7 +1001,7 @@ void TEMPLATE_NAMESPACE::PopBack()
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Insert(ConstIteratorType position,
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType position,
                                                                                                       const T& value)
 {
     if (position < ConstBegin() || position > ConstEnd())
@@ -1031,7 +1031,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Insert(Array::ConstIteratorType position,
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(Array::ConstIteratorType position,
                                                                                                       T&& value)
 {
     if (position < ConstBegin() || position > ConstEnd())
@@ -1061,7 +1061,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Insert(Array::ConstIteratorType position,
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(Array::ConstIteratorType position,
                                                                                                       Array::SizeType count, const T& value)
 {
     if (position < ConstBegin() || position > ConstEnd())
@@ -1102,7 +1102,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 
 TEMPLATE_HEADER
 template <typename InputIt>
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::InsertIt(Array::ConstIteratorType position,
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::InsertIt(Array::ConstIteratorType position,
                                                                                                         InputIt start, InputIt end)
 {
     if (position < ConstBegin() || position > ConstEnd())
@@ -1143,7 +1143,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(Array::ConstIteratorType position)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(Array::ConstIteratorType position)
 {
     using ReturnType = Expected<IteratorType, ErrorCode>;
     if (position < ConstBegin() || position >= ConstEnd())
@@ -1163,7 +1163,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType position)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType position)
 {
     using ReturnType = Expected<IteratorType, ErrorCode>;
     if (position < Begin() || position >= End())
@@ -1183,7 +1183,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::EraseWithSwap(
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(
     Array::ConstIteratorType position)
 {
     using ReturnType = Expected<IteratorType, ErrorCode>;
@@ -1204,7 +1204,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::EraseWithSwap(IteratorType position)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(IteratorType position)
 {
     using ReturnType = Expected<IteratorType, ErrorCode>;
     if (position < Begin() || position >= End())
@@ -1224,7 +1224,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(Array::ConstIteratorType start,
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(Array::ConstIteratorType start,
                                                                                                      Array::ConstIteratorType end)
 {
     if (start > end)
@@ -1259,7 +1259,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType start, IteratorType end)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType start, IteratorType end)
 {
     if (start > end)
     {
@@ -1293,56 +1293,56 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-T* TEMPLATE_NAMESPACE::Allocate(SizeType count)
+T* CLASS_HEADER::Allocate(SizeType count)
 {
     return static_cast<T*>(m_allocator.Allocate(count * sizeof(T)));
 }
 
 TEMPLATE_HEADER
-void TEMPLATE_NAMESPACE::Deallocate(T* ptr)
+void CLASS_HEADER::Deallocate(T* ptr)
 {
     m_allocator.Deallocate(ptr);
 }
 
 #undef TEMPLATE_HEADER
-#undef TEMPLATE_NAMESPACE
+#undef CLASS_HEADER
 
 #define TEMPLATE_HEADER template <typename MyArray>
-#define TEMPLATE_NAMESPACE Opal::ArrayIterator<MyArray>
+#define CLASS_HEADER Opal::ArrayIterator<MyArray>
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator>(const ArrayIterator& other) const
+bool CLASS_HEADER::operator>(const ArrayIterator& other) const
 {
     return m_ptr > other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator>=(const ArrayIterator& other) const
+bool CLASS_HEADER::operator>=(const ArrayIterator& other) const
 {
     return m_ptr >= other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator<(const ArrayIterator& other) const
+bool CLASS_HEADER::operator<(const ArrayIterator& other) const
 {
     return m_ptr < other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator<=(const ArrayIterator& other) const
+bool CLASS_HEADER::operator<=(const ArrayIterator& other) const
 {
     return m_ptr <= other.m_ptr;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator++()
+CLASS_HEADER& CLASS_HEADER::operator++()
 {
     m_ptr++;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
+CLASS_HEADER CLASS_HEADER::operator++(int)
 {
     ArrayIterator temp = *this;
     m_ptr++;
@@ -1350,14 +1350,14 @@ TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator--()
+CLASS_HEADER& CLASS_HEADER::operator--()
 {
     m_ptr--;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
+CLASS_HEADER CLASS_HEADER::operator--(int)
 {
     ArrayIterator temp = *this;
     m_ptr--;
@@ -1365,100 +1365,100 @@ TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
 {
     return ArrayIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
 {
     return ArrayIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
 {
     m_ptr += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
 {
     m_ptr -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::DifferenceType TEMPLATE_NAMESPACE::operator-(const ArrayIterator& other) const
+typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const ArrayIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](DifferenceType n) const
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
 {
     return *(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator*() const
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
 {
     return *m_ptr;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::PointerType TEMPLATE_NAMESPACE::operator->() const
+typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
 {
     return m_ptr;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE Opal::operator+(typename ArrayIterator<MyArray>::DifferenceType n, const ArrayIterator<MyArray>& it)
+CLASS_HEADER Opal::operator+(typename ArrayIterator<MyArray>::DifferenceType n, const ArrayIterator<MyArray>& it)
 {
     return it + n;
 }
 
 #undef TEMPLATE_HEADER
-#undef TEMPLATE_NAMESPACE
+#undef CLASS_HEADER
 
 #define TEMPLATE_HEADER template <typename MyArray>
-#define TEMPLATE_NAMESPACE Opal::ArrayConstIterator<MyArray>
+#define CLASS_HEADER Opal::ArrayConstIterator<MyArray>
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator>(const ArrayConstIterator& other) const
+bool CLASS_HEADER::operator>(const ArrayConstIterator& other) const
 {
     return m_ptr > other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator>=(const ArrayConstIterator& other) const
+bool CLASS_HEADER::operator>=(const ArrayConstIterator& other) const
 {
     return m_ptr >= other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator<(const ArrayConstIterator& other) const
+bool CLASS_HEADER::operator<(const ArrayConstIterator& other) const
 {
     return m_ptr < other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator<=(const ArrayConstIterator& other) const
+bool CLASS_HEADER::operator<=(const ArrayConstIterator& other) const
 {
     return m_ptr <= other.m_ptr;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator++()
+CLASS_HEADER& CLASS_HEADER::operator++()
 {
     m_ptr++;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
+CLASS_HEADER CLASS_HEADER::operator++(int)
 {
     ArrayConstIterator temp = *this;
     m_ptr++;
@@ -1466,14 +1466,14 @@ TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator--()
+CLASS_HEADER& CLASS_HEADER::operator--()
 {
     m_ptr--;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
+CLASS_HEADER CLASS_HEADER::operator--(int)
 {
     ArrayConstIterator temp = *this;
     m_ptr--;
@@ -1481,60 +1481,60 @@ TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
 {
     return ArrayConstIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
 {
     return ArrayConstIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
 {
     m_ptr += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
 {
     m_ptr -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::DifferenceType TEMPLATE_NAMESPACE::operator-(const ArrayConstIterator& other) const
+typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const ArrayConstIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](DifferenceType n) const
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
 {
     return *(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator*() const
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
 {
     return *m_ptr;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::PointerType TEMPLATE_NAMESPACE::operator->() const
+typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
 {
     return m_ptr;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE Opal::operator+(typename ArrayConstIterator<MyArray>::DifferenceType n, const ArrayConstIterator<MyArray>& it)
+CLASS_HEADER Opal::operator+(typename ArrayConstIterator<MyArray>::DifferenceType n, const ArrayConstIterator<MyArray>& it)
 {
     return it + n;
 }
 
 #undef TEMPLATE_HEADER
-#undef TEMPLATE_NAMESPACE
+#undef CLASS_HEADER

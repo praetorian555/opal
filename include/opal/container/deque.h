@@ -366,68 +366,68 @@ private:
 }  // namespace Opal
 
 #define TEMPLATE_HEADER template <typename T, typename Allocator>
-#define TEMPLATE_NAMESPACE Opal::Deque<T, Allocator>
+#define CLASS_HEADER Opal::Deque<T, Allocator>
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque() : m_capacity(k_default_capacity)
+CLASS_HEADER::Deque() : m_capacity(k_default_capacity)
 {
     Initialize(T());
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(const AllocatorType& allocator) : m_allocator(allocator), m_capacity(k_default_capacity)
+CLASS_HEADER::Deque(const AllocatorType& allocator) : m_allocator(allocator), m_capacity(k_default_capacity)
 {
     Initialize(T());
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(AllocatorType&& allocator) : m_allocator(Move(allocator)), m_capacity(k_default_capacity)
+CLASS_HEADER::Deque(AllocatorType&& allocator) : m_allocator(Move(allocator)), m_capacity(k_default_capacity)
 {
     Initialize(T());
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(SizeType count) : m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
+CLASS_HEADER::Deque(SizeType count) : m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
 {
     Initialize(T());
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(SizeType count, const AllocatorType& allocator)
+CLASS_HEADER::Deque(SizeType count, const AllocatorType& allocator)
     : m_allocator(allocator), m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
 {
     Initialize(T());
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(SizeType count, AllocatorType&& allocator)
+CLASS_HEADER::Deque(SizeType count, AllocatorType&& allocator)
     : m_allocator(allocator), m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
 {
     Initialize(T());
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(SizeType count, const T& value) : m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
+CLASS_HEADER::Deque(SizeType count, const T& value) : m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
 {
     Initialize(value);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(SizeType count, const T& value, const AllocatorType& allocator)
+CLASS_HEADER::Deque(SizeType count, const T& value, const AllocatorType& allocator)
     : m_allocator(allocator), m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
 {
     Initialize(value);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(SizeType count, const T& value, AllocatorType&& allocator)
+CLASS_HEADER::Deque(SizeType count, const T& value, AllocatorType&& allocator)
     : m_allocator(Move(allocator)), m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
 {
     Initialize(value);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(const Deque& other)
+CLASS_HEADER::Deque(const Deque& other)
     : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_first(other.m_first)
 {
     m_data = Allocate(m_capacity);
@@ -440,7 +440,7 @@ TEMPLATE_NAMESPACE::Deque(const Deque& other)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::Deque(Deque&& other) noexcept
+CLASS_HEADER::Deque(Deque&& other) noexcept
     : m_allocator(Move(other.m_allocator)), m_capacity(other.m_capacity), m_size(other.m_size), m_first(other.m_first), m_data(other.m_data)
 {
     other.m_capacity = 0;
@@ -450,7 +450,7 @@ TEMPLATE_NAMESPACE::Deque(Deque&& other) noexcept
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::~Deque()
+CLASS_HEADER::~Deque()
 {
     for (SizeType i = m_first, count = 0; count < m_size; count++)
     {
@@ -468,7 +468,7 @@ TEMPLATE_NAMESPACE::~Deque()
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(const Deque& other)
+CLASS_HEADER& CLASS_HEADER::operator=(const Deque& other)
 {
     if (this != &other)
     {
@@ -500,7 +500,7 @@ TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(const Deque& other)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(Deque&& other) noexcept
+CLASS_HEADER& CLASS_HEADER::operator=(Deque&& other) noexcept
 {
     if (this != &other)
     {
@@ -530,7 +530,7 @@ TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator=(Deque&& other) noexcept
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator==(const Deque& other) const
+bool CLASS_HEADER::operator==(const Deque& other) const
 {
     if (m_size != other.m_size)
     {
@@ -554,13 +554,13 @@ bool TEMPLATE_NAMESPACE::operator==(const Deque& other) const
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::Assign(SizeType count)
+Opal::ErrorCode CLASS_HEADER::Assign(SizeType count)
 {
     return Assign(count, T());
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::Assign(SizeType count, const T& value)
+Opal::ErrorCode CLASS_HEADER::Assign(SizeType count, const T& value)
 {
     if (count == 0)
     {
@@ -593,7 +593,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Assign(SizeType count, const T& value)
 
 TEMPLATE_HEADER
 template <typename InputIt>
-Opal::ErrorCode TEMPLATE_NAMESPACE::AssignIt(InputIt first, InputIt last)
+Opal::ErrorCode CLASS_HEADER::AssignIt(InputIt first, InputIt last)
 {
     if (first > last)
     {
@@ -631,7 +631,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::AssignIt(InputIt first, InputIt last)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index)
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::At(SizeType index)
 {
     const SizeType final_index = (m_first + index) & (m_capacity - 1);
     const SizeType last = (m_first + m_size) & (m_capacity - 1);
@@ -643,7 +643,7 @@ Opal::Expected<T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index) const
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::At(SizeType index) const
 {
     const SizeType final_index = (m_first + index) & (m_capacity - 1);
     const SizeType last = (m_first + m_size) & (m_capacity - 1);
@@ -655,61 +655,61 @@ Opal::Expected<const T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::At(SizeType index)
 }
 
 TEMPLATE_HEADER
-T& TEMPLATE_NAMESPACE::operator[](SizeType index)
+T& CLASS_HEADER::operator[](SizeType index)
 {
     return m_data[(m_first + index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
-const T& TEMPLATE_NAMESPACE::operator[](SizeType index) const
+const T& CLASS_HEADER::operator[](SizeType index) const
 {
     return m_data[(m_first + index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
-Opal::Expected<T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::Front()
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::Front()
 {
     return At(0);
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::Front() const
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::Front() const
 {
     return At(0);
 }
 
 TEMPLATE_HEADER
-Opal::Expected<T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::Back()
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::Back()
 {
     return At(m_size - 1);
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const T&, Opal::ErrorCode> TEMPLATE_NAMESPACE::Back() const
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::Back() const
 {
     return At(m_size - 1);
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::IsEmpty() const
+bool CLASS_HEADER::IsEmpty() const
 {
     return m_size == 0;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::SizeType TEMPLATE_NAMESPACE::GetSize() const
+typename CLASS_HEADER::SizeType CLASS_HEADER::GetSize() const
 {
     return m_size;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::SizeType TEMPLATE_NAMESPACE::GetCapacity() const
+typename CLASS_HEADER::SizeType CLASS_HEADER::GetCapacity() const
 {
     return m_capacity;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::Reserve(SizeType new_capacity)
+Opal::ErrorCode CLASS_HEADER::Reserve(SizeType new_capacity)
 {
     if (new_capacity <= m_capacity)
     {
@@ -737,13 +737,13 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Reserve(SizeType new_capacity)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(SizeType count)
+Opal::ErrorCode CLASS_HEADER::Resize(SizeType count)
 {
     return Resize(count, T());
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(SizeType count, const T& value)
+Opal::ErrorCode CLASS_HEADER::Resize(SizeType count, const T& value)
 {
     if (count == 0)
     {
@@ -786,7 +786,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::Resize(SizeType count, const T& value)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(const T& value)
+Opal::ErrorCode CLASS_HEADER::PushBack(const T& value)
 {
     if (m_size == m_capacity)
     {
@@ -803,7 +803,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(const T& value)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(T&& value)
+Opal::ErrorCode CLASS_HEADER::PushBack(T&& value)
 {
     if (m_size == m_capacity)
     {
@@ -820,7 +820,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushBack(T&& value)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::PushFront(const T& value)
+Opal::ErrorCode CLASS_HEADER::PushFront(const T& value)
 {
     if (m_size == m_capacity)
     {
@@ -837,7 +837,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushFront(const T& value)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::PushFront(T&& value)
+Opal::ErrorCode CLASS_HEADER::PushFront(T&& value)
 {
     if (m_size == m_capacity)
     {
@@ -854,7 +854,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PushFront(T&& value)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Insert(ConstIteratorType pos, const T& value)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType pos, const T& value)
 {
     if (pos < ConstBegin() || pos > ConstEnd())
     {
@@ -884,7 +884,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Insert(ConstIteratorType pos, T&& value)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType pos, T&& value)
 {
     if (pos < ConstBegin() || pos > ConstEnd())
     {
@@ -914,7 +914,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Insert(ConstIteratorType pos, SizeType count,
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType pos, SizeType count,
                                                                                                       const T& value)
 {
     if (pos < ConstBegin() || pos > ConstEnd())
@@ -955,7 +955,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 
 TEMPLATE_HEADER
 template <typename InputIt>
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::InsertIt(ConstIteratorType pos,
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::InsertIt(ConstIteratorType pos,
                                                                                                         InputIt first, InputIt last)
 {
     if (pos < ConstBegin() || pos > ConstEnd())
@@ -1001,7 +1001,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::PopBack()
+Opal::ErrorCode CLASS_HEADER::PopBack()
 {
     if (m_size == 0)
     {
@@ -1014,7 +1014,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PopBack()
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode TEMPLATE_NAMESPACE::PopFront()
+Opal::ErrorCode CLASS_HEADER::PopFront()
 {
     if (m_size == 0)
     {
@@ -1027,7 +1027,7 @@ Opal::ErrorCode TEMPLATE_NAMESPACE::PopFront()
 }
 
 TEMPLATE_HEADER
-void TEMPLATE_NAMESPACE::Clear()
+void CLASS_HEADER::Clear()
 {
     for (SizeType i = m_first, count = 0; count < m_size; count++)
     {
@@ -1040,7 +1040,7 @@ void TEMPLATE_NAMESPACE::Clear()
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(ConstIteratorType pos)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(ConstIteratorType pos)
 {
     if (pos < ConstBegin() || pos >= ConstEnd())
     {
@@ -1061,7 +1061,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType pos)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType pos)
 {
     if (pos < Begin() || pos >= End())
     {
@@ -1082,7 +1082,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(ConstIteratorType first,
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(ConstIteratorType first,
                                                                                                      ConstIteratorType last)
 {
     if (first < ConstBegin() || first > ConstEnd() || last < ConstBegin() || last > ConstEnd())
@@ -1120,7 +1120,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPLATE_NAMESPACE::Erase(IteratorType first, IteratorType last)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType first, IteratorType last)
 {
     if (first < Begin() || first > End() || last < Begin() || last > End())
     {
@@ -1157,7 +1157,7 @@ Opal::Expected<typename TEMPLATE_NAMESPACE::IteratorType, Opal::ErrorCode> TEMPL
 }
 
 TEMPLATE_HEADER
-void TEMPLATE_NAMESPACE::Initialize(const T& value)
+void CLASS_HEADER::Initialize(const T& value)
 {
     if (m_capacity == 0)
     {
@@ -1171,72 +1171,72 @@ void TEMPLATE_NAMESPACE::Initialize(const T& value)
 }
 
 TEMPLATE_HEADER
-T* TEMPLATE_NAMESPACE::Allocate(SizeType count)
+T* CLASS_HEADER::Allocate(SizeType count)
 {
     return static_cast<T*>(m_allocator.Allocate(count * sizeof(T), alignof(T)));
 }
 
 TEMPLATE_HEADER
-void TEMPLATE_NAMESPACE::Deallocate(T* data)
+void CLASS_HEADER::Deallocate(T* data)
 {
     m_allocator.Deallocate(data);
 }
 
 #undef TEMPLATE_HEADER
-#undef TEMPLATE_NAMESPACE
+#undef CLASS_HEADER
 
 #define TEMPLATE_HEADER template <typename MyDeque>
-#define TEMPLATE_NAMESPACE Opal::DequeIterator<MyDeque>
+#define CLASS_HEADER Opal::DequeIterator<MyDeque>
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::DequeIterator(PointerType data, SizeType capacity, SizeType first, SizeType index)
+CLASS_HEADER::DequeIterator(PointerType data, SizeType capacity, SizeType first, SizeType index)
     : m_data(data), m_capacity(capacity), m_first(first), m_index(index)
 {
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator==(const DequeIterator& other) const
+bool CLASS_HEADER::operator==(const DequeIterator& other) const
 {
     return m_data == other.m_data && m_capacity == other.m_capacity && m_first == other.m_first && m_index == other.m_index;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator>(const DequeIterator& other) const
+bool CLASS_HEADER::operator>(const DequeIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index > other.m_index;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator>=(const DequeIterator& other) const
+bool CLASS_HEADER::operator>=(const DequeIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index >= other.m_index;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator<(const DequeIterator& other) const
+bool CLASS_HEADER::operator<(const DequeIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index < other.m_index;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator<=(const DequeIterator& other) const
+bool CLASS_HEADER::operator<=(const DequeIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index <= other.m_index;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator++()
+CLASS_HEADER& CLASS_HEADER::operator++()
 {
     ++m_index;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
+CLASS_HEADER CLASS_HEADER::operator++(int)
 {
     DequeIterator copy = *this;
     ++m_index;
@@ -1244,14 +1244,14 @@ TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator--()
+CLASS_HEADER& CLASS_HEADER::operator--()
 {
     --m_index;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
+CLASS_HEADER CLASS_HEADER::operator--(int)
 {
     DequeIterator copy = *this;
     --m_index;
@@ -1259,117 +1259,117 @@ TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
 {
     return DequeIterator(m_data, m_capacity, m_first, m_index + n);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
 {
     return DequeIterator(m_data, m_capacity, m_first, m_index - n);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
 {
     m_index += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
 {
     m_index -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::DifferenceType TEMPLATE_NAMESPACE::operator-(const DequeIterator& other) const
+typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const DequeIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index - other.m_index;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](DifferenceType n) const
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
 {
     return m_data[(m_first + m_index + n) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator*() const
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
 {
     return m_data[(m_first + m_index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::PointerType TEMPLATE_NAMESPACE::operator->() const
+typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
 {
     return &m_data[(m_first + m_index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE Opal::operator+(typename TEMPLATE_NAMESPACE::DifferenceType n, const DequeIterator<MyDeque>& it)
+CLASS_HEADER Opal::operator+(typename CLASS_HEADER::DifferenceType n, const DequeIterator<MyDeque>& it)
 {
     return it + n;
 }
 
 #undef TEMPLATE_HEADER
-#undef TEMPLATE_NAMESPACE
+#undef CLASS_HEADER
 
 #define TEMPLATE_HEADER template <typename MyDeque>
-#define TEMPLATE_NAMESPACE Opal::DequeConstIterator<MyDeque>
+#define CLASS_HEADER Opal::DequeConstIterator<MyDeque>
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE::DequeConstIterator(PointerType data, SizeType capacity, SizeType first, SizeType index)
+CLASS_HEADER::DequeConstIterator(PointerType data, SizeType capacity, SizeType first, SizeType index)
     : m_data(data), m_capacity(capacity), m_first(first), m_index(index)
 {
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator==(const DequeConstIterator& other) const
+bool CLASS_HEADER::operator==(const DequeConstIterator& other) const
 {
     return m_data == other.m_data && m_capacity == other.m_capacity && m_first == other.m_first && m_index == other.m_index;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator>(const DequeConstIterator& other) const
+bool CLASS_HEADER::operator>(const DequeConstIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index > other.m_index;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator>=(const DequeConstIterator& other) const
+bool CLASS_HEADER::operator>=(const DequeConstIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index >= other.m_index;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator<(const DequeConstIterator& other) const
+bool CLASS_HEADER::operator<(const DequeConstIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index < other.m_index;
 }
 
 TEMPLATE_HEADER
-bool TEMPLATE_NAMESPACE::operator<=(const DequeConstIterator& other) const
+bool CLASS_HEADER::operator<=(const DequeConstIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index <= other.m_index;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator++()
+CLASS_HEADER& CLASS_HEADER::operator++()
 {
     ++m_index;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
+CLASS_HEADER CLASS_HEADER::operator++(int)
 {
     DequeConstIterator copy = *this;
     ++m_index;
@@ -1377,14 +1377,14 @@ TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator++(int)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator--()
+CLASS_HEADER& CLASS_HEADER::operator--()
 {
     --m_index;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
+CLASS_HEADER CLASS_HEADER::operator--(int)
 {
     DequeConstIterator copy = *this;
     --m_index;
@@ -1392,61 +1392,61 @@ TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator--(int)
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
 {
     return DequeConstIterator(m_data, m_capacity, m_first, m_index + n);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE TEMPLATE_NAMESPACE::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
 {
     return DequeConstIterator(m_data, m_capacity, m_first, m_index - n);
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
 {
     m_index += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE& TEMPLATE_NAMESPACE::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
 {
     m_index -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::DifferenceType TEMPLATE_NAMESPACE::operator-(const DequeConstIterator& other) const
+typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const DequeConstIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
     return m_index - other.m_index;
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator[](DifferenceType n) const
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
 {
     return m_data[(m_first + m_index + n) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::ReferenceType TEMPLATE_NAMESPACE::operator*() const
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
 {
     return m_data[(m_first + m_index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
-typename TEMPLATE_NAMESPACE::PointerType TEMPLATE_NAMESPACE::operator->() const
+typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
 {
     return &m_data[(m_first + m_index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
-TEMPLATE_NAMESPACE Opal::operator+(typename TEMPLATE_NAMESPACE::DifferenceType n, const DequeConstIterator<MyDeque>& it)
+CLASS_HEADER Opal::operator+(typename CLASS_HEADER::DifferenceType n, const DequeConstIterator<MyDeque>& it)
 {
     return it + n;
 }
 
 #undef TEMPLATE_HEADER
-#undef TEMPLATE_NAMESPACE
+#undef CLASS_HEADER
