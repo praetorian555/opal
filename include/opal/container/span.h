@@ -22,7 +22,7 @@ public:
     Span(InputIt first, InputIt last);
 
     template <u64 N>
-    Span(T (&array)[N]);
+    explicit Span(T (&array)[N]);
 
     Span(const Span& other) = default;
     Span(Span&& other) noexcept = default;
@@ -40,18 +40,18 @@ public:
     [[nodiscard]] SizeType GetSize() const { return m_size; }
 
     Expected<T&, ErrorCode> At(SizeType index);
-    Expected<const T&, ErrorCode> At(SizeType index) const;
+    [[nodiscard]] Expected<const T&, ErrorCode> At(SizeType index) const;
 
     T& operator[](SizeType index) { return m_data[index]; }
     const T& operator[](SizeType index) const { return m_data[index]; }
 
     Expected<T&, ErrorCode> Front();
-    Expected<const T&, ErrorCode> Front() const;
+    [[nodiscard]] Expected<const T&, ErrorCode> Front() const;
 
     Expected<T&, ErrorCode> Back();
-    Expected<const T&, ErrorCode> Back() const;
+    [[nodiscard]] Expected<const T&, ErrorCode> Back() const;
 
-    Expected<Span<T>, ErrorCode> SubSpan(SizeType offset, SizeType count) const;
+    [[nodiscard]] Expected<Span<T>, ErrorCode> SubSpan(SizeType offset, SizeType count) const;
 
 private:
     T* m_data = nullptr;
@@ -66,32 +66,35 @@ Span<u8> AsWritableBytes(Span<T> span);
 
 }  // namespace Opal
 
-template <typename T>
+#define TEMPLATE_HEADER template <typename T>
+#define CLASS_HEADER Opal::Span<T>
+
+TEMPLATE_HEADER
 template <typename InputIt>
-Opal::Span<T>::Span(InputIt first, SizeType count) : m_data(&(*first)), m_size(count)
+CLASS_HEADER::Span(InputIt first, SizeType count) : m_data(&(*first)), m_size(count)
 {
 }
 
-template <typename T>
+TEMPLATE_HEADER
 template <typename InputIt>
-Opal::Span<T>::Span(InputIt first, InputIt last) : m_size(last - first), m_data(&(*first))
+CLASS_HEADER::Span(InputIt first, InputIt last) : m_size(last - first), m_data(&(*first))
 {
 }
 
-template <typename T>
+TEMPLATE_HEADER
 template <Opal::u64 N>
-Opal::Span<T>::Span(T (&array)[N]) : m_data(array), m_size(N)
+CLASS_HEADER::Span(T (&array)[N]) : m_data(array), m_size(N)
 {
 }
 
-template <typename T>
-bool Opal::Span<T>::operator==(const Span& other) const
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator==(const Span& other) const
 {
     return m_data == other.m_data && m_size == other.m_size;
 }
 
-template <typename T>
-Opal::Expected<T&, Opal::ErrorCode> Opal::Span<T>::At(SizeType index)
+TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::At(SizeType index)
 {
     if (index >= m_size)
     {
@@ -100,8 +103,8 @@ Opal::Expected<T&, Opal::ErrorCode> Opal::Span<T>::At(SizeType index)
     return Expected<T&, ErrorCode>(m_data[index]);
 }
 
-template <typename T>
-Opal::Expected<const T&, Opal::ErrorCode> Opal::Span<T>::At(SizeType index) const
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::At(SizeType index) const
 {
     if (index >= m_size)
     {
@@ -110,8 +113,8 @@ Opal::Expected<const T&, Opal::ErrorCode> Opal::Span<T>::At(SizeType index) cons
     return Expected<const T&, ErrorCode>(m_data[index]);
 }
 
-template <typename T>
-Opal::Expected<T&, Opal::ErrorCode> Opal::Span<T>::Front()
+TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::Front()
 {
     if (m_size == 0)
     {
@@ -120,8 +123,8 @@ Opal::Expected<T&, Opal::ErrorCode> Opal::Span<T>::Front()
     return Expected<T&, ErrorCode>(m_data[0]);
 }
 
-template <typename T>
-Opal::Expected<const T&, Opal::ErrorCode> Opal::Span<T>::Front() const
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::Front() const
 {
     if (m_size == 0)
     {
@@ -130,8 +133,8 @@ Opal::Expected<const T&, Opal::ErrorCode> Opal::Span<T>::Front() const
     return Expected<const T&, ErrorCode>(m_data[0]);
 }
 
-template <typename T>
-Opal::Expected<T&, Opal::ErrorCode> Opal::Span<T>::Back()
+TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::Back()
 {
     if (m_size == 0)
     {
@@ -140,8 +143,8 @@ Opal::Expected<T&, Opal::ErrorCode> Opal::Span<T>::Back()
     return Expected<T&, ErrorCode>(m_data[m_size - 1]);
 }
 
-template <typename T>
-Opal::Expected<const T&, Opal::ErrorCode> Opal::Span<T>::Back() const
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::Back() const
 {
     if (m_size == 0)
     {
@@ -150,20 +153,20 @@ Opal::Expected<const T&, Opal::ErrorCode> Opal::Span<T>::Back() const
     return Expected<const T&, ErrorCode>(m_data[m_size - 1]);
 }
 
-template <typename T>
+TEMPLATE_HEADER
 Opal::Span<const Opal::u8> Opal::AsBytes(Span<T> span)
 {
     return Span<const u8>(reinterpret_cast<const u8*>(span.GetData()), span.GetSize() * sizeof(T));
 }
 
-template <typename T>
+TEMPLATE_HEADER
 Opal::Span<Opal::u8> Opal::AsWritableBytes(Opal::Span<T> span)
 {
     return Span<u8>(reinterpret_cast<u8*>(span.GetData()), span.GetSize() * sizeof(T));
 }
 
-template <typename T>
-Opal::Expected<Opal::Span<T>, Opal::ErrorCode> Opal::Span<T>::SubSpan(SizeType offset, SizeType count) const
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::SubSpan(SizeType offset, SizeType count) const
 {
     if (offset + count > m_size)
     {
@@ -171,3 +174,6 @@ Opal::Expected<Opal::Span<T>, Opal::ErrorCode> Opal::Span<T>::SubSpan(SizeType o
     }
     return Expected<Span<T>, ErrorCode>(Span<T>(m_data + offset, count));
 }
+
+#undef TEMPLATE_HEADER
+#undef CLASS_HEADER
