@@ -39,7 +39,7 @@ TEST_CASE("Construction", "[Span]")
             REQUIRE(span.GetSize() == 5);
         }
     }
-    SECTION("From Array")
+    SECTION("From Span")
     {
         SECTION("iterator and count")
         {
@@ -197,5 +197,343 @@ TEST_CASE("Sub span", "[Span]")
         REQUIRE(subSpan.HasValue());
         REQUIRE(subSpan.GetValue().GetData() == array + 2);
         REQUIRE(subSpan.GetValue().GetSize() == 3);
+    }
+}
+
+TEST_CASE("Iterator", "[Span]")
+{
+    SECTION("Difference")
+    {
+        i32 array[] = {1, 2, 3, 4, 5};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it1 = span.Begin();
+        Span<i32>::IteratorType it2 = span.End();
+        REQUIRE(it2 - it1 == 5);
+    }
+    SECTION("Increment")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.Begin();
+        REQUIRE(*it == 1);
+        ++it;
+        REQUIRE(*it == 2);
+        ++it;
+        REQUIRE(*it == 3);
+        ++it;
+        REQUIRE(it == span.End());
+    }
+    SECTION("Post increment")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.Begin();
+        REQUIRE(*it == 1);
+        it++;
+        REQUIRE(*it == 2);
+        it++;
+        REQUIRE(*it == 3);
+        Span<i32>::IteratorType prev = it++;
+        REQUIRE(it - prev == 1);
+        REQUIRE(it == span.End());
+    }
+    SECTION("Decrement")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.End();
+        --it;
+        REQUIRE(*it == 3);
+        --it;
+        REQUIRE(*it == 2);
+        --it;
+        REQUIRE(*it == 1);
+        REQUIRE(it == span.Begin());
+    }
+    SECTION("Post decrement")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.End();
+        it--;
+        REQUIRE(*it == 3);
+        it--;
+        REQUIRE(*it == 2);
+        Span<i32>::IteratorType prev = it--;
+        REQUIRE(prev - it == 1);
+        REQUIRE(it == span.Begin());
+    }
+    SECTION("Add")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.Begin();
+        REQUIRE(*(it + 0) == 1);
+        REQUIRE(*(it + 1) == 2);
+        REQUIRE(*(it + 2) == 3);
+        REQUIRE((it + 3) == span.End());
+
+        Span<i32>::IteratorType it2 = span.Begin();
+        REQUIRE((3 + it2) == span.End());
+    }
+    SECTION("Add assignment")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.Begin();
+        REQUIRE(*(it += 0) == 1);
+        REQUIRE(*(it += 1) == 2);
+        REQUIRE(*(it += 1) == 3);
+        REQUIRE((it += 1) == span.End());
+    }
+    SECTION("Subtract")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.End();
+        REQUIRE((it - 0) == span.End());
+        REQUIRE(*(it - 1) == 3);
+        REQUIRE(*(it - 2) == 2);
+        REQUIRE(*(it - 3) == 1);
+        REQUIRE((it - 3) == span.Begin());
+    }
+    SECTION("Subtract assignment")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.End();
+        REQUIRE((it -= 0) == span.End());
+        REQUIRE(*(it -= 1) == 3);
+        REQUIRE(*(it -= 1) == 2);
+        REQUIRE(*(it -= 1) == 1);
+        REQUIRE(it == span.Begin());
+    }
+    SECTION("Access")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.Begin();
+        REQUIRE(it[0] == 1);
+        REQUIRE(it[1] == 2);
+        REQUIRE(it[2] == 3);
+    }
+    SECTION("Dereference")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it = span.Begin();
+        REQUIRE(*it == 1);
+    }
+    SECTION("Compare")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::IteratorType it1 = span.Begin();
+        Span<i32>::IteratorType it2 = span.Begin();
+        REQUIRE(it1 == it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it1 >= it2);
+        REQUIRE_FALSE(it1 != it2);
+        REQUIRE_FALSE(it1 < it2);
+        REQUIRE_FALSE(it1 > it2);
+
+        it2++;
+        REQUIRE(it1 != it2);
+        REQUIRE(it1 < it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it2 > it1);
+        REQUIRE(it2 >= it1);
+        REQUIRE_FALSE(it1 == it2);
+    }
+    SECTION("For loop")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        i32 sum = 0;
+        for (Span<i32>::IteratorType it = span.Begin(); it != span.End(); ++it)
+        {
+            sum += *it;
+        }
+        REQUIRE(sum == 6);
+    }
+    SECTION("Modern for loop")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        i32 sum = 0;
+        for (i32 val : span)
+        {
+            sum += val;
+        }
+        REQUIRE(sum == 6);
+    }
+}
+
+TEST_CASE("Const iterator", "[Span]")
+{
+    SECTION("Difference")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it1 = span.ConstBegin();
+        Span<i32>::ConstIteratorType it2 = span.ConstEnd();
+        REQUIRE(it2 - it1 == 3);
+    }
+    SECTION("Increment")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstBegin();
+        REQUIRE(*it == 1);
+        ++it;
+        REQUIRE(*it == 2);
+        ++it;
+        REQUIRE(*it == 3);
+        ++it;
+        REQUIRE(it == span.ConstEnd());
+    }
+    SECTION("Post increment")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstBegin();
+        REQUIRE(*it == 1);
+        it++;
+        REQUIRE(*it == 2);
+        it++;
+        REQUIRE(*it == 3);
+        Span<i32>::ConstIteratorType prev = it++;
+        REQUIRE(it - prev == 1);
+        REQUIRE(it == span.ConstEnd());
+    }
+    SECTION("Decrement")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstEnd();
+        --it;
+        REQUIRE(*it == 3);
+        --it;
+        REQUIRE(*it == 2);
+        --it;
+        REQUIRE(*it == 1);
+        REQUIRE(it == span.ConstBegin());
+    }
+    SECTION("Post decrement")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstEnd();
+        it--;
+        REQUIRE(*it == 3);
+        it--;
+        REQUIRE(*it == 2);
+        Span<i32>::ConstIteratorType prev = it--;
+        REQUIRE(prev - it == 1);
+        REQUIRE(it == span.ConstBegin());
+    }
+    SECTION("Add")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstBegin();
+        REQUIRE(*(it + 0) == 1);
+        REQUIRE(*(it + 1) == 2);
+        REQUIRE(*(it + 2) == 3);
+        REQUIRE((it + 3) == span.ConstEnd());
+
+        Span<i32>::ConstIteratorType it2 = span.ConstBegin();
+        REQUIRE((3 + it2) == span.ConstEnd());
+    }
+    SECTION("Add assignment")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstBegin();
+        REQUIRE(*(it += 0) == 1);
+        REQUIRE(*(it += 1) == 2);
+        REQUIRE(*(it += 1) == 3);
+        REQUIRE((it += 1) == span.ConstEnd());
+    }
+    SECTION("Subtract")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstEnd();
+        REQUIRE((it - 0) == span.ConstEnd());
+        REQUIRE(*(it - 1) == 3);
+        REQUIRE(*(it - 2) == 2);
+        REQUIRE(*(it - 3) == 1);
+        REQUIRE((it - 3) == span.ConstBegin());
+    }
+    SECTION("Subtract assignment")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstEnd();
+        REQUIRE((it -= 0) == span.ConstEnd());
+        REQUIRE(*(it -= 1) == 3);
+        REQUIRE(*(it -= 1) == 2);
+        REQUIRE(*(it -= 1) == 1);
+        REQUIRE(it == span.ConstBegin());
+    }
+    SECTION("Access")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstBegin();
+        REQUIRE(it[0] == 1);
+        REQUIRE(it[1] == 2);
+        REQUIRE(it[2] == 3);
+    }
+    SECTION("Dereference")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it = span.ConstBegin();
+        REQUIRE(*it == 1);
+    }
+    SECTION("Compare")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        Span<i32>::ConstIteratorType it1 = span.ConstBegin();
+        Span<i32>::ConstIteratorType it2 = span.ConstBegin();
+        REQUIRE(it1 == it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it1 >= it2);
+        REQUIRE_FALSE(it1 != it2);
+        REQUIRE_FALSE(it1 < it2);
+        REQUIRE_FALSE(it1 > it2);
+
+        it2++;
+        REQUIRE(it1 != it2);
+        REQUIRE(it1 < it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it2 > it1);
+        REQUIRE(it2 >= it1);
+        REQUIRE_FALSE(it1 == it2);
+    }
+    SECTION("For loop")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        i32 sum = 0;
+        for (Span<i32>::ConstIteratorType it = span.ConstBegin(); it != span.ConstEnd(); ++it)
+        {
+            sum += *it;
+        }
+        REQUIRE(sum == 6);
+    }
+    SECTION("Modern for loop")
+    {
+        i32 array[] = {1, 2, 3};
+        Span<i32> span(array);
+        i32 sum = 0;
+        for (const i32& val : span)
+        {
+            sum += val;
+        }
+        REQUIRE(sum == 6);
     }
 }
