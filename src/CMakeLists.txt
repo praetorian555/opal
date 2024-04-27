@@ -1,6 +1,7 @@
 add_library(opal
         allocator.cpp
         time.cpp
+        string.cpp
         ../include/opal/defines.h
         ../include/opal/assert.h
         ../include/opal/type-traits.h
@@ -11,6 +12,7 @@ add_library(opal
         ../include/opal/container/expected.h
         ../include/opal/container/deque.h
         ../include/opal/container/span.h
+        ../include/opal/container/string.h
         ../include/opal/container/array.h)
 target_include_directories(opal PUBLIC ../include)
 target_link_libraries(opal PRIVATE opal_warnings)

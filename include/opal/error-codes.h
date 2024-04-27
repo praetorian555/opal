@@ -11,6 +11,7 @@ enum class ErrorCode : u8
     OutOfBounds = 1,
     OutOfMemory = 2,
     BadInput = 3,
+    EndOfString = 4,
 };
 
 }
