@@ -80,7 +80,7 @@ TEST_CASE("From UTF32 to native wide", "[String]")
     REQUIRE(wide_result == wide);
 }
 
-TEST_CASE("From locale to UTF32", "[String]")
+TEST_CASE("From locale to UTF32", "[String][FromLocale]")
 {
     StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
     StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
