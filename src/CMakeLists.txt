@@ -2,6 +2,7 @@ add_library(opal
         allocator.cpp
         time.cpp
         string.cpp
+        string-encoding.cpp
         ../include/opal/defines.h
         ../include/opal/assert.h
         ../include/opal/type-traits.h

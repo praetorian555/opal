@@ -13,9 +13,13 @@ using u16 = unsigned short;
 using u32 = unsigned int;
 using u64 = unsigned long long;
 
+using st = size_t;
+
 using f32 = float;
 using f64 = double;
 
+using c = char;
+using wc = wchar_t;
 using c8 = char8_t;
 using c16 = char16_t;
 using c32 = char32_t;

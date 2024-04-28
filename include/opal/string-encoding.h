@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cuchar>
+
 #include "opal/container/span.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
@@ -11,7 +13,33 @@ template <typename CodeUnitT>
 struct EncodingUtf8
 {
     using CodeUnitType = CodeUnitT;
-    using CodePointType = u32;
+    using CodePointType = c32;
+
+    /**
+     * Encodes given code point into an output span using this encoding scheme.
+     * @param in_code_point Input code point.
+     * @param output Output span used to append result to. It will be update to point after the inserted data.
+     * @return Returns ErrorCode::Success if encoding was successful, ErrorCode::InsufficientSpace if there is not enough space to
+     * store encoding result in the `output` span, ErrorCode::BadInput if the `in_code_point` is unsupported code point.
+     */
+    ErrorCode EncodeOne(CodePointType in_code_point, Span<CodeUnitT>& output);
+
+    /**
+     * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`.
+     * @param input Input span. Modified to point after decoded data.
+     * @param out_code_point Output code point.
+     * @return Returns ErrorCode::Success if the decoding was successful, ErrorCode::IncompleteSequence if there is not enough input data
+     * to decode current code point, ErrorCode::BadInput if the decoded data does not match rules for the current encoding,
+     * ErrorCode::EndOfString if there is no more data to decode.
+     */
+    ErrorCode DecodeOne(Span<CodeUnitT>& input, CodePointType& out_code_point);
+};
+
+template <typename CodeUnitT>
+struct EncodingUtf16LE
+{
+    using CodeUnitType = CodeUnitT;
+    using CodePointType = c32;
 
     /**
      * Encodes given code point into an output span using this encoding scheme.
@@ -37,7 +65,7 @@ template <typename CodeUnitT>
 struct EncodingUtf32LE
 {
     using CodeUnitType = CodeUnitT;
-    using CodePointType = u32;
+    using CodePointType = c32;
 
     /**
      * Encodes given code point into an output span using this encoding scheme.
@@ -55,6 +83,19 @@ struct EncodingUtf32LE
      * @return Returns ErrorCode::Success if the decoding was successful, ErrorCode::EndOfString if there is no more data to decode.
      */
     ErrorCode DecodeOne(Span<CodeUnitT>& input, CodePointType& out_code_point);
+};
+
+struct EncodingLocale
+{
+    using CodeUnitType = char;
+    using CodePointType = c32;
+
+    ErrorCode EncodeOne(CodePointType in_code_point, Span<CodeUnitType>& output);
+    ErrorCode DecodeOne(Span<CodeUnitType>& input, CodePointType& out_code_point);
+
+private:
+    std::mbstate_t m_encoding_state;
+    std::mbstate_t m_decoding_state;
 };
 
 }  // namespace Opal
@@ -206,6 +247,78 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<CodeUnitT>& input, CodePointType& o
     out_code_point = static_cast<CodePointType>(input[0]);
     input = Span<CodeUnitT>(input.begin() + 1, input.end());
     return ErrorCode::Success;
+}
+
+#undef TEMPLATE_HEADER
+#undef CLASS_HEADER
+
+#define TEMPLATE_HEADER template <typename CodeUnitT>
+#define CLASS_HEADER Opal::EncodingUtf16LE<CodeUnitT>
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_code_point, Span<CodeUnitT>& output)
+{
+    if (output.GetSize() == 0)
+    {
+        return ErrorCode::InsufficientSpace;
+    }
+    if (in_code_point <= 0xFFFF)
+    {
+        if (in_code_point >= 0xD800 && in_code_point <= 0xDFFF)
+        {
+            // Surrogate values are not valid Unicode code points
+            return ErrorCode::BadInput;
+        }
+        output[0] = static_cast<CodeUnitT>(in_code_point);
+        output = Span<CodeUnitT>(output.begin() + 1, output.end());
+        return ErrorCode::Success;
+    }
+    if (in_code_point <= 0x10FFFF)
+    {
+        if (output.GetSize() < 2)
+        {
+            return ErrorCode::InsufficientSpace;
+        }
+        const CodePointType code = in_code_point - 0x10000;
+        const CodeUnitT high_surrogate = static_cast<CodeUnitT>((code >> 10) + 0xD800);
+        const CodeUnitT low_surrogate = static_cast<CodeUnitT>((code & 0x3FF) + 0xDC00);
+        output[0] = high_surrogate;
+        output[1] = low_surrogate;
+        output = Span<CodeUnitT>(output.begin() + 2, output.end());
+        return ErrorCode::Success;
+    }
+    return ErrorCode::BadInput;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<CodeUnitT>& input, CodePointType& out_code_point)
+{
+    if (input.GetSize() == 0)
+    {
+        return ErrorCode::EndOfString;
+    }
+    if (input[0] < 0xD800)
+    {
+        out_code_point = static_cast<CodePointType>(input[0]);
+        input = Span<CodeUnitT>(input.begin() + 1, input.end());
+        return ErrorCode::Success;
+    }
+    if (input[0] >= 0xD800 && input[0] <= 0xDBFF)
+    {
+        if (input.GetSize() < 2)
+        {
+            return ErrorCode::IncompleteSequence;
+        }
+        if (input[1] >= 0xDC00 && input[1] <= 0xDFFF)
+        {
+            out_code_point = ((input[0] - 0xD800) << 10) | (input[1] - 0xDC00);
+            out_code_point += 0x10000;
+            input = Span<CodeUnitT>(input.begin() + 2, input.end());
+            return ErrorCode::Success;
+        }
+        return ErrorCode::BadInput;
+    }
+    return ErrorCode::BadInput;
 }
 
 #undef TEMPLATE_HEADER

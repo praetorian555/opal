@@ -64,7 +64,10 @@ template <typename InputString, typename OutputString>
 ErrorCode Transcode(InputString& input, OutputString& output);
 
 using StringUtf8 = String<c8, EncodingUtf8<c8>>;
+using StringUtf16 = String<c16, EncodingUtf16LE<c16>>;
 using StringUtf32 = String<c32, EncodingUtf32LE<c32>>;
+using StringLocale = String<c, EncodingLocale>;
+using StringWide = String<wc, EncodingUtf16LE<wc>>;
 
 };  // namespace Opal
 
@@ -137,7 +140,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* data, SizeType size)
             return error;
         }
     }
-    std::memcpy(m_data + m_size, data, size * sizeof(CodeUnitType));
+    std::memcpy(m_data + m_size * sizeof(CodeUnitType), data, size * sizeof(CodeUnitType));
     m_size += size;
     m_data[m_size] = 0;
     return ErrorCode::Success;
@@ -164,7 +167,7 @@ Opal::ErrorCode Opal::Transcode(InputString& input, OutputString& output)
     Span<typename OutputString::CodeUnitType> output_span(output.GetData(), output.GetSize());
     while (true)
     {
-        u32 code_point = 0;
+        c32 code_point = 0;
         ErrorCode error = src_decoder.DecodeOne(input_span, code_point);
         if (error == ErrorCode::EndOfString)
         {
