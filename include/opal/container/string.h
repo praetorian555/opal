@@ -5,163 +5,23 @@
 #include "opal/allocator.h"
 #include "opal/container/span.h"
 #include "opal/error-codes.h"
+#include "opal/string-encoding.h"
 #include "opal/types.h"
 
 namespace Opal
 {
 
-template <typename CodeUnitType>
-struct EncodingUtf8
-{
-    ErrorCode DecodeOne(Span<CodeUnitType>& input, u32& output)
-    {
-        if (input.GetSize() == 0)
-        {
-            return ErrorCode::EndOfString;
-        }
-        if ((input[0] & 0x80) == 0)
-        {
-            output = input[0];
-            input = input.SubSpan(1, input.GetSize() - 1).GetValue();
-            return ErrorCode::Success;
-        }
-        if ((input[0] & 0xF0) == 0xF0)
-        {
-            if (input.GetSize() < 4)
-            {
-                return ErrorCode::BadInput;
-            }
-            if ((input[1] & 0x80) != 0x80 || (input[2] & 0x80) != 0x80 || (input[3] & 0x80) != 0x80)
-            {
-                return ErrorCode::BadInput;
-            }
-            output = ((input[0] & 0x07) << 18) | ((input[1] & 0x3F) << 12) | ((input[2] & 0x3F) << 6) | (input[3] & 0x3F);
-            input = input.SubSpan(4, input.GetSize() - 4).GetValue();
-            return ErrorCode::Success;
-        }
-        if ((input[0] & 0xE0) == 0xE0)
-        {
-            if (input.GetSize() < 3)
-            {
-                return ErrorCode::BadInput;
-            }
-            if ((input[1] & 0x80) != 0x80 || (input[2] & 0x80) != 0x80)
-            {
-                return ErrorCode::BadInput;
-            }
-            output = ((input[0] & 0x0F) << 12) | ((input[1] & 0x3F) << 6) | (input[2] & 0x3F);
-            input = input.SubSpan(3, input.GetSize() - 3).GetValue();
-            return ErrorCode::Success;
-        }
-        if ((input[0] & 0xC0) == 0xC0)
-        {
-            if (input.GetSize() < 2)
-            {
-                return ErrorCode::BadInput;
-            }
-            if ((input[1] & 0x80) != 0x80)
-            {
-                return ErrorCode::BadInput;
-            }
-            output = ((input[0] & 0x1F) << 6) | (input[1] & 0x3F);
-            input = input.SubSpan(2, input.GetSize() - 2).GetValue();
-            return ErrorCode::Success;
-        }
-        return ErrorCode::BadInput;
-    }
-
-    Expected<u32, ErrorCode> EncodeOne(u32 input, Span<CodeUnitType>& output)
-    {
-        using ReturnType = Expected<u32, ErrorCode>;
-        if (input <= 0x7F)
-        {
-            if (output.GetSize() < 1)
-            {
-                return ReturnType(ErrorCode::BadInput);
-            }
-            output[0] = static_cast<CodeUnitType>(input);
-            return ReturnType(1);
-        }
-        if (input <= 0x7FF)
-        {
-            if (output.GetSize() < 2)
-            {
-                return ReturnType(ErrorCode::BadInput);
-            }
-            output[0] = static_cast<CodeUnitType>(0xC0 | ((input >> 6) & 0x1F));
-            output[1] = static_cast<CodeUnitType>(0x80 | (input & 0x3F));
-            return ReturnType(2);
-        }
-        if (input <= 0xFFFF)
-        {
-            if (output.GetSize() < 3)
-            {
-                return ReturnType(ErrorCode::BadInput);
-            }
-            output[0] = static_cast<CodeUnitType>(0xE0 | ((input >> 12) & 0x0F));
-            output[1] = static_cast<CodeUnitType>(0x80 | ((input >> 6) & 0x3F));
-            output[2] = static_cast<CodeUnitType>(0x80 | (input & 0x3F));
-            return ReturnType(3);
-        }
-        if (input <= 0x10FFFF)
-        {
-            if (output.GetSize() < 4)
-            {
-                return ReturnType(ErrorCode::BadInput);
-            }
-            output[0] = static_cast<CodeUnitType>(0xF0 | ((input >> 18) & 0x07));
-            output[1] = static_cast<CodeUnitType>(0x80 | ((input >> 12) & 0x3F));
-            output[2] = static_cast<CodeUnitType>(0x80 | ((input >> 6) & 0x3F));
-            output[3] = static_cast<CodeUnitType>(0x80 | (input & 0x3F));
-            return ReturnType(4);
-        }
-        return ReturnType(ErrorCode::BadInput);
-    }
-};
-
-template <typename CodeUnitType, bool k_little_endian = true>
-struct EncodingUtf16
-{
-    ErrorCode DecodeOne(const Span<CodeUnitType> input, u32& output);
-    ErrorCode EncodeOne(u32 input, Span<CodeUnitType>& output);
-};
-
-template <typename CodeUnitType, bool k_little_endian = true>
-struct EncodingUtf32
-{
-    static_assert(sizeof(CodeUnitType) == 4, "CodeUnitType must be 4 bytes wide.");
-    static_assert(k_little_endian, "Only little endian is supported.");
-
-    ErrorCode DecodeOne(Span<CodeUnitType>& input, u32& output)
-    {
-        if (input.GetSize() < 1)
-        {
-            return ErrorCode::EndOfString;
-        }
-        output = static_cast<u32>(input[0]);
-        input = input.SubSpan(1, input.GetSize() - 1).GetValue();
-        return ErrorCode::Success;
-    }
-
-    Expected<u32, ErrorCode> EncodeOne(u32 input, Span<CodeUnitType>& output)
-    {
-        using ReturnType = Expected<u32, ErrorCode>;
-        if (output.GetSize() < 1)
-        {
-            return ReturnType(ErrorCode::BadInput);
-        }
-        output[0] = static_cast<CodeUnitType>(input);
-        return ReturnType(1);
-    }
-};
-
-template <typename CodeUnitT, typename AllocatorT = DefaultAllocator>
+template <typename CodeUnitT, typename EncodingT, typename AllocatorT = DefaultAllocator>
 class String
 {
 public:
     using CodeUnitType = CodeUnitT;
     using SizeType = u64;
     using AllocatorType = AllocatorT;
+    using EncodingType = EncodingT;
+
+    static_assert(k_is_same_value<CodeUnitType, typename EncodingType::CodeUnitType>,
+                  "Encoding code unit type needs to match string code unit type");
 
     String() = default;
 
@@ -200,13 +60,16 @@ private:
     SizeType m_capacity = 0;
 };
 
-template <typename DstEncoding, typename SrcEncoding, typename OutputString, typename InputString>
-Expected<OutputString, ErrorCode> Transcode(InputString& input);
+template <typename InputString, typename OutputString>
+ErrorCode Transcode(InputString& input, OutputString& output);
+
+using StringUtf8 = String<c8, EncodingUtf8<c8>>;
+using StringUtf32 = String<c32, EncodingUtf32LE<c32>>;
 
 };  // namespace Opal
 
-#define TEMPLATE_HEADER template <typename CodeUnitT, typename AllocatorT>
-#define CLASS_HEADER Opal::String<CodeUnitT, AllocatorT>
+#define TEMPLATE_HEADER template <typename CodeUnitT, typename EncodingT, typename AllocatorT>
+#define CLASS_HEADER Opal::String<CodeUnitT, EncodingT, AllocatorT>
 
 TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Reserve(SizeType new_capacity)
@@ -233,6 +96,29 @@ Opal::ErrorCode CLASS_HEADER::Reserve(SizeType new_capacity)
 TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Resize(SizeType new_size)
 {
+    if (new_size == m_size)
+    {
+        return ErrorCode::Success;
+    }
+    if (new_size < m_size)
+    {
+        m_size = new_size;
+        m_data[m_size] = 0;
+        return ErrorCode::Success;
+    }
+    if (new_size > m_capacity)
+    {
+        ErrorCode error = Reserve(new_size);
+        if (error != ErrorCode::Success)
+        {
+            return error;
+        }
+    }
+    for (SizeType i = m_size; i < new_size; i++)
+    {
+        m_data[i] = CodeUnitType();
+    }
+    m_size = new_size;
     return ErrorCode::Success;
 }
 
@@ -269,15 +155,13 @@ void CLASS_HEADER::Deallocate(CodeUnitType* data)
     m_allocator.Deallocate(data);
 }
 
-template <typename DstEncoding, typename SrcEncoding, typename OutputString, typename InputString>
-Opal::Expected<OutputString, Opal::ErrorCode> Opal::Transcode(InputString& input)
+template <typename InputString, typename OutputString>
+Opal::ErrorCode Opal::Transcode(InputString& input, OutputString& output)
 {
-    using ReturnType = Expected<OutputString, ErrorCode>;
-    SrcEncoding src_decoder;
-    DstEncoding dst_encoder;
-    typename OutputString::CodeUnitType buffer[4];
-    OutputString result;
+    typename InputString::EncodingType src_decoder;
+    typename OutputString::EncodingType dst_encoder;
     Span<typename InputString::CodeUnitType> input_span(input.GetData(), input.GetSize());
+    Span<typename OutputString::CodeUnitType> output_span(output.GetData(), output.GetSize());
     while (true)
     {
         u32 code_point = 0;
@@ -288,17 +172,16 @@ Opal::Expected<OutputString, Opal::ErrorCode> Opal::Transcode(InputString& input
         }
         if (error != ErrorCode::Success)
         {
-            return ReturnType(error);
+            return error;
         }
-        Span<typename OutputString::CodeUnitType> output_span(buffer, 4);
-        Expected<u32, ErrorCode> count = dst_encoder.EncodeOne(code_point, output_span);
-        if (!count.HasValue())
+        error = dst_encoder.EncodeOne(code_point, output_span);
+        if (error != ErrorCode::Success)
         {
-            return ReturnType(count.GetError());
+            return error;
         }
-        result.Append(buffer, count.GetValue());
     }
-    return ReturnType(result);
+    output.Resize(output.GetSize() - output_span.GetSize());
+    return ErrorCode::Success;
 }
 
 #undef TEMPLATE_HEADER
