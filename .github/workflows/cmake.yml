@@ -26,12 +26,17 @@ jobs:
     runs-on: ${{matrix.config.os}}
     steps:
     - uses: actions/checkout@v3
+    - uses: Amadevus/pwsh-script@v2
+      id: set-locale
+      with:
+        script: |
+          'Set-WinSystemLocale en-US'
+          'Set-WinUserLanguageList en-US'
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
       run: |
-        Set-WinSystemLocale en-US
-        Set-WinUserLanguageList en-US
+        steps.set-locale
         cmake -B ${{github.workspace}}/build -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF
 
     - name: Build
