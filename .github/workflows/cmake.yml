@@ -30,7 +30,7 @@ jobs:
       id: set-locale
       with:
         script: |
-          Set-WinSystemLocale en-US
+          Set-WinSystemLocale -SystemLocale en-US
           Set-WinUserLanguageList en-US
           Get-WinSystemLocale
     - name: Set Locale
