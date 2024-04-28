@@ -32,12 +32,12 @@ jobs:
         script: |
           'Set-WinSystemLocale en-US'
           'Set-WinUserLanguageList en-US'
+    - name: Set Locale
+      run: echo "${{steps.set-locale.outputs.result}}"
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: |
-        steps.set-locale
-        cmake -B ${{github.workspace}}/build -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF
+      run: cmake -B ${{github.workspace}}/build -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF
 
     - name: Build
       # Build your program with the given configuration
