@@ -30,8 +30,9 @@ jobs:
       id: set-locale
       with:
         script: |
-          'Set-WinSystemLocale en-US'
-          'Set-WinUserLanguageList en-US'
+          Set-WinSystemLocale en-US
+          Set-WinUserLanguageList en-US
+          Get-WinSystemLocale
     - name: Set Locale
       run: echo "${{steps.set-locale.outputs.result}}"
     - name: Configure CMake
