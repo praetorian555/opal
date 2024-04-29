@@ -20,14 +20,17 @@ jobs:
           os: windows-latest
           build_type: "Debug"
           cxx: "cl"
+          generators: "Visual Studio 17 2022"
         - name: "MSVC Test"
           os: windows-latest
           build_type: "RelWithDebInfo"
           cxx: "cl"
+          generators: "Visual Studio 17 2022"
         - name: "MSVC Release"
           os: windows-latest
           build_type: "Release"
           cxx: "cl"
+          generators: "Visual Studio 17 2022"
         - name: "Windows Clang Debug"
           os: windows-latest
           build_type: "Debug"
@@ -50,7 +53,7 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF
+      run: cmake -B ${{github.workspace}}/build -G "${{matrix.config.generators}}" -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF
 
     - name: Build
       # Build your program with the given configuration
