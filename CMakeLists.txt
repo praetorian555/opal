@@ -10,6 +10,7 @@ project(
 option(OPAL_BUILD_TESTS "Build tests" ON)
 option(OPAL_HARDENING "Enable hardening options" ON)
 message(STATUS "OPAL_BUILD_TESTS: ${OPAL_BUILD_TESTS}")
+message(STATUS "OPAL_HARDENING: ${OPAL_HARDENING}")
 
 if (NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 20)
