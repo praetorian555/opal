@@ -8,7 +8,7 @@ on:
 
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release, Debug
+  BUILD_TYPE: Release, RelWithDebInfo, Debug
 
 jobs:
   build:
@@ -19,9 +19,27 @@ jobs:
         - name: "MSVC Debug"
           os: windows-latest
           build_type: "Debug"
+          cxx: "cl"
+        - name: "MSVC Test"
+          os: windows-latest
+          build_type: "RelWithDebInfo"
+          cxx: "cl"
         - name: "MSVC Release"
           os: windows-latest
           build_type: "Release"
+          cxx: "cl"
+        - name: "Windows Clang Debug"
+          os: windows-latest
+          build_type: "Debug"
+          cxx: "clang-cl"
+        - name: "Windows Clang Test"
+          os: windows-latest
+          build_type: "RelWithDebInfo"
+          cxx: "clang-cl"
+        - name: "Windows Clang Release"
+          os: windows-latest
+          build_type: "Release"
+          cxx: "clang-cl"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
     steps:
