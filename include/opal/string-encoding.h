@@ -94,8 +94,8 @@ struct EncodingLocale
     ErrorCode DecodeOne(Span<CodeUnitType>& input, CodePointType& out_code_point);
 
 private:
-    std::mbstate_t m_encoding_state;
-    std::mbstate_t m_decoding_state;
+    std::mbstate_t m_encoding_state = std::mbstate_t{};
+    std::mbstate_t m_decoding_state = std::mbstate_t{};
 };
 
 }  // namespace Opal
