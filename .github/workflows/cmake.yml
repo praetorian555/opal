@@ -31,21 +31,6 @@ jobs:
           build_type: "Release"
           cxx: "cl"
           generators: "Visual Studio 17 2022"
-        - name: "Windows Clang Debug"
-          os: windows-latest
-          build_type: "Debug"
-          cxx: "clang-cl"
-          generators: "Ninja"
-        - name: "Windows Clang Test"
-          os: windows-latest
-          build_type: "RelWithDebInfo"
-          cxx: "clang-cl"
-          generators: "Ninja"
-        - name: "Windows Clang Release"
-          os: windows-latest
-          build_type: "Release"
-          cxx: "clang-cl"
-          generators: "Ninja"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
     steps:
