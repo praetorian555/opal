@@ -32,14 +32,17 @@ jobs:
           os: windows-latest
           build_type: "Debug"
           cxx: "clang-cl"
+          generators: "Ninja"
         - name: "Windows Clang Test"
           os: windows-latest
           build_type: "RelWithDebInfo"
           cxx: "clang-cl"
+          generators: "Ninja"
         - name: "Windows Clang Release"
           os: windows-latest
           build_type: "Release"
           cxx: "clang-cl"
+          generators: "Ninja"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
     steps:
