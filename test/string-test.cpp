@@ -238,6 +238,39 @@ TEST_CASE("Comparison", "[String]")
     }
 }
 
+TEST_CASE("Assign", "[String]")
+{
+    SECTION("Short string")
+    {
+        SECTION("Count and value smaller then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            str.Assign(5, 'd');
+            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetSize() == 5);
+            for (i32 i = 0; i < 5; i++)
+            {
+                REQUIRE(str.GetData()[i] == 'd');
+            }
+        }
+        SECTION("Count and value larger then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(g_da);
+            str.Assign(5, 'd');
+            REQUIRE(str.GetCapacity() == 5);
+            REQUIRE(str.GetSize() == 5);
+            for (i32 i = 0; i < 5; i++)
+            {
+                REQUIRE(str.GetData()[i] == 'd');
+            }
+        }
+    }
+    SECTION("Long string")
+    {
+
+    }
+}
+
 TEST_CASE("From UTF8 to UTF32", "[String]")
 {
     StringUtf8<DefaultAllocator> utf8(u8"での日本語文字コードを扱うために使用されている従来の", g_da);

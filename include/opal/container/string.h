@@ -85,6 +85,7 @@ public:
     ErrorCode AppendIt(InputIt begin, InputIt end);
 
 private:
+    inline constexpr SizeType Min(SizeType a, SizeType b) const { return a > b ? b : a; }
     inline CodeUnitType* Allocate(SizeType size);
     inline void Deallocate(CodeUnitType* data);
 
@@ -138,7 +139,8 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, Allocato
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT& allocator) : m_allocator(&allocator), m_capacity(count), m_size(count)
+CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT& allocator)
+    : m_allocator(&allocator), m_capacity(count), m_size(count)
 {
     m_data = Allocate(m_capacity);
     for (SizeType i = 0; i < m_size; i++)
@@ -201,10 +203,6 @@ CLASS_HEADER::~String()
 {
     if (m_data != nullptr)
     {
-        for (SizeType i = 0; i < m_size; i++)
-        {
-            m_data[i].~CodeUnitT();
-        }
         Deallocate(m_data);
         m_data = nullptr;
     }
@@ -262,6 +260,128 @@ bool CLASS_HEADER::operator==(const String& other) const
         return false;
     }
     return std::memcmp(m_data, other.m_data, m_size * sizeof(CodeUnitType)) == 0;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Assign(SizeType count, CodeUnitT value)
+{
+    if (count > m_capacity)
+    {
+        if (m_data != nullptr)
+        {
+            Deallocate(m_data);
+        }
+        m_data = Allocate(count);
+        if (m_data == nullptr)
+        {
+            return ErrorCode::OutOfMemory;
+        }
+        m_capacity = count;
+    }
+    for (SizeType i = 0; i < count; i++)
+    {
+        m_data[i] = value;
+    }
+    m_size = count;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
+{
+    if (other.m_size > m_capacity)
+    {
+        if (m_data != nullptr)
+        {
+            Deallocate(m_data);
+        }
+        m_data = Allocate(other.m_size);
+        if (m_data == nullptr)
+        {
+            return ErrorCode::OutOfMemory;
+        }
+        m_capacity = other.m_size;
+    }
+    if (other.m_size > 0)
+    {
+        std::memcpy(m_data, other.m_data, other.m_size * sizeof(CodeUnitT));
+    }
+    m_size = other.m_size;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Assign(const String& other, SizeType pos, SizeType count)
+{
+    if (pos >= other.m_size)
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    count = Min(other.GetSize() - pos, count);
+    if (count > m_capacity)
+    {
+        if (m_data != nullptr)
+        {
+            Deallocate(m_data);
+        }
+        m_data = Allocate(count);
+        if (m_data == nullptr)
+        {
+            return ErrorCode::OutOfMemory;
+        }
+        m_capacity = count;
+    }
+    if (count > 0)
+    {
+        std::memcpy(m_data, other.m_data + pos, count * sizeof(CodeUnitT));
+    }
+    m_size = count;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Assign(String&& other)
+{
+    *this = Move(other);
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitT* str, SizeType count)
+{
+    if (count > m_capacity)
+    {
+        if (m_data != nullptr)
+        {
+            Deallocate(m_data);
+        }
+        m_data = Allocate(count);
+        if (m_data == nullptr)
+        {
+            return ErrorCode::OutOfMemory;
+        }
+        m_capacity = count;
+    }
+    for (SizeType i = 0; i < count; i++)
+    {
+        m_data[i] = str[i];
+    }
+    m_size = count;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitT* str)
+{
+    SizeType count = 0;
+    const CodeUnitT* it = str;
+    while (*it != 0)
+    {
+        count++;
+        it++;
+    }
+    count++; // Count termination character
+    return Assign(str, count);
 }
 
 TEMPLATE_HEADER
