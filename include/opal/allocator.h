@@ -6,22 +6,31 @@
 namespace Opal
 {
 
-struct DefaultAllocator
+struct Allocator
+{
+    virtual ~Allocator() = default;
+    virtual void* Alloc(u64 size, u64 alignment) = 0;
+    virtual void Free(void* ptr) = 0;
+};
+
+/**
+ * Stateless allocator that uses system's malloc and free.
+ */
+struct DefaultAllocator final : public Allocator
 {
     DefaultAllocator() = default;
     DefaultAllocator(const DefaultAllocator& other) = default;
     DefaultAllocator(DefaultAllocator&& other) = default;
 
-    ~DefaultAllocator() = default;
+    ~DefaultAllocator() override = default;
 
     DefaultAllocator& operator=(const DefaultAllocator& other) = default;
     DefaultAllocator& operator=(DefaultAllocator&& other) = default;
 
     bool operator==(const DefaultAllocator& other) const;
 
-    void* Allocate(size_t size, size_t alignment = 8);
-    void Deallocate(void* ptr);
-    void Reset();
+    void* Alloc(size_t size, size_t alignment) override;
+    void Free(void* ptr) override;
 };
 
 struct LinearAllocator

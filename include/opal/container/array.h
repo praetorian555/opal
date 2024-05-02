@@ -1295,13 +1295,13 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 TEMPLATE_HEADER
 T* CLASS_HEADER::Allocate(SizeType count)
 {
-    return static_cast<T*>(m_allocator.Allocate(count * sizeof(T)));
+    return static_cast<T*>(m_allocator.Alloc(count * sizeof(T), 8));
 }
 
 TEMPLATE_HEADER
 void CLASS_HEADER::Deallocate(T* ptr)
 {
-    m_allocator.Deallocate(ptr);
+    m_allocator.Free(ptr);
 }
 
 #undef TEMPLATE_HEADER

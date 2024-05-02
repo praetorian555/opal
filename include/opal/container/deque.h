@@ -1173,13 +1173,13 @@ void CLASS_HEADER::Initialize(const T& value)
 TEMPLATE_HEADER
 T* CLASS_HEADER::Allocate(SizeType count)
 {
-    return static_cast<T*>(m_allocator.Allocate(count * sizeof(T), alignof(T)));
+    return static_cast<T*>(m_allocator.Alloc(count * sizeof(T), alignof(T)));
 }
 
 TEMPLATE_HEADER
 void CLASS_HEADER::Deallocate(T* data)
 {
-    m_allocator.Deallocate(data);
+    m_allocator.Free(data);
 }
 
 #undef TEMPLATE_HEADER

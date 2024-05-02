@@ -21,17 +21,15 @@ bool Opal::DefaultAllocator::operator==(const Opal::DefaultAllocator& other) con
     return true;
 }
 
-void* Opal::DefaultAllocator::Allocate(size_t size, size_t alignment)
+void* Opal::DefaultAllocator::Alloc(size_t size, size_t alignment)
 {
     return _aligned_malloc(size, alignment);
 }
 
-void Opal::DefaultAllocator::Deallocate(void* ptr)
+void Opal::DefaultAllocator::Free(void* ptr)
 {
     _aligned_free(ptr);
 }
-
-void Opal::DefaultAllocator::Reset() {}
 
 Opal::LinearAllocator::LinearAllocator(u64 size)
 {
