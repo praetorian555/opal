@@ -162,6 +162,82 @@ TEST_CASE("Construction", "[String]")
     }
 }
 
+TEST_CASE("Assignment", "[String]")
+{
+    SECTION("Short string")
+    {
+        const char ref[] = "Hello there";
+        StringLocale str1(ref, g_da);
+        StringLocale str2(g_da);
+        str2 = str1;
+        REQUIRE(strcmp(str2.GetData(), ref) == 0);
+        REQUIRE(str1.GetData() != str2.GetData());
+        REQUIRE(str2.GetSize() == 12);
+        REQUIRE(str2.GetCapacity() == 12);
+        StringLocale str3(g_da);
+        str3 = Move(str1);
+        REQUIRE(strcmp(str3.GetData(), ref) == 0);
+        REQUIRE(str1.GetData() != str3.GetData());
+        REQUIRE(str3.GetSize() == 12);
+        REQUIRE(str3.GetCapacity() == 12);
+        REQUIRE(str1.GetData() == nullptr);
+        REQUIRE(str1.GetCapacity() == 0);
+        REQUIRE(str1.GetSize() == 0);
+    }
+    SECTION("Long string")
+    {
+        const char ref[] =
+            "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy "
+            "text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It "
+            "has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was "
+            "popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop "
+            "publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+        StringLocale str1(ref, g_da);
+        StringLocale str2(g_da);
+        str2 = str1;
+        REQUIRE(strcmp(str2.GetData(), ref) == 0);
+        REQUIRE(str1.GetData() != str2.GetData());
+        REQUIRE(str2.GetSize() == 575);
+        REQUIRE(str2.GetCapacity() == 575);
+        StringLocale str3(g_da);
+        str3 = Move(str1);
+        REQUIRE(strcmp(str3.GetData(), ref) == 0);
+        REQUIRE(str1.GetData() != str3.GetData());
+        REQUIRE(str3.GetSize() == 575);
+        REQUIRE(str3.GetCapacity() == 575);
+        REQUIRE(str1.GetData() == nullptr);
+        REQUIRE(str1.GetCapacity() == 0);
+        REQUIRE(str1.GetSize() == 0);
+    }
+}
+
+TEST_CASE("Comparison", "[String]")
+{
+    SECTION("Short string")
+    {
+        const char ref[] = "Hello there";
+        StringLocale str1(ref, g_da);
+        StringLocale str2(ref, g_da);
+        StringLocale str3("Test", g_da);
+        REQUIRE(str1 == str2);
+        REQUIRE(str1 != str3);
+    }
+    SECTION("Long string")
+    {
+        const char ref[] =
+            "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy "
+            "text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It "
+            "has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was "
+            "popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop "
+            "publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+        StringLocale str1(ref, g_da);
+        StringLocale str2(ref, g_da);
+        StringLocale str3("Test", g_da);
+        REQUIRE(str1 == str2);
+        REQUIRE(str1 != str3);
+    }
+}
+
 TEST_CASE("From UTF8 to UTF32", "[String]")
 {
     StringUtf8 utf8(u8"での日本語文字コードを扱うために使用されている従来の", g_da);

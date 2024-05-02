@@ -22,7 +22,7 @@ public:
     static_assert(k_is_same_value<CodeUnitType, typename EncodingType::CodeUnitType>,
                   "Encoding code unit type needs to match string code unit type");
 
-    String(Allocator& allocator);
+    explicit String(Allocator& allocator);
     String(SizeType count, CodeUnitT value, Allocator& allocator);
     String(const CodeUnitT* str, SizeType count, Allocator& allocator);
     template <SizeType N>
