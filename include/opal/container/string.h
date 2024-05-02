@@ -25,7 +25,7 @@ public:
     explicit String(Allocator& allocator);
     String(SizeType count, CodeUnitT value, Allocator& allocator);
     String(const CodeUnitT* str, SizeType count, Allocator& allocator);
-    template <SizeType N>
+    template <u64 N>
     String(const CodeUnitT (&str)[N], Allocator& allocator);
     String(const String& other);
     String(const String& other, Allocator& allocator);
@@ -143,7 +143,7 @@ CLASS_HEADER::String(const CodeUnitT* str, SizeType count, Allocator& allocator)
 }
 
 TEMPLATE_HEADER
-template <CLASS_HEADER::SizeType N>
+template <Opal::u64 N>
 CLASS_HEADER::String(const CodeUnitT (&str)[N], Allocator& allocator) : m_allocator(&allocator), m_capacity(N), m_size(N)
 {
     if (m_capacity > 0)
