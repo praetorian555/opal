@@ -13,11 +13,11 @@ TEST_CASE("Default allocator", "[Allocator]")
 TEST_CASE("Linear allocator", "[Allocator]")
 {
     Opal::LinearAllocator allocator(1024);
-    void* memory = allocator.Allocate(16);
+    void* memory = allocator.Alloc(16);
     REQUIRE(memory != nullptr);
-    allocator.Deallocate(memory);
+    allocator.Free(memory);
     allocator.Reset();
-    void* memory2 = allocator.Allocate(1024);
+    void* memory2 = allocator.Alloc(1024);
     REQUIRE(memory2 != nullptr);
     REQUIRE(memory == memory2);
 }

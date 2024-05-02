@@ -11,7 +11,7 @@
 namespace Opal
 {
 
-template <typename CodeUnitT, typename EncodingT>
+template <typename CodeUnitT, typename EncodingT, typename AllocatorT = DefaultAllocator>
 class String
 {
 public:
@@ -22,14 +22,14 @@ public:
     static_assert(k_is_same_value<CodeUnitType, typename EncodingType::CodeUnitType>,
                   "Encoding code unit type needs to match string code unit type");
 
-    explicit String(Allocator& allocator);
-    String(SizeType count, CodeUnitT value, Allocator& allocator);
-    String(const CodeUnitT* str, SizeType count, Allocator& allocator);
+    explicit String(AllocatorT& allocator);
+    String(SizeType count, CodeUnitT value, AllocatorT& allocator);
+    String(const CodeUnitT* str, SizeType count, AllocatorT& allocator);
     template <u64 N>
-    String(const CodeUnitT (&str)[N], Allocator& allocator);
+    String(const CodeUnitT (&str)[N], AllocatorT& allocator);
     String(const String& other);
-    String(const String& other, Allocator& allocator);
-    String(const String& other, SizeType pos, Allocator& allocator);
+    String(const String& other, AllocatorT& allocator);
+    String(const String& other, SizeType pos, AllocatorT& allocator);
     String(String&& other) noexcept;
 
     ~String();
@@ -49,7 +49,7 @@ public:
     template <typename InputIt>
     ErrorCode Assign(InputIt start, InputIt end);
 
-    Allocator& GetAllocator() const { return *m_allocator; }
+    AllocatorT& GetAllocator() const { return *m_allocator; }
 
     CodeUnitType* GetData() { return m_data; }
     [[nodiscard]] const CodeUnitType* GetData() const { return m_data; }
@@ -88,7 +88,7 @@ private:
     inline CodeUnitType* Allocate(SizeType size);
     inline void Deallocate(CodeUnitType* data);
 
-    Allocator* m_allocator = nullptr;
+    AllocatorT* m_allocator = nullptr;
     CodeUnitType* m_data = nullptr;
     SizeType m_size = 0;
     SizeType m_capacity = 0;
@@ -97,22 +97,27 @@ private:
 template <typename InputString, typename OutputString>
 ErrorCode Transcode(InputString& input, OutputString& output);
 
-using StringUtf8 = String<c8, EncodingUtf8<c8>>;
-using StringUtf16 = String<c16, EncodingUtf16LE<c16>>;
-using StringUtf32 = String<c32, EncodingUtf32LE<c32>>;
-using StringLocale = String<c, EncodingLocale>;
-using StringWide = String<wc, EncodingUtf16LE<wc>>;
+template <typename AllocatorT>
+using StringUtf8 = String<c8, EncodingUtf8<c8>, AllocatorT>;
+template <typename AllocatorT>
+using StringUtf16 = String<c16, EncodingUtf16LE<c16>, AllocatorT>;
+template <typename AllocatorT>
+using StringUtf32 = String<c32, EncodingUtf32LE<c32>, AllocatorT>;
+template <typename AllocatorT>
+using StringLocale = String<c, EncodingLocale, AllocatorT>;
+template <typename AllocatorT>
+using StringWide = String<wc, EncodingUtf16LE<wc>, AllocatorT>;
 
 };  // namespace Opal
 
-#define TEMPLATE_HEADER template <typename CodeUnitT, typename EncodingT>
-#define CLASS_HEADER Opal::String<CodeUnitT, EncodingT>
+#define TEMPLATE_HEADER template <typename CodeUnitT, typename EncodingT, typename AllocatorT>
+#define CLASS_HEADER Opal::String<CodeUnitT, EncodingT, AllocatorT>
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(Allocator& allocator) : m_allocator(&allocator) {}
+CLASS_HEADER::String(AllocatorT& allocator) : m_allocator(&allocator) {}
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(SizeType count, CodeUnitT value, Allocator& allocator) : m_allocator(&allocator), m_capacity(count), m_size(count)
+CLASS_HEADER::String(SizeType count, CodeUnitT value, AllocatorT& allocator) : m_allocator(&allocator), m_capacity(count), m_size(count)
 {
     m_data = Allocate(m_capacity);
     for (SizeType i = 0; i < m_size; i++)
@@ -121,7 +126,7 @@ CLASS_HEADER::String(SizeType count, CodeUnitT value, Allocator& allocator) : m_
     }
 }
 
-TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, Allocator& allocator)
+TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, AllocatorT& allocator)
     : m_allocator(&allocator), m_capacity(other.GetSize() - pos)
 {
     m_size = m_capacity;
@@ -133,7 +138,7 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, Allocato
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const CodeUnitT* str, SizeType count, Allocator& allocator) : m_allocator(&allocator), m_capacity(count), m_size(count)
+CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT& allocator) : m_allocator(&allocator), m_capacity(count), m_size(count)
 {
     m_data = Allocate(m_capacity);
     for (SizeType i = 0; i < m_size; i++)
@@ -144,7 +149,7 @@ CLASS_HEADER::String(const CodeUnitT* str, SizeType count, Allocator& allocator)
 
 TEMPLATE_HEADER
 template <Opal::u64 N>
-CLASS_HEADER::String(const CodeUnitT (&str)[N], Allocator& allocator) : m_allocator(&allocator), m_capacity(N), m_size(N)
+CLASS_HEADER::String(const CodeUnitT (&str)[N], AllocatorT& allocator) : m_allocator(&allocator), m_capacity(N), m_size(N)
 {
     if (m_capacity > 0)
     {
@@ -157,7 +162,7 @@ CLASS_HEADER::String(const CodeUnitT (&str)[N], Allocator& allocator) : m_alloca
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const String& other, Allocator& allocator)
+CLASS_HEADER::String(const String& other, AllocatorT& allocator)
     : m_allocator(&allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     if (m_capacity > 0)

@@ -49,7 +49,7 @@ bool Opal::LinearAllocator::operator==(const Opal::LinearAllocator& other) const
     return false;
 }
 
-void* Opal::LinearAllocator::Allocate(size_t size, size_t alignment)
+void* Opal::LinearAllocator::Alloc(size_t size, size_t alignment)
 {
     u64 current_address = reinterpret_cast<u64>(m_memory) + m_offset;
     u64 new_address = AlignForward(current_address, alignment);
@@ -62,7 +62,7 @@ void* Opal::LinearAllocator::Allocate(size_t size, size_t alignment)
     return nullptr;
 }
 
-void Opal::LinearAllocator::Deallocate(void* ptr)
+void Opal::LinearAllocator::Free(void* ptr)
 {
     (void)ptr;
 }
