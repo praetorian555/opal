@@ -264,10 +264,204 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(str.GetData()[i] == 'd');
             }
         }
+        SECTION("String literal and count smaller then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Goodbye and get lost", g_da);
+            str.Assign(u8"Hello there", 5);
+            REQUIRE(str.GetCapacity() == 21);
+            REQUIRE(str.GetSize() == 5);
+            for (i32 i = 0; i < 5; i++)
+            {
+                REQUIRE(str.GetData()[i] == u8"Hello"[i]);
+            }
+        }
+        SECTION("String literal and count larger then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Other", g_da);
+            str.Assign(u8"Hello there", 10);
+            REQUIRE(str.GetCapacity() == 10);
+            REQUIRE(str.GetSize() == 10);
+            for (i32 i = 0; i < 10; i++)
+            {
+                REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
+            }
+        }
+        SECTION("Only string literal")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Other", g_da);
+            str.Assign(u8"Hello there");
+            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetSize() == 12);
+            for (i32 i = 0; i < 12; i++)
+            {
+                REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
+            }
+        }
+        SECTION("Copy other string")
+        {
+            StringUtf8<DefaultAllocator> ref(u8"Hello there", g_da);
+            StringUtf8<DefaultAllocator> copy(g_da);
+            copy.Assign(ref);
+            REQUIRE(copy.GetSize() == ref.GetSize());
+            REQUIRE(copy.GetCapacity() == ref.GetCapacity());
+            for (i32 i = 0; i < ref.GetSize(); i++)
+            {
+                REQUIRE(copy.GetData()[i] == ref.GetData()[i]);
+            }
+        }
+        SECTION("Copy part of the other string")
+        {
+            StringUtf8<DefaultAllocator> ref(u8"Hello there", g_da);
+            StringUtf8<DefaultAllocator> copy1(g_da);
+            copy1.Assign(ref, 6, 10);
+            REQUIRE(copy1.GetSize() == 6);
+            REQUIRE(copy1.GetCapacity() == 6);
+            for (i32 i = 0; i < 6; i++)
+            {
+                REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
+            }
+            StringUtf8<DefaultAllocator> copy2(g_da);
+            copy2.Assign(ref, 6, 3);
+            REQUIRE(copy2.GetSize() == 3);
+            REQUIRE(copy2.GetCapacity() == 3);
+            for (i32 i = 0; i < 3; i++)
+            {
+                REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
+            }
+            StringUtf8<DefaultAllocator> copy3(g_da);
+            ErrorCode err = copy3.Assign(ref, 15, 3);
+            REQUIRE(err == ErrorCode::OutOfBounds);
+            REQUIRE(copy3.GetSize() == 0);
+            REQUIRE(copy3.GetCapacity() == 0);
+        }
+        SECTION("Move string")
+        {
+            StringUtf8<DefaultAllocator> ref(u8"Hello there", g_da);
+            StringUtf8<DefaultAllocator> copy(g_da);
+            copy.Assign(Move(ref));
+            REQUIRE(copy.GetSize() == 12);
+            REQUIRE(copy.GetCapacity() == 12);
+            REQUIRE(copy.GetData() != nullptr);
+            REQUIRE(ref.GetSize() == 0);
+            REQUIRE(ref.GetCapacity() == 0);
+            REQUIRE(ref.GetData() == nullptr);
+        }
     }
     SECTION("Long string")
     {
-
+        const c8 ref_str[] =
+            u8"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            u8"dummy "
+            u8"text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It "
+            u8"has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It "
+            u8"was "
+            u8"popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with "
+            u8"desktop "
+            u8"publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+        SECTION("Count and value smaller then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(ref_str, g_da);
+            str.Assign(50, 'd');
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 50);
+            for (i32 i = 0; i < 50; i++)
+            {
+                REQUIRE(str.GetData()[i] == 'd');
+            }
+        }
+        SECTION("Count and value larger then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(g_da);
+            str.Assign(50, 'd');
+            REQUIRE(str.GetCapacity() == 50);
+            REQUIRE(str.GetSize() == 50);
+            for (i32 i = 0; i < 50; i++)
+            {
+                REQUIRE(str.GetData()[i] == 'd');
+            }
+        }
+        SECTION("String literal and count smaller then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(ref_str, g_da);
+            str.Assign(ref_str, 50);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 50);
+            for (i32 i = 0; i < 50; i++)
+            {
+                REQUIRE(str.GetData()[i] == ref_str[i]);
+            }
+        }
+        SECTION("String literal and count larger then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Other", g_da);
+            str.Assign(ref_str, 50);
+            REQUIRE(str.GetCapacity() == 50);
+            REQUIRE(str.GetSize() == 50);
+            for (i32 i = 0; i < 50; i++)
+            {
+                REQUIRE(str.GetData()[i] == ref_str[i]);
+            }
+        }
+        SECTION("Only string literal")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Other", g_da);
+            str.Assign(ref_str);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 575);
+            for (i32 i = 0; i < 575; i++)
+            {
+                REQUIRE(str.GetData()[i] == ref_str[i]);
+            }
+        }
+        SECTION("Copy other string")
+        {
+            StringUtf8<DefaultAllocator> ref(ref_str, g_da);
+            StringUtf8<DefaultAllocator> copy(g_da);
+            copy.Assign(ref);
+            REQUIRE(copy.GetSize() == 575);
+            REQUIRE(copy.GetCapacity() == 575);
+            for (i32 i = 0; i < 575; i++)
+            {
+                REQUIRE(copy.GetData()[i] == ref.GetData()[i]);
+            }
+        }
+        SECTION("Copy part of the other string")
+        {
+            StringUtf8<DefaultAllocator> ref(ref_str, g_da);
+            StringUtf8<DefaultAllocator> copy1(g_da);
+            copy1.Assign(ref, 6, 10);
+            REQUIRE(copy1.GetSize() == 10);
+            REQUIRE(copy1.GetCapacity() == 10);
+            for (i32 i = 0; i < 10; i++)
+            {
+                REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
+            }
+            StringUtf8<DefaultAllocator> copy2(g_da);
+            copy2.Assign(ref, 6, 3);
+            REQUIRE(copy2.GetSize() == 3);
+            REQUIRE(copy2.GetCapacity() == 3);
+            for (i32 i = 0; i < 3; i++)
+            {
+                REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
+            }
+            StringUtf8<DefaultAllocator> copy3(g_da);
+            ErrorCode err = copy3.Assign(ref, 600, 3);
+            REQUIRE(err == ErrorCode::OutOfBounds);
+            REQUIRE(copy3.GetSize() == 0);
+            REQUIRE(copy3.GetCapacity() == 0);
+        }
+        SECTION("Move string")
+        {
+            StringUtf8<DefaultAllocator> ref(ref_str, g_da);
+            StringUtf8<DefaultAllocator> copy(g_da);
+            copy.Assign(Move(ref));
+            REQUIRE(copy.GetSize() == 575);
+            REQUIRE(copy.GetCapacity() == 575);
+            REQUIRE(copy.GetData() != nullptr);
+            REQUIRE(ref.GetSize() == 0);
+            REQUIRE(ref.GetCapacity() == 0);
+            REQUIRE(ref.GetData() == nullptr);
+        }
     }
 }
 
