@@ -2,6 +2,7 @@
 
 #include "opal/type-traits.h"
 #include "opal/types.h"
+#include "opal/export.h"
 
 namespace Opal
 {
@@ -9,7 +10,7 @@ namespace Opal
 /**
  * Stateless allocator that uses system's malloc and free.
  */
-struct DefaultAllocator
+struct OPAL_EXPORT DefaultAllocator
 {
     DefaultAllocator() = default;
     DefaultAllocator(const DefaultAllocator& other) = default;
@@ -26,7 +27,7 @@ struct DefaultAllocator
     void Free(void* ptr);
 };
 
-struct LinearAllocator
+struct OPAL_EXPORT LinearAllocator
 {
     explicit LinearAllocator(u64 size);
     LinearAllocator(const LinearAllocator& other) = delete;

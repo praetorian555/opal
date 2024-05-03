@@ -4,6 +4,7 @@
 
 #include "opal/container/span.h"
 #include "opal/error-codes.h"
+#include "opal/export.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -85,7 +86,7 @@ struct EncodingUtf32LE
     ErrorCode DecodeOne(Span<CodeUnitT>& input, CodePointType& out_code_point);
 };
 
-struct EncodingLocale
+struct OPAL_EXPORT EncodingLocale
 {
     using CodeUnitType = char;
     using CodePointType = c32;

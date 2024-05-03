@@ -1,19 +1,22 @@
 cmake_minimum_required(VERSION 3.28)
-
-project(
-        "Opal"
-        VERSION 0.1
-        LANGUAGES CXX
-        DESCRIPTION "Data structures and algorithms"
-)
+project(OPAL VERSION 1.0.0 LANGUAGES CXX)
 
 option(OPAL_BUILD_TESTS "Build tests" ON)
-option(OPAL_HARDENING "Enable hardening options" ON)
 message(STATUS "OPAL_BUILD_TESTS: ${OPAL_BUILD_TESTS}")
+option(OPAL_HARDENING "Enable hardening options" ON)
 message(STATUS "OPAL_HARDENING: ${OPAL_HARDENING}")
+option(OPAL_SHARED_LIBS "Build shared libraries" OFF)
+message(STATUS "OPAL_SHARED_LIBS: ${OPAL_SHARED_LIBS}")
 
-if (NOT CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 20)
+## C++ language configuration boilerplate, hide symbols by default
+if (NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET AND NOT DEFINED CMAKE_VISIBILITY_INLINES_HIDDEN)
+    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
+    set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
+endif ()
+
+## Let OPAL_SHARED_LIBS override BUILD_SHARED_LIBS
+if (DEFINED OPAL_SHARED_LIBS)
+    set(BUILD_SHARED_LIBS "${OPAL_SHARED_LIBS}")
 endif ()
 
 # Configure desired compilation options and warnings
@@ -29,11 +32,56 @@ if (OPAL_HARDENING)
     setup_sanitizers(opal_options)
 endif ()
 
-add_subdirectory(third-party/catch2)
-add_subdirectory(src)
+# Setup opal library target
+set(OPAL_FILES
+        src/allocator.cpp
+        src/time.cpp
+        src/string.cpp
+        src/string-encoding.cpp
+        include/opal/defines.h
+        include/opal/assert.h
+        include/opal/type-traits.h
+        include/opal/allocator.h
+        include/opal/types.h
+        include/opal/error-codes.h
+        include/opal/time.h
+        include/opal/string-encoding.h
+        include/opal/container/expected.h
+        include/opal/container/deque.h
+        include/opal/container/span.h
+        include/opal/container/string.h
+        include/opal/container/array.h
+        ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
+)
+add_library(opal ${OPAL_FILES})
+target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_link_libraries(opal PRIVATE opal_warnings)
+target_link_libraries(opal PRIVATE opal_options)
+target_compile_features(opal PUBLIC cxx_std_20)
+set_target_properties(opal PROPERTIES VERSION ${OPAL_VERSION} SOVERSION ${OPAL_VERSION_MAJOR})
+
+## Generate the export header for opal and attach it to the target
+include(GenerateExportHeader)
+generate_export_header(opal EXPORT_FILE_NAME include/opal/export.h)
+target_compile_definitions(opal PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OPAL_STATIC_DEFINE>")
+target_include_directories(opal PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
 
 if (OPAL_BUILD_TESTS)
-    add_subdirectory(test)
+    set(OPAL_TEST_FILES
+            test/allocator-test.cpp
+            test/array-test.cpp
+            test/deque-test.cpp
+            test/span-test.cpp
+            test/string-test.cpp
+            test/expected-test.cpp
+            test/time-test.cpp
+            third-party/catch2/src/catch_amalgamated.cpp)
+    add_executable(opal_test ${OPAL_TEST_FILES})
+    target_include_directories(opal_test PRIVATE third-party/catch2/include)
+    target_include_directories(opal_test PRIVATE third-party/catch2/include/catch2)
+    target_link_libraries(opal_test opal)
+    target_link_libraries(opal_test opal_warnings)
+    target_link_libraries(opal_test opal_options)
     enable_testing()
     add_test(NAME opal_test COMMAND opal_test)
 endif ()
