@@ -465,6 +465,236 @@ TEST_CASE("Assign", "[String]")
     }
 }
 
+TEST_CASE("Accessors", "[String]")
+{
+    SECTION("Short string")
+    {
+        SECTION("At")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(str.At(0).GetValue() == 'H');
+            REQUIRE(str.At(1).GetValue() == 'e');
+            REQUIRE(str.At(2).GetValue() == 'l');
+            REQUIRE(str.At(3).GetValue() == 'l');
+            REQUIRE(str.At(4).GetValue() == 'o');
+            REQUIRE(str.At(5).GetValue() == ' ');
+            REQUIRE(str.At(6).GetValue() == 't');
+            REQUIRE(str.At(7).GetValue() == 'h');
+            REQUIRE(str.At(8).GetValue() == 'e');
+            REQUIRE(str.At(9).GetValue() == 'r');
+            REQUIRE(str.At(10).GetValue() == 'e');
+        }
+        SECTION("Out of bounds At")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(!str.At(12).HasValue());
+            REQUIRE(str.At(12).GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Const At")
+        {
+            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(str.At(0).GetValue() == 'H');
+            REQUIRE(str.At(1).GetValue() == 'e');
+            REQUIRE(str.At(2).GetValue() == 'l');
+            REQUIRE(str.At(3).GetValue() == 'l');
+            REQUIRE(str.At(4).GetValue() == 'o');
+            REQUIRE(str.At(5).GetValue() == ' ');
+            REQUIRE(str.At(6).GetValue() == 't');
+            REQUIRE(str.At(7).GetValue() == 'h');
+            REQUIRE(str.At(8).GetValue() == 'e');
+            REQUIRE(str.At(9).GetValue() == 'r');
+            REQUIRE(str.At(10).GetValue() == 'e');
+        }
+        SECTION("Out of bounds const At")
+        {
+            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(!str.At(11).HasValue());
+            REQUIRE(str.At(11).GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Array operator")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(str[0] == 'H');
+            REQUIRE(str[1] == 'e');
+            REQUIRE(str[2] == 'l');
+        }
+        SECTION("Const array operator")
+        {
+            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(str[0] == 'H');
+            REQUIRE(str[1] == 'e');
+            REQUIRE(str[2] == 'l');
+        }
+        SECTION("Front")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(str.Front().GetValue() == 'H');
+        }
+        SECTION("Bad Front")
+        {
+            StringUtf8<DefaultAllocator> str(g_da);
+            REQUIRE(!str.Front().HasValue());
+            REQUIRE(str.Front().GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Const Front")
+        {
+            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(str.Front().GetValue() == 'H');
+        }
+        SECTION("Const bad Front")
+        {
+            const StringUtf8<DefaultAllocator> str(g_da);
+            REQUIRE(!str.Front().HasValue());
+            REQUIRE(str.Front().GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Back")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(str.Back().GetValue() == 'e');
+        }
+        SECTION("Bad Back")
+        {
+            StringUtf8<DefaultAllocator> str(g_da);
+            REQUIRE(!str.Back().HasValue());
+            REQUIRE(str.Back().GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Const Back")
+        {
+            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            REQUIRE(str.Back().GetValue() == 'e');
+        }
+        SECTION("Const bad Back")
+        {
+            const StringUtf8<DefaultAllocator> str(g_da);
+            REQUIRE(!str.Back().HasValue());
+            REQUIRE(str.Back().GetError() == ErrorCode::OutOfBounds);
+        }
+    }
+    SECTION("Long string")
+    {
+        SECTION("At") {}
+        SECTION("Out of bounds At") {}
+        SECTION("Const At") {}
+        SECTION("Out of bounds const At") {}
+        SECTION("Array operator") {}
+        SECTION("Const array operator") {}
+        SECTION("Front") {}
+        SECTION("Bad Front") {}
+        SECTION("Const Front") {}
+        SECTION("Const bad Front") {}
+        SECTION("Back") {}
+        SECTION("Bad Back") {}
+        SECTION("Const Back") {}
+        SECTION("Const bad Back") {}
+    }
+}
+
+TEST_CASE("Reserve", "[String]")
+{
+    SECTION("Short string")
+    {
+        SECTION("Reserve larger then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            str.Reserve(20);
+            REQUIRE(str.GetCapacity() == 20);
+            REQUIRE(str.GetSize() == 11);
+            for (i32 i = 0; i < str.GetSize(); i++)
+            {
+                REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
+            }
+        }
+        SECTION("Reserve smaller then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            str.Reserve(5);
+            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetSize() == 11);
+            for (i32 i = 0; i < str.GetSize(); i++)
+            {
+                REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
+            }
+        }
+    }
+    SECTION("Long string")
+    {
+        const c8 ref_str[] =
+            u8"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            u8"dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+            u8"book. "
+            u8"It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. "
+            u8"It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with "
+            u8"desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+        SECTION("Reserve larger then current capacity")
+        {
+
+            StringUtf8<DefaultAllocator> str(ref_str, g_da);
+            str.Reserve(600);
+            REQUIRE(str.GetCapacity() == 600);
+            REQUIRE(str.GetSize() == 574);
+            for (i32 i = 0; i < str.GetSize(); i++)
+            {
+                REQUIRE(str.GetData()[i] == ref_str[i]);
+            }
+        }
+        SECTION("Reserve smaller then current capacity")
+        {
+            StringUtf8<DefaultAllocator> str(ref_str, g_da);
+            str.Reserve(500);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 574);
+            for (i32 i = 0; i < str.GetSize(); i++)
+            {
+                REQUIRE(str.GetData()[i] == ref_str[i]);
+            }
+        }
+    }
+}
+
+TEST_CASE("Resize", "[String]")
+{
+    SECTION("Short string")
+    {
+        SECTION("Resize to zero")
+        {
+            StringLocale<DefaultAllocator> str("Hello there", g_da);
+            str.Resize(0);
+            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetSize() == 0);
+            REQUIRE(str.GetData() != nullptr);
+            REQUIRE(std::strlen(str.GetData()) == 0);
+        }
+        SECTION("New size smaller then old")
+        {
+            StringLocale<DefaultAllocator> str("Hello there", g_da);
+            str.Resize(5);
+            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(str.GetData() != nullptr);
+            REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+        }
+        SECTION("New size larger then old")
+        {
+            StringLocale<DefaultAllocator> str("Hello there", g_da);
+            str.Resize(20);
+            REQUIRE(str.GetCapacity() == 21);
+            REQUIRE(str.GetSize() == 20);
+            REQUIRE(str.GetData() != nullptr);
+            REQUIRE(strcmp(str.GetData(), "Hello there") == 0);
+        }
+        SECTION("New size larger then old with non-zero value")
+        {
+            StringLocale<DefaultAllocator> str("Hello there", g_da);
+            str.Resize(20, 'd');
+            REQUIRE(str.GetCapacity() == 21);
+            REQUIRE(str.GetSize() == 20);
+            REQUIRE(str.GetData() != nullptr);
+            REQUIRE(strcmp(str.GetData(), "Hello thereddddddddd") == 0);
+        }
+    }
+    SECTION("Long string") {}
+}
+
 TEST_CASE("From UTF8 to UTF32", "[String]")
 {
     StringUtf8<DefaultAllocator> utf8(u8"での日本語文字コードを扱うために使用されている従来の", g_da);

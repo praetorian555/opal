@@ -380,8 +380,85 @@ Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitT* str)
         count++;
         it++;
     }
-    count++; // Count termination character
     return Assign(str, count);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::At(SizeType pos)
+{
+    using ReturnType = Expected<CodeUnitT&, ErrorCode>;
+    if (pos >= m_size)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[pos]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::At(SizeType pos) const
+{
+    using ReturnType = Expected<const CodeUnitT&, ErrorCode>;
+    if (pos >= m_size)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[pos]);
+}
+
+TEMPLATE_HEADER
+CodeUnitT& CLASS_HEADER::operator[](SizeType pos)
+{
+    return m_data[pos];
+}
+
+TEMPLATE_HEADER
+const CodeUnitT& CLASS_HEADER::operator[](SizeType pos) const
+{
+    return m_data[pos];
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Front()
+{
+    using ReturnType = Expected<CodeUnitT&, ErrorCode>;
+    if (m_size == 0)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[0]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Front() const
+{
+    using ReturnType = Expected<const CodeUnitT&, ErrorCode>;
+    if (m_size == 0)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[0]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Back()
+{
+    using ReturnType = Expected<CodeUnitT&, ErrorCode>;
+    if (m_size == 0)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[m_size - 1]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Back() const
+{
+    using ReturnType = Expected<const CodeUnitT&, ErrorCode>;
+    if (m_size == 0)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    return ReturnType(m_data[m_size - 1]);
 }
 
 TEMPLATE_HEADER
