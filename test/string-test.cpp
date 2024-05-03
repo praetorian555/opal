@@ -25,9 +25,9 @@ TEST_CASE("Construction", "[String]")
         {
             StringUtf8<DefaultAllocator> str(5, 'd', g_da);
             REQUIRE(str.GetSize() == 5);
-            REQUIRE(str.GetCapacity() == 5);
+            REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetData() != nullptr);
-            for (i32 i = 0; i < 5; i++)
+            for (i32 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == 'd');
             }
@@ -35,7 +35,7 @@ TEST_CASE("Construction", "[String]")
         SECTION("C array")
         {
             StringLocale<DefaultAllocator> str(ref, g_da);
-            REQUIRE(str.GetSize() == 12);
+            REQUIRE(str.GetSize() == 11);
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(strcmp(ref, str.GetData()) == 0);
@@ -44,7 +44,7 @@ TEST_CASE("Construction", "[String]")
         {
             StringLocale<DefaultAllocator> str(ref, 5, g_da);
             REQUIRE(str.GetSize() == 5);
-            REQUIRE(str.GetCapacity() == 5);
+            REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(str.GetData()[0] == 'H');
             REQUIRE(str.GetData()[1] == 'e');
@@ -57,7 +57,7 @@ TEST_CASE("Construction", "[String]")
             StringLocale<DefaultAllocator> first(ref, g_da);
             StringLocale<DefaultAllocator> second(first);
             REQUIRE(second.GetCapacity() == 12);
-            REQUIRE(second.GetSize() == 12);
+            REQUIRE(second.GetSize() == 11);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() == &second.GetAllocator());
             REQUIRE(strcmp(ref, second.GetData()) == 0);
@@ -68,7 +68,7 @@ TEST_CASE("Construction", "[String]")
             StringLocale<DefaultAllocator> first(ref, g_da);
             StringLocale<DefaultAllocator> second(first, da2);
             REQUIRE(second.GetCapacity() == 12);
-            REQUIRE(second.GetSize() == 12);
+            REQUIRE(second.GetSize() == 11);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() != &second.GetAllocator());
             REQUIRE(strcmp(ref, second.GetData()) == 0);
@@ -79,7 +79,7 @@ TEST_CASE("Construction", "[String]")
             StringLocale<DefaultAllocator> first(ref, g_da);
             StringLocale<DefaultAllocator> second(first, 6, da2);
             REQUIRE(second.GetCapacity() == 6);
-            REQUIRE(second.GetSize() == 6);
+            REQUIRE(second.GetSize() == 5);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() != &second.GetAllocator());
             REQUIRE(strcmp("there", second.GetData()) == 0);
@@ -97,9 +97,9 @@ TEST_CASE("Construction", "[String]")
         {
             StringUtf8<DefaultAllocator> str(50, 'd', g_da);
             REQUIRE(str.GetSize() == 50);
-            REQUIRE(str.GetCapacity() == 50);
+            REQUIRE(str.GetCapacity() == 51);
             REQUIRE(str.GetData() != nullptr);
-            for (i32 i = 0; i < 50; i++)
+            for (i32 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == 'd');
             }
@@ -107,7 +107,7 @@ TEST_CASE("Construction", "[String]")
         SECTION("C array")
         {
             StringLocale<DefaultAllocator> str(ref, g_da);
-            REQUIRE(str.GetSize() == 575);
+            REQUIRE(str.GetSize() == 574);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(strcmp(ref, str.GetData()) == 0);
@@ -117,7 +117,7 @@ TEST_CASE("Construction", "[String]")
             constexpr u64 k_sub_str_size = 75;
             StringLocale<DefaultAllocator> str(ref, k_sub_str_size, g_da);
             REQUIRE(str.GetSize() == k_sub_str_size);
-            REQUIRE(str.GetCapacity() == k_sub_str_size);
+            REQUIRE(str.GetCapacity() == k_sub_str_size + 1);
             REQUIRE(str.GetData() != nullptr);
             for (i32 i = 0; i < k_sub_str_size; i++)
             {
@@ -129,7 +129,7 @@ TEST_CASE("Construction", "[String]")
             StringLocale<DefaultAllocator> first(ref, g_da);
             StringLocale<DefaultAllocator> second(first);
             REQUIRE(second.GetCapacity() == 575);
-            REQUIRE(second.GetSize() == 575);
+            REQUIRE(second.GetSize() == 574);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() == &second.GetAllocator());
             REQUIRE(strcmp(ref, second.GetData()) == 0);
@@ -140,7 +140,7 @@ TEST_CASE("Construction", "[String]")
             StringLocale<DefaultAllocator> first(ref, g_da);
             StringLocale<DefaultAllocator> second(first, da2);
             REQUIRE(second.GetCapacity() == 575);
-            REQUIRE(second.GetSize() == 575);
+            REQUIRE(second.GetSize() == 574);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() != &second.GetAllocator());
             REQUIRE(strcmp(ref, second.GetData()) == 0);
@@ -151,10 +151,10 @@ TEST_CASE("Construction", "[String]")
             StringLocale<DefaultAllocator> first(ref, g_da);
             StringLocale<DefaultAllocator> second(first, 6, da2);
             REQUIRE(second.GetCapacity() == 569);
-            REQUIRE(second.GetSize() == 569);
+            REQUIRE(second.GetSize() == 568);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() != &second.GetAllocator());
-            for (i32 i = 0; i < 569; i++)
+            for (i32 i = 0; i < second.GetSize(); i++)
             {
                 REQUIRE(ref[6 + i] == second.GetData()[i]);
             }
@@ -172,13 +172,13 @@ TEST_CASE("Assignment", "[String]")
         str2 = str1;
         REQUIRE(strcmp(str2.GetData(), ref) == 0);
         REQUIRE(str1.GetData() != str2.GetData());
-        REQUIRE(str2.GetSize() == 12);
+        REQUIRE(str2.GetSize() == 11);
         REQUIRE(str2.GetCapacity() == 12);
         StringLocale<DefaultAllocator> str3(g_da);
         str3 = Move(str1);
         REQUIRE(strcmp(str3.GetData(), ref) == 0);
         REQUIRE(str1.GetData() != str3.GetData());
-        REQUIRE(str3.GetSize() == 12);
+        REQUIRE(str3.GetSize() == 11);
         REQUIRE(str3.GetCapacity() == 12);
         REQUIRE(str1.GetData() == nullptr);
         REQUIRE(str1.GetCapacity() == 0);
@@ -197,13 +197,13 @@ TEST_CASE("Assignment", "[String]")
         str2 = str1;
         REQUIRE(strcmp(str2.GetData(), ref) == 0);
         REQUIRE(str1.GetData() != str2.GetData());
-        REQUIRE(str2.GetSize() == 575);
+        REQUIRE(str2.GetSize() == 574);
         REQUIRE(str2.GetCapacity() == 575);
         StringLocale<DefaultAllocator> str3(g_da);
         str3 = Move(str1);
         REQUIRE(strcmp(str3.GetData(), ref) == 0);
         REQUIRE(str1.GetData() != str3.GetData());
-        REQUIRE(str3.GetSize() == 575);
+        REQUIRE(str3.GetSize() == 574);
         REQUIRE(str3.GetCapacity() == 575);
         REQUIRE(str1.GetData() == nullptr);
         REQUIRE(str1.GetCapacity() == 0);
@@ -257,9 +257,9 @@ TEST_CASE("Assign", "[String]")
         {
             StringUtf8<DefaultAllocator> str(g_da);
             str.Assign(5, 'd');
-            REQUIRE(str.GetCapacity() == 5);
+            REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetSize() == 5);
-            for (i32 i = 0; i < 5; i++)
+            for (i32 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == 'd');
             }
@@ -279,9 +279,9 @@ TEST_CASE("Assign", "[String]")
         {
             StringUtf8<DefaultAllocator> str(u8"Other", g_da);
             str.Assign(u8"Hello there", 10);
-            REQUIRE(str.GetCapacity() == 10);
+            REQUIRE(str.GetCapacity() == 11);
             REQUIRE(str.GetSize() == 10);
-            for (i32 i = 0; i < 10; i++)
+            for (i32 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
             }
@@ -291,8 +291,8 @@ TEST_CASE("Assign", "[String]")
             StringUtf8<DefaultAllocator> str(u8"Other", g_da);
             str.Assign(u8"Hello there");
             REQUIRE(str.GetCapacity() == 12);
-            REQUIRE(str.GetSize() == 12);
-            for (i32 i = 0; i < 12; i++)
+            REQUIRE(str.GetSize() == 11);
+            for (i32 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
             }
@@ -314,17 +314,17 @@ TEST_CASE("Assign", "[String]")
             StringUtf8<DefaultAllocator> ref(u8"Hello there", g_da);
             StringUtf8<DefaultAllocator> copy1(g_da);
             copy1.Assign(ref, 6, 10);
-            REQUIRE(copy1.GetSize() == 6);
+            REQUIRE(copy1.GetSize() == 5);
             REQUIRE(copy1.GetCapacity() == 6);
-            for (i32 i = 0; i < 6; i++)
+            for (i32 i = 0; i < copy1.GetSize(); i++)
             {
                 REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
             }
             StringUtf8<DefaultAllocator> copy2(g_da);
             copy2.Assign(ref, 6, 3);
             REQUIRE(copy2.GetSize() == 3);
-            REQUIRE(copy2.GetCapacity() == 3);
-            for (i32 i = 0; i < 3; i++)
+            REQUIRE(copy2.GetCapacity() == 4);
+            for (i32 i = 0; i < copy2.GetSize(); i++)
             {
                 REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
             }
@@ -339,7 +339,7 @@ TEST_CASE("Assign", "[String]")
             StringUtf8<DefaultAllocator> ref(u8"Hello there", g_da);
             StringUtf8<DefaultAllocator> copy(g_da);
             copy.Assign(Move(ref));
-            REQUIRE(copy.GetSize() == 12);
+            REQUIRE(copy.GetSize() == 11);
             REQUIRE(copy.GetCapacity() == 12);
             REQUIRE(copy.GetData() != nullptr);
             REQUIRE(ref.GetSize() == 0);
@@ -373,9 +373,9 @@ TEST_CASE("Assign", "[String]")
         {
             StringUtf8<DefaultAllocator> str(g_da);
             str.Assign(50, 'd');
-            REQUIRE(str.GetCapacity() == 50);
+            REQUIRE(str.GetCapacity() == 51);
             REQUIRE(str.GetSize() == 50);
-            for (i32 i = 0; i < 50; i++)
+            for (i32 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == 'd');
             }
@@ -386,7 +386,7 @@ TEST_CASE("Assign", "[String]")
             str.Assign(ref_str, 50);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 50);
-            for (i32 i = 0; i < 50; i++)
+            for (i32 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == ref_str[i]);
             }
@@ -395,9 +395,9 @@ TEST_CASE("Assign", "[String]")
         {
             StringUtf8<DefaultAllocator> str(u8"Other", g_da);
             str.Assign(ref_str, 50);
-            REQUIRE(str.GetCapacity() == 50);
+            REQUIRE(str.GetCapacity() == 51);
             REQUIRE(str.GetSize() == 50);
-            for (i32 i = 0; i < 50; i++)
+            for (i32 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == ref_str[i]);
             }
@@ -407,8 +407,8 @@ TEST_CASE("Assign", "[String]")
             StringUtf8<DefaultAllocator> str(u8"Other", g_da);
             str.Assign(ref_str);
             REQUIRE(str.GetCapacity() == 575);
-            REQUIRE(str.GetSize() == 575);
-            for (i32 i = 0; i < 575; i++)
+            REQUIRE(str.GetSize() == 574);
+            for (i32 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == ref_str[i]);
             }
@@ -418,7 +418,7 @@ TEST_CASE("Assign", "[String]")
             StringUtf8<DefaultAllocator> ref(ref_str, g_da);
             StringUtf8<DefaultAllocator> copy(g_da);
             copy.Assign(ref);
-            REQUIRE(copy.GetSize() == 575);
+            REQUIRE(copy.GetSize() == 574);
             REQUIRE(copy.GetCapacity() == 575);
             for (i32 i = 0; i < 575; i++)
             {
@@ -431,16 +431,16 @@ TEST_CASE("Assign", "[String]")
             StringUtf8<DefaultAllocator> copy1(g_da);
             copy1.Assign(ref, 6, 10);
             REQUIRE(copy1.GetSize() == 10);
-            REQUIRE(copy1.GetCapacity() == 10);
-            for (i32 i = 0; i < 10; i++)
+            REQUIRE(copy1.GetCapacity() == 11);
+            for (i32 i = 0; i < copy1.GetSize(); i++)
             {
                 REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
             }
             StringUtf8<DefaultAllocator> copy2(g_da);
             copy2.Assign(ref, 6, 3);
             REQUIRE(copy2.GetSize() == 3);
-            REQUIRE(copy2.GetCapacity() == 3);
-            for (i32 i = 0; i < 3; i++)
+            REQUIRE(copy2.GetCapacity() == 4);
+            for (i32 i = 0; i < copy2.GetSize(); i++)
             {
                 REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
             }
@@ -455,7 +455,7 @@ TEST_CASE("Assign", "[String]")
             StringUtf8<DefaultAllocator> ref(ref_str, g_da);
             StringUtf8<DefaultAllocator> copy(g_da);
             copy.Assign(Move(ref));
-            REQUIRE(copy.GetSize() == 575);
+            REQUIRE(copy.GetSize() == 574);
             REQUIRE(copy.GetCapacity() == 575);
             REQUIRE(copy.GetData() != nullptr);
             REQUIRE(ref.GetSize() == 0);
