@@ -695,6 +695,199 @@ TEST_CASE("Resize", "[String]")
     SECTION("Long string") {}
 }
 
+TEST_CASE("Append", "[String]")
+{
+    SECTION("Short string")
+    {
+        SECTION("String literal no change to capacity")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            str.Reserve(200);
+            str.Append(" there");
+            REQUIRE(str.GetCapacity() == 200);
+            REQUIRE(str.GetSize() == 11);
+            REQUIRE(strcmp(str.GetData(), "Hello there") == 0);
+        }
+        SECTION("String literal increase capacity")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            ErrorCode err = str.Append(" there");
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetSize() == 11);
+            REQUIRE(strcmp(str.GetData(), "Hello there") == 0);
+        }
+        SECTION("Null string literal")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            ErrorCode err = str.Append(nullptr);
+            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+        }
+        SECTION("Empty string literal")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            ErrorCode err = str.Append("");
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+        }
+        SECTION("Sub string literal no change to capacity")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            str.Reserve(200);
+            str.Append(" there", 5);
+            REQUIRE(str.GetCapacity() == 200);
+            REQUIRE(str.GetSize() == 10);
+            REQUIRE(strcmp(str.GetData(), "Hello ther") == 0);
+        }
+        SECTION("Sub string literal increase capacity")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            ErrorCode err = str.Append(" there", 5);
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetCapacity() == 11);
+            REQUIRE(str.GetSize() == 10);
+            REQUIRE(strcmp(str.GetData(), "Hello ther") == 0);
+        }
+        SECTION("Null sub string literal")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            ErrorCode err = str.Append(nullptr, 5);
+            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+        }
+        SECTION("Count and value")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            str.Reserve(200);
+            str.Append(5, 'd');
+            REQUIRE(str.GetCapacity() == 200);
+            REQUIRE(str.GetSize() == 10);
+            REQUIRE(strcmp(str.GetData(), "Helloddddd") == 0);
+        }
+        SECTION("Zero count and value")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            str.Reserve(200);
+            str.Append(0, 'd');
+            REQUIRE(str.GetCapacity() == 200);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+        }
+        SECTION("String") {}
+        SECTION("Empty string") {}
+        SECTION("Sub string") {}
+        SECTION("Sub string bad position") {}
+        SECTION("Sub string zero count") {}
+    }
+    SECTION("Long string")
+    {
+        const char ref[] =
+            "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            "dummy "
+            "text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It "
+            "has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was "
+            "popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop "
+            "publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+        const char ref_final[] =
+            "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            "dummy "
+            "text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It "
+            "has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was "
+            "popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop "
+            "publishing software like Aldus PageMaker including versions of Lorem Ipsum. there";
+        SECTION("String literal no change to capacity")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            str.Reserve(1000);
+            str.Append(" there");
+            REQUIRE(str.GetCapacity() == 1000);
+            REQUIRE(str.GetSize() == 580);
+            REQUIRE(strcmp(str.GetData(), ref_final) == 0);
+        }
+        SECTION("String literal increase capacity")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            ErrorCode err = str.Append(" there");
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetCapacity() == 581);
+            REQUIRE(str.GetSize() == 580);
+            REQUIRE(strcmp(str.GetData(), ref_final) == 0);
+        }
+        SECTION("Null string literal")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            ErrorCode err = str.Append(nullptr);
+            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 574);
+            REQUIRE(strcmp(str.GetData(), ref) == 0);
+        }
+        SECTION("Empty string literal")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            ErrorCode err = str.Append("");
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 574);
+            REQUIRE(strcmp(str.GetData(), ref) == 0);
+        }
+        SECTION("Sub string literal no change to capacity")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            str.Reserve(1000);
+            str.Append(" there", 5);
+            REQUIRE(str.GetCapacity() == 1000);
+            REQUIRE(str.GetSize() == 579);
+        }
+        SECTION("Sub string literal increase capacity")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            ErrorCode err = str.Append(" there", 5);
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetCapacity() == 580);
+            REQUIRE(str.GetSize() == 579);
+        }
+        SECTION("Null sub string literal")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            ErrorCode err = str.Append(nullptr, 5);
+            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 574);
+            REQUIRE(strcmp(str.GetData(), ref) == 0);
+        }
+        SECTION("Count and value")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            str.Reserve(1000);
+            str.Append(5, 'd');
+            REQUIRE(str.GetCapacity() == 1000);
+            REQUIRE(str.GetSize() == 579);
+        }
+        SECTION("Zero count and value")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            str.Reserve(1000);
+            str.Append(0, 'd');
+            REQUIRE(str.GetCapacity() == 1000);
+            REQUIRE(str.GetSize() == 574);
+            REQUIRE(strcmp(str.GetData(), ref) == 0);
+        }
+        SECTION("String") {}
+        SECTION("Empty string") {}
+        SECTION("Sub string") {}
+        SECTION("Sub string bad position") {}
+        SECTION("Sub string zero count") {}
+    }
+}
+
 TEST_CASE("From UTF8 to UTF32", "[String]")
 {
     StringUtf8<DefaultAllocator> utf8(u8"での日本語文字コードを扱うために使用されている従来の", g_da);

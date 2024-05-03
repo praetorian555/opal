@@ -54,8 +54,8 @@ public:
     CodeUnitType* GetData() { return m_data; }
     [[nodiscard]] const CodeUnitType* GetData() const { return m_data; }
 
-    SizeType GetSize() const { return m_size; }
-    SizeType GetCapacity() const { return m_capacity; }
+    [[nodiscard]] SizeType GetSize() const { return m_size; }
+    [[nodiscard]] SizeType GetCapacity() const { return m_capacity; }
 
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
 
@@ -228,16 +228,17 @@ CLASS_HEADER& CLASS_HEADER::operator=(const String& other)
     if (m_data != nullptr)
     {
         Deallocate(m_data);
+        m_data = nullptr;
     }
     m_allocator = other.m_allocator;
     m_capacity = other.m_capacity;
     m_size = other.m_size;
     if (m_capacity > 0)
     {
-        m_data = Allocate(m_size);
+        m_data = Allocate(m_capacity);
         memcpy(m_data, other.m_data, m_size * sizeof(CodeUnitT));
+        m_data[m_size] = 0;
     }
-    m_data[m_size] = 0;
     return *this;
 }
 
@@ -532,9 +533,26 @@ Opal::ErrorCode CLASS_HEADER::Resize(SizeType new_size)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* data, SizeType size)
+Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* str)
 {
-    if (data == nullptr || size == 0)
+    if (str == nullptr)
+    {
+        return ErrorCode::BadInput;
+    }
+    SizeType count = 0;
+    const CodeUnitT* it = str;
+    while (*it != 0)
+    {
+        count++;
+        it++;
+    }
+    return Append(str, count);
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* str, SizeType size)
+{
+    if (str == nullptr)
     {
         return ErrorCode::BadInput;
     }
@@ -546,8 +564,76 @@ Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* data, SizeType size)
             return error;
         }
     }
-    std::memcpy(m_data + m_size * sizeof(CodeUnitType), data, size * sizeof(CodeUnitType));
+    if (size > 0)
+    {
+        std::memcpy(m_data + m_size * sizeof(CodeUnitType), str, size * sizeof(CodeUnitType));
+    }
     m_size += size;
+    m_data[m_size] = 0;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Append(SizeType count, CodeUnitT value)
+{
+    if (count + 1 > m_capacity)
+    {
+        ErrorCode error = Reserve(count + 1);
+        if (error != ErrorCode::Success)
+        {
+            return error;
+        }
+    }
+    for (SizeType i = m_size; i < m_size + count; i++)
+    {
+        m_data[i] = value;
+    }
+    m_size += count;
+    m_data[m_size] = 0;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Append(const String& other)
+{
+    if (m_size + other.m_size + 1 > m_capacity)
+    {
+        ErrorCode error = Reserve(m_size + other.m_size + 1);
+        if (error != ErrorCode::Success)
+        {
+            return error;
+        }
+    }
+    if (other.m_size > 0)
+    {
+        std::memcpy(m_data + m_size, other.m_size, other.m_size * sizeof(CodeUnitT));
+    }
+    m_size += other.m_size;
+    m_data[m_size] = 0;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Append(const String& other, SizeType pos, SizeType count)
+{
+    if (pos >= other.m_size)
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    count = Min(other.GetSize() - pos, count);
+    if (m_size + count + 1 > m_capacity)
+    {
+        ErrorCode error = Reserve(m_size + count + 1);
+        if (error != ErrorCode::Success)
+        {
+            return error;
+        }
+    }
+    if (count > 0)
+    {
+        std::memcpy(m_data + m_size, other.m_size + pos, count * sizeof(CodeUnitT));
+    }
+    m_size += count;
     m_data[m_size] = 0;
     return ErrorCode::Success;
 }
