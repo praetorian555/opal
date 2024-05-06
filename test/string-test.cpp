@@ -780,7 +780,13 @@ TEST_CASE("Append", "[String]")
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
         }
-        SECTION("String") {}
+        SECTION("String")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale<DefaultAllocator> str2(" there", g_da);
+            str.Append(str2);
+            REQUIRE(str.GetCapacity() == 10);
+        }
         SECTION("Empty string") {}
         SECTION("Sub string") {}
         SECTION("Sub string bad position") {}
