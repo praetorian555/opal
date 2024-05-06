@@ -128,6 +128,8 @@ public:
 
     [[nodiscard]] SizeType GetSize() const { return m_size; }
 
+    [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
+
     Expected<T&, ErrorCode> At(SizeType index);
     [[nodiscard]] Expected<const T&, ErrorCode> At(SizeType index) const;
 
