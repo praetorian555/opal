@@ -60,6 +60,13 @@ target_link_libraries(opal PRIVATE opal_options)
 target_compile_features(opal PUBLIC cxx_std_20)
 set_target_properties(opal PROPERTIES VERSION ${OPAL_VERSION} SOVERSION ${OPAL_VERSION_MAJOR})
 
+# Install the library
+install(TARGETS opal
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}  # For Windows DLL files
+)
+
 ## Generate the export header for opal and attach it to the target
 include(GenerateExportHeader)
 generate_export_header(opal EXPORT_FILE_NAME include/opal/export.h)
@@ -84,4 +91,10 @@ if (OPAL_BUILD_TESTS)
     target_link_libraries(opal_test opal_options)
     enable_testing()
     add_test(NAME opal_test COMMAND opal_test)
+    # Install the test executable
+    install(TARGETS opal_test
+            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}  # For Windows DLL files
+    )
 endif ()
