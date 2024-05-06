@@ -1,5 +1,7 @@
 #pragma once
 
+#include <initializer_list>
+
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/container/expected.h"
@@ -130,6 +132,7 @@ public:
     Array(Array&& other) noexcept;
     Array(Array&& other, const Allocator& allocator) noexcept;
     Array(Array&& other, Allocator&& allocator) noexcept;
+    Array(const std::initializer_list<T>& init_list);
 
     ~Array();
 
@@ -590,8 +593,7 @@ CLASS_HEADER::Array(const Array& other, const Allocator& allocator)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(const Array& other, Allocator&& allocator)
-    : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+CLASS_HEADER::Array(const Array& other, Allocator&& allocator) : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -631,6 +633,21 @@ CLASS_HEADER::Array(Array&& other, Allocator&& allocator) noexcept
     other.m_capacity = 0;
     other.m_size = 0;
     other.m_data = nullptr;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER::Array(const std::initializer_list<T>& init_list) : m_capacity(0)
+{
+    SizeType count = init_list.size();
+    if (count > m_capacity)
+    {
+        Reserve(count);
+    }
+    m_size = count;
+    if (count > 0)
+    {
+        std::memcpy(m_data, init_list.begin(), m_size * sizeof(T));  // Copy elements into managed memory
+    }
 }
 
 TEMPLATE_HEADER
@@ -1001,8 +1018,7 @@ void CLASS_HEADER::PopBack()
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType position,
-                                                                                                      const T& value)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType position, const T& value)
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
@@ -1031,8 +1047,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(Array::ConstIteratorType position,
-                                                                                                      T&& value)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(Array::ConstIteratorType position, T&& value)
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
@@ -1062,7 +1077,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 
 TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(Array::ConstIteratorType position,
-                                                                                                      Array::SizeType count, const T& value)
+                                                                                          Array::SizeType count, const T& value)
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
@@ -1103,7 +1118,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 TEMPLATE_HEADER
 template <typename InputIt>
 Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::InsertIt(Array::ConstIteratorType position,
-                                                                                                        InputIt start, InputIt end)
+                                                                                            InputIt start, InputIt end)
 {
     if (position < ConstBegin() || position > ConstEnd())
     {
@@ -1183,8 +1198,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(
-    Array::ConstIteratorType position)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(Array::ConstIteratorType position)
 {
     using ReturnType = Expected<IteratorType, ErrorCode>;
     if (position < ConstBegin() || position >= ConstEnd())
@@ -1225,7 +1239,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 
 TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(Array::ConstIteratorType start,
-                                                                                                     Array::ConstIteratorType end)
+                                                                                         Array::ConstIteratorType end)
 {
     if (start > end)
     {

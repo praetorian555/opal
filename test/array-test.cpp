@@ -292,6 +292,24 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[2] == 44);
         delete[] data;
     }
+    SECTION("Initializer list")
+    {
+        Array<i32> int_arr{42, 43, 44};
+        REQUIRE(int_arr.GetCapacity() == 3);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 43);
+        REQUIRE(int_arr.GetData()[2] == 44);
+    }
+    SECTION("Initializer list one element")
+    {
+        Array<i32> int_arr{42};
+        REQUIRE(int_arr.GetCapacity() == 1);
+        REQUIRE(int_arr.GetSize() == 1);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+    }
 }
 
 TEST_CASE("Construction with non-POD data", "[Array]")
