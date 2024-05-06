@@ -969,6 +969,310 @@ TEST_CASE("Append", "[String]")
     }
 }
 
+TEST_CASE("Iterator", "[String]")
+{
+    using StringType = StringLocale<DefaultAllocator>;
+    using ItType = StringType::IteratorType;
+    SECTION("Difference")
+    {
+        StringType str("Hello there", g_da);
+        ItType it1 = str.Begin();
+        ItType it2 = str.End();
+        REQUIRE(it2 - it1 == 11);
+    }
+    SECTION("Increment")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(*it == 'H');
+        ++it;
+        REQUIRE(*it == 'e');
+        ++it;
+        REQUIRE(*it == 'l');
+    }
+    SECTION("Post increment")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(*it == 'H');
+        ++it;
+        REQUIRE(*it == 'e');
+        ++it;
+        REQUIRE(*it == 'l');
+        ItType prev = it++;
+        REQUIRE(it - prev == 1);
+    }
+    SECTION("Decrement")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.End();
+        --it;
+        REQUIRE(*it == 'e');
+        --it;
+        REQUIRE(*it == 'r');
+        --it;
+        REQUIRE(*it == 'e');
+    }
+    SECTION("Post decrement")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.End();
+        --it;
+        REQUIRE(*it == 'e');
+        --it;
+        REQUIRE(*it == 'r');
+        --it;
+        REQUIRE(*it == 'e');
+        ItType prev = it--;
+        REQUIRE(prev - it == 1);
+    }
+    SECTION("Add")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(*(it + 0) == 'H');
+        REQUIRE(*(it + 1) == 'e');
+        REQUIRE(*(it + 2) == 'l');
+
+        ItType it2 = str.Begin();
+        REQUIRE((11 + it2) == str.End());
+    }
+    SECTION("Add assignment")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(*(it += 0) == 'H');
+        REQUIRE(*(it += 1) == 'e');
+        REQUIRE(*(it += 1) == 'l');
+    }
+    SECTION("Subtract")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.End();
+        REQUIRE((it - 0) == str.End());
+        REQUIRE(*(it - 1) == 'e');
+        REQUIRE(*(it - 2) == 'r');
+        REQUIRE(*(it - 3) == 'e');
+    }
+    SECTION("Subtract assignment")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.End();
+        REQUIRE((it -= 0) == str.End());
+        REQUIRE(*(it -= 1) == 'e');
+        REQUIRE(*(it -= 1) == 'r');
+        REQUIRE(*(it -= 1) == 'e');
+    }
+    SECTION("Access")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(it[0] == 'H');
+        REQUIRE(it[1] == 'e');
+        REQUIRE(it[2] == 'l');
+    }
+    SECTION("Dereference")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(*it == 'H');
+    }
+    SECTION("Compare")
+    {
+        StringType str("Hello there", g_da);
+        ItType it1 = str.Begin();
+        ItType it2 = str.Begin();
+        REQUIRE(it1 == it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it1 >= it2);
+        REQUIRE_FALSE(it1 != it2);
+        REQUIRE_FALSE(it1 < it2);
+        REQUIRE_FALSE(it1 > it2);
+
+        it2++;
+        REQUIRE(it1 != it2);
+        REQUIRE(it1 < it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it2 > it1);
+        REQUIRE(it2 >= it1);
+        REQUIRE_FALSE(it1 == it2);
+    }
+    SECTION("For loop")
+    {
+        StringType str("Hello there", g_da);
+        StringType dst(g_da);
+        for (ItType it = str.Begin(); it != str.End(); ++it)
+        {
+            dst.Append(*it);
+        }
+        REQUIRE(dst.GetSize() == 11);
+        REQUIRE(strcmp(dst.GetData(), "Hello there") == 0);
+    }
+    SECTION("Modern for loop")
+    {
+        StringType str("Hello there", g_da);
+        StringType dst(g_da);
+        for (auto c : str)
+        {
+            dst.Append(c);
+        }
+        REQUIRE(dst.GetSize() == 11);
+        REQUIRE(strcmp(dst.GetData(), "Hello there") == 0);
+    }
+}
+
+TEST_CASE("Const iterator", "[String]")
+{
+    using StringType = StringLocale<DefaultAllocator>;
+    using ItType = StringType::ConstIteratorType;
+    SECTION("Difference")
+    {
+        StringType str("Hello there", g_da);
+        ItType it1 = str.ConstBegin();
+        ItType it2 = str.ConstEnd();
+        REQUIRE(it2 - it1 == 11);
+    }
+    SECTION("Increment")
+    {
+        const StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(*it == 'H');
+        ++it;
+        REQUIRE(*it == 'e');
+        ++it;
+        REQUIRE(*it == 'l');
+    }
+    SECTION("Post increment")
+    {
+        const StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(*it == 'H');
+        ++it;
+        REQUIRE(*it == 'e');
+        ++it;
+        REQUIRE(*it == 'l');
+        ItType prev = it++;
+        REQUIRE(it - prev == 1);
+    }
+    SECTION("Decrement")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.ConstEnd();
+        --it;
+        REQUIRE(*it == 'e');
+        --it;
+        REQUIRE(*it == 'r');
+        --it;
+        REQUIRE(*it == 'e');
+    }
+    SECTION("Post decrement")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.ConstEnd();
+        --it;
+        REQUIRE(*it == 'e');
+        --it;
+        REQUIRE(*it == 'r');
+        --it;
+        REQUIRE(*it == 'e');
+        ItType prev = it--;
+        REQUIRE(prev - it == 1);
+    }
+    SECTION("Add")
+    {
+        const StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(*(it + 0) == 'H');
+        REQUIRE(*(it + 1) == 'e');
+        REQUIRE(*(it + 2) == 'l');
+
+        ItType it2 = str.ConstBegin();
+        REQUIRE((11 + it2) == str.End());
+    }
+    SECTION("Add assignment")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.ConstBegin();
+        REQUIRE(*(it += 0) == 'H');
+        REQUIRE(*(it += 1) == 'e');
+        REQUIRE(*(it += 1) == 'l');
+    }
+    SECTION("Subtract")
+    {
+        const StringType str("Hello there", g_da);
+        ItType it = str.End();
+        REQUIRE((it - 0) == str.End());
+        REQUIRE(*(it - 1) == 'e');
+        REQUIRE(*(it - 2) == 'r');
+        REQUIRE(*(it - 3) == 'e');
+    }
+    SECTION("Subtract assignment")
+    {
+        const StringType str("Hello there", g_da);
+        ItType it = str.End();
+        REQUIRE((it -= 0) == str.End());
+        REQUIRE(*(it -= 1) == 'e');
+        REQUIRE(*(it -= 1) == 'r');
+        REQUIRE(*(it -= 1) == 'e');
+    }
+    SECTION("Access")
+    {
+        const StringType str("Hello there", g_da);
+        ItType it = str.Begin();
+        REQUIRE(it[0] == 'H');
+        REQUIRE(it[1] == 'e');
+        REQUIRE(it[2] == 'l');
+    }
+    SECTION("Dereference")
+    {
+        StringType str("Hello there", g_da);
+        ItType it = str.ConstBegin();
+        REQUIRE(*it == 'H');
+    }
+    SECTION("Compare")
+    {
+        StringType str("Hello there", g_da);
+        ItType it1 = str.ConstBegin();
+        ItType it2 = str.ConstBegin();
+        REQUIRE(it1 == it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it1 >= it2);
+        REQUIRE_FALSE(it1 != it2);
+        REQUIRE_FALSE(it1 < it2);
+        REQUIRE_FALSE(it1 > it2);
+
+        it2++;
+        REQUIRE(it1 != it2);
+        REQUIRE(it1 < it2);
+        REQUIRE(it1 <= it2);
+        REQUIRE(it2 > it1);
+        REQUIRE(it2 >= it1);
+        REQUIRE_FALSE(it1 == it2);
+    }
+    SECTION("For loop")
+    {
+        const StringType str("Hello there", g_da);
+        StringType dst(g_da);
+        for (ItType it = str.Begin(); it != str.End(); ++it)
+        {
+            dst.Append(*it);
+        }
+        REQUIRE(dst.GetSize() == 11);
+        REQUIRE(strcmp(dst.GetData(), "Hello there") == 0);
+    }
+    SECTION("Modern for loop")
+    {
+        const StringType str("Hello there", g_da);
+        StringType dst(g_da);
+        for (auto c : str)
+        {
+            dst.Append(c);
+        }
+        REQUIRE(dst.GetSize() == 11);
+        REQUIRE(strcmp(dst.GetData(), "Hello there") == 0);
+    }
+}
+
 TEST_CASE("From UTF8 to UTF32", "[String]")
 {
     StringUtf8<DefaultAllocator> utf8(u8"での日本語文字コードを扱うために使用されている従来の", g_da);

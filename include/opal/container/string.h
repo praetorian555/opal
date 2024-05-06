@@ -11,13 +11,102 @@
 namespace Opal
 {
 
+template <typename MyString>
+class StringIterator
+{
+public:
+    using ValueType = typename MyString::ValueType;
+    using ReferenceType = typename MyString::ReferenceType;
+    using PointerType = typename MyString::PointerType;
+    using DifferenceType = typename MyString::DifferenceType;
+
+    StringIterator() = default;
+    explicit StringIterator(PointerType ptr) : m_ptr(ptr) {}
+
+    bool operator==(const StringIterator& other) const { return m_ptr == other.m_ptr; }
+    bool operator>(const StringIterator& other) const;
+    bool operator>=(const StringIterator& other) const;
+    bool operator<(const StringIterator& other) const;
+    bool operator<=(const StringIterator& other) const;
+
+    StringIterator& operator++();
+    StringIterator operator++(int);
+    StringIterator& operator--();
+    StringIterator operator--(int);
+
+    StringIterator operator+(DifferenceType n) const;
+    StringIterator operator-(DifferenceType n) const;
+    StringIterator& operator+=(DifferenceType n);
+    StringIterator& operator-=(DifferenceType n);
+
+    DifferenceType operator-(const StringIterator& other) const;
+
+    ReferenceType operator[](DifferenceType n) const;
+    ReferenceType operator*() const;
+    PointerType operator->() const;
+
+private:
+    PointerType m_ptr = nullptr;
+};
+
+template <typename MyString>
+StringIterator<MyString> operator+(typename StringIterator<MyString>::DifferenceType n, const StringIterator<MyString>& it);
+
+template <typename MyString>
+class StringConstIterator
+{
+public:
+    using ValueType = typename MyString::ValueType;
+    using ReferenceType = typename MyString::ConstReferenceType;
+    using PointerType = typename MyString::PointerType;
+    using DifferenceType = typename MyString::DifferenceType;
+
+    StringConstIterator() = default;
+    explicit StringConstIterator(PointerType ptr) : m_ptr(ptr) {}
+
+    bool operator==(const StringConstIterator& other) const { return m_ptr == other.m_ptr; }
+    bool operator>(const StringConstIterator& other) const;
+    bool operator>=(const StringConstIterator& other) const;
+    bool operator<(const StringConstIterator& other) const;
+    bool operator<=(const StringConstIterator& other) const;
+
+    StringConstIterator& operator++();
+    StringConstIterator operator++(int);
+    StringConstIterator& operator--();
+    StringConstIterator operator--(int);
+
+    StringConstIterator operator+(DifferenceType n) const;
+    StringConstIterator operator-(DifferenceType n) const;
+    StringConstIterator& operator+=(DifferenceType n);
+    StringConstIterator& operator-=(DifferenceType n);
+
+    DifferenceType operator-(const StringConstIterator& other) const;
+
+    ReferenceType operator[](DifferenceType n) const;
+    ReferenceType operator*() const;
+    PointerType operator->() const;
+
+private:
+    PointerType m_ptr = nullptr;
+};
+
+template <typename MyString>
+StringConstIterator<MyString> operator+(typename StringConstIterator<MyString>::DifferenceType n, const StringConstIterator<MyString>& it);
+
 template <typename CodeUnitT, typename EncodingT, typename AllocatorT = DefaultAllocator>
 class String
 {
 public:
+    using ValueType = CodeUnitT;
+    using ReferenceType = CodeUnitT&;
+    using ConstReferenceType = const CodeUnitT&;
+    using PointerType = CodeUnitT*;
+    using DifferenceType = i64;
     using CodeUnitType = CodeUnitT;
     using SizeType = u64;
     using EncodingType = EncodingT;
+    using IteratorType = StringIterator<String<CodeUnitT, EncodingT, AllocatorT>>;
+    using ConstIteratorType = StringConstIterator<String<CodeUnitT, EncodingT, AllocatorT>>;
 
     static_assert(k_is_same_value<CodeUnitType, typename EncodingType::CodeUnitType>,
                   "Encoding code unit type needs to match string code unit type");
@@ -75,6 +164,7 @@ public:
     ErrorCode Resize(SizeType new_size);
     ErrorCode Resize(SizeType new_size, CodeUnitT value);
 
+    ErrorCode Append(const CodeUnitType& ch);
     ErrorCode Append(const CodeUnitType* str);
     ErrorCode Append(const CodeUnitType* str, SizeType size);
     ErrorCode Append(SizeType count, CodeUnitT value);
@@ -83,6 +173,22 @@ public:
 
     template <typename InputIt>
     ErrorCode AppendIt(InputIt begin, InputIt end);
+
+    // Iterators
+    IteratorType Begin() { return IteratorType(m_data); }
+    IteratorType End() { return IteratorType(m_data + m_size); }
+    ConstIteratorType Begin() const { return ConstIteratorType(m_data); }
+    ConstIteratorType End() const { return ConstIteratorType(m_data + m_size); }
+    ConstIteratorType ConstBegin() const { return ConstIteratorType(m_data); }
+    ConstIteratorType ConstEnd() const { return ConstIteratorType(m_data + m_size); }
+
+    // Compatible with std::begin and std::end
+    IteratorType begin() { return IteratorType(m_data); }
+    IteratorType end() { return IteratorType(m_data + m_size); }
+    ConstIteratorType begin() const { return ConstIteratorType(m_data); }
+    ConstIteratorType end() const { return ConstIteratorType(m_data + m_size); }
+    ConstIteratorType cbegin() const { return ConstIteratorType(m_data); }
+    ConstIteratorType cend() const { return ConstIteratorType(m_data + m_size); }
 
 private:
     inline constexpr SizeType Min(SizeType a, SizeType b) const { return a > b ? b : a; }
@@ -533,6 +639,23 @@ Opal::ErrorCode CLASS_HEADER::Resize(SizeType new_size)
 }
 
 TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType& ch)
+{
+    if (m_size + 2 > m_capacity)
+    {
+        ErrorCode error = Reserve(m_size + 2);
+        if (error != ErrorCode::Success)
+        {
+            return error;
+        }
+    }
+    m_data[m_size] = ch;
+    m_size += 1;
+    m_data[m_size] = 0;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* str)
 {
     if (str == nullptr)
@@ -681,3 +804,236 @@ Opal::ErrorCode Opal::Transcode(InputString& input, OutputString& output)
 
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
+
+#define TEMPLATE_HEADER template <typename MyString>
+#define CLASS_HEADER Opal::StringIterator<MyString>
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator>(const StringIterator& other) const
+{
+    return m_ptr > other.m_ptr;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator>=(const StringIterator& other) const
+{
+    return m_ptr >= other.m_ptr;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator<(const StringIterator& other) const
+{
+    return m_ptr < other.m_ptr;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator<=(const StringIterator& other) const
+{
+    return m_ptr <= other.m_ptr;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator++()
+{
+    m_ptr++;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator++(int)
+{
+    StringIterator temp = *this;
+    m_ptr++;
+    return temp;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator--()
+{
+    m_ptr--;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator--(int)
+{
+    StringIterator temp = *this;
+    m_ptr--;
+    return temp;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
+{
+    return StringIterator(m_ptr + n);
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
+{
+    return StringIterator(m_ptr - n);
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
+{
+    m_ptr += n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
+{
+    m_ptr -= n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const StringIterator& other) const
+{
+    return m_ptr - other.m_ptr;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
+{
+    return *(m_ptr + n);
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
+{
+    return *m_ptr;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
+{
+    return m_ptr;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER Opal::operator+(typename StringIterator<MyString>::DifferenceType n, const StringIterator<MyString>& it)
+{
+    return it + n;
+}
+
+#undef TEMPLATE_HEADER
+#undef CLASS_HEADER
+
+#define TEMPLATE_HEADER template <typename MyString>
+#define CLASS_HEADER Opal::StringConstIterator<MyString>
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator>(const StringConstIterator& other) const
+{
+    return m_ptr > other.m_ptr;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator>=(const StringConstIterator& other) const
+{
+    return m_ptr >= other.m_ptr;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator<(const StringConstIterator& other) const
+{
+    return m_ptr < other.m_ptr;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator<=(const StringConstIterator& other) const
+{
+    return m_ptr <= other.m_ptr;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator++()
+{
+    m_ptr++;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator++(int)
+{
+    StringConstIterator temp = *this;
+    m_ptr++;
+    return temp;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator--()
+{
+    m_ptr--;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator--(int)
+{
+    StringConstIterator temp = *this;
+    m_ptr--;
+    return temp;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
+{
+    return StringConstIterator(m_ptr + n);
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
+{
+    return StringConstIterator(m_ptr - n);
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
+{
+    m_ptr += n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
+{
+    m_ptr -= n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const StringConstIterator& other) const
+{
+    return m_ptr - other.m_ptr;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
+{
+    return *(m_ptr + n);
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
+{
+    return *m_ptr;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
+{
+    return m_ptr;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER Opal::operator+(typename StringConstIterator<MyString>::DifferenceType n, const StringConstIterator<MyString>& it)
+{
+    return it + n;
+}
+
+#undef TEMPLATE_HEADER
+#undef CLASS_HEADER
+
