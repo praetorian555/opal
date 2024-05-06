@@ -1382,3 +1382,361 @@ TEST_CASE("From wide to locale", "[String]")
     REQUIRE(locale_result == str_locale);
     printf("%s\n", locale_result.GetData());
 }
+
+TEST_CASE("Lexicographical compare", "[String]")
+{
+    using StringType = StringLocale<DefaultAllocator>;
+    SECTION("Two strings")
+    {
+        SECTION("Both empty")
+        {
+            StringType a("", g_da);
+            StringType b("", g_da);
+            REQUIRE(Compare(a, b) == 0);
+        }
+        SECTION("First empty")
+        {
+            StringType a("", g_da);
+            StringType b("aa", g_da);
+            REQUIRE(Compare(a, b) == -1);
+        }
+        SECTION("Second empty")
+        {
+            StringType a("aa", g_da);
+            StringType b("", g_da);
+            REQUIRE(Compare(a, b) == 1);
+        }
+        SECTION("First shorter and equal")
+        {
+            StringType a("aaa", g_da);
+            StringType b("aaabbb", g_da);
+            REQUIRE(Compare(a, b) == -1);
+        }
+        SECTION("Second shorter and equal")
+        {
+            StringType a("aaabbb", g_da);
+            StringType b("aaa", g_da);
+            REQUIRE(Compare(a, b) == 1);
+        }
+        SECTION("First shorter and smaller")
+        {
+            StringType a("aaa", g_da);
+            StringType b("bbbb", g_da);
+            REQUIRE(Compare(a, b) == -1);
+        }
+        SECTION("First shorter and larger")
+        {
+            StringType a("bbb", g_da);
+            StringType b("aaaa", g_da);
+            REQUIRE(Compare(a, b) == 1);
+        }
+        SECTION("Second shorter and smaller")
+        {
+            StringType a("bbbb", g_da);
+            StringType b("aaa", g_da);
+            REQUIRE(Compare(a, b) == 1);
+        }
+        SECTION("Second shorter and larger")
+        {
+            StringType a("aaaa", g_da);
+            StringType b("bbb", g_da);
+            REQUIRE(Compare(a, b) == -1);
+        }
+        SECTION("Equal size and same")
+        {
+            StringType a("aaa", g_da);
+            StringType b("aaa", g_da);
+            REQUIRE(Compare(a, b) == 0);
+        }
+        SECTION("Equal size first smaller")
+        {
+            StringType a("aaa", g_da);
+            StringType b("bbb", g_da);
+            REQUIRE(Compare(a, b) == -1);
+        }
+        SECTION("Equal size second smaller")
+        {
+            StringType a("ccc", g_da);
+            StringType b("bbb", g_da);
+            REQUIRE(Compare(a, b) == 1);
+        }
+    }
+    SECTION("First substring second string")
+    {
+        SECTION("Both empty")
+        {
+            StringType a("aa", g_da);
+            StringType b("", g_da);
+            REQUIRE(Compare(a, 2, 0, b).GetValue() == 0);
+        }
+        SECTION("First empty")
+        {
+            StringType a("aa", g_da);
+            StringType b("aa", g_da);
+            REQUIRE(Compare(a, 2, 0, b).GetValue() == -1);
+        }
+        SECTION("Second empty")
+        {
+            StringType a("aa", g_da);
+            StringType b("", g_da);
+            REQUIRE(Compare(a, 1, 1, b).GetValue() == 1);
+        }
+        SECTION("First shorter and equal")
+        {
+            StringType a("bbbaaa", g_da);
+            StringType b("aaabbb", g_da);
+            REQUIRE(Compare(a, 3, 3, b).GetValue() == -1);
+        }
+        SECTION("Second shorter and equal")
+        {
+            StringType a("cccaaabbb", g_da);
+            StringType b("aaa", g_da);
+            REQUIRE(Compare(a, 3, 6, b).GetValue() == 1);
+        }
+        SECTION("First shorter and smaller")
+        {
+            StringType a("caaa", g_da);
+            StringType b("bbbb", g_da);
+            REQUIRE(Compare(a, 1, 3, b).GetValue() == -1);
+        }
+        SECTION("First shorter and larger")
+        {
+            StringType a("ccbbb", g_da);
+            StringType b("aaaa", g_da);
+            REQUIRE(Compare(a, 2, 3, b).GetValue() == 1);
+        }
+        SECTION("Second shorter and smaller")
+        {
+            StringType a("ccbbbb", g_da);
+            StringType b("aaa", g_da);
+            REQUIRE(Compare(a, 2, 4, b).GetValue() == 1);
+        }
+        SECTION("Second shorter and larger")
+        {
+            StringType a("caaaa", g_da);
+            StringType b("bbb", g_da);
+            REQUIRE(Compare(a, 1, 4, b).GetValue() == -1);
+        }
+        SECTION("Equal size and same")
+        {
+            StringType a("ccaaa", g_da);
+            StringType b("aaa", g_da);
+            REQUIRE(Compare(a, 2, 3, b).GetValue() == 0);
+        }
+        SECTION("Equal size first smaller")
+        {
+            StringType a("caaa", g_da);
+            StringType b("bbb", g_da);
+            REQUIRE(Compare(a, 1, 3, b).GetValue() == -1);
+        }
+        SECTION("Equal size second smaller")
+        {
+            StringType a("aaccc", g_da);
+            StringType b("bbb", g_da);
+            REQUIRE(Compare(a, 2, 3, b).GetValue() == 1);
+        }
+    }
+    SECTION("Both substrings")
+    {
+        SECTION("Both empty")
+        {
+            StringType a("aa", g_da);
+            StringType b("", g_da);
+            REQUIRE(Compare(a, 2, 0, b, 0, 0).GetValue() == 0);
+        }
+        SECTION("First empty")
+        {
+            StringType a("aa", g_da);
+            StringType b("aa", g_da);
+            REQUIRE(Compare(a, 2, 0, b, 0, 2).GetValue() == -1);
+        }
+        SECTION("Second empty")
+        {
+            StringType a("aa", g_da);
+            StringType b("", g_da);
+            REQUIRE(Compare(a, 1, 1, b, 0, 0).GetValue() == 1);
+        }
+        SECTION("First shorter and equal")
+        {
+            StringType a("bbbaaa", g_da);
+            StringType b("aaabbb", g_da);
+            REQUIRE(Compare(a, 3, 3, b, 0, 6).GetValue() == -1);
+        }
+        SECTION("Second shorter and equal")
+        {
+            StringType a("cccaaabbb", g_da);
+            StringType b("caaa", g_da);
+            REQUIRE(Compare(a, 3, 6, b, 1, 3).GetValue() == 1);
+        }
+        SECTION("First shorter and smaller")
+        {
+            StringType a("caaa", g_da);
+            StringType b("abbbb", g_da);
+            REQUIRE(Compare(a, 1, 3, b, 1, 4).GetValue() == -1);
+        }
+        SECTION("First shorter and larger")
+        {
+            StringType a("ccbbb", g_da);
+            StringType b("aaaaaa", g_da);
+            REQUIRE(Compare(a, 2, 3, b, 2, 4).GetValue() == 1);
+        }
+        SECTION("Second shorter and smaller")
+        {
+            StringType a("ccbbbb", g_da);
+            StringType b("aaa", g_da);
+            REQUIRE(Compare(a, 2, 4, b, 0, 3).GetValue() == 1);
+        }
+        SECTION("Second shorter and larger")
+        {
+            StringType a("caaaa", g_da);
+            StringType b("dfdbbb", g_da);
+            REQUIRE(Compare(a, 1, 4, b, 3, 3).GetValue() == -1);
+        }
+        SECTION("Equal size and same")
+        {
+            StringType a("ccaaa", g_da);
+            StringType b("baaa", g_da);
+            REQUIRE(Compare(a, 2, 3, b, 1, 3).GetValue() == 0);
+        }
+        SECTION("Equal size first smaller")
+        {
+            StringType a("caaa", g_da);
+            StringType b("bbb", g_da);
+            REQUIRE(Compare(a, 1, 3, b, 0, 3).GetValue() == -1);
+        }
+        SECTION("Equal size second smaller")
+        {
+            StringType a("aaccc", g_da);
+            StringType b("abbb", g_da);
+            REQUIRE(Compare(a, 2, 3, b, 1, 3).GetValue() == 1);
+        }
+    }
+    SECTION("First substring second string literal")
+    {
+        SECTION("Both empty")
+        {
+            StringType a("aa", g_da);
+            REQUIRE(Compare(a, 2, 0, "").GetValue() == 0);
+        }
+        SECTION("First empty")
+        {
+            StringType a("aa", g_da);
+            REQUIRE(Compare(a, 2, 0, "aa").GetValue() == -1);
+        }
+        SECTION("Second empty")
+        {
+            StringType a("aa", g_da);
+            REQUIRE(Compare(a, 1, 1, "").GetValue() == 1);
+        }
+        SECTION("First shorter and equal")
+        {
+            StringType a("bbbaaa", g_da);
+            REQUIRE(Compare(a, 3, 3, "aaabbb").GetValue() == -1);
+        }
+        SECTION("Second shorter and equal")
+        {
+            StringType a("cccaaabbb", g_da);
+            REQUIRE(Compare(a, 3, 6, "aaa").GetValue() == 1);
+        }
+        SECTION("First shorter and smaller")
+        {
+            StringType a("caaa", g_da);
+            REQUIRE(Compare(a, 1, 3, "bbbb").GetValue() == -1);
+        }
+        SECTION("First shorter and larger")
+        {
+            StringType a("ccbbb", g_da);
+            REQUIRE(Compare(a, 2, 3, "aaaa").GetValue() == 1);
+        }
+        SECTION("Second shorter and smaller")
+        {
+            StringType a("ccbbbb", g_da);
+            REQUIRE(Compare(a, 2, 4, "aaa").GetValue() == 1);
+        }
+        SECTION("Second shorter and larger")
+        {
+            StringType a("caaaa", g_da);
+            REQUIRE(Compare(a, 1, 4, "bbb").GetValue() == -1);
+        }
+        SECTION("Equal size and same")
+        {
+            StringType a("ccaaa", g_da);
+            REQUIRE(Compare(a, 2, 3, "aaa").GetValue() == 0);
+        }
+        SECTION("Equal size first smaller")
+        {
+            StringType a("caaa", g_da);
+            REQUIRE(Compare(a, 1, 3, "bbb").GetValue() == -1);
+        }
+        SECTION("Equal size second smaller")
+        {
+            StringType a("aaccc", g_da);
+            REQUIRE(Compare(a, 2, 3, "bbb").GetValue() == 1);
+        }
+    }
+    SECTION("First substring second substring literal")
+    {
+        SECTION("Both empty")
+        {
+            StringType a("aa", g_da);
+            StringType b("", g_da);
+            REQUIRE(Compare(a, 2, 0, "a",  0).GetValue() == 0);
+        }
+        SECTION("First empty")
+        {
+            StringType a("aa", g_da);
+            StringType b("aa", g_da);
+            REQUIRE(Compare(a, 2, 0, "aab", 2).GetValue() == -1);
+        }
+        SECTION("Second empty")
+        {
+            StringType a("aa", g_da);
+            REQUIRE(Compare(a, 1, 1, "", 0).GetValue() == 1);
+        }
+        SECTION("First shorter and equal")
+        {
+            StringType a("bbbaaa", g_da);
+            REQUIRE(Compare(a, 3, 3, "aaabbba", 6).GetValue() == -1);
+        }
+        SECTION("Second shorter and equal")
+        {
+            StringType a("cccaaabbb", g_da);
+            REQUIRE(Compare(a, 3, 6, "aaac", 3).GetValue() == 1);
+        }
+        SECTION("First shorter and smaller")
+        {
+            StringType a("caaa", g_da);
+            REQUIRE(Compare(a, 1, 3, "bbbba", 4).GetValue() == -1);
+        }
+        SECTION("First shorter and larger")
+        {
+            StringType a("ccbbb", g_da);
+            REQUIRE(Compare(a, 2, 3, "aaaabb", 4).GetValue() == 1);
+        }
+        SECTION("Second shorter and smaller")
+        {
+            StringType a("ccbbbb", g_da);
+            REQUIRE(Compare(a, 2, 4, "aaa", 3).GetValue() == 1);
+        }
+        SECTION("Second shorter and larger")
+        {
+            StringType a("caaaa", g_da);
+            REQUIRE(Compare(a, 1, 4, "bbbdfd", 3).GetValue() == -1);
+        }
+        SECTION("Equal size and same")
+        {
+            StringType a("ccaaa", g_da);
+            REQUIRE(Compare(a, 2, 3, "aaaab", 3).GetValue() == 0);
+        }
+        SECTION("Equal size first smaller")
+        {
+            StringType a("caaa", g_da);
+            REQUIRE(Compare(a, 1, 3, "bbb", 3).GetValue() == -1);
+        }
+        SECTION("Equal size second smaller")
+        {
+            StringType a("aaccc", g_da);
+            REQUIRE(Compare(a, 2, 3, "bbb", 3).GetValue() == 1);
+        }
+    }
+}

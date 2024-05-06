@@ -201,6 +201,80 @@ private:
     SizeType m_capacity = 0;
 };
 
+/**
+ * @brief Compare two strings lexicographically.
+ * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @param first First string to compare.
+ * @param second Second string to compare.
+ * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second.
+ */
+template <typename MyString>
+i32 Compare(const MyString& first, const MyString& second);
+
+/**
+ * @brief Compare two strings lexicographically.
+ * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @param first First string to compare.
+ * @param pos1 Position in the first string to start comparing.
+ * @param count1 Number of code units to compare in the first string. If resulting range is out of bounds, it will be clamped to the size of
+ * the string.
+ * @param second Second string to compare.
+ * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
+ * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string.
+ */
+template <typename MyString>
+Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeType pos1, typename MyString::SizeType count1,
+                                 const MyString& second);
+
+/**
+ * @brief Compare two strings lexicographically.
+ * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @param first First string to compare.
+ * @param pos1 Position in the first string to start comparing.
+ * @param count1 Number of code units to compare in the first string. If resulting range is out of bounds, it will be clamped to the size of
+ * the string.
+ * @param second Second string to compare.
+ * @param pos2 Position in the second string to start comparing.
+ * @param count2 Number of code units to compare in the second string. If resulting range is out of bounds, it will be clamped to the size
+ * of the string.
+ * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
+ * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string or pos2 is greater than the size of the second string.
+ */
+template <typename MyString>
+Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeType pos1, typename MyString::SizeType count1,
+                                 const MyString& second, typename MyString::SizeType pos2, typename MyString::SizeType count2);
+
+/**
+ * @brief Compare a string with a null-terminated string lexicographically.
+ * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @note The null-terminated string is expected to be in the same encoding as the first string.
+ * @param first First string to compare.
+ * @param pos1 Position in the first string to start comparing.
+ * @param count1 Number of code units to compare in the first string.
+ * @param second Null-terminated string to compare.
+ * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
+ * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
+ */
+template <typename MyString>
+Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeType pos1, typename MyString::SizeType count1,
+                                 const typename MyString::CodeUnitType* second);
+
+/**
+ * @brief Compare a string with a null-terminated string lexicographically.
+ * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @note The null-terminated string is expected to be in the same encoding as the first string.
+ * @param first First string to compare.
+ * @param pos1 Position in the first string to start comparing.
+ * @param count1 Number of code units to compare in the first string.
+ * @param second Null-terminated string to compare.
+ * @param count2 Number of code units to compare in the second string.
+ * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
+ * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
+ */
+template <typename MyString>
+Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeType pos1, typename MyString::SizeType count1,
+                                 const typename MyString::CodeUnitType* second, typename MyString::SizeType count2);
+
 template <typename InputString, typename OutputString>
 ErrorCode Transcode(InputString& input, OutputString& output);
 
@@ -234,8 +308,7 @@ CLASS_HEADER::String(SizeType count, CodeUnitT value, AllocatorT& allocator) : m
     m_data[m_size] = 0;
 }
 
-TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, AllocatorT& allocator)
-    : m_allocator(&allocator)
+TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, AllocatorT& allocator) : m_allocator(&allocator)
 {
     m_capacity = other.m_size - pos + 1;
     m_size = m_capacity - 1;
@@ -1037,3 +1110,142 @@ CLASS_HEADER Opal::operator+(typename StringConstIterator<MyString>::DifferenceT
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
 
+template <typename MyString>
+Opal::i32 Opal::Compare(const MyString& first, const MyString& second)
+{
+    return Compare(first, 0, first.GetSize(), second, 0, second.GetSize()).GetValue();
+}
+
+template <typename MyString>
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::SizeType pos1,
+                                                         typename MyString::SizeType count1, const MyString& second)
+{
+    return Compare(first, pos1, count1, second, 0, second.GetSize());
+}
+
+template <typename MyString>
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::SizeType pos1,
+                                                         typename MyString::SizeType count1, const MyString& second,
+                                                         typename MyString::SizeType pos2, typename MyString::SizeType count2)
+{
+    using ReturnType = Expected<i32, ErrorCode>;
+    using SizeType = typename MyString::SizeType;
+
+    if (count1 != 0 && pos1 >= first.GetSize())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (count2 != 0 && pos2 >= second.GetSize())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+
+    count1 = first.GetSize() - pos1 > count1 ? count1 : first.GetSize() - pos1;
+    count2 = second.GetSize() - pos2 > count2 ? count2 : second.GetSize() - pos2;
+    const SizeType count = count1 > count2 ? count2 : count1;
+    for (SizeType i = 0; i < count; i++)
+    {
+        if (first[pos1 + i] < second[pos2 + i])
+        {
+            return ReturnType(-1);
+        }
+        if (first[pos1 + i] > second[pos2 + i])
+        {
+            return ReturnType(1);
+        }
+    }
+    if (count1 < count2)
+    {
+        return ReturnType(-1);
+    }
+    if (count1 > count2)
+    {
+        return ReturnType(1);
+    }
+    return ReturnType(0);
+}
+
+template <typename MyString>
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::SizeType pos1,
+                                                         typename MyString::SizeType count1, const typename MyString::CodeUnitType* second)
+{
+    using ReturnType = Expected<i32, ErrorCode>;
+    using SizeType = typename MyString::SizeType;
+
+    if (count1 != 0 && pos1 >= first.GetSize())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (second == nullptr)
+    {
+        return ReturnType(ErrorCode::BadInput);
+    }
+
+    count1 = first.GetSize() - pos1 > count1 ? count1 : first.GetSize() - pos1;
+    SizeType size2 = 0;
+    while (*second != 0)
+    {
+        if (first[pos1 + size2] < *second)
+        {
+            return ReturnType(-1);
+        }
+        if (first[pos1 + size2] > *second)
+        {
+            return ReturnType(1);
+        }
+        size2++;
+        second++;
+    }
+    if (count1 < size2)
+    {
+        return ReturnType(-1);
+    }
+    if (count1 > size2)
+    {
+        return ReturnType(1);
+    }
+    return ReturnType(0);
+}
+
+template <typename MyString>
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::SizeType pos1,
+                                                         typename MyString::SizeType count1, const typename MyString::CodeUnitType* second,
+                                                         typename MyString::SizeType count2)
+{
+    using ReturnType = Expected<i32, ErrorCode>;
+    using SizeType = typename MyString::SizeType;
+
+    if (count1 != 0 && pos1 >= first.GetSize())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (second == nullptr)
+    {
+        return ReturnType(ErrorCode::BadInput);
+    }
+
+    count1 = first.GetSize() - pos1 > count1 ? count1 : first.GetSize() - pos1;
+    SizeType size2 = 0;
+    while (*second != 0 && size2 < count2)
+    {
+        if (first[pos1 + size2] < *second)
+        {
+            return ReturnType(-1);
+        }
+        if (first[pos1 + size2] > *second)
+        {
+            return ReturnType(1);
+        }
+        size2++;
+        second++;
+    }
+    if (count1 < size2)
+    {
+        return ReturnType(-1);
+    }
+    if (count1 > size2)
+    {
+        return ReturnType(1);
+    }
+    return ReturnType(0);
+}
