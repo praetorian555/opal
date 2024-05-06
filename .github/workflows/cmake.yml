@@ -71,4 +71,4 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/install-dir/bin
       # Execute tests defined by the CMake configuration.
-      run: ctest -C ${{matrix.config.build_type}} --output-on-failure --verbose
+      run: opal_test.exe
