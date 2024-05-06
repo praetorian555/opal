@@ -111,6 +111,11 @@ public:
     static_assert(k_is_same_value<CodeUnitType, typename EncodingType::CodeUnitType>,
                   "Encoding code unit type needs to match string code unit type");
 
+    /**
+     * @brief Value used to represent an invalid position in the string.
+     */
+    static constexpr SizeType k_npos = static_cast<SizeType>(-1);
+
     explicit String(AllocatorT& allocator);
     String(SizeType count, CodeUnitT value, AllocatorT& allocator);
     String(const CodeUnitT* str, SizeType count, AllocatorT& allocator);
@@ -275,8 +280,43 @@ template <typename MyString>
 Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeType pos1, typename MyString::SizeType count1,
                                  const typename MyString::CodeUnitType* second, typename MyString::SizeType count2);
 
+template <typename MyString>
+Expected<typename MyString::SizeType, ErrorCode> Find(const MyString& str, const MyString& search, typename MyString::SizeType str_pos = 0);
+template <typename MyString>
+Expected<typename MyString::SizeType, ErrorCode> Find(const MyString& str, const typename MyString::CodeUnitType* search,
+                                                      typename MyString::SizeType str_pos = 0);
+template <typename MyString>
+Expected<typename MyString::SizeType, ErrorCode> Find(const MyString& str, const typename MyString::CodeUnitType* search,
+                                                      typename MyString::SizeType str_pos, typename MyString::SizeType search_count);
+template <typename MyString>
+Expected<typename MyString::SizeType, ErrorCode> Find(const MyString& str, const typename MyString::CodeUnitType& ch,
+                                                      typename MyString::SizeType str_pos = 0);
+
+template <typename MyString>
+Expected<typename MyString::SizeType, ErrorCode> ReverseFind(const MyString& str, const MyString& search,
+                                                             typename MyString::SizeType str_pos = MyString::k_npos);
+template <typename MyString>
+Expected<typename MyString::SizeType, ErrorCode> ReverseFind(const MyString& str, const typename MyString::CodeUnitType* search,
+                                                             typename MyString::SizeType str_pos = MyString::k_npos);
+template <typename MyString>
+Expected<typename MyString::SizeType, ErrorCode> ReverseFind(const MyString& str, const typename MyString::CodeUnitType* search,
+                                                             typename MyString::SizeType str_pos, typename MyString::SizeType search_count);
+template <typename MyString>
+Expected<typename MyString::SizeType, ErrorCode> ReverseFind(const MyString& str, const typename MyString::CodeUnitType& ch,
+                                                             typename MyString::SizeType str_pos = MyString::k_npos);
+
+/**
+ * Transcode a string from one encoding to another.
+ * @tparam InputString Type of the input string. Defines code unit type, encoding and allocator.
+ * @tparam OutputString Type of the output string. Defines code unit type, encoding and allocator.
+ * @param input Input string to transcode.
+ * @param output Output string to store the transcoded result.
+ * @return ErrorCode::Success if transcoding was successful, other error codes depend on the encoding implementation.
+ */
 template <typename InputString, typename OutputString>
 ErrorCode Transcode(InputString& input, OutputString& output);
+
+/** Most common String specializations. */
 
 template <typename AllocatorT>
 using StringUtf8 = String<c8, EncodingUtf8<c8>, AllocatorT>;
