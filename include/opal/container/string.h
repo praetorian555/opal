@@ -606,7 +606,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other)
     }
     if (other.m_size > 0)
     {
-        std::memcpy(m_data + m_size, other.m_size, other.m_size * sizeof(CodeUnitT));
+        std::memcpy(m_data + m_size, other.m_data, other.m_size * sizeof(CodeUnitT));
     }
     m_size += other.m_size;
     m_data[m_size] = 0;
