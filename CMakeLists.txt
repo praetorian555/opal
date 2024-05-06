@@ -55,10 +55,18 @@ set(OPAL_FILES
 )
 add_library(opal ${OPAL_FILES})
 target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_include_directories(opal PUBLIC $<INSTALL_INTERFACE:include>)
 target_link_libraries(opal PRIVATE opal_warnings)
 target_link_libraries(opal PRIVATE opal_options)
 target_compile_features(opal PUBLIC cxx_std_20)
 set_target_properties(opal PROPERTIES VERSION ${OPAL_VERSION} SOVERSION ${OPAL_VERSION_MAJOR})
+
+## Generate the export header for opal and attach it to the target
+include(GenerateExportHeader)
+generate_export_header(opal EXPORT_FILE_NAME include/opal/export.h)
+target_compile_definitions(opal PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OPAL_STATIC_DEFINE>")
+target_include_directories(opal PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+target_include_directories(opal PUBLIC "$<INSTALL_INTERFACE:include>")
 
 # Install the library
 install(TARGETS opal
@@ -66,12 +74,14 @@ install(TARGETS opal
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}  # For Windows DLL files
 )
-
-## Generate the export header for opal and attach it to the target
-include(GenerateExportHeader)
-generate_export_header(opal EXPORT_FILE_NAME include/opal/export.h)
-target_compile_definitions(opal PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OPAL_STATIC_DEFINE>")
-target_include_directories(opal PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
+        DESTINATION include
+        FILES_MATCHING PATTERN "*.h"
+        PATTERN "*.hpp")
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
+        DESTINATION include
+        FILES_MATCHING PATTERN "*.h"
+        PATTERN "*.hpp")
 
 if (OPAL_BUILD_TESTS)
     set(OPAL_TEST_FILES
