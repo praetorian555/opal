@@ -21,16 +21,37 @@ jobs:
           build_type: "Debug"
           cxx: "cl"
           generators: "Visual Studio 17 2022"
+          shared_libs: "OFF"
         - name: "MSVC Test"
           os: windows-latest
           build_type: "RelWithDebInfo"
           cxx: "cl"
           generators: "Visual Studio 17 2022"
+          shared_libs: "OFF"
         - name: "MSVC Release"
           os: windows-latest
           build_type: "Release"
           cxx: "cl"
           generators: "Visual Studio 17 2022"
+          shared_libs: "OFF"
+        - name: "MSVC Debug Shared"
+          os: windows-latest
+          build_type: "Debug"
+          cxx: "cl"
+          generators: "Visual Studio 17 2022"
+          shared_libs: "ON"
+        - name: "MSVC Test Shared"
+          os: windows-latest
+          build_type: "RelWithDebInfo"
+          cxx: "cl"
+          generators: "Visual Studio 17 2022"
+          shared_libs: "ON"
+        - name: "MSVC Release Shared"
+          os: windows-latest
+          build_type: "Release"
+          cxx: "cl"
+          generators: "Visual Studio 17 2022"
+          shared_libs: "ON"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
     steps:
@@ -38,13 +59,16 @@ jobs:
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -G "${{matrix.config.generators}}" -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF
+      run: cmake -B ${{github.workspace}}/build -G "${{matrix.config.generators}}" -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF -DOPAL_SHARED_LIBS=${{matrix.config.shared_libs}}
 
     - name: Build
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{matrix.config.build_type}}
+
+    - name: Install
+      run: cmake --install ${{github.workspace}}/build --install-prefix ${{github.workspace}}/install-dir --config ${{matrix.config.build_type}}
       
     - name: Test
-      working-directory: ${{github.workspace}}/build
+      working-directory: ${{github.workspace}}/install-dir/bin
       # Execute tests defined by the CMake configuration.
       run: ctest -C ${{matrix.config.build_type}} --output-on-failure --verbose
