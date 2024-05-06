@@ -859,7 +859,7 @@ Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEAD
 TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS_HEADER::Front() const
 {
-    using ReturnType = Expected<ReferenceType, ErrorCode>;
+    using ReturnType = Expected<ConstReferenceType, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -881,7 +881,7 @@ Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEAD
 TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS_HEADER::Back() const
 {
-    using ReturnType = Expected<ReferenceType, ErrorCode>;
+    using ReturnType = Expected<ConstReferenceType, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
