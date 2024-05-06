@@ -566,7 +566,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* str, SizeType size)
     }
     if (size > 0)
     {
-        std::memcpy(m_data + m_size * sizeof(CodeUnitType), str, size * sizeof(CodeUnitType));
+        std::memcpy(m_data + m_size, str, size * sizeof(CodeUnitType));
     }
     m_size += size;
     m_data[m_size] = 0;
@@ -631,7 +631,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, SizeType pos, SizeType
     }
     if (count > 0)
     {
-        std::memcpy(m_data + m_size, other.m_size + pos, count * sizeof(CodeUnitT));
+        std::memcpy(m_data + m_size, other.m_data + pos, count * sizeof(CodeUnitT));
     }
     m_size += count;
     m_data[m_size] = 0;

@@ -785,12 +785,47 @@ TEST_CASE("Append", "[String]")
             StringLocale<DefaultAllocator> str("Hello", g_da);
             StringLocale<DefaultAllocator> str2(" there", g_da);
             str.Append(str2);
-            REQUIRE(str.GetCapacity() == 10);
+            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetSize() == 11);
+            REQUIRE(strcmp(str.GetData(), "Hello there") == 0);
         }
-        SECTION("Empty string") {}
-        SECTION("Sub string") {}
-        SECTION("Sub string bad position") {}
-        SECTION("Sub string zero count") {}
+        SECTION("Empty string")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale<DefaultAllocator> str2("", g_da);
+            str.Append(str2);
+            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+        }
+        SECTION("Sub string")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale<DefaultAllocator> str2(" there", g_da);
+            str.Append(str2, 0, 5);
+            REQUIRE(str.GetCapacity() == 11);
+            REQUIRE(str.GetSize() == 10);
+            REQUIRE(strcmp(str.GetData(), "Hello ther") == 0);
+        }
+        SECTION("Sub string bad position")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale<DefaultAllocator> str2(" there", g_da);
+            ErrorCode err = str.Append(str2, 6, 5);
+            REQUIRE(err == ErrorCode::OutOfBounds);
+            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+        }
+        SECTION("Sub string zero count")
+        {
+            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale<DefaultAllocator> str2(" there", g_da);
+            str.Append(str2, 0, 0);
+            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+        }
     }
     SECTION("Long string")
     {
@@ -886,11 +921,51 @@ TEST_CASE("Append", "[String]")
             REQUIRE(str.GetSize() == 574);
             REQUIRE(strcmp(str.GetData(), ref) == 0);
         }
-        SECTION("String") {}
-        SECTION("Empty string") {}
-        SECTION("Sub string") {}
-        SECTION("Sub string bad position") {}
-        SECTION("Sub string zero count") {}
+        SECTION("String")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale<DefaultAllocator> str2(" there", g_da);
+            str.Append(str2);
+            REQUIRE(str.GetCapacity() == 581);
+            REQUIRE(str.GetSize() == 580);
+            REQUIRE(strcmp(str.GetData(), ref_final) == 0);
+        }
+        SECTION("Empty string")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale<DefaultAllocator> str2("", g_da);
+            str.Append(str2);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 574);
+            REQUIRE(strcmp(str.GetData(), ref) == 0);
+        }
+        SECTION("Sub string")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale<DefaultAllocator> str2(" there", g_da);
+            str.Append(str2, 0, 5);
+            REQUIRE(str.GetCapacity() == 580);
+            REQUIRE(str.GetSize() == 579);
+        }
+        SECTION("Sub string bad position")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale<DefaultAllocator> str2(" there", g_da);
+            ErrorCode err = str.Append(str2, 6, 5);
+            REQUIRE(err == ErrorCode::OutOfBounds);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 574);
+            REQUIRE(strcmp(str.GetData(), ref) == 0);
+        }
+        SECTION("Sub string zero count")
+        {
+            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale<DefaultAllocator> str2(" there", g_da);
+            str.Append(str2, 0, 0);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetSize() == 574);
+            REQUIRE(strcmp(str.GetData(), ref) == 0);
+        }
     }
 }
 
