@@ -1,6 +1,5 @@
 #pragma once
 
-#include <cstring>
 #include <initializer_list>
 
 #include "opal/allocator.h"
@@ -446,9 +445,9 @@ CLASS_HEADER::Array(const std::initializer_list<T>& init_list, Allocator* alloca
         m_capacity = count;
     }
     m_size = count;
-    if (count > 0)
+    for (SizeType i = 0; i < m_size; i++)
     {
-        std::memcpy(m_data, init_list.begin(), m_size * sizeof(T));  // Copy elements into managed memory
+        new (&m_data[i]) T(*(init_list.begin() + i));  // Invokes copy constructor on allocated memory
     }
 }
 
