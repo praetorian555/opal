@@ -31,6 +31,16 @@ void Opal::DefaultAllocator::Free(void* ptr)
     _aligned_free(ptr);
 }
 
+void* Opal::MallocAllocator::Alloc(size_t size, size_t alignment)
+{
+    return _aligned_malloc(size, alignment);
+}
+
+void Opal::MallocAllocator::Free(void* ptr)
+{
+    _aligned_free(ptr);
+}
+
 Opal::LinearAllocator::LinearAllocator(u64 size)
 {
     m_memory = _aligned_malloc(size, 16);

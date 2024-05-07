@@ -7,41 +7,68 @@
 namespace Opal
 {
 
+struct OPAL_EXPORT AllocatorBase
+{
+    virtual ~AllocatorBase() = default;
+    virtual void* Alloc(u64 size, u64 alignment) = 0;
+    virtual void Free(void* ptr) = 0;
+};
+
 /**
  * Stateless allocator that uses system's malloc and free.
  */
-struct OPAL_EXPORT DefaultAllocator
+struct OPAL_EXPORT DefaultAllocator final : public AllocatorBase
 {
     DefaultAllocator() = default;
     DefaultAllocator(const DefaultAllocator& other) = default;
     DefaultAllocator(DefaultAllocator&& other) = default;
 
-    ~DefaultAllocator() = default;
+    ~DefaultAllocator() override = default;
 
     DefaultAllocator& operator=(const DefaultAllocator& other) = default;
     DefaultAllocator& operator=(DefaultAllocator&& other) = default;
 
     bool operator==(const DefaultAllocator& other) const;
 
-    void* Alloc(size_t size, size_t alignment);
-    void Free(void* ptr);
+    void* Alloc(u64 size, u64 alignment) override;
+    void Free(void* ptr) override;
 };
 
-struct OPAL_EXPORT LinearAllocator
+/**
+ * Stateless allocator that uses system's malloc and free API.
+ */
+struct MallocAllocator final : public AllocatorBase
+{
+    MallocAllocator() = default;
+    MallocAllocator(const MallocAllocator& other) = default;
+    MallocAllocator(MallocAllocator&& other) = default;
+
+    ~MallocAllocator() override = default;
+
+    MallocAllocator& operator=(const MallocAllocator& other) = default;
+    MallocAllocator& operator=(MallocAllocator&& other) = default;
+
+    bool operator==(const MallocAllocator&) const { return true; }
+
+    void* Alloc(u64 size, u64 alignment) override;
+    void Free(void* ptr) override;
+};
+
+struct OPAL_EXPORT LinearAllocator final : public AllocatorBase
 {
     explicit LinearAllocator(u64 size);
     LinearAllocator(const LinearAllocator& other) = delete;
     LinearAllocator(LinearAllocator&& other) = delete;
 
-    ~LinearAllocator();
+    ~LinearAllocator() override;
 
     LinearAllocator& operator=(const LinearAllocator& other) = default;
     LinearAllocator& operator=(LinearAllocator&& other) = default;
 
     bool operator==(const LinearAllocator& other) const;
 
-    void* Alloc(size_t size, size_t alignment = 8);
-    void Free(void* ptr);
+    void* Alloc(u64 size, u64 alignment) override;
+    void Free(void* ptr) override;
     void Reset();
 
 private:
