@@ -122,7 +122,7 @@ public:
     Span(InputIt first, InputIt last);
 
     template <u64 N>
-    explicit Span(T (&array)[N]);
+    Span(T (&array)[N]);
 
     template <typename Container>
         requires Range<Container> && SameAs<T, typename Container::value_type>
