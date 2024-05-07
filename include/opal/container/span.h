@@ -113,6 +113,10 @@ public:
     template <u64 N>
     explicit Span(T (&array)[N]);
 
+    template <typename Container>
+        requires Range<Container> && SameAs<T, typename Container::value_type>
+    Span(Container& container);
+
     Span(const Span& other) = default;
     Span(Span&& other) noexcept = default;
 
@@ -190,6 +194,25 @@ TEMPLATE_HEADER
 template <Opal::u64 N>
 CLASS_HEADER::Span(T (&array)[N]) : m_data(array), m_size(N)
 {
+}
+
+TEMPLATE_HEADER
+template <typename Container>
+    requires Opal::Range<Container> && Opal::SameAs<T, typename Container::value_type>
+CLASS_HEADER::Span(Container& container)
+{
+    // Check if underlying array is contiguous
+    u8* start_ptr = reinterpret_cast<u8*>(&(*container.begin()));
+    u8* end_ptr = reinterpret_cast<u8*>(&(*container.end()));
+    SizeType count = container.end() - container.begin();
+    SizeType size = count * sizeof(T);
+    if (start_ptr + size != end_ptr)
+    {
+        return;
+    }
+
+    m_data = &(*container.begin());
+    m_size = container.end() - container.begin();
 }
 
 TEMPLATE_HEADER

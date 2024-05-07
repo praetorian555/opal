@@ -134,4 +134,10 @@ concept RandomAccessIterator = BidirectionalIterator<I> && requires(I i, I j, ty
     { i >= j } -> SameAs<bool>;
 };
 
+template <typename T>
+concept Range = requires(T& t) {
+    { t.begin() } -> RandomAccessIterator;
+    { t.end() } -> RandomAccessIterator;
+};
+
 }  // namespace Opal

@@ -56,6 +56,13 @@ TEST_CASE("Construction", "[Span]")
             REQUIRE(span.GetSize() == 5);
         }
     }
+    SECTION("From other container")
+    {
+        Array<i32> array(5);
+        Span<int> span(array);
+        REQUIRE(span.GetData() == array.GetData());
+        REQUIRE(span.GetSize() == 5);
+    }
 }
 
 TEST_CASE("Equality", "[Span]")
