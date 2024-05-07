@@ -62,201 +62,76 @@ struct NonPod
 
 TEST_CASE("Construction with POD data", "[Array]")
 {
+    SECTION("Default constructor")
+    {
+        Array<i32> int_arr;
+        REQUIRE(int_arr.GetCapacity() == 0);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() == nullptr);
+        REQUIRE(int_arr.GetAllocator() == nullptr);
+    }
+    SECTION("Default constructor with allocator")
+    {
+        MallocAllocator allocator;
+        Array<i32> int_arr(&allocator);
+        REQUIRE(int_arr.GetCapacity() == 0);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() == nullptr);
+        REQUIRE(int_arr.GetAllocator() == &allocator);
+    }
     SECTION("Size constructor")
     {
-        SECTION("Initial size smaller then default capacity")
-        {
-            Array<i32> int_arr(3);
-            REQUIRE(int_arr.GetCapacity() == 4);
-            REQUIRE(int_arr.GetSize() == 3);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr.GetData()[0] == 0);
-            REQUIRE(int_arr.GetData()[1] == 0);
-            REQUIRE(int_arr.GetData()[2] == 0);
-        }
-        SECTION("Initial size larger then default capacity")
-        {
-            Array<i32> int_arr(5);
-            REQUIRE(int_arr.GetCapacity() == 5);
-            REQUIRE(int_arr.GetSize() == 5);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr.GetData()[0] == 0);
-            REQUIRE(int_arr.GetData()[1] == 0);
-            REQUIRE(int_arr.GetData()[2] == 0);
-            REQUIRE(int_arr.GetData()[3] == 0);
-            REQUIRE(int_arr.GetData()[4] == 0);
-        }
+        Array<i32> int_arr(5);
+        REQUIRE(int_arr.GetCapacity() == 5);
+        REQUIRE(int_arr.GetSize() == 5);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 0);
+        REQUIRE(int_arr.GetData()[1] == 0);
+        REQUIRE(int_arr.GetData()[2] == 0);
+        REQUIRE(int_arr.GetData()[3] == 0);
+        REQUIRE(int_arr.GetData()[4] == 0);
+        REQUIRE(int_arr.GetAllocator() == nullptr);
+    }
+    SECTION("Size constructor with allocator")
+    {
+        MallocAllocator allocator;
+        Array<i32> int_arr(5, &allocator);
+        REQUIRE(int_arr.GetCapacity() == 5);
+        REQUIRE(int_arr.GetSize() == 5);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 0);
+        REQUIRE(int_arr.GetData()[1] == 0);
+        REQUIRE(int_arr.GetData()[2] == 0);
+        REQUIRE(int_arr.GetData()[3] == 0);
+        REQUIRE(int_arr.GetData()[4] == 0);
+        REQUIRE(int_arr.GetAllocator() == &allocator);
     }
     SECTION("Size and default value constructor")
     {
         Array<i32> int_arr(3, 42);
-        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 3);
         REQUIRE(int_arr.GetData() != nullptr);
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetData()[1] == 42);
         REQUIRE(int_arr.GetData()[2] == 42);
+        REQUIRE(int_arr.GetAllocator() == nullptr);
     }
-    SECTION("Copy constructor")
+    SECTION("Size and default value constructor with allocator")
     {
-        Array<i32> int_arr(3, 42);
-        Array<i32> int_arr_copy(int_arr);
-        REQUIRE(int_arr.GetCapacity() == 4);
+        MallocAllocator allocator;
+        Array<i32> int_arr(3, 42, &allocator);
+        REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 3);
         REQUIRE(int_arr.GetData() != nullptr);
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetData()[1] == 42);
         REQUIRE(int_arr.GetData()[2] == 42);
-        REQUIRE(int_arr_copy.GetCapacity() == 4);
-        REQUIRE(int_arr_copy.GetSize() == 3);
-        REQUIRE(int_arr_copy.GetData() != nullptr);
-        REQUIRE(int_arr_copy.GetData()[0] == 42);
-        REQUIRE(int_arr_copy.GetData()[1] == 42);
-        REQUIRE(int_arr_copy.GetData()[2] == 42);
+        REQUIRE(int_arr.GetAllocator() == &allocator);
     }
-    SECTION("Copy constructor with allocator")
+    SECTION("Pointer and size")
     {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(3, 42);
-        Array<i32> int_arr_copy(int_arr, allocator);
-        REQUIRE(int_arr.GetCapacity() == 4);
-        REQUIRE(int_arr.GetSize() == 3);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 42);
-        REQUIRE(int_arr.GetData()[1] == 42);
-        REQUIRE(int_arr.GetData()[2] == 42);
-        REQUIRE(int_arr_copy.GetCapacity() == 4);
-        REQUIRE(int_arr_copy.GetSize() == 3);
-        REQUIRE(int_arr_copy.GetData() != nullptr);
-        REQUIRE(int_arr_copy.GetData()[0] == 42);
-        REQUIRE(int_arr_copy.GetData()[1] == 42);
-        REQUIRE(int_arr_copy.GetData()[2] == 42);
-    }
-    SECTION("Copy constructor with move allocator")
-    {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(3, 42);
-        Array<i32> int_arr_copy(int_arr, Move(allocator));
-        REQUIRE(int_arr.GetCapacity() == 4);
-        REQUIRE(int_arr.GetSize() == 3);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 42);
-        REQUIRE(int_arr.GetData()[1] == 42);
-        REQUIRE(int_arr.GetData()[2] == 42);
-        REQUIRE(int_arr_copy.GetCapacity() == 4);
-        REQUIRE(int_arr_copy.GetSize() == 3);
-        REQUIRE(int_arr_copy.GetData() != nullptr);
-        REQUIRE(int_arr_copy.GetData()[0] == 42);
-        REQUIRE(int_arr_copy.GetData()[1] == 42);
-        REQUIRE(int_arr_copy.GetData()[2] == 42);
-    }
-    SECTION("Move constructor")
-    {
-        Array<i32> int_arr(3, 42);
-        Array<i32> int_arr_copy(std::move(int_arr));
-        REQUIRE(int_arr.GetCapacity() == 0);
-        REQUIRE(int_arr.GetSize() == 0);
-        REQUIRE(int_arr.GetData() == nullptr);
-        REQUIRE(int_arr_copy.GetCapacity() == 4);
-        REQUIRE(int_arr_copy.GetSize() == 3);
-        REQUIRE(int_arr_copy.GetData() != nullptr);
-        REQUIRE(int_arr_copy.GetData()[0] == 42);
-        REQUIRE(int_arr_copy.GetData()[1] == 42);
-        REQUIRE(int_arr_copy.GetData()[2] == 42);
-    }
-    SECTION("Move constructor with allocator")
-    {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(3, 42);
-        Array<i32> int_arr_copy(Move(int_arr), allocator);
-        REQUIRE(int_arr.GetCapacity() == 0);
-        REQUIRE(int_arr.GetSize() == 0);
-        REQUIRE(int_arr.GetData() == nullptr);
-        REQUIRE(int_arr_copy.GetCapacity() == 4);
-        REQUIRE(int_arr_copy.GetSize() == 3);
-        REQUIRE(int_arr_copy.GetData() != nullptr);
-        REQUIRE(int_arr_copy.GetData()[0] == 42);
-        REQUIRE(int_arr_copy.GetData()[1] == 42);
-        REQUIRE(int_arr_copy.GetData()[2] == 42);
-    }
-    SECTION("Move constructor with move allocator")
-    {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(3, 42);
-        Array<i32> int_arr_copy(Move(int_arr), Move(allocator));
-        REQUIRE(int_arr.GetCapacity() == 0);
-        REQUIRE(int_arr.GetSize() == 0);
-        REQUIRE(int_arr.GetData() == nullptr);
-        REQUIRE(int_arr_copy.GetCapacity() == 4);
-        REQUIRE(int_arr_copy.GetSize() == 3);
-        REQUIRE(int_arr_copy.GetData() != nullptr);
-        REQUIRE(int_arr_copy.GetData()[0] == 42);
-        REQUIRE(int_arr_copy.GetData()[1] == 42);
-        REQUIRE(int_arr_copy.GetData()[2] == 42);
-    }
-    SECTION("Allocator default constructor")
-    {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(allocator);
-        REQUIRE(int_arr.GetCapacity() == 4);
-        REQUIRE(int_arr.GetSize() == 0);
-        REQUIRE(int_arr.GetData() != nullptr);
-    }
-    SECTION("Allocator move default constructor")
-    {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(Move(allocator));
-        REQUIRE(int_arr.GetCapacity() == 4);
-        REQUIRE(int_arr.GetSize() == 0);
-        REQUIRE(int_arr.GetData() != nullptr);
-    }
-    SECTION("Allocator size constructor")
-    {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(3, allocator);
-        REQUIRE(int_arr.GetCapacity() == 4);
-        REQUIRE(int_arr.GetSize() == 3);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 0);
-        REQUIRE(int_arr.GetData()[1] == 0);
-        REQUIRE(int_arr.GetData()[2] == 0);
-    }
-    SECTION("Allocator move size constructor")
-    {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(3, Move(allocator));
-        REQUIRE(int_arr.GetCapacity() == 4);
-        REQUIRE(int_arr.GetSize() == 3);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 0);
-        REQUIRE(int_arr.GetData()[1] == 0);
-        REQUIRE(int_arr.GetData()[2] == 0);
-    }
-    SECTION("Allocator size and default value constructor")
-    {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(3, 42, allocator);
-        REQUIRE(int_arr.GetCapacity() == 4);
-        REQUIRE(int_arr.GetSize() == 3);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 42);
-        REQUIRE(int_arr.GetData()[1] == 42);
-        REQUIRE(int_arr.GetData()[2] == 42);
-    }
-    SECTION("Allocator move size and default value constructor")
-    {
-        DefaultAllocator allocator;
-        Array<i32> int_arr(3, 42, Move(allocator));
-        REQUIRE(int_arr.GetCapacity() == 4);
-        REQUIRE(int_arr.GetSize() == 3);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 42);
-        REQUIRE(int_arr.GetData()[1] == 42);
-        REQUIRE(int_arr.GetData()[2] == 42);
-    }
-    SECTION("Pointer and size constructor")
-    {
-        i32* data = new i32[3]{42, 43, 44};
+        i32 data[] = {42, 43, 44};
         Array<i32> int_arr(data, 3);
         REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 3);
@@ -264,33 +139,75 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetData()[1] == 43);
         REQUIRE(int_arr.GetData()[2] == 44);
-        delete[] data;
+        REQUIRE(int_arr.GetAllocator() == nullptr);
     }
     SECTION("Pointer, size and allocator constructor")
     {
-        i32* data = new i32[3]{42, 43, 44};
-        DefaultAllocator allocator;
-        Array<i32> int_arr(data, 3, allocator);
+        MallocAllocator allocator;
+        i32 data[] = {42, 43, 44};
+        Array<i32> int_arr(data, 3, &allocator);
         REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 3);
         REQUIRE(int_arr.GetData() != nullptr);
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetData()[1] == 43);
         REQUIRE(int_arr.GetData()[2] == 44);
-        delete[] data;
+        REQUIRE(int_arr.GetAllocator() == &allocator);
     }
-    SECTION("Pointer, size and move allocator constructor")
+    SECTION("Copy constructor")
     {
-        i32* data = new i32[3]{42, 43, 44};
-        DefaultAllocator allocator;
-        Array<i32> int_arr(data, 3, Move(allocator));
+        Array<i32> int_arr(3, 42);
+        Array<i32> int_arr_copy(int_arr);
         REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 3);
         REQUIRE(int_arr.GetData() != nullptr);
         REQUIRE(int_arr.GetData()[0] == 42);
-        REQUIRE(int_arr.GetData()[1] == 43);
-        REQUIRE(int_arr.GetData()[2] == 44);
-        delete[] data;
+        REQUIRE(int_arr.GetData()[1] == 42);
+        REQUIRE(int_arr.GetData()[2] == 42);
+        REQUIRE(int_arr.GetAllocator() == nullptr);
+        REQUIRE(int_arr_copy.GetCapacity() == 3);
+        REQUIRE(int_arr_copy.GetSize() == 3);
+        REQUIRE(int_arr_copy.GetData() != nullptr);
+        REQUIRE(int_arr_copy.GetData()[0] == 42);
+        REQUIRE(int_arr_copy.GetData()[1] == 42);
+        REQUIRE(int_arr_copy.GetData()[2] == 42);
+        REQUIRE(int_arr_copy.GetAllocator() == nullptr);
+    }
+    SECTION("Copy constructor with allocator")
+    {
+        MallocAllocator allocator;
+        Array<i32> int_arr(3, 42);
+        Array<i32> int_arr_copy(int_arr, &allocator);
+        REQUIRE(int_arr.GetCapacity() == 3);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetData()[1] == 42);
+        REQUIRE(int_arr.GetData()[2] == 42);
+        REQUIRE(int_arr.GetAllocator() == nullptr);
+        REQUIRE(int_arr_copy.GetCapacity() == 3);
+        REQUIRE(int_arr_copy.GetSize() == 3);
+        REQUIRE(int_arr_copy.GetData() != nullptr);
+        REQUIRE(int_arr_copy.GetData()[0] == 42);
+        REQUIRE(int_arr_copy.GetData()[1] == 42);
+        REQUIRE(int_arr_copy.GetData()[2] == 42);
+        REQUIRE(int_arr_copy.GetAllocator() == &allocator);
+    }
+    SECTION("Move constructor")
+    {
+        MallocAllocator allocator;
+        Array<i32> int_arr(3, 42, &allocator);
+        Array<i32> int_arr_copy(Move(int_arr));
+        REQUIRE(int_arr.GetCapacity() == 0);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() == nullptr);
+        REQUIRE(int_arr_copy.GetCapacity() == 3);
+        REQUIRE(int_arr_copy.GetSize() == 3);
+        REQUIRE(int_arr_copy.GetData() != nullptr);
+        REQUIRE(int_arr_copy.GetData()[0] == 42);
+        REQUIRE(int_arr_copy.GetData()[1] == 42);
+        REQUIRE(int_arr_copy.GetData()[2] == 42);
+        REQUIRE(int_arr_copy.GetAllocator() == &allocator);
     }
     SECTION("Initializer list")
     {
@@ -310,6 +227,16 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData() != nullptr);
         REQUIRE(int_arr.GetData()[0] == 42);
     }
+    SECTION("Initializer list with allocator")
+    {
+        MallocAllocator allocator;
+        Array<i32> int_arr{{42}, &allocator};
+        REQUIRE(int_arr.GetCapacity() == 1);
+        REQUIRE(int_arr.GetSize() == 1);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 42);
+        REQUIRE(int_arr.GetAllocator() == &allocator);
+    }
 }
 
 TEST_CASE("Construction with non-POD data", "[Array]")
@@ -322,7 +249,7 @@ TEST_CASE("Construction with non-POD data", "[Array]")
             g_destroy_call_count = 0;
             {
                 Array<NonPod> non_pod_arr(3);
-                REQUIRE(non_pod_arr.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetCapacity() == 3);
                 REQUIRE(non_pod_arr.GetSize() == 3);
                 REQUIRE(non_pod_arr.GetData() != nullptr);
                 REQUIRE(*non_pod_arr.GetData()[0].ptr == 5);
@@ -360,7 +287,7 @@ TEST_CASE("Construction with non-POD data", "[Array]")
         {
             NonPod default_value(42);
             Array<NonPod> non_pod_arr(3, default_value);
-            REQUIRE(non_pod_arr.GetCapacity() == 4);
+            REQUIRE(non_pod_arr.GetCapacity() == 3);
             REQUIRE(non_pod_arr.GetSize() == 3);
             REQUIRE(non_pod_arr.GetData() != nullptr);
             REQUIRE(*non_pod_arr.GetData()[0].ptr == 42);
@@ -381,13 +308,13 @@ TEST_CASE("Construction with non-POD data", "[Array]")
         {
             Array<NonPod> non_pod_arr(3, NonPod(42));
             Array<NonPod> non_pod_arr_copy(non_pod_arr);
-            REQUIRE(non_pod_arr.GetCapacity() == 4);
+            REQUIRE(non_pod_arr.GetCapacity() == 3);
             REQUIRE(non_pod_arr.GetSize() == 3);
             REQUIRE(non_pod_arr.GetData() != nullptr);
             REQUIRE(*non_pod_arr.GetData()[0].ptr == 42);
             REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
             REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
-            REQUIRE(non_pod_arr_copy.GetCapacity() == 4);
+            REQUIRE(non_pod_arr_copy.GetCapacity() == 3);
             REQUIRE(non_pod_arr_copy.GetSize() == 3);
             REQUIRE(non_pod_arr_copy.GetData() != nullptr);
             REQUIRE(*non_pod_arr_copy.GetData()[0].ptr == 42);
@@ -411,7 +338,7 @@ TEST_CASE("Construction with non-POD data", "[Array]")
             REQUIRE(non_pod_arr.GetCapacity() == 0);
             REQUIRE(non_pod_arr.GetSize() == 0);
             REQUIRE(non_pod_arr.GetData() == nullptr);
-            REQUIRE(non_pod_arr_copy.GetCapacity() == 4);
+            REQUIRE(non_pod_arr_copy.GetCapacity() == 3);
             REQUIRE(non_pod_arr_copy.GetSize() == 3);
             REQUIRE(non_pod_arr_copy.GetData() != nullptr);
             REQUIRE(*non_pod_arr_copy.GetData()[0].ptr == 42);
@@ -433,7 +360,7 @@ TEST_CASE("Copy assignment", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             int_arr = int_arr;
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr.GetData()[0] == 42);
@@ -445,12 +372,12 @@ TEST_CASE("Copy assignment", "[Array]")
             Array<i32> int_arr;
             Array<i32> int_arr_copy;
             int_arr_copy = int_arr;
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 0);
             REQUIRE(int_arr.GetSize() == 0);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr_copy.GetCapacity() == 4);
+            REQUIRE(int_arr.GetData() == nullptr);
+            REQUIRE(int_arr_copy.GetCapacity() == 0);
             REQUIRE(int_arr_copy.GetSize() == 0);
-            REQUIRE(int_arr_copy.GetData() != nullptr);
+            REQUIRE(int_arr_copy.GetData() == nullptr);
         }
         SECTION("Receiver array has less allocated memory")
         {
@@ -479,7 +406,7 @@ TEST_CASE("Copy assignment", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32> int_arr_copy(5, 25);
             int_arr_copy = int_arr;
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr.GetData()[0] == 42);
@@ -505,12 +432,12 @@ TEST_CASE("Copy assignment", "[Array]")
                 Array<NonPod> non_pod_arr;
                 Array<NonPod> non_pod_arr_copy;
                 non_pod_arr_copy = non_pod_arr;
-                REQUIRE(non_pod_arr.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetCapacity() == 0);
                 REQUIRE(non_pod_arr.GetSize() == 0);
-                REQUIRE(non_pod_arr.GetData() != nullptr);
-                REQUIRE(non_pod_arr_copy.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetData() == nullptr);
+                REQUIRE(non_pod_arr_copy.GetCapacity() == 0);
                 REQUIRE(non_pod_arr_copy.GetSize() == 0);
-                REQUIRE(non_pod_arr_copy.GetData() != nullptr);
+                REQUIRE(non_pod_arr_copy.GetData() == nullptr);
                 REQUIRE(g_value_call_count == 0);
                 REQUIRE(g_copy_call_count == 0);
                 REQUIRE(g_copy_assign_call_count == 0);
@@ -559,7 +486,7 @@ TEST_CASE("Copy assignment", "[Array]")
                 Array<NonPod> non_pod_arr(3, NonPod(42));
                 Array<NonPod> non_pod_arr_copy(5, NonPod(24));
                 non_pod_arr_copy = non_pod_arr;
-                REQUIRE(non_pod_arr.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetCapacity() == 3);
                 REQUIRE(non_pod_arr.GetSize() == 3);
                 REQUIRE(non_pod_arr.GetData() != nullptr);
                 REQUIRE(*non_pod_arr.GetData()[0].ptr == 42);
@@ -588,7 +515,7 @@ TEST_CASE("Move assignment", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             int_arr = std::move(int_arr);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr.GetData()[0] == 42);
@@ -603,9 +530,9 @@ TEST_CASE("Move assignment", "[Array]")
             REQUIRE(int_arr.GetCapacity() == 0);
             REQUIRE(int_arr.GetSize() == 0);
             REQUIRE(int_arr.GetData() == nullptr);
-            REQUIRE(int_arr_copy.GetCapacity() == 4);
+            REQUIRE(int_arr_copy.GetCapacity() == 0);
             REQUIRE(int_arr_copy.GetSize() == 0);
-            REQUIRE(int_arr_copy.GetData() != nullptr);
+            REQUIRE(int_arr_copy.GetData() == nullptr);
         }
         SECTION("Move non-empty array")
         {
@@ -615,7 +542,7 @@ TEST_CASE("Move assignment", "[Array]")
             REQUIRE(int_arr.GetCapacity() == 0);
             REQUIRE(int_arr.GetSize() == 0);
             REQUIRE(int_arr.GetData() == nullptr);
-            REQUIRE(int_arr_copy.GetCapacity() == 4);
+            REQUIRE(int_arr_copy.GetCapacity() == 3);
             REQUIRE(int_arr_copy.GetSize() == 3);
             REQUIRE(int_arr_copy.GetData() != nullptr);
             REQUIRE(int_arr_copy.GetData()[0] == 42);
@@ -638,9 +565,9 @@ TEST_CASE("Move assignment", "[Array]")
                 REQUIRE(non_pod_arr.GetCapacity() == 0);
                 REQUIRE(non_pod_arr.GetSize() == 0);
                 REQUIRE(non_pod_arr.GetData() == nullptr);
-                REQUIRE(non_pod_arr_copy.GetCapacity() == 4);
+                REQUIRE(non_pod_arr_copy.GetCapacity() == 0);
                 REQUIRE(non_pod_arr_copy.GetSize() == 0);
-                REQUIRE(non_pod_arr_copy.GetData() != nullptr);
+                REQUIRE(non_pod_arr_copy.GetData() == nullptr);
                 REQUIRE(g_value_call_count == 0);
                 REQUIRE(g_copy_call_count == 0);
                 REQUIRE(g_copy_assign_call_count == 0);
@@ -660,7 +587,7 @@ TEST_CASE("Move assignment", "[Array]")
                 REQUIRE(non_pod_arr.GetCapacity() == 0);
                 REQUIRE(non_pod_arr.GetSize() == 0);
                 REQUIRE(non_pod_arr.GetData() == nullptr);
-                REQUIRE(non_pod_arr_copy.GetCapacity() == 4);
+                REQUIRE(non_pod_arr_copy.GetCapacity() == 3);
                 REQUIRE(non_pod_arr_copy.GetSize() == 3);
                 REQUIRE(non_pod_arr_copy.GetData() != nullptr);
                 REQUIRE(*non_pod_arr_copy.GetData()[0].ptr == 42);
@@ -739,7 +666,7 @@ TEST_CASE("Assign with POD data", "[Array]")
     {
         Array<i32> int_arr(3, 42);
         int_arr.Assign(0, 25);
-        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 0);
         REQUIRE(int_arr.GetData() != nullptr);
     }
@@ -764,7 +691,7 @@ TEST_CASE("Assign with POD data", "[Array]")
         std::array<i32, 5> values = {25, 26, 27, 28, 29};
         ErrorCode err = int_arr.AssignIt(values.end(), values.begin());
         REQUIRE(err == ErrorCode::BadInput);
-        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 3);
         REQUIRE(int_arr.GetData() != nullptr);
         REQUIRE(int_arr.GetData()[0] == 42);
@@ -777,7 +704,7 @@ TEST_CASE("Assign with POD data", "[Array]")
         std::array<i32, 5> values = {25, 26, 27, 28, 29};
         ErrorCode err = int_arr.AssignIt(values.begin(), values.begin());
         REQUIRE(err == ErrorCode::Success);
-        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 0);
         REQUIRE(int_arr.GetData() != nullptr);
     }
@@ -1117,7 +1044,7 @@ TEST_CASE("Resize", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             int_arr.Resize(3);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr.GetData()[0] == 42);
@@ -1174,7 +1101,7 @@ TEST_CASE("Resize", "[Array]")
             {
                 Array<NonPod> non_pod_arr(3, NonPod(42));
                 non_pod_arr.Resize(3);
-                REQUIRE(non_pod_arr.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetCapacity() == 3);
                 REQUIRE(non_pod_arr.GetSize() == 3);
                 REQUIRE(non_pod_arr.GetData() != nullptr);
                 REQUIRE(*non_pod_arr.GetData()[0].ptr == 42);
@@ -1263,7 +1190,7 @@ TEST_CASE("Clear", "[Array]")
     {
         Array<i32> int_arr(3, 42);
         int_arr.Clear();
-        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 0);
         REQUIRE(int_arr.GetData() != nullptr);
     }
@@ -1276,7 +1203,7 @@ TEST_CASE("Clear", "[Array]")
         {
             Array<NonPod> non_pod_arr(3, NonPod(42));
             non_pod_arr.Clear();
-            REQUIRE(non_pod_arr.GetCapacity() == 4);
+            REQUIRE(non_pod_arr.GetCapacity() == 3);
             REQUIRE(non_pod_arr.GetSize() == 0);
             REQUIRE(non_pod_arr.GetData() != nullptr);
             REQUIRE(g_value_call_count == 1);
@@ -1298,7 +1225,7 @@ TEST_CASE("Push back", "[Array]")
                 Array<i32> int_arr(3, 42);
                 const i32 val = 25;
                 int_arr.PushBack(val);
-                REQUIRE(int_arr.GetCapacity() == 4);
+                REQUIRE(int_arr.GetCapacity() == 5);
                 REQUIRE(int_arr.GetSize() == 4);
                 REQUIRE(int_arr.GetData() != nullptr);
                 REQUIRE(int_arr[0] == 42);
@@ -1327,7 +1254,7 @@ TEST_CASE("Push back", "[Array]")
             {
                 Array<i32> int_arr(3, 42);
                 int_arr.PushBack(25);
-                REQUIRE(int_arr.GetCapacity() == 4);
+                REQUIRE(int_arr.GetCapacity() == 5);
                 REQUIRE(int_arr.GetSize() == 4);
                 REQUIRE(int_arr.GetData() != nullptr);
                 REQUIRE(int_arr[0] == 42);
@@ -1364,7 +1291,7 @@ TEST_CASE("Push back", "[Array]")
                     Array<NonPod> non_pod_arr(3, NonPod(42));
                     const NonPod val(25);
                     non_pod_arr.PushBack(val);
-                    REQUIRE(non_pod_arr.GetCapacity() == 4);
+                    REQUIRE(non_pod_arr.GetCapacity() == 5);
                     REQUIRE(non_pod_arr.GetSize() == 4);
                     REQUIRE(non_pod_arr.GetData() != nullptr);
                     REQUIRE(*non_pod_arr[0].ptr == 42);
@@ -1413,7 +1340,7 @@ TEST_CASE("Push back", "[Array]")
                 {
                     Array<NonPod> non_pod_arr(3, NonPod(42));
                     non_pod_arr.PushBack(NonPod(25));
-                    REQUIRE(non_pod_arr.GetCapacity() == 4);
+                    REQUIRE(non_pod_arr.GetCapacity() == 5);
                     REQUIRE(non_pod_arr.GetSize() == 4);
                     REQUIRE(non_pod_arr.GetData() != nullptr);
                     REQUIRE(*non_pod_arr[0].ptr == 42);
@@ -1461,15 +1388,15 @@ TEST_CASE("Pop back", "[Array]")
         {
             Array<i32> int_arr;
             int_arr.PopBack();
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 0);
             REQUIRE(int_arr.GetSize() == 0);
-            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr.GetData() == nullptr);
         }
         SECTION("Non-empty array")
         {
             Array<i32> int_arr(3, 42);
             int_arr.PopBack();
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1487,9 +1414,9 @@ TEST_CASE("Pop back", "[Array]")
             {
                 Array<NonPod> non_pod_arr;
                 non_pod_arr.PopBack();
-                REQUIRE(non_pod_arr.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetCapacity() == 0);
                 REQUIRE(non_pod_arr.GetSize() == 0);
-                REQUIRE(non_pod_arr.GetData() != nullptr);
+                REQUIRE(non_pod_arr.GetData() == nullptr);
                 REQUIRE(g_value_call_count == 0);
                 REQUIRE(g_copy_call_count == 0);
                 REQUIRE(g_copy_assign_call_count == 0);
@@ -1505,7 +1432,7 @@ TEST_CASE("Pop back", "[Array]")
             {
                 Array<NonPod> non_pod_arr(3, NonPod(42));
                 non_pod_arr.PopBack();
-                REQUIRE(non_pod_arr.GetCapacity() == 4);
+                REQUIRE(non_pod_arr.GetCapacity() == 3);
                 REQUIRE(non_pod_arr.GetSize() == 2);
                 REQUIRE(non_pod_arr.GetData() != nullptr);
                 REQUIRE(*non_pod_arr[0].ptr == 42);
@@ -1851,7 +1778,7 @@ TEST_CASE("Insert", "[Array]")
             Array<i32> int_arr(3, 42);
             i32 val = 25;
             Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin() + 1, val).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1863,7 +1790,7 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin() + 1, 25).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1876,7 +1803,7 @@ TEST_CASE("Insert", "[Array]")
             Array<i32> int_arr(3, 42);
             i32 val = 25;
             Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstEnd(), val).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1888,7 +1815,7 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstEnd(), 25).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1902,7 +1829,7 @@ TEST_CASE("Insert", "[Array]")
             i32 val = 25;
             ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, val).GetError();
             REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1914,7 +1841,7 @@ TEST_CASE("Insert", "[Array]")
             Array<i32> int_arr(3, 42);
             ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, 25).GetError();
             REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1929,7 +1856,7 @@ TEST_CASE("Insert", "[Array]")
             Array<i32> int_arr(3, 42);
             i32 val = 25;
             Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin() + 1, 2, val).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 7);
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1943,7 +1870,7 @@ TEST_CASE("Insert", "[Array]")
             Array<i32> int_arr(3, 42);
             i32 val = 25;
             Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstEnd(), 2, val).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 7);
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1957,7 +1884,7 @@ TEST_CASE("Insert", "[Array]")
             Array<i32> int_arr(3, 42);
             i32 val = 25;
             Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin(), 2, val).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 7);
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 25);
@@ -1972,7 +1899,7 @@ TEST_CASE("Insert", "[Array]")
             i32 val = 25;
             ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, 2, val).GetError();
             REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1985,7 +1912,7 @@ TEST_CASE("Insert", "[Array]")
             i32 val = 25;
             ErrorCode err = int_arr.Insert(int_arr.ConstBegin(), 0, val).GetError();
             REQUIRE(err == ErrorCode::BadInput);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -1999,9 +1926,8 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32> other(2, 5);
-            Array<i32>::IteratorType it =
-                int_arr.InsertIt(int_arr.ConstBegin() + 1, other.ConstBegin(), other.ConstEnd()).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 7);
+            Array<i32>::IteratorType it = int_arr.InsertIt(int_arr.ConstBegin() + 1, other.ConstBegin(), other.ConstEnd()).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2014,9 +1940,8 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32> other(2, 5);
-            Array<i32>::IteratorType it =
-                int_arr.InsertIt(int_arr.ConstEnd(), other.ConstBegin(), other.ConstEnd()).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 7);
+            Array<i32>::IteratorType it = int_arr.InsertIt(int_arr.ConstEnd(), other.ConstBegin(), other.ConstEnd()).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2029,9 +1954,8 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32> other(2, 5);
-            Array<i32>::IteratorType it =
-                int_arr.InsertIt(int_arr.ConstBegin(), other.ConstBegin(), other.ConstEnd()).GetValue();
-            REQUIRE(int_arr.GetCapacity() == 7);
+            Array<i32>::IteratorType it = int_arr.InsertIt(int_arr.ConstBegin(), other.ConstBegin(), other.ConstEnd()).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 5);
@@ -2046,7 +1970,7 @@ TEST_CASE("Insert", "[Array]")
             Array<i32> other(2, 5);
             ErrorCode err = int_arr.InsertIt(int_arr.ConstEnd() + 1, other.ConstBegin(), other.ConstEnd()).GetError();
             REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2059,7 +1983,7 @@ TEST_CASE("Insert", "[Array]")
             Array<i32> other(2, 5);
             ErrorCode err = int_arr.InsertIt(int_arr.ConstBegin(), other.ConstEnd(), other.ConstBegin()).GetError();
             REQUIRE(err == ErrorCode::BadInput);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2078,7 +2002,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.Erase(int_arr.ConstBegin() + 1).GetValue();
             REQUIRE(it - int_arr.Begin() == 1);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2089,7 +2013,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.Erase(int_arr.ConstEnd() - 1).GetValue();
             REQUIRE(it - int_arr.Begin() == int_arr.ConstEnd() - int_arr.ConstBegin());
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2100,7 +2024,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.Erase(int_arr.ConstBegin()).GetValue();
             REQUIRE(it == int_arr.Begin());
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2111,7 +2035,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             ErrorCode err = int_arr.Erase(int_arr.ConstEnd()).GetError();
             REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2123,7 +2047,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.Erase(int_arr.Begin() + 1).GetValue();
             REQUIRE(it - int_arr.Begin() == 1);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2134,7 +2058,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.Erase(int_arr.End() - 1).GetValue();
             REQUIRE(it - int_arr.Begin() == int_arr.End() - int_arr.Begin());
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2145,7 +2069,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.Erase(int_arr.Begin()).GetValue();
             REQUIRE(it == int_arr.Begin());
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2156,7 +2080,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             ErrorCode err = int_arr.Erase(int_arr.End()).GetError();
             REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2171,7 +2095,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.ConstBegin() + 1).GetValue();
             REQUIRE(it - int_arr.Begin() == 1);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2182,7 +2106,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.ConstEnd() - 1).GetValue();
             REQUIRE(it - int_arr.Begin() == int_arr.ConstEnd() - int_arr.ConstBegin());
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2193,7 +2117,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.ConstBegin()).GetValue();
             REQUIRE(it == int_arr.Begin());
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2204,7 +2128,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             ErrorCode err = int_arr.EraseWithSwap(int_arr.ConstEnd()).GetError();
             REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2216,7 +2140,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.Begin() + 1).GetValue();
             REQUIRE(it - int_arr.Begin() == 1);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2227,7 +2151,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.End() - 1).GetValue();
             REQUIRE(it - int_arr.Begin() == int_arr.End() - int_arr.Begin());
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2238,7 +2162,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             Array<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.Begin()).GetValue();
             REQUIRE(it == int_arr.Begin());
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);
@@ -2249,7 +2173,7 @@ TEST_CASE("Erase", "[Array]")
             Array<i32> int_arr(3, 42);
             ErrorCode err = int_arr.EraseWithSwap(int_arr.End()).GetError();
             REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(int_arr.GetCapacity() == 4);
+            REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
             REQUIRE(int_arr[0] == 42);

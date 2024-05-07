@@ -97,7 +97,7 @@ ArrayConstIterator<MyArray> operator+(typename ArrayConstIterator<MyArray>::Diff
 /**
  * Represents continuous memory storage on the heap that can dynamically grow in size. Similar to std::vector.
  */
-template <typename T, typename Allocator = DefaultAllocator>
+template <typename T, typename Allocator = AllocatorBase>
 class Array
 {
 public:
@@ -115,25 +115,13 @@ public:
     static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
 
     // Constructors
-    Array();
-    explicit Array(const Allocator& allocator);
-    explicit Array(Allocator&& allocator);
-    explicit Array(SizeType count);
-    Array(SizeType count, const Allocator& allocator);
-    Array(SizeType count, Allocator&& allocator);
-    Array(SizeType count, const T& default_value);
-    Array(SizeType count, const T& default_value, const Allocator& allocator);
-    Array(SizeType count, const T& default_value, Allocator&& allocator);
-    Array(T* data, SizeType count);
-    Array(T* data, SizeType count, const Allocator& allocator);
-    Array(T* data, SizeType count, Allocator&& allocator);
-    Array(const Array& other);
-    Array(const Array& other, const Allocator& allocator);
-    Array(const Array& other, Allocator&& allocator);
+    explicit Array(Allocator* allocator = nullptr);
+    explicit Array(SizeType count, Allocator* allocator = nullptr);
+    Array(SizeType count, const T& default_value, Allocator* allocator = nullptr);
+    Array(T* data, SizeType count, Allocator* allocator = nullptr);
+    Array(const Array& other, Allocator* allocator = nullptr);
     Array(Array&& other) noexcept;
-    Array(Array&& other, const Allocator& allocator) noexcept;
-    Array(Array&& other, Allocator&& allocator) noexcept;
-    Array(const std::initializer_list<T>& init_list);
+    Array(const std::initializer_list<T>& init_list, Allocator* allocator = nullptr);
 
     ~Array();
 
@@ -196,6 +184,8 @@ public:
 
     [[nodiscard]] SizeType GetCapacity() const;
     [[nodiscard]] SizeType GetSize() const;
+
+    Allocator* GetAllocator() const { return m_allocator; }
 
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
 
@@ -316,11 +306,10 @@ private:
     T* Allocate(SizeType count);
     void Deallocate(T* ptr);
 
-    static constexpr SizeType k_default_capacity = 4;
     static constexpr f64 k_resize_factor = 1.5;
 
-    Allocator m_allocator;
-    SizeType m_capacity = k_default_capacity;
+    Allocator* m_allocator = nullptr;
+    SizeType m_capacity = 0;
     SizeType m_size = 0;
     T* m_data = nullptr;
 };
@@ -333,56 +322,23 @@ private:
 #define CLASS_HEADER Opal::Array<T, Allocator>
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array()
+CLASS_HEADER::Array(Allocator* allocator) : m_allocator(allocator) {}
+
+TEMPLATE_HEADER
+CLASS_HEADER::Array(SizeType count, Allocator* allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
 {
+    if (m_capacity == 0)
+    {
+        return;
+    }
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
     {
+        m_capacity = 0;
         m_size = 0;
         OPAL_ASSERT(false, "Failed to allocate memory for Array");
         return;
     }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(const Allocator& allocator) : m_allocator(allocator)
-{
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
-        return;
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(Allocator&& allocator) : m_allocator(Move(allocator))
-{
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
-        return;
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(SizeType count)
-{
-    if (count > m_capacity)
-    {
-        m_capacity = count;
-    }
-    m_data = Allocate(count);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
-        return;
-    }
-    m_size = count;
     for (SizeType i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T();  // Invokes default constructor on allocated memory
@@ -390,62 +346,20 @@ CLASS_HEADER::Array(SizeType count)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(SizeType count, const Allocator& allocator) : m_allocator(allocator)
+CLASS_HEADER::Array(SizeType count, const T& default_value, Allocator* allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
 {
-    if (count > m_capacity)
+    if (m_capacity == 0)
     {
-        m_capacity = count;
-    }
-    m_data = Allocate(count);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
         return;
-    }
-    m_size = count;
-    for (SizeType i = 0; i < m_size; i++)
-    {
-        new (&m_data[i]) T();  // Invokes default constructor on allocated memory
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(SizeType count, Allocator&& allocator) : m_allocator(Move(allocator))
-{
-    if (count > m_capacity)
-    {
-        m_capacity = count;
-    }
-    m_data = Allocate(count);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
-        return;
-    }
-    m_size = count;
-    for (SizeType i = 0; i < m_size; i++)
-    {
-        new (&m_data[i]) T();  // Invokes default constructor on allocated memory
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(SizeType count, const T& default_value)
-{
-    if (count > m_capacity)
-    {
-        m_capacity = count;
     }
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
     {
+        m_capacity = 0;
         m_size = 0;
         OPAL_ASSERT(false, "Failed to allocate memory for Array");
         return;
     }
-    m_size = count;
     for (SizeType i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
@@ -453,49 +367,7 @@ CLASS_HEADER::Array(SizeType count, const T& default_value)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(SizeType count, const T& default_value, const Allocator& allocator) : m_allocator(allocator)
-{
-    if (count > m_capacity)
-    {
-        m_capacity = count;
-    }
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
-        return;
-    }
-    m_size = count;
-    for (SizeType i = 0; i < m_size; i++)
-    {
-        new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(SizeType count, const T& default_value, Allocator&& allocator) : m_allocator(Move(allocator))
-{
-    if (count > m_capacity)
-    {
-        m_capacity = count;
-    }
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
-        return;
-    }
-    m_size = count;
-    for (SizeType i = 0; i < m_size; i++)
-    {
-        new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(T* data, SizeType count) : m_capacity(count), m_size(count)
+CLASS_HEADER::Array(T* data, SizeType count, Allocator* allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -517,88 +389,17 @@ CLASS_HEADER::Array(T* data, SizeType count) : m_capacity(count), m_size(count)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(T* data, SizeType count, const Allocator& allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
-{
-    if (m_capacity == 0)
-    {
-        m_data = nullptr;
-        OPAL_ASSERT(false, "Invalid size for Array");
-        return;
-    }
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
-        return;
-    }
-    for (SizeType i = 0; i < m_size; i++)
-    {
-        new (&m_data[i]) T(data[i]);  // Invokes copy constructor on allocated memory
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(T* data, SizeType count, Allocator&& allocator) : m_allocator(Move(allocator)), m_capacity(count), m_size(count)
-{
-    if (m_capacity == 0)
-    {
-        m_data = nullptr;
-        OPAL_ASSERT(false, "Invalid size for Array");
-        return;
-    }
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
-        return;
-    }
-    for (SizeType i = 0; i < m_size; i++)
-    {
-        new (&m_data[i]) T(data[i]);  // Invokes copy constructor on allocated memory
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(const Array& other) : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size)
-{
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
-        return;
-    }
-    for (SizeType i = 0; i < m_size; i++)
-    {
-        new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(const Array& other, const Allocator& allocator)
+CLASS_HEADER::Array(const Array& other, Allocator* allocator)
     : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
+    if (m_capacity == 0)
     {
-        m_size = 0;
-        OPAL_ASSERT(false, "Failed to allocate memory for Array");
         return;
     }
-    for (SizeType i = 0; i < m_size; i++)
-    {
-        new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(const Array& other, Allocator&& allocator) : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
-{
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
     {
+        m_capacity = 0;
         m_size = 0;
         OPAL_ASSERT(false, "Failed to allocate memory for Array");
         return;
@@ -619,30 +420,17 @@ CLASS_HEADER::Array(Array&& other) noexcept
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(Array&& other, const Allocator& allocator) noexcept
-    : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
-{
-    other.m_capacity = 0;
-    other.m_size = 0;
-    other.m_data = nullptr;
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(Array&& other, Allocator&& allocator) noexcept
-    : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
-{
-    other.m_capacity = 0;
-    other.m_size = 0;
-    other.m_data = nullptr;
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Array(const std::initializer_list<T>& init_list) : m_capacity(0)
+CLASS_HEADER::Array(const std::initializer_list<T>& init_list, Allocator* allocator) : m_allocator(allocator)
 {
     SizeType count = init_list.size();
     if (count > m_capacity)
     {
-        Reserve(count);
+        m_data = Allocate(count);
+        if (m_data == nullptr)
+        {
+            return;
+        }
+        m_capacity = count;
     }
     m_size = count;
     if (count > 0)
@@ -1310,13 +1098,28 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 TEMPLATE_HEADER
 T* CLASS_HEADER::Allocate(SizeType count)
 {
-    return static_cast<T*>(m_allocator.Alloc(count * sizeof(T), 8));
+    constexpr u64 k_alignment = 8;
+    const SizeType bytes_to_allocate = count * sizeof(T);
+    if (m_allocator == nullptr)
+    {
+        MallocAllocator allocator;
+        return static_cast<T*>(allocator.Alloc(bytes_to_allocate, k_alignment));
+    }
+    return static_cast<T*>(m_allocator->Alloc(bytes_to_allocate, k_alignment));
 }
 
 TEMPLATE_HEADER
 void CLASS_HEADER::Deallocate(T* ptr)
 {
-    m_allocator.Free(ptr);
+    if (m_allocator == nullptr)
+    {
+        MallocAllocator allocator;
+        allocator.Free(ptr);
+    }
+    else
+    {
+        m_allocator->Free(ptr);
+    }
 }
 
 #undef TEMPLATE_HEADER
