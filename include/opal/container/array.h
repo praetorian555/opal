@@ -127,7 +127,7 @@ public:
     static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
 
     // Constructors
-    explicit Array(Allocator* allocator = nullptr);
+    Array(Allocator* allocator = nullptr);
     explicit Array(SizeType count, Allocator* allocator = nullptr);
     Array(SizeType count, const T& default_value, Allocator* allocator = nullptr);
     Array(T* data, SizeType count, Allocator* allocator = nullptr);
