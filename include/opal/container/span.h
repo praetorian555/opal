@@ -2,6 +2,7 @@
 
 #include "opal/container/expected.h"
 #include "opal/error-codes.h"
+#include "opal/iterator.h"
 #include "opal/types.h"
 
 namespace Opal
