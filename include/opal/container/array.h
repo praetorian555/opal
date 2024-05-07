@@ -21,6 +21,11 @@ public:
     using PointerType = typename MyArray::PointerType;
     using DifferenceType = typename MyArray::DifferenceType;
 
+    // Type aliases to be compatible with std library
+    using reference = ReferenceType;
+    using difference_type = DifferenceType;
+    using value_type = ValueType;
+
     ArrayIterator() = default;
     explicit ArrayIterator(PointerType ptr) : m_ptr(ptr) {}
 
@@ -61,6 +66,11 @@ public:
     using ReferenceType = typename MyArray::ConstReferenceType;
     using PointerType = typename MyArray::PointerType;
     using DifferenceType = typename MyArray::DifferenceType;
+
+    // Type aliases to be compatible with std library
+    using reference = ReferenceType;
+    using difference_type = DifferenceType;
+    using value_type = ValueType;
 
     ArrayConstIterator() = default;
     explicit ArrayConstIterator(PointerType ptr) : m_ptr(ptr) {}
@@ -147,7 +157,8 @@ public:
      * memory allocation failed.
      */
     template <typename InputIt>
-    ErrorCode AssignIt(InputIt start, InputIt end);
+        requires RandomAccessIterator<InputIt>
+    ErrorCode Assign(InputIt start, InputIt end);
 
     /**
      * Get a reference to the element at specified index.
@@ -262,7 +273,8 @@ public:
      * ErrorCode::BadInput if start >= end, ErrorCode::OutOfMemory if memory allocation failed.
      */
     template <typename InputIt>
-    Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType position, InputIt start, InputIt end);
+        requires RandomAccessIterator<InputIt>
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, InputIt start, InputIt end);
 
     /**
      * Erase the element at the specified position. Does not deallocate memory.
@@ -389,8 +401,7 @@ CLASS_HEADER::Array(T* data, SizeType count, Allocator* allocator) : m_allocator
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(const Array& other, Allocator* allocator)
-    : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+CLASS_HEADER::Array(const Array& other, Allocator* allocator) : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     if (m_capacity == 0)
     {
@@ -567,7 +578,8 @@ Opal::ErrorCode CLASS_HEADER::Assign(Array::SizeType count, const T& value)
 
 TEMPLATE_HEADER
 template <typename InputIt>
-Opal::ErrorCode CLASS_HEADER::AssignIt(InputIt start, InputIt end)
+    requires Opal::RandomAccessIterator<InputIt>
+Opal::ErrorCode CLASS_HEADER::Assign(InputIt start, InputIt end)
 {
     if (start > end)
     {
@@ -906,8 +918,9 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 
 TEMPLATE_HEADER
 template <typename InputIt>
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::InsertIt(Array::ConstIteratorType position,
-                                                                                            InputIt start, InputIt end)
+    requires Opal::RandomAccessIterator<InputIt>
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType position, InputIt start,
+                                                                                          InputIt end)
 {
     if (position < ConstBegin() || position > ConstEnd())
     {

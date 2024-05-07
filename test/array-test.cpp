@@ -674,7 +674,7 @@ TEST_CASE("Assign with POD data", "[Array]")
     {
         Array<i32> int_arr(3, 42);
         std::array<i32, 5> values = {25, 26, 27, 28, 29};
-        ErrorCode err = int_arr.AssignIt(values.begin(), values.end());
+        ErrorCode err = int_arr.Assign(values.begin(), values.end());
         REQUIRE(err == ErrorCode::Success);
         REQUIRE(int_arr.GetCapacity() == 5);
         REQUIRE(int_arr.GetSize() == 5);
@@ -685,11 +685,26 @@ TEST_CASE("Assign with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[3] == 28);
         REQUIRE(int_arr.GetData()[4] == 29);
     }
+    SECTION("Assign with Array iterators")
+    {
+        Array<i32> int_arr(3, 42);
+        Array<i32> values(5, 25);
+        ErrorCode err = int_arr.Assign(values.begin(), values.end());
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(int_arr.GetCapacity() == 5);
+        REQUIRE(int_arr.GetSize() == 5);
+        REQUIRE(int_arr.GetData() != nullptr);
+        REQUIRE(int_arr.GetData()[0] == 25);
+        REQUIRE(int_arr.GetData()[1] == 25);
+        REQUIRE(int_arr.GetData()[2] == 25);
+        REQUIRE(int_arr.GetData()[3] == 25);
+        REQUIRE(int_arr.GetData()[4] == 25);
+    }
     SECTION("Assign with bad iterators")
     {
         Array<i32> int_arr(3, 42);
         std::array<i32, 5> values = {25, 26, 27, 28, 29};
-        ErrorCode err = int_arr.AssignIt(values.end(), values.begin());
+        ErrorCode err = int_arr.Assign(values.end(), values.begin());
         REQUIRE(err == ErrorCode::BadInput);
         REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 3);
@@ -702,7 +717,7 @@ TEST_CASE("Assign with POD data", "[Array]")
     {
         Array<i32> int_arr(3, 42);
         std::array<i32, 5> values = {25, 26, 27, 28, 29};
-        ErrorCode err = int_arr.AssignIt(values.begin(), values.begin());
+        ErrorCode err = int_arr.Assign(values.begin(), values.begin());
         REQUIRE(err == ErrorCode::Success);
         REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 0);
@@ -1926,7 +1941,7 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32> other(2, 5);
-            Array<i32>::IteratorType it = int_arr.InsertIt(int_arr.ConstBegin() + 1, other.ConstBegin(), other.ConstEnd()).GetValue();
+            Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin() + 1, other.ConstBegin(), other.ConstEnd()).GetValue();
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1940,7 +1955,7 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32> other(2, 5);
-            Array<i32>::IteratorType it = int_arr.InsertIt(int_arr.ConstEnd(), other.ConstBegin(), other.ConstEnd()).GetValue();
+            Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstEnd(), other.ConstBegin(), other.ConstEnd()).GetValue();
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1954,7 +1969,7 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32> other(2, 5);
-            Array<i32>::IteratorType it = int_arr.InsertIt(int_arr.ConstBegin(), other.ConstBegin(), other.ConstEnd()).GetValue();
+            Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin(), other.ConstBegin(), other.ConstEnd()).GetValue();
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1968,7 +1983,7 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32> other(2, 5);
-            ErrorCode err = int_arr.InsertIt(int_arr.ConstEnd() + 1, other.ConstBegin(), other.ConstEnd()).GetError();
+            ErrorCode err = int_arr.Insert(int_arr.ConstEnd() + 1, other.ConstBegin(), other.ConstEnd()).GetError();
             REQUIRE(err == ErrorCode::OutOfBounds);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
@@ -1981,7 +1996,7 @@ TEST_CASE("Insert", "[Array]")
         {
             Array<i32> int_arr(3, 42);
             Array<i32> other(2, 5);
-            ErrorCode err = int_arr.InsertIt(int_arr.ConstBegin(), other.ConstEnd(), other.ConstBegin()).GetError();
+            ErrorCode err = int_arr.Insert(int_arr.ConstBegin(), other.ConstEnd(), other.ConstBegin()).GetError();
             REQUIRE(err == ErrorCode::BadInput);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
