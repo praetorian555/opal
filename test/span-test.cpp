@@ -1,7 +1,9 @@
 #include "catch2/catch2.hpp"
 
-#include "opal/container/span.h"
+#include <array>
+
 #include "opal/container/array.h"
+#include "opal/container/span.h"
 
 using namespace Opal;
 
@@ -170,25 +172,86 @@ TEST_CASE("Back access", "[Span]")
         REQUIRE(back.HasValue());
         REQUIRE(back.GetValue() == 5);
     }
-
 }
 
 TEST_CASE("As bytes", "[Span]")
 {
-    i32 array[] = {1, 2, 3, 4, 5};
-    Span<i32> span(array);
-    Span<const u8> bytes = AsBytes(span);
-    REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
-    REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(array));
+    SECTION("From object")
+    {
+        i32 value = 42;
+        Span<const u8> bytes = AsBytes(value);
+        REQUIRE(bytes.GetSize() == sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<const u8*>(&value));
+    }
+    SECTION("From C-style array")
+    {
+        i32 array[] = {1, 2, 3, 4, 5};
+        Span<const u8> bytes = AsBytes(array);
+        REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<const u8*>(array));
+    }
+    SECTION("From Array")
+    {
+        Array<i32> array(5);
+        Span<const u8> bytes = AsBytes(array);
+        REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<const u8*>(array.GetData()));
+    }
+    SECTION("From Span")
+    {
+        i32 array[] = {1, 2, 3, 4, 5};
+        Span<i32> span(array);
+        Span<const u8> bytes = AsBytes(span);
+        REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<const u8*>(array));
+    }
+    SECTION("From STD container")
+    {
+        std::array<i32, 5> array = {1, 2, 3, 4, 5};
+        Span<const u8> bytes = AsBytes(array);
+        REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<const u8*>(array.data()));
+    }
 }
 
 TEST_CASE("As writable bytes", "[Span]")
 {
-    i32 array[] = {1, 2, 3, 4, 5};
-    Span<i32> span(array);
-    Span<u8> bytes = AsWritableBytes(span);
-    REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
-    REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(array));
+    SECTION("From object")
+    {
+        i32 value = 42;
+        Span<u8> bytes = AsWritableBytes(value);
+        REQUIRE(bytes.GetSize() == sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(&value));
+    }
+    SECTION("From C-style array")
+    {
+        i32 array[] = {1, 2, 3, 4, 5};
+        Span<u8> bytes = AsWritableBytes(array);
+        REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(array));
+    }
+    SECTION("From Array")
+    {
+        Array<i32> array(5);
+        Span<u8> bytes = AsWritableBytes(array);
+        REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(array.GetData()));
+    }
+    SECTION("From Span")
+    {
+        i32 array[] = {1, 2, 3, 4, 5};
+        Span<i32> span(array);
+        Span<u8> bytes = AsWritableBytes(span);
+        REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(array));
+    }
+    SECTION("From STD container")
+    {
+        std::array<i32, 5> array = {1, 2, 3, 4, 5};
+        Span<u8> bytes = AsWritableBytes(array);
+        REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
+        REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(array.data()));
+    }
 }
 
 TEST_CASE("Sub span", "[Span]")

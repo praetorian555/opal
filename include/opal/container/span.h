@@ -113,6 +113,11 @@ public:
     using IteratorType = SpanIterator<Span<T>>;
     using ConstIteratorType = SpanConstIterator<Span<T>>;
 
+    using value_type = ValueType;
+    using reference = ReferenceType;
+    using const_reference = ConstReferenceType;
+    using pointer = PointerType;
+
     Span() = default;
 
     template <typename InputIt>
@@ -179,10 +184,18 @@ private:
 };
 
 template <typename T>
-Span<const u8> AsBytes(Span<T> span);
+Span<const u8> AsBytes(T& object);
 
 template <typename T>
-Span<u8> AsWritableBytes(Span<T> span);
+Span<u8> AsWritableBytes(T& object);
+
+template <typename Container>
+    requires Opal::Range<Container>
+Span<const u8> AsBytes(Container& container);
+
+template <typename Container>
+    requires Opal::Range<Container>
+Span<u8> AsWritableBytes(Container& container);
 
 }  // namespace Opal
 
@@ -292,16 +305,34 @@ Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::Back() const
     return Expected<const T&, ErrorCode>(m_data[m_size - 1]);
 }
 
-TEMPLATE_HEADER
-Opal::Span<const Opal::u8> Opal::AsBytes(Span<T> span)
+template <typename T>
+Opal::Span<const Opal::u8> Opal::AsBytes(T& object)
 {
-    return Span<const u8>(reinterpret_cast<const u8*>(span.GetData()), span.GetSize() * sizeof(T));
+    return {reinterpret_cast<const u8*>(&object), sizeof(T)};
 }
 
-TEMPLATE_HEADER
-Opal::Span<Opal::u8> Opal::AsWritableBytes(Opal::Span<T> span)
+template <typename T>
+Opal::Span<Opal::u8> Opal::AsWritableBytes(T& object)
 {
-    return Span<u8>(reinterpret_cast<u8*>(span.GetData()), span.GetSize() * sizeof(T));
+    return {reinterpret_cast<u8*>(&object), sizeof(T)};
+}
+
+template <typename Container>
+    requires Opal::Range<Container>
+Opal::Span<const Opal::u8> Opal::AsBytes(Container& container)
+{
+    auto data = &(*container.begin());
+    Opal::u64 size = sizeof(typename Container::value_type) * (container.end() - container.begin());
+    return {reinterpret_cast<const u8*>(data), size};
+}
+
+template <typename Container>
+    requires Opal::Range<Container>
+Opal::Span<Opal::u8> Opal::AsWritableBytes(Container& container)
+{
+    auto data = &(*container.begin());
+    Opal::u64 size = sizeof(typename Container::value_type) * (container.end() - container.begin());
+    return {reinterpret_cast<u8*>(data), size};
 }
 
 TEMPLATE_HEADER
