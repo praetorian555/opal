@@ -183,16 +183,40 @@ private:
     SizeType m_size = 0;
 };
 
+/**
+ * @brief Converts object to a span of bytes.
+ * @tparam T Type of object.
+ * @param object Object to convert.
+ * @return Span of bytes that can't be modified.
+ */
 template <typename T>
 Span<const u8> AsBytes(T& object);
 
+/**
+ * @brief Converts object to a span of bytes.
+ * @tparam T Type of object.
+ * @param object Object to convert.
+ * @return Span of bytes that can be modified.
+ */
 template <typename T>
 Span<u8> AsWritableBytes(T& object);
 
+/**
+ * @brief Converts container to a span of bytes.
+ * @tparam Container Type of container.
+ * @param container Container to convert.
+ * @return Span of bytes that can't be modified.
+ */
 template <typename Container>
     requires Opal::Range<Container>
 Span<const u8> AsBytes(Container& container);
 
+/**
+ * @brief Converts container to a span of bytes.
+ * @tparam Container Type of container.
+ * @param container Container to convert.
+ * @return Span of bytes that can be modified.
+ */
 template <typename Container>
     requires Opal::Range<Container>
 Span<u8> AsWritableBytes(Container& container);
