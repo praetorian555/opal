@@ -1,6 +1,5 @@
 #pragma once
 
-#include "opal/type-traits.h"
 #include "opal/types.h"
 #include "opal/export.h"
 
