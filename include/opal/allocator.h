@@ -37,7 +37,7 @@ struct OPAL_EXPORT DefaultAllocator final : public AllocatorBase
 /**
  * Stateless allocator that uses system's malloc and free API.
  */
-struct MallocAllocator final : public AllocatorBase
+struct OPAL_EXPORT MallocAllocator final : public AllocatorBase
 {
     MallocAllocator() = default;
     MallocAllocator(const MallocAllocator& other) = default;
