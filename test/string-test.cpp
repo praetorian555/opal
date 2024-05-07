@@ -6,8 +6,6 @@
 
 using namespace Opal;
 
-DefaultAllocator g_da;
-
 TEST_CASE("Construction", "[String]")
 {
     SECTION("Short string")
@@ -16,14 +14,34 @@ TEST_CASE("Construction", "[String]")
         (void)ref;
         SECTION("Default constructor")
         {
-            StringUtf8<DefaultAllocator> str(g_da);
+            StringUtf8 str;
+            REQUIRE(str.GetSize() == 0);
+            REQUIRE(str.GetCapacity() == 0);
+            REQUIRE(str.GetData() == nullptr);
+        }
+        SECTION("Default constructor with allocator")
+        {
+            DefaultAllocator da;
+            StringUtf8 str(&da);
             REQUIRE(str.GetSize() == 0);
             REQUIRE(str.GetCapacity() == 0);
             REQUIRE(str.GetData() == nullptr);
         }
         SECTION("Count and value")
         {
-            StringUtf8<DefaultAllocator> str(5, 'd', g_da);
+            StringUtf8 str(5, 'd');
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetData() != nullptr);
+            for (i32 i = 0; i < str.GetSize(); i++)
+            {
+                REQUIRE(str.GetData()[i] == 'd');
+            }
+        }
+        SECTION("Count and value with allocator")
+        {
+            DefaultAllocator da;
+            StringUtf8 str(5, 'd', &da);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetData() != nullptr);
@@ -34,7 +52,16 @@ TEST_CASE("Construction", "[String]")
         }
         SECTION("C array")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
+            REQUIRE(str.GetSize() == 11);
+            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetData() != nullptr);
+            REQUIRE(strcmp(ref, str.GetData()) == 0);
+        }
+        SECTION("C array with allocator")
+        {
+            DefaultAllocator da;
+            StringLocale str(ref, &da);
             REQUIRE(str.GetSize() == 11);
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetData() != nullptr);
@@ -42,7 +69,20 @@ TEST_CASE("Construction", "[String]")
         }
         SECTION("Substring of a string literal")
         {
-            StringLocale<DefaultAllocator> str(ref, 5, g_da);
+            StringLocale str(ref, 5);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetData() != nullptr);
+            REQUIRE(str.GetData()[0] == 'H');
+            REQUIRE(str.GetData()[1] == 'e');
+            REQUIRE(str.GetData()[2] == 'l');
+            REQUIRE(str.GetData()[3] == 'l');
+            REQUIRE(str.GetData()[4] == 'o');
+        }
+        SECTION("Substring of a string literal with allocator")
+        {
+            DefaultAllocator da;
+            StringLocale str(ref, 5, &da);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetData() != nullptr);
@@ -54,19 +94,19 @@ TEST_CASE("Construction", "[String]")
         }
         SECTION("Copy")
         {
-            StringLocale<DefaultAllocator> first(ref, g_da);
-            StringLocale<DefaultAllocator> second(first);
+            StringLocale first(ref);
+            StringLocale second(first);
             REQUIRE(second.GetCapacity() == 12);
             REQUIRE(second.GetSize() == 11);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() == &second.GetAllocator());
             REQUIRE(strcmp(ref, second.GetData()) == 0);
         }
-        SECTION("Copy with different allocator")
+        SECTION("Copy with allocator")
         {
-            DefaultAllocator da2;
-            StringLocale<DefaultAllocator> first(ref, g_da);
-            StringLocale<DefaultAllocator> second(first, da2);
+            DefaultAllocator da;
+            StringLocale first(ref);
+            StringLocale second(first, &da);
             REQUIRE(second.GetCapacity() == 12);
             REQUIRE(second.GetSize() == 11);
             REQUIRE(first.GetData() != second.GetData());
@@ -75,14 +115,38 @@ TEST_CASE("Construction", "[String]")
         }
         SECTION("Copy substring")
         {
-            DefaultAllocator da2;
-            StringLocale<DefaultAllocator> first(ref, g_da);
-            StringLocale<DefaultAllocator> second(first, 6, da2);
+            DefaultAllocator da;
+            StringLocale first(ref);
+            StringLocale second(first, 6, &da);
             REQUIRE(second.GetCapacity() == 6);
             REQUIRE(second.GetSize() == 5);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() != &second.GetAllocator());
             REQUIRE(strcmp("there", second.GetData()) == 0);
+        }
+        SECTION("Copy substring with allocator")
+        {
+            DefaultAllocator da1;
+            DefaultAllocator da2;
+            StringLocale first(ref);
+            StringLocale second(first, 6, &da2);
+            REQUIRE(second.GetCapacity() == 6);
+            REQUIRE(second.GetSize() == 5);
+            REQUIRE(first.GetData() != second.GetData());
+            REQUIRE(&first.GetAllocator() != &second.GetAllocator());
+            REQUIRE(strcmp("there", second.GetData()) == 0);
+        }
+        SECTION("Move")
+        {
+            StringLocale first(ref);
+            StringLocale second(Move(first));
+            REQUIRE(second.GetCapacity() == 12);
+            REQUIRE(second.GetSize() == 11);
+            REQUIRE(second.GetData() != nullptr);
+            REQUIRE(first.GetCapacity() == 0);
+            REQUIRE(first.GetSize() == 0);
+            REQUIRE(first.GetData() == nullptr);
+            REQUIRE(strcmp(ref, second.GetData()) == 0);
         }
     }
     SECTION("Long string")
@@ -95,7 +159,18 @@ TEST_CASE("Construction", "[String]")
             "publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
         SECTION("Count and value")
         {
-            StringUtf8<DefaultAllocator> str(50, 'd', g_da);
+            StringUtf8 str(50, 'd');
+            REQUIRE(str.GetSize() == 50);
+            REQUIRE(str.GetCapacity() == 51);
+            REQUIRE(str.GetData() != nullptr);
+            for (i32 i = 0; i < str.GetSize(); i++)
+            {
+                REQUIRE(str.GetData()[i] == 'd');
+            }
+        }
+        SECTION("Count and value with iterator")
+        {
+            StringUtf8 str(50, 'd');
             REQUIRE(str.GetSize() == 50);
             REQUIRE(str.GetCapacity() == 51);
             REQUIRE(str.GetData() != nullptr);
@@ -106,7 +181,16 @@ TEST_CASE("Construction", "[String]")
         }
         SECTION("C array")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
+            REQUIRE(str.GetSize() == 574);
+            REQUIRE(str.GetCapacity() == 575);
+            REQUIRE(str.GetData() != nullptr);
+            REQUIRE(strcmp(ref, str.GetData()) == 0);
+        }
+        SECTION("C array with allocator")
+        {
+            DefaultAllocator da;
+            StringLocale str(ref, &da);
             REQUIRE(str.GetSize() == 574);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetData() != nullptr);
@@ -115,7 +199,20 @@ TEST_CASE("Construction", "[String]")
         SECTION("Substring of a string literal")
         {
             constexpr u64 k_sub_str_size = 75;
-            StringLocale<DefaultAllocator> str(ref, k_sub_str_size, g_da);
+            StringLocale str(ref, k_sub_str_size);
+            REQUIRE(str.GetSize() == k_sub_str_size);
+            REQUIRE(str.GetCapacity() == k_sub_str_size + 1);
+            REQUIRE(str.GetData() != nullptr);
+            for (i32 i = 0; i < k_sub_str_size; i++)
+            {
+                REQUIRE(ref[i] == str.GetData()[i]);
+            }
+        }
+        SECTION("Substring of a string literal with allocator")
+        {
+            DefaultAllocator da;
+            constexpr u64 k_sub_str_size = 75;
+            StringLocale str(ref, k_sub_str_size, &da);
             REQUIRE(str.GetSize() == k_sub_str_size);
             REQUIRE(str.GetCapacity() == k_sub_str_size + 1);
             REQUIRE(str.GetData() != nullptr);
@@ -126,19 +223,19 @@ TEST_CASE("Construction", "[String]")
         }
         SECTION("Copy")
         {
-            StringLocale<DefaultAllocator> first(ref, g_da);
-            StringLocale<DefaultAllocator> second(first);
+            StringLocale first(ref);
+            StringLocale second(first);
             REQUIRE(second.GetCapacity() == 575);
             REQUIRE(second.GetSize() == 574);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() == &second.GetAllocator());
             REQUIRE(strcmp(ref, second.GetData()) == 0);
         }
-        SECTION("Copy with different allocator")
+        SECTION("Copy with allocator")
         {
-            DefaultAllocator da2;
-            StringLocale<DefaultAllocator> first(ref, g_da);
-            StringLocale<DefaultAllocator> second(first, da2);
+            DefaultAllocator da;
+            StringLocale first(ref);
+            StringLocale second(first, &da);
             REQUIRE(second.GetCapacity() == 575);
             REQUIRE(second.GetSize() == 574);
             REQUIRE(first.GetData() != second.GetData());
@@ -147,9 +244,9 @@ TEST_CASE("Construction", "[String]")
         }
         SECTION("Copy substring")
         {
-            DefaultAllocator da2;
-            StringLocale<DefaultAllocator> first(ref, g_da);
-            StringLocale<DefaultAllocator> second(first, 6, da2);
+            DefaultAllocator da;
+            StringLocale first(ref);
+            StringLocale second(first, 6, &da);
             REQUIRE(second.GetCapacity() == 569);
             REQUIRE(second.GetSize() == 568);
             REQUIRE(first.GetData() != second.GetData());
@@ -159,6 +256,32 @@ TEST_CASE("Construction", "[String]")
                 REQUIRE(ref[6 + i] == second.GetData()[i]);
             }
         }
+        SECTION("Copy substring with allocator")
+        {
+            DefaultAllocator da;
+            StringLocale first(ref);
+            StringLocale second(first, 6, &da);
+            REQUIRE(second.GetCapacity() == 569);
+            REQUIRE(second.GetSize() == 568);
+            REQUIRE(first.GetData() != second.GetData());
+            REQUIRE(&first.GetAllocator() != &second.GetAllocator());
+            for (i32 i = 0; i < second.GetSize(); i++)
+            {
+                REQUIRE(ref[6 + i] == second.GetData()[i]);
+            }
+        }
+        SECTION("Move")
+        {
+            StringLocale first(ref);
+            StringLocale second(Move(first));
+            REQUIRE(second.GetCapacity() == 575);
+            REQUIRE(second.GetSize() == 574);
+            REQUIRE(second.GetData() != nullptr);
+            REQUIRE(first.GetCapacity() == 0);
+            REQUIRE(first.GetSize() == 0);
+            REQUIRE(first.GetData() == nullptr);
+            REQUIRE(strcmp(ref, second.GetData()) == 0);
+        }
     }
 }
 
@@ -167,14 +290,14 @@ TEST_CASE("Assignment", "[String]")
     SECTION("Short string")
     {
         const char ref[] = "Hello there";
-        StringLocale<DefaultAllocator> str1(ref, g_da);
-        StringLocale<DefaultAllocator> str2(g_da);
+        StringLocale str1(ref);
+        StringLocale str2;
         str2 = str1;
         REQUIRE(strcmp(str2.GetData(), ref) == 0);
         REQUIRE(str1.GetData() != str2.GetData());
         REQUIRE(str2.GetSize() == 11);
         REQUIRE(str2.GetCapacity() == 12);
-        StringLocale<DefaultAllocator> str3(g_da);
+        StringLocale str3;
         str3 = Move(str1);
         REQUIRE(strcmp(str3.GetData(), ref) == 0);
         REQUIRE(str1.GetData() != str3.GetData());
@@ -192,14 +315,14 @@ TEST_CASE("Assignment", "[String]")
             "has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was "
             "popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop "
             "publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
-        StringLocale<DefaultAllocator> str1(ref, g_da);
-        StringLocale<DefaultAllocator> str2(g_da);
+        StringLocale str1(ref);
+        StringLocale str2;
         str2 = str1;
         REQUIRE(strcmp(str2.GetData(), ref) == 0);
         REQUIRE(str1.GetData() != str2.GetData());
         REQUIRE(str2.GetSize() == 574);
         REQUIRE(str2.GetCapacity() == 575);
-        StringLocale<DefaultAllocator> str3(g_da);
+        StringLocale str3;
         str3 = Move(str1);
         REQUIRE(strcmp(str3.GetData(), ref) == 0);
         REQUIRE(str1.GetData() != str3.GetData());
@@ -216,9 +339,9 @@ TEST_CASE("Comparison", "[String]")
     SECTION("Short string")
     {
         const char ref[] = "Hello there";
-        StringLocale<DefaultAllocator> str1(ref, g_da);
-        StringLocale<DefaultAllocator> str2(ref, g_da);
-        StringLocale<DefaultAllocator> str3("Test", g_da);
+        StringLocale str1(ref);
+        StringLocale str2(ref);
+        StringLocale str3("Test");
         REQUIRE(str1 == str2);
         REQUIRE(str1 != str3);
     }
@@ -230,9 +353,9 @@ TEST_CASE("Comparison", "[String]")
             "has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was "
             "popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop "
             "publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
-        StringLocale<DefaultAllocator> str1(ref, g_da);
-        StringLocale<DefaultAllocator> str2(ref, g_da);
-        StringLocale<DefaultAllocator> str3("Test", g_da);
+        StringLocale str1(ref);
+        StringLocale str2(ref);
+        StringLocale str3("Test");
         REQUIRE(str1 == str2);
         REQUIRE(str1 != str3);
     }
@@ -244,7 +367,7 @@ TEST_CASE("Assign", "[String]")
     {
         SECTION("Count and value smaller then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            StringUtf8 str(u8"Hello there");
             str.Assign(5, 'd');
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 5);
@@ -255,7 +378,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Count and value larger then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(g_da);
+            StringUtf8 str;
             str.Assign(5, 'd');
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetSize() == 5);
@@ -266,7 +389,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("String literal and count smaller then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(u8"Goodbye and get lost", g_da);
+            StringUtf8 str(u8"Goodbye and get lost");
             str.Assign(u8"Hello there", 5);
             REQUIRE(str.GetCapacity() == 21);
             REQUIRE(str.GetSize() == 5);
@@ -277,7 +400,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("String literal and count larger then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(u8"Other", g_da);
+            StringUtf8 str(u8"Other");
             str.Assign(u8"Hello there", 10);
             REQUIRE(str.GetCapacity() == 11);
             REQUIRE(str.GetSize() == 10);
@@ -288,7 +411,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Only string literal")
         {
-            StringUtf8<DefaultAllocator> str(u8"Other", g_da);
+            StringUtf8 str(u8"Other");
             str.Assign(u8"Hello there");
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 11);
@@ -299,8 +422,8 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Copy other string")
         {
-            StringUtf8<DefaultAllocator> ref(u8"Hello there", g_da);
-            StringUtf8<DefaultAllocator> copy(g_da);
+            StringUtf8 ref(u8"Hello there");
+            StringUtf8 copy;
             copy.Assign(ref);
             REQUIRE(copy.GetSize() == ref.GetSize());
             REQUIRE(copy.GetCapacity() == ref.GetCapacity());
@@ -311,8 +434,8 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Copy part of the other string")
         {
-            StringUtf8<DefaultAllocator> ref(u8"Hello there", g_da);
-            StringUtf8<DefaultAllocator> copy1(g_da);
+            StringUtf8 ref(u8"Hello there");
+            StringUtf8 copy1;
             copy1.Assign(ref, 6, 10);
             REQUIRE(copy1.GetSize() == 5);
             REQUIRE(copy1.GetCapacity() == 6);
@@ -320,7 +443,7 @@ TEST_CASE("Assign", "[String]")
             {
                 REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
             }
-            StringUtf8<DefaultAllocator> copy2(g_da);
+            StringUtf8 copy2;
             copy2.Assign(ref, 6, 3);
             REQUIRE(copy2.GetSize() == 3);
             REQUIRE(copy2.GetCapacity() == 4);
@@ -328,7 +451,7 @@ TEST_CASE("Assign", "[String]")
             {
                 REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
             }
-            StringUtf8<DefaultAllocator> copy3(g_da);
+            StringUtf8 copy3;
             ErrorCode err = copy3.Assign(ref, 15, 3);
             REQUIRE(err == ErrorCode::OutOfBounds);
             REQUIRE(copy3.GetSize() == 0);
@@ -336,8 +459,8 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Move string")
         {
-            StringUtf8<DefaultAllocator> ref(u8"Hello there", g_da);
-            StringUtf8<DefaultAllocator> copy(g_da);
+            StringUtf8 ref(u8"Hello there");
+            StringUtf8 copy;
             copy.Assign(Move(ref));
             REQUIRE(copy.GetSize() == 11);
             REQUIRE(copy.GetCapacity() == 12);
@@ -360,7 +483,7 @@ TEST_CASE("Assign", "[String]")
             u8"publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
         SECTION("Count and value smaller then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(ref_str, g_da);
+            StringUtf8 str(ref_str);
             str.Assign(50, 'd');
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 50);
@@ -371,7 +494,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Count and value larger then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(g_da);
+            StringUtf8 str;
             str.Assign(50, 'd');
             REQUIRE(str.GetCapacity() == 51);
             REQUIRE(str.GetSize() == 50);
@@ -382,7 +505,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("String literal and count smaller then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(ref_str, g_da);
+            StringUtf8 str(ref_str);
             str.Assign(ref_str, 50);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 50);
@@ -393,7 +516,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("String literal and count larger then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(u8"Other", g_da);
+            StringUtf8 str(u8"Other");
             str.Assign(ref_str, 50);
             REQUIRE(str.GetCapacity() == 51);
             REQUIRE(str.GetSize() == 50);
@@ -404,7 +527,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Only string literal")
         {
-            StringUtf8<DefaultAllocator> str(u8"Other", g_da);
+            StringUtf8 str(u8"Other");
             str.Assign(ref_str);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 574);
@@ -415,8 +538,8 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Copy other string")
         {
-            StringUtf8<DefaultAllocator> ref(ref_str, g_da);
-            StringUtf8<DefaultAllocator> copy(g_da);
+            StringUtf8 ref(ref_str);
+            StringUtf8 copy;
             copy.Assign(ref);
             REQUIRE(copy.GetSize() == 574);
             REQUIRE(copy.GetCapacity() == 575);
@@ -427,8 +550,8 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Copy part of the other string")
         {
-            StringUtf8<DefaultAllocator> ref(ref_str, g_da);
-            StringUtf8<DefaultAllocator> copy1(g_da);
+            StringUtf8 ref(ref_str);
+            StringUtf8 copy1;
             copy1.Assign(ref, 6, 10);
             REQUIRE(copy1.GetSize() == 10);
             REQUIRE(copy1.GetCapacity() == 11);
@@ -436,7 +559,7 @@ TEST_CASE("Assign", "[String]")
             {
                 REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
             }
-            StringUtf8<DefaultAllocator> copy2(g_da);
+            StringUtf8 copy2;
             copy2.Assign(ref, 6, 3);
             REQUIRE(copy2.GetSize() == 3);
             REQUIRE(copy2.GetCapacity() == 4);
@@ -444,7 +567,7 @@ TEST_CASE("Assign", "[String]")
             {
                 REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
             }
-            StringUtf8<DefaultAllocator> copy3(g_da);
+            StringUtf8 copy3;
             ErrorCode err = copy3.Assign(ref, 600, 3);
             REQUIRE(err == ErrorCode::OutOfBounds);
             REQUIRE(copy3.GetSize() == 0);
@@ -452,8 +575,8 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Move string")
         {
-            StringUtf8<DefaultAllocator> ref(ref_str, g_da);
-            StringUtf8<DefaultAllocator> copy(g_da);
+            StringUtf8 ref(ref_str);
+            StringUtf8 copy;
             copy.Assign(Move(ref));
             REQUIRE(copy.GetSize() == 574);
             REQUIRE(copy.GetCapacity() == 575);
@@ -471,7 +594,7 @@ TEST_CASE("Accessors", "[String]")
     {
         SECTION("At")
         {
-            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            StringUtf8 str(u8"Hello there");
             REQUIRE(str.At(0).GetValue() == 'H');
             REQUIRE(str.At(1).GetValue() == 'e');
             REQUIRE(str.At(2).GetValue() == 'l');
@@ -486,13 +609,13 @@ TEST_CASE("Accessors", "[String]")
         }
         SECTION("Out of bounds At")
         {
-            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            StringUtf8 str(u8"Hello there");
             REQUIRE(!str.At(12).HasValue());
             REQUIRE(str.At(12).GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("Const At")
         {
-            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            const StringUtf8 str(u8"Hello there");
             REQUIRE(str.At(0).GetValue() == 'H');
             REQUIRE(str.At(1).GetValue() == 'e');
             REQUIRE(str.At(2).GetValue() == 'l');
@@ -507,65 +630,65 @@ TEST_CASE("Accessors", "[String]")
         }
         SECTION("Out of bounds const At")
         {
-            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            const StringUtf8 str(u8"Hello there");
             REQUIRE(!str.At(11).HasValue());
             REQUIRE(str.At(11).GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("Array operator")
         {
-            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            StringUtf8 str(u8"Hello there");
             REQUIRE(str[0] == 'H');
             REQUIRE(str[1] == 'e');
             REQUIRE(str[2] == 'l');
         }
         SECTION("Const array operator")
         {
-            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            const StringUtf8 str(u8"Hello there");
             REQUIRE(str[0] == 'H');
             REQUIRE(str[1] == 'e');
             REQUIRE(str[2] == 'l');
         }
         SECTION("Front")
         {
-            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            StringUtf8 str(u8"Hello there");
             REQUIRE(str.Front().GetValue() == 'H');
         }
         SECTION("Bad Front")
         {
-            StringUtf8<DefaultAllocator> str(g_da);
+            StringUtf8 str;
             REQUIRE(!str.Front().HasValue());
             REQUIRE(str.Front().GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("Const Front")
         {
-            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            const StringUtf8 str(u8"Hello there");
             REQUIRE(str.Front().GetValue() == 'H');
         }
         SECTION("Const bad Front")
         {
-            const StringUtf8<DefaultAllocator> str(g_da);
+            const StringUtf8 str;
             REQUIRE(!str.Front().HasValue());
             REQUIRE(str.Front().GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("Back")
         {
-            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            StringUtf8 str(u8"Hello there");
             REQUIRE(str.Back().GetValue() == 'e');
         }
         SECTION("Bad Back")
         {
-            StringUtf8<DefaultAllocator> str(g_da);
+            StringUtf8 str;
             REQUIRE(!str.Back().HasValue());
             REQUIRE(str.Back().GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("Const Back")
         {
-            const StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            const StringUtf8 str(u8"Hello there");
             REQUIRE(str.Back().GetValue() == 'e');
         }
         SECTION("Const bad Back")
         {
-            const StringUtf8<DefaultAllocator> str(g_da);
+            const StringUtf8 str;
             REQUIRE(!str.Back().HasValue());
             REQUIRE(str.Back().GetError() == ErrorCode::OutOfBounds);
         }
@@ -595,7 +718,7 @@ TEST_CASE("Reserve", "[String]")
     {
         SECTION("Reserve larger then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            StringUtf8 str(u8"Hello there");
             str.Reserve(20);
             REQUIRE(str.GetCapacity() == 20);
             REQUIRE(str.GetSize() == 11);
@@ -606,7 +729,7 @@ TEST_CASE("Reserve", "[String]")
         }
         SECTION("Reserve smaller then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(u8"Hello there", g_da);
+            StringUtf8 str(u8"Hello there");
             str.Reserve(5);
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 11);
@@ -628,7 +751,7 @@ TEST_CASE("Reserve", "[String]")
         SECTION("Reserve larger then current capacity")
         {
 
-            StringUtf8<DefaultAllocator> str(ref_str, g_da);
+            StringUtf8 str(ref_str);
             str.Reserve(600);
             REQUIRE(str.GetCapacity() == 600);
             REQUIRE(str.GetSize() == 574);
@@ -639,7 +762,7 @@ TEST_CASE("Reserve", "[String]")
         }
         SECTION("Reserve smaller then current capacity")
         {
-            StringUtf8<DefaultAllocator> str(ref_str, g_da);
+            StringUtf8 str(ref_str);
             str.Reserve(500);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 574);
@@ -657,7 +780,7 @@ TEST_CASE("Resize", "[String]")
     {
         SECTION("Resize to zero")
         {
-            StringLocale<DefaultAllocator> str("Hello there", g_da);
+            StringLocale str("Hello there");
             str.Resize(0);
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 0);
@@ -666,7 +789,7 @@ TEST_CASE("Resize", "[String]")
         }
         SECTION("New size smaller then old")
         {
-            StringLocale<DefaultAllocator> str("Hello there", g_da);
+            StringLocale str("Hello there");
             str.Resize(5);
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 5);
@@ -675,7 +798,7 @@ TEST_CASE("Resize", "[String]")
         }
         SECTION("New size larger then old")
         {
-            StringLocale<DefaultAllocator> str("Hello there", g_da);
+            StringLocale str("Hello there");
             str.Resize(20);
             REQUIRE(str.GetCapacity() == 21);
             REQUIRE(str.GetSize() == 20);
@@ -684,7 +807,7 @@ TEST_CASE("Resize", "[String]")
         }
         SECTION("New size larger then old with non-zero value")
         {
-            StringLocale<DefaultAllocator> str("Hello there", g_da);
+            StringLocale str("Hello there");
             str.Resize(20, 'd');
             REQUIRE(str.GetCapacity() == 21);
             REQUIRE(str.GetSize() == 20);
@@ -701,7 +824,7 @@ TEST_CASE("Append", "[String]")
     {
         SECTION("String literal no change to capacity")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale str("Hello");
             str.Reserve(200);
             str.Append(" there");
             REQUIRE(str.GetCapacity() == 200);
@@ -710,7 +833,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("String literal increase capacity")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale str("Hello");
             ErrorCode err = str.Append(" there");
             REQUIRE(err == ErrorCode::Success);
             REQUIRE(str.GetCapacity() == 12);
@@ -719,7 +842,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Null string literal")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale str("Hello");
             ErrorCode err = str.Append(nullptr);
             REQUIRE(err == ErrorCode::BadInput);
             REQUIRE(str.GetCapacity() == 6);
@@ -728,7 +851,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Empty string literal")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale str("Hello");
             ErrorCode err = str.Append("");
             REQUIRE(err == ErrorCode::Success);
             REQUIRE(str.GetCapacity() == 6);
@@ -737,7 +860,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Sub string literal no change to capacity")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale str("Hello");
             str.Reserve(200);
             str.Append(" there", 5);
             REQUIRE(str.GetCapacity() == 200);
@@ -746,7 +869,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Sub string literal increase capacity")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale str("Hello");
             ErrorCode err = str.Append(" there", 5);
             REQUIRE(err == ErrorCode::Success);
             REQUIRE(str.GetCapacity() == 11);
@@ -755,7 +878,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Null sub string literal")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale str("Hello");
             ErrorCode err = str.Append(nullptr, 5);
             REQUIRE(err == ErrorCode::BadInput);
             REQUIRE(str.GetCapacity() == 6);
@@ -764,7 +887,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Count and value")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale str("Hello");
             str.Reserve(200);
             str.Append(5, 'd');
             REQUIRE(str.GetCapacity() == 200);
@@ -773,7 +896,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Zero count and value")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
+            StringLocale str("Hello");
             str.Reserve(200);
             str.Append(0, 'd');
             REQUIRE(str.GetCapacity() == 200);
@@ -782,8 +905,8 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("String")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
-            StringLocale<DefaultAllocator> str2(" there", g_da);
+            StringLocale str("Hello");
+            StringLocale str2(" there");
             str.Append(str2);
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 11);
@@ -791,8 +914,8 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Empty string")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
-            StringLocale<DefaultAllocator> str2("", g_da);
+            StringLocale str("Hello");
+            StringLocale str2("");
             str.Append(str2);
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetSize() == 5);
@@ -800,8 +923,8 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Sub string")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
-            StringLocale<DefaultAllocator> str2(" there", g_da);
+            StringLocale str("Hello");
+            StringLocale str2(" there");
             str.Append(str2, 0, 5);
             REQUIRE(str.GetCapacity() == 11);
             REQUIRE(str.GetSize() == 10);
@@ -809,8 +932,8 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Sub string bad position")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
-            StringLocale<DefaultAllocator> str2(" there", g_da);
+            StringLocale str("Hello");
+            StringLocale str2(" there");
             ErrorCode err = str.Append(str2, 6, 5);
             REQUIRE(err == ErrorCode::OutOfBounds);
             REQUIRE(str.GetCapacity() == 6);
@@ -819,8 +942,8 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Sub string zero count")
         {
-            StringLocale<DefaultAllocator> str("Hello", g_da);
-            StringLocale<DefaultAllocator> str2(" there", g_da);
+            StringLocale str("Hello");
+            StringLocale str2(" there");
             str.Append(str2, 0, 0);
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetSize() == 5);
@@ -845,7 +968,7 @@ TEST_CASE("Append", "[String]")
             "publishing software like Aldus PageMaker including versions of Lorem Ipsum. there";
         SECTION("String literal no change to capacity")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
             str.Reserve(1000);
             str.Append(" there");
             REQUIRE(str.GetCapacity() == 1000);
@@ -854,7 +977,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("String literal increase capacity")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
             ErrorCode err = str.Append(" there");
             REQUIRE(err == ErrorCode::Success);
             REQUIRE(str.GetCapacity() == 581);
@@ -863,7 +986,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Null string literal")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
             ErrorCode err = str.Append(nullptr);
             REQUIRE(err == ErrorCode::BadInput);
             REQUIRE(str.GetCapacity() == 575);
@@ -872,7 +995,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Empty string literal")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
             ErrorCode err = str.Append("");
             REQUIRE(err == ErrorCode::Success);
             REQUIRE(str.GetCapacity() == 575);
@@ -881,7 +1004,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Sub string literal no change to capacity")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
             str.Reserve(1000);
             str.Append(" there", 5);
             REQUIRE(str.GetCapacity() == 1000);
@@ -889,7 +1012,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Sub string literal increase capacity")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
             ErrorCode err = str.Append(" there", 5);
             REQUIRE(err == ErrorCode::Success);
             REQUIRE(str.GetCapacity() == 580);
@@ -897,7 +1020,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Null sub string literal")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
             ErrorCode err = str.Append(nullptr, 5);
             REQUIRE(err == ErrorCode::BadInput);
             REQUIRE(str.GetCapacity() == 575);
@@ -906,7 +1029,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Count and value")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
             str.Reserve(1000);
             str.Append(5, 'd');
             REQUIRE(str.GetCapacity() == 1000);
@@ -914,7 +1037,7 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Zero count and value")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
+            StringLocale str(ref);
             str.Reserve(1000);
             str.Append(0, 'd');
             REQUIRE(str.GetCapacity() == 1000);
@@ -923,8 +1046,8 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("String")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
-            StringLocale<DefaultAllocator> str2(" there", g_da);
+            StringLocale str(ref);
+            StringLocale str2(" there");
             str.Append(str2);
             REQUIRE(str.GetCapacity() == 581);
             REQUIRE(str.GetSize() == 580);
@@ -932,8 +1055,8 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Empty string")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
-            StringLocale<DefaultAllocator> str2("", g_da);
+            StringLocale str(ref);
+            StringLocale str2("");
             str.Append(str2);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 574);
@@ -941,16 +1064,16 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Sub string")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
-            StringLocale<DefaultAllocator> str2(" there", g_da);
+            StringLocale str(ref);
+            StringLocale str2(" there");
             str.Append(str2, 0, 5);
             REQUIRE(str.GetCapacity() == 580);
             REQUIRE(str.GetSize() == 579);
         }
         SECTION("Sub string bad position")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
-            StringLocale<DefaultAllocator> str2(" there", g_da);
+            StringLocale str(ref);
+            StringLocale str2(" there");
             ErrorCode err = str.Append(str2, 6, 5);
             REQUIRE(err == ErrorCode::OutOfBounds);
             REQUIRE(str.GetCapacity() == 575);
@@ -959,8 +1082,8 @@ TEST_CASE("Append", "[String]")
         }
         SECTION("Sub string zero count")
         {
-            StringLocale<DefaultAllocator> str(ref, g_da);
-            StringLocale<DefaultAllocator> str2(" there", g_da);
+            StringLocale str(ref);
+            StringLocale str2(" there");
             str.Append(str2, 0, 0);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 574);
@@ -971,18 +1094,18 @@ TEST_CASE("Append", "[String]")
 
 TEST_CASE("Iterator", "[String]")
 {
-    using StringType = StringLocale<DefaultAllocator>;
-    using ItType = StringType::IteratorType;
+    using StringLocale = StringLocale;
+    using ItType = StringLocale::IteratorType;
     SECTION("Difference")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it1 = str.Begin();
         ItType it2 = str.End();
         REQUIRE(it2 - it1 == 11);
     }
     SECTION("Increment")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(*it == 'H');
         ++it;
@@ -992,7 +1115,7 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Post increment")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(*it == 'H');
         ++it;
@@ -1004,7 +1127,7 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Decrement")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.End();
         --it;
         REQUIRE(*it == 'e');
@@ -1015,7 +1138,7 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Post decrement")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.End();
         --it;
         REQUIRE(*it == 'e');
@@ -1028,7 +1151,7 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Add")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(*(it + 0) == 'H');
         REQUIRE(*(it + 1) == 'e');
@@ -1039,7 +1162,7 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Add assignment")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(*(it += 0) == 'H');
         REQUIRE(*(it += 1) == 'e');
@@ -1047,7 +1170,7 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Subtract")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.End();
         REQUIRE((it - 0) == str.End());
         REQUIRE(*(it - 1) == 'e');
@@ -1056,7 +1179,7 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Subtract assignment")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.End();
         REQUIRE((it -= 0) == str.End());
         REQUIRE(*(it -= 1) == 'e');
@@ -1065,7 +1188,7 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Access")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(it[0] == 'H');
         REQUIRE(it[1] == 'e');
@@ -1073,13 +1196,13 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Dereference")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(*it == 'H');
     }
     SECTION("Compare")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it1 = str.Begin();
         ItType it2 = str.Begin();
         REQUIRE(it1 == it2);
@@ -1099,8 +1222,8 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("For loop")
     {
-        StringType str("Hello there", g_da);
-        StringType dst(g_da);
+        StringLocale str("Hello there");
+        StringLocale dst;
         for (ItType it = str.Begin(); it != str.End(); ++it)
         {
             dst.Append(*it);
@@ -1110,8 +1233,8 @@ TEST_CASE("Iterator", "[String]")
     }
     SECTION("Modern for loop")
     {
-        StringType str("Hello there", g_da);
-        StringType dst(g_da);
+        StringLocale str("Hello there");
+        StringLocale dst;
         for (auto c : str)
         {
             dst.Append(c);
@@ -1123,18 +1246,18 @@ TEST_CASE("Iterator", "[String]")
 
 TEST_CASE("Const iterator", "[String]")
 {
-    using StringType = StringLocale<DefaultAllocator>;
-    using ItType = StringType::ConstIteratorType;
+    using StringLocale = StringLocale;
+    using ItType = StringLocale::ConstIteratorType;
     SECTION("Difference")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it1 = str.ConstBegin();
         ItType it2 = str.ConstEnd();
         REQUIRE(it2 - it1 == 11);
     }
     SECTION("Increment")
     {
-        const StringType str("Hello there", g_da);
+        const StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(*it == 'H');
         ++it;
@@ -1144,7 +1267,7 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Post increment")
     {
-        const StringType str("Hello there", g_da);
+        const StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(*it == 'H');
         ++it;
@@ -1156,7 +1279,7 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Decrement")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.ConstEnd();
         --it;
         REQUIRE(*it == 'e');
@@ -1167,7 +1290,7 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Post decrement")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.ConstEnd();
         --it;
         REQUIRE(*it == 'e');
@@ -1180,7 +1303,7 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Add")
     {
-        const StringType str("Hello there", g_da);
+        const StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(*(it + 0) == 'H');
         REQUIRE(*(it + 1) == 'e');
@@ -1191,7 +1314,7 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Add assignment")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.ConstBegin();
         REQUIRE(*(it += 0) == 'H');
         REQUIRE(*(it += 1) == 'e');
@@ -1199,7 +1322,7 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Subtract")
     {
-        const StringType str("Hello there", g_da);
+        const StringLocale str("Hello there");
         ItType it = str.End();
         REQUIRE((it - 0) == str.End());
         REQUIRE(*(it - 1) == 'e');
@@ -1208,7 +1331,7 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Subtract assignment")
     {
-        const StringType str("Hello there", g_da);
+        const StringLocale str("Hello there");
         ItType it = str.End();
         REQUIRE((it -= 0) == str.End());
         REQUIRE(*(it -= 1) == 'e');
@@ -1217,7 +1340,7 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Access")
     {
-        const StringType str("Hello there", g_da);
+        const StringLocale str("Hello there");
         ItType it = str.Begin();
         REQUIRE(it[0] == 'H');
         REQUIRE(it[1] == 'e');
@@ -1225,13 +1348,13 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Dereference")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it = str.ConstBegin();
         REQUIRE(*it == 'H');
     }
     SECTION("Compare")
     {
-        StringType str("Hello there", g_da);
+        StringLocale str("Hello there");
         ItType it1 = str.ConstBegin();
         ItType it2 = str.ConstBegin();
         REQUIRE(it1 == it2);
@@ -1251,8 +1374,8 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("For loop")
     {
-        const StringType str("Hello there", g_da);
-        StringType dst(g_da);
+        const StringLocale str("Hello there");
+        StringLocale dst;
         for (ItType it = str.Begin(); it != str.End(); ++it)
         {
             dst.Append(*it);
@@ -1262,8 +1385,8 @@ TEST_CASE("Const iterator", "[String]")
     }
     SECTION("Modern for loop")
     {
-        const StringType str("Hello there", g_da);
-        StringType dst(g_da);
+        const StringLocale str("Hello there");
+        StringLocale dst;
         for (auto c : str)
         {
             dst.Append(c);
@@ -1275,10 +1398,10 @@ TEST_CASE("Const iterator", "[String]")
 
 TEST_CASE("From UTF8 to UTF32", "[String]")
 {
-    StringUtf8<DefaultAllocator> utf8(u8"での日本語文字コードを扱うために使用されている従来の", g_da);
-    StringUtf32<DefaultAllocator> utf32(U"での日本語文字コードを扱うために使用されている従来の", g_da);
+    StringUtf8 utf8(u8"での日本語文字コードを扱うために使用されている従来の");
+    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
-    StringUtf32<DefaultAllocator> utf32_result(g_da);
+    StringUtf32 utf32_result;
     utf32_result.Resize(200);
     ErrorCode error = Transcode(utf8, utf32_result);
     REQUIRE(error == ErrorCode::Success);
@@ -1287,10 +1410,10 @@ TEST_CASE("From UTF8 to UTF32", "[String]")
 
 TEST_CASE("From UTF32 to UTF8", "[String]")
 {
-    StringUtf8<DefaultAllocator> utf8(u8"での日本語文字コードを扱うために使用されている従来の", g_da);
-    StringUtf32<DefaultAllocator> utf32(U"での日本語文字コードを扱うために使用されている従来の", g_da);
+    StringUtf8 utf8(u8"での日本語文字コードを扱うために使用されている従来の");
+    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
-    StringUtf8<DefaultAllocator> utf8_result(g_da);
+    StringUtf8 utf8_result;
     utf8_result.Resize(200);
     ErrorCode error = Transcode(utf32, utf8_result);
     REQUIRE(error == ErrorCode::Success);
@@ -1299,10 +1422,10 @@ TEST_CASE("From UTF32 to UTF8", "[String]")
 
 TEST_CASE("From UTF16 to UTF32", "[String]")
 {
-    StringUtf16<DefaultAllocator> utf16(u"での日本語文字コードを扱うために使用されている従来の", g_da);
-    StringUtf32<DefaultAllocator> utf32(U"での日本語文字コードを扱うために使用されている従来の", g_da);
+    StringUtf16 utf16(u"での日本語文字コードを扱うために使用されている従来の");
+    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
-    StringUtf32<DefaultAllocator> utf32_result(g_da);
+    StringUtf32 utf32_result;
     utf32_result.Resize(200);
     ErrorCode error = Transcode(utf16, utf32_result);
     REQUIRE(error == ErrorCode::Success);
@@ -1311,10 +1434,10 @@ TEST_CASE("From UTF16 to UTF32", "[String]")
 
 TEST_CASE("From UTF32 to UTF16", "[String]")
 {
-    StringUtf16<DefaultAllocator> utf16(u"での日本語文字コードを扱うために使用されている従来の", g_da);
-    StringUtf32<DefaultAllocator> utf32(U"での日本語文字コードを扱うために使用されている従来の", g_da);
+    StringUtf16 utf16(u"での日本語文字コードを扱うために使用されている従来の");
+    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
-    StringUtf16<DefaultAllocator> utf16_result(g_da);
+    StringUtf16 utf16_result;
     utf16_result.Resize(200);
     ErrorCode error = Transcode(utf32, utf16_result);
     REQUIRE(error == ErrorCode::Success);
@@ -1323,10 +1446,10 @@ TEST_CASE("From UTF32 to UTF16", "[String]")
 
 TEST_CASE("From native wide to UTF32", "[String]")
 {
-    StringWide<DefaultAllocator> utf_wide(L"での日本語文字コードを扱うために使用されている従来の", g_da);
-    StringUtf32<DefaultAllocator> utf32(U"での日本語文字コードを扱うために使用されている従来の", g_da);
+    StringWide utf_wide(L"での日本語文字コードを扱うために使用されている従来の");
+    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
-    StringUtf32<DefaultAllocator> utf32_result(g_da);
+    StringUtf32 utf32_result;
     utf32_result.Resize(200);
     ErrorCode error = Transcode(utf_wide, utf32_result);
     REQUIRE(error == ErrorCode::Success);
@@ -1335,10 +1458,10 @@ TEST_CASE("From native wide to UTF32", "[String]")
 
 TEST_CASE("From UTF32 to native wide", "[String]")
 {
-    StringWide<DefaultAllocator> wide(L"での日本語文字コードを扱うために使用されている従来の", g_da);
-    StringUtf32<DefaultAllocator> utf32(U"での日本語文字コードを扱うために使用されている従来の", g_da);
+    StringWide wide(L"での日本語文字コードを扱うために使用されている従来の");
+    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
-    StringWide<DefaultAllocator> wide_result(g_da);
+    StringWide wide_result;
     wide_result.Resize(200);
     ErrorCode error = Transcode(utf32, wide_result);
     REQUIRE(error == ErrorCode::Success);
@@ -1347,10 +1470,10 @@ TEST_CASE("From UTF32 to native wide", "[String]")
 
 TEST_CASE("From locale to UTF32", "[String][FromLocale]")
 {
-    StringLocale<DefaultAllocator> str_locale("での日本語文字コードを扱うために使用されている従来の", g_da);
-    StringUtf32<DefaultAllocator> utf32(U"での日本語文字コードを扱うために使用されている従来の", g_da);
+    StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
+    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
-    StringUtf32<DefaultAllocator> utf32_result(g_da);
+    StringUtf32 utf32_result;
     utf32_result.Resize(200);
     ErrorCode error = Transcode(str_locale, utf32_result);
     REQUIRE(error == ErrorCode::Success);
@@ -1359,10 +1482,10 @@ TEST_CASE("From locale to UTF32", "[String][FromLocale]")
 
 TEST_CASE("From UTF32 to locale", "[String]")
 {
-    StringLocale<DefaultAllocator> str_locale("での日本語文字コードを扱うために使用されている従来の", g_da);
-    StringUtf32<DefaultAllocator> utf32(U"での日本語文字コードを扱うために使用されている従来の", g_da);
+    StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
+    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
-    StringLocale<DefaultAllocator> locale_result(g_da);
+    StringLocale locale_result;
     locale_result.Resize(200);
     ErrorCode error = Transcode(utf32, locale_result);
     REQUIRE(error == ErrorCode::Success);
@@ -1372,10 +1495,10 @@ TEST_CASE("From UTF32 to locale", "[String]")
 
 TEST_CASE("From wide to locale", "[String]")
 {
-    StringWide<DefaultAllocator> wide(L"での日本語文字コードを扱うために使用されている従来の", g_da);
-    StringLocale<DefaultAllocator> str_locale("での日本語文字コードを扱うために使用されている従来の", g_da);
+    StringWide wide(L"での日本語文字コードを扱うために使用されている従来の");
+    StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
 
-    StringLocale<DefaultAllocator> locale_result(g_da);
+    StringLocale locale_result;
     locale_result.Resize(200);
     ErrorCode error = Transcode(wide, locale_result);
     REQUIRE(error == ErrorCode::Success);
@@ -1385,79 +1508,79 @@ TEST_CASE("From wide to locale", "[String]")
 
 TEST_CASE("Lexicographical compare", "[String]")
 {
-    using StringType = StringLocale<DefaultAllocator>;
+    StringLocale;
     SECTION("Two strings")
     {
         SECTION("Both empty")
         {
-            StringType a("", g_da);
-            StringType b("", g_da);
+            const StringLocale a("");
+            const StringLocale b("");
             REQUIRE(Compare(a, b) == 0);
         }
         SECTION("First empty")
         {
-            StringType a("", g_da);
-            StringType b("aa", g_da);
+            StringLocale a("");
+            StringLocale b("aa");
             REQUIRE(Compare(a, b) == -1);
         }
         SECTION("Second empty")
         {
-            StringType a("aa", g_da);
-            StringType b("", g_da);
+            StringLocale a("aa");
+            StringLocale b("");
             REQUIRE(Compare(a, b) == 1);
         }
         SECTION("First shorter and equal")
         {
-            StringType a("aaa", g_da);
-            StringType b("aaabbb", g_da);
+            StringLocale a("aaa");
+            StringLocale b("aaabbb");
             REQUIRE(Compare(a, b) == -1);
         }
         SECTION("Second shorter and equal")
         {
-            StringType a("aaabbb", g_da);
-            StringType b("aaa", g_da);
+            StringLocale a("aaabbb");
+            StringLocale b("aaa");
             REQUIRE(Compare(a, b) == 1);
         }
         SECTION("First shorter and smaller")
         {
-            StringType a("aaa", g_da);
-            StringType b("bbbb", g_da);
+            StringLocale a("aaa");
+            StringLocale b("bbbb");
             REQUIRE(Compare(a, b) == -1);
         }
         SECTION("First shorter and larger")
         {
-            StringType a("bbb", g_da);
-            StringType b("aaaa", g_da);
+            StringLocale a("bbb");
+            StringLocale b("aaaa");
             REQUIRE(Compare(a, b) == 1);
         }
         SECTION("Second shorter and smaller")
         {
-            StringType a("bbbb", g_da);
-            StringType b("aaa", g_da);
+            StringLocale a("bbbb");
+            StringLocale b("aaa");
             REQUIRE(Compare(a, b) == 1);
         }
         SECTION("Second shorter and larger")
         {
-            StringType a("aaaa", g_da);
-            StringType b("bbb", g_da);
+            StringLocale a("aaaa");
+            StringLocale b("bbb");
             REQUIRE(Compare(a, b) == -1);
         }
         SECTION("Equal size and same")
         {
-            StringType a("aaa", g_da);
-            StringType b("aaa", g_da);
+            StringLocale a("aaa");
+            StringLocale b("aaa");
             REQUIRE(Compare(a, b) == 0);
         }
         SECTION("Equal size first smaller")
         {
-            StringType a("aaa", g_da);
-            StringType b("bbb", g_da);
+            StringLocale a("aaa");
+            StringLocale b("bbb");
             REQUIRE(Compare(a, b) == -1);
         }
         SECTION("Equal size second smaller")
         {
-            StringType a("ccc", g_da);
-            StringType b("bbb", g_da);
+            StringLocale a("ccc");
+            StringLocale b("bbb");
             REQUIRE(Compare(a, b) == 1);
         }
     }
@@ -1465,74 +1588,74 @@ TEST_CASE("Lexicographical compare", "[String]")
     {
         SECTION("Both empty")
         {
-            StringType a("aa", g_da);
-            StringType b("", g_da);
+            StringLocale a("aa");
+            StringLocale b("");
             REQUIRE(Compare(a, 2, 0, b).GetValue() == 0);
         }
         SECTION("First empty")
         {
-            StringType a("aa", g_da);
-            StringType b("aa", g_da);
+            StringLocale a("aa");
+            StringLocale b("aa");
             REQUIRE(Compare(a, 2, 0, b).GetValue() == -1);
         }
         SECTION("Second empty")
         {
-            StringType a("aa", g_da);
-            StringType b("", g_da);
+            StringLocale a("aa");
+            StringLocale b("");
             REQUIRE(Compare(a, 1, 1, b).GetValue() == 1);
         }
         SECTION("First shorter and equal")
         {
-            StringType a("bbbaaa", g_da);
-            StringType b("aaabbb", g_da);
+            StringLocale a("bbbaaa");
+            StringLocale b("aaabbb");
             REQUIRE(Compare(a, 3, 3, b).GetValue() == -1);
         }
         SECTION("Second shorter and equal")
         {
-            StringType a("cccaaabbb", g_da);
-            StringType b("aaa", g_da);
+            StringLocale a("cccaaabbb");
+            StringLocale b("aaa");
             REQUIRE(Compare(a, 3, 6, b).GetValue() == 1);
         }
         SECTION("First shorter and smaller")
         {
-            StringType a("caaa", g_da);
-            StringType b("bbbb", g_da);
+            StringLocale a("caaa");
+            StringLocale b("bbbb");
             REQUIRE(Compare(a, 1, 3, b).GetValue() == -1);
         }
         SECTION("First shorter and larger")
         {
-            StringType a("ccbbb", g_da);
-            StringType b("aaaa", g_da);
+            StringLocale a("ccbbb");
+            StringLocale b("aaaa");
             REQUIRE(Compare(a, 2, 3, b).GetValue() == 1);
         }
         SECTION("Second shorter and smaller")
         {
-            StringType a("ccbbbb", g_da);
-            StringType b("aaa", g_da);
+            StringLocale a("ccbbbb");
+            StringLocale b("aaa");
             REQUIRE(Compare(a, 2, 4, b).GetValue() == 1);
         }
         SECTION("Second shorter and larger")
         {
-            StringType a("caaaa", g_da);
-            StringType b("bbb", g_da);
+            StringLocale a("caaaa");
+            StringLocale b("bbb");
             REQUIRE(Compare(a, 1, 4, b).GetValue() == -1);
         }
         SECTION("Equal size and same")
         {
-            StringType a("ccaaa", g_da);
-            StringType b("aaa", g_da);
+            StringLocale a("ccaaa");
+            StringLocale b("aaa");
             REQUIRE(Compare(a, 2, 3, b).GetValue() == 0);
         }
         SECTION("Equal size first smaller")
         {
-            StringType a("caaa", g_da);
-            StringType b("bbb", g_da);
+            StringLocale a("caaa");
+            StringLocale b("bbb");
             REQUIRE(Compare(a, 1, 3, b).GetValue() == -1);
         }
         SECTION("Equal size second smaller")
         {
-            StringType a("aaccc", g_da);
-            StringType b("bbb", g_da);
+            StringLocale a("aaccc");
+            StringLocale b("bbb");
             REQUIRE(Compare(a, 2, 3, b).GetValue() == 1);
         }
     }
@@ -1540,74 +1663,74 @@ TEST_CASE("Lexicographical compare", "[String]")
     {
         SECTION("Both empty")
         {
-            StringType a("aa", g_da);
-            StringType b("", g_da);
+            StringLocale a("aa");
+            StringLocale b("");
             REQUIRE(Compare(a, 2, 0, b, 0, 0).GetValue() == 0);
         }
         SECTION("First empty")
         {
-            StringType a("aa", g_da);
-            StringType b("aa", g_da);
+            StringLocale a("aa");
+            StringLocale b("aa");
             REQUIRE(Compare(a, 2, 0, b, 0, 2).GetValue() == -1);
         }
         SECTION("Second empty")
         {
-            StringType a("aa", g_da);
-            StringType b("", g_da);
+            StringLocale a("aa");
+            StringLocale b("");
             REQUIRE(Compare(a, 1, 1, b, 0, 0).GetValue() == 1);
         }
         SECTION("First shorter and equal")
         {
-            StringType a("bbbaaa", g_da);
-            StringType b("aaabbb", g_da);
+            StringLocale a("bbbaaa");
+            StringLocale b("aaabbb");
             REQUIRE(Compare(a, 3, 3, b, 0, 6).GetValue() == -1);
         }
         SECTION("Second shorter and equal")
         {
-            StringType a("cccaaabbb", g_da);
-            StringType b("caaa", g_da);
+            StringLocale a("cccaaabbb");
+            StringLocale b("caaa");
             REQUIRE(Compare(a, 3, 6, b, 1, 3).GetValue() == 1);
         }
         SECTION("First shorter and smaller")
         {
-            StringType a("caaa", g_da);
-            StringType b("abbbb", g_da);
+            StringLocale a("caaa");
+            StringLocale b("abbbb");
             REQUIRE(Compare(a, 1, 3, b, 1, 4).GetValue() == -1);
         }
         SECTION("First shorter and larger")
         {
-            StringType a("ccbbb", g_da);
-            StringType b("aaaaaa", g_da);
+            StringLocale a("ccbbb");
+            StringLocale b("aaaaaa");
             REQUIRE(Compare(a, 2, 3, b, 2, 4).GetValue() == 1);
         }
         SECTION("Second shorter and smaller")
         {
-            StringType a("ccbbbb", g_da);
-            StringType b("aaa", g_da);
+            StringLocale a("ccbbbb");
+            StringLocale b("aaa");
             REQUIRE(Compare(a, 2, 4, b, 0, 3).GetValue() == 1);
         }
         SECTION("Second shorter and larger")
         {
-            StringType a("caaaa", g_da);
-            StringType b("dfdbbb", g_da);
+            StringLocale a("caaaa");
+            StringLocale b("dfdbbb");
             REQUIRE(Compare(a, 1, 4, b, 3, 3).GetValue() == -1);
         }
         SECTION("Equal size and same")
         {
-            StringType a("ccaaa", g_da);
-            StringType b("baaa", g_da);
+            StringLocale a("ccaaa");
+            StringLocale b("baaa");
             REQUIRE(Compare(a, 2, 3, b, 1, 3).GetValue() == 0);
         }
         SECTION("Equal size first smaller")
         {
-            StringType a("caaa", g_da);
-            StringType b("bbb", g_da);
+            StringLocale a("caaa");
+            StringLocale b("bbb");
             REQUIRE(Compare(a, 1, 3, b, 0, 3).GetValue() == -1);
         }
         SECTION("Equal size second smaller")
         {
-            StringType a("aaccc", g_da);
-            StringType b("abbb", g_da);
+            StringLocale a("aaccc");
+            StringLocale b("abbb");
             REQUIRE(Compare(a, 2, 3, b, 1, 3).GetValue() == 1);
         }
     }
@@ -1615,62 +1738,62 @@ TEST_CASE("Lexicographical compare", "[String]")
     {
         SECTION("Both empty")
         {
-            StringType a("aa", g_da);
+            StringLocale a("aa");
             REQUIRE(Compare(a, 2, 0, "").GetValue() == 0);
         }
         SECTION("First empty")
         {
-            StringType a("aa", g_da);
+            StringLocale a("aa");
             REQUIRE(Compare(a, 2, 0, "aa").GetValue() == -1);
         }
         SECTION("Second empty")
         {
-            StringType a("aa", g_da);
+            StringLocale a("aa");
             REQUIRE(Compare(a, 1, 1, "").GetValue() == 1);
         }
         SECTION("First shorter and equal")
         {
-            StringType a("bbbaaa", g_da);
+            StringLocale a("bbbaaa");
             REQUIRE(Compare(a, 3, 3, "aaabbb").GetValue() == -1);
         }
         SECTION("Second shorter and equal")
         {
-            StringType a("cccaaabbb", g_da);
+            StringLocale a("cccaaabbb");
             REQUIRE(Compare(a, 3, 6, "aaa").GetValue() == 1);
         }
         SECTION("First shorter and smaller")
         {
-            StringType a("caaa", g_da);
+            StringLocale a("caaa");
             REQUIRE(Compare(a, 1, 3, "bbbb").GetValue() == -1);
         }
         SECTION("First shorter and larger")
         {
-            StringType a("ccbbb", g_da);
+            StringLocale a("ccbbb");
             REQUIRE(Compare(a, 2, 3, "aaaa").GetValue() == 1);
         }
         SECTION("Second shorter and smaller")
         {
-            StringType a("ccbbbb", g_da);
+            StringLocale a("ccbbbb");
             REQUIRE(Compare(a, 2, 4, "aaa").GetValue() == 1);
         }
         SECTION("Second shorter and larger")
         {
-            StringType a("caaaa", g_da);
+            StringLocale a("caaaa");
             REQUIRE(Compare(a, 1, 4, "bbb").GetValue() == -1);
         }
         SECTION("Equal size and same")
         {
-            StringType a("ccaaa", g_da);
+            StringLocale a("ccaaa");
             REQUIRE(Compare(a, 2, 3, "aaa").GetValue() == 0);
         }
         SECTION("Equal size first smaller")
         {
-            StringType a("caaa", g_da);
+            StringLocale a("caaa");
             REQUIRE(Compare(a, 1, 3, "bbb").GetValue() == -1);
         }
         SECTION("Equal size second smaller")
         {
-            StringType a("aaccc", g_da);
+            StringLocale a("aaccc");
             REQUIRE(Compare(a, 2, 3, "bbb").GetValue() == 1);
         }
     }
@@ -1678,64 +1801,64 @@ TEST_CASE("Lexicographical compare", "[String]")
     {
         SECTION("Both empty")
         {
-            StringType a("aa", g_da);
-            StringType b("", g_da);
-            REQUIRE(Compare(a, 2, 0, "a",  0).GetValue() == 0);
+            StringLocale a("aa");
+            StringLocale b("");
+            REQUIRE(Compare(a, 2, 0, "a", 0).GetValue() == 0);
         }
         SECTION("First empty")
         {
-            StringType a("aa", g_da);
-            StringType b("aa", g_da);
+            StringLocale a("aa");
+            StringLocale b("aa");
             REQUIRE(Compare(a, 2, 0, "aab", 2).GetValue() == -1);
         }
         SECTION("Second empty")
         {
-            StringType a("aa", g_da);
+            StringLocale a("aa");
             REQUIRE(Compare(a, 1, 1, "", 0).GetValue() == 1);
         }
         SECTION("First shorter and equal")
         {
-            StringType a("bbbaaa", g_da);
+            StringLocale a("bbbaaa");
             REQUIRE(Compare(a, 3, 3, "aaabbba", 6).GetValue() == -1);
         }
         SECTION("Second shorter and equal")
         {
-            StringType a("cccaaabbb", g_da);
+            StringLocale a("cccaaabbb");
             REQUIRE(Compare(a, 3, 6, "aaac", 3).GetValue() == 1);
         }
         SECTION("First shorter and smaller")
         {
-            StringType a("caaa", g_da);
+            StringLocale a("caaa");
             REQUIRE(Compare(a, 1, 3, "bbbba", 4).GetValue() == -1);
         }
         SECTION("First shorter and larger")
         {
-            StringType a("ccbbb", g_da);
+            StringLocale a("ccbbb");
             REQUIRE(Compare(a, 2, 3, "aaaabb", 4).GetValue() == 1);
         }
         SECTION("Second shorter and smaller")
         {
-            StringType a("ccbbbb", g_da);
+            StringLocale a("ccbbbb");
             REQUIRE(Compare(a, 2, 4, "aaa", 3).GetValue() == 1);
         }
         SECTION("Second shorter and larger")
         {
-            StringType a("caaaa", g_da);
+            StringLocale a("caaaa");
             REQUIRE(Compare(a, 1, 4, "bbbdfd", 3).GetValue() == -1);
         }
         SECTION("Equal size and same")
         {
-            StringType a("ccaaa", g_da);
+            StringLocale a("ccaaa");
             REQUIRE(Compare(a, 2, 3, "aaaab", 3).GetValue() == 0);
         }
         SECTION("Equal size first smaller")
         {
-            StringType a("caaa", g_da);
+            StringLocale a("caaa");
             REQUIRE(Compare(a, 1, 3, "bbb", 3).GetValue() == -1);
         }
         SECTION("Equal size second smaller")
         {
-            StringType a("aaccc", g_da);
+            StringLocale a("aaccc");
             REQUIRE(Compare(a, 2, 3, "bbb", 3).GetValue() == 1);
         }
     }
