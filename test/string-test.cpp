@@ -1508,7 +1508,6 @@ TEST_CASE("From wide to locale", "[String]")
 
 TEST_CASE("Lexicographical compare", "[String]")
 {
-    StringLocale;
     SECTION("Two strings")
     {
         SECTION("Both empty")
