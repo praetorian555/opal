@@ -1,7 +1,5 @@
 #include "catch2/catch2.hpp"
 
-#include <vector>
-
 #include "opal/container/span.h"
 #include "opal/container/array.h"
 
@@ -56,12 +54,19 @@ TEST_CASE("Construction", "[Span]")
             REQUIRE(span.GetSize() == 5);
         }
     }
-    SECTION("From other container")
+    SECTION("From Array as range")
     {
         Array<i32> array(5);
         Span<int> span(array);
         REQUIRE(span.GetData() == array.GetData());
         REQUIRE(span.GetSize() == 5);
+    }
+    SECTION("From C-style array as range")
+    {
+        i32 arr[] = {42, 43, 44};
+        Span<i32> span(arr);
+        REQUIRE(span.GetData() == arr);
+        REQUIRE(span.GetSize() == 3);
     }
 }
 

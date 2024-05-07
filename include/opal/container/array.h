@@ -328,6 +328,11 @@ private:
     T* m_data = nullptr;
 };
 
+template <typename MyArray>
+typename MyArray::IteratorType begin(MyArray& array) { return typename MyArray::IteratorType(array.GetData()); }
+template <typename MyArray>
+typename MyArray::IteratorType end(MyArray& array) { return typename MyArray::IteratorType(array.GetData() + array.GetSize()); }
+
 }  // namespace Opal
 
 /***************************************** Implementation *****************************************/
