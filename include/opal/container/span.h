@@ -16,6 +16,11 @@ public:
     using PointerType = typename MySpan::PointerType;
     using DifferenceType = typename MySpan::DifferenceType;
 
+    // Type aliases to be compatible with std library
+    using reference = ReferenceType;
+    using difference_type = DifferenceType;
+    using value_type = ValueType;
+
     SpanIterator() = default;
     explicit SpanIterator(PointerType ptr) : m_ptr(ptr) {}
 
@@ -56,6 +61,11 @@ public:
     using ReferenceType = typename MySpan::ConstReferenceType;
     using PointerType = typename MySpan::PointerType;
     using DifferenceType = typename MySpan::DifferenceType;
+
+    // Type aliases to be compatible with std library
+    using reference = ReferenceType;
+    using difference_type = DifferenceType;
+    using value_type = ValueType;
 
     SpanConstIterator() = default;
     explicit SpanConstIterator(PointerType ptr) : m_ptr(ptr) {}
