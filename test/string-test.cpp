@@ -1862,3 +1862,139 @@ TEST_CASE("Lexicographical compare", "[String]")
         }
     }
 }
+
+TEST_CASE("Sub string", "[String]")
+{
+    SECTION("Short string")
+    {
+        SECTION("Bad start position")
+        {
+            StringLocale str("Hello");
+            auto result = Opal::GetSubString(str, 6, 1);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Empty sub string")
+        {
+            StringLocale str("Hello");
+            auto result = Opal::GetSubString(str, 0, 0);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == "");
+            REQUIRE(result.GetValue().GetSize() == 0);
+        }
+        SECTION("Empty source string")
+        {
+            StringLocale str("");
+            auto result = Opal::GetSubString(str, 0, 0);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == Opal::ErrorCode::OutOfBounds);
+        }
+        SECTION("All defaults")
+        {
+            StringLocale str("Hello");
+            auto result = Opal::GetSubString(str);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == "Hello");
+            REQUIRE(result.GetValue().GetSize() == 5);
+        }
+        SECTION("Custom start pos")
+        {
+            StringLocale str("Hello");
+            auto result = Opal::GetSubString(str, 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == "llo");
+            REQUIRE(result.GetValue().GetSize() == 3);
+        }
+        SECTION("Custom count")
+        {
+            StringLocale str("Hello");
+            auto result = Opal::GetSubString(str, 2, 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == "ll");
+            REQUIRE(result.GetValue().GetSize() == 2);
+        }
+        SECTION("Count over size")
+        {
+            StringLocale str("Hello");
+            auto result = Opal::GetSubString(str, 2, 10);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == "llo");
+            REQUIRE(result.GetValue().GetSize() == 3);
+        }
+    }
+    SECTION("Long string")
+    {
+        SECTION("Bad start position")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = Opal::GetSubString(str, 500, 1);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Empty sub string")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = Opal::GetSubString(str, 0, 0);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == "");
+            REQUIRE(result.GetValue().GetSize() == 0);
+        }
+        SECTION("Empty source string")
+        {
+            StringLocale str("");
+            auto result = Opal::GetSubString(str, 0, 0);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == Opal::ErrorCode::OutOfBounds);
+        }
+        SECTION("All defaults")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = Opal::GetSubString(str);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == str);
+            REQUIRE(result.GetValue().GetSize() == str.GetSize());
+        }
+        SECTION("Custom start pos")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = Opal::GetSubString(str, 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == StringLocale(str.Begin() + 2, str.End()));
+            REQUIRE(result.GetValue().GetSize() == str.GetSize() - 2);
+        }
+        SECTION("Custom count")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = Opal::GetSubString(str, 2, 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == StringLocale(str.Begin() + 2, str.Begin() + 4));
+            REQUIRE(result.GetValue().GetSize() == 2);
+        }
+        SECTION("Count over size")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = Opal::GetSubString(str, 2, 1000);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == StringLocale(str.Begin() + 2, str.End()));
+            REQUIRE(result.GetValue().GetSize() == str.GetSize() - 2);
+        }
+    }
+}

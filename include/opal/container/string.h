@@ -208,8 +208,9 @@ public:
     ConstIteratorType cbegin() const { return ConstIteratorType(m_data); }
     ConstIteratorType cend() const { return ConstIteratorType(m_data + m_size); }
 
+    [[nodiscard]] static constexpr SizeType Min(SizeType a, SizeType b) { return a > b ? b : a; }
+
 private:
-    inline constexpr SizeType Min(SizeType a, SizeType b) const { return a > b ? b : a; }
     inline CodeUnitType* Allocate(SizeType size);
     inline void Deallocate(CodeUnitType* data);
 
@@ -329,7 +330,13 @@ Expected<typename MyString::SizeType, ErrorCode> ReverseFind(const MyString& str
 template <typename InputString, typename OutputString>
 ErrorCode Transcode(InputString& input, OutputString& output);
 
-/** Most common String specializations. */
+template <typename MyString, typename Allocator = AllocatorBase>
+Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyString::SizeType start_pos = 0,
+                                           typename MyString::SizeType count = MyString::k_npos, Allocator* allocator = nullptr);
+
+/*************************************************************************************************/
+/** Most common String specializations. **********************************************************/
+/*************************************************************************************************/
 
 using StringUtf8 = String<c8, EncodingUtf8<c8>>;
 using StringUtf16 = String<c16, EncodingUtf16LE<c16>>;
@@ -1304,4 +1311,17 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
         return ReturnType(1);
     }
     return ReturnType(0);
+}
+
+template <typename MyString, typename Allocator>
+Opal::Expected<MyString, Opal::ErrorCode> Opal::GetSubString(const MyString& str, typename MyString::SizeType start_pos,
+                                                             typename MyString::SizeType count, Allocator* allocator)
+{
+    using ReturnType = Expected<MyString, ErrorCode>;
+    if (start_pos >= str.GetSize())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    count = MyString::Min(count, str.GetSize() - start_pos);
+    return ReturnType(MyString(str.GetData() + start_pos, count, allocator));
 }
