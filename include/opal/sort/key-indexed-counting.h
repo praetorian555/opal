@@ -15,6 +15,7 @@ namespace Opal
  * @param in_keys The input keys. Should be the same size as in_out_value.
  * @param in_out_value The input values to sort. Should be the same size as in_keys.
  * @param scratch_allocator The allocator to use for temporary storage. If nullptr, the default allocator is used.
+ * @return ErrorCode::Success if the sort was successful, ErrorCode::BadInput if the input keys and values are not the same size.
  */
 template <u64 k_number_of_unique_keys, typename Key, typename Value, typename Allocator = AllocatorBase>
 ErrorCode KeyIndexedCounting(const Span<Key>& in_keys, Span<Value>& in_out_value, Allocator* scratch_allocator = nullptr)
