@@ -20,6 +20,11 @@ public:
     using PointerType = typename MyString::PointerType;
     using DifferenceType = typename MyString::DifferenceType;
 
+    // Type aliases to be compatible with std library
+    using reference = ReferenceType;
+    using difference_type = DifferenceType;
+    using value_type = ValueType;
+
     StringIterator() = default;
     explicit StringIterator(PointerType ptr) : m_ptr(ptr) {}
 
@@ -60,6 +65,11 @@ public:
     using ReferenceType = typename MyString::ConstReferenceType;
     using PointerType = typename MyString::PointerType;
     using DifferenceType = typename MyString::DifferenceType;
+
+    // Type aliases to be compatible with std library
+    using reference = ReferenceType;
+    using difference_type = DifferenceType;
+    using value_type = ValueType;
 
     StringConstIterator() = default;
     explicit StringConstIterator(PointerType ptr) : m_ptr(ptr) {}
@@ -124,6 +134,10 @@ public:
     String(const String& other, AllocatorT* allocator = nullptr);
     String(const String& other, SizeType pos, AllocatorT* allocator = nullptr);
     String(String&& other) noexcept;
+
+    template <typename InputIt>
+        requires RandomAccessIterator<InputIt>
+    String(InputIt start, InputIt end, AllocatorT* allocator = nullptr);
 
     ~String();
 
@@ -402,6 +416,13 @@ CLASS_HEADER::String(String&& other) noexcept : m_capacity(other.m_capacity), m_
     other.m_capacity = 0;
     other.m_size = 0;
     other.m_data = nullptr;
+}
+
+TEMPLATE_HEADER
+template <typename InputIt>
+    requires Opal::RandomAccessIterator<InputIt>
+CLASS_HEADER::String(InputIt start, InputIt end, AllocatorT* allocator) : String(&(*start), end - start, allocator)
+{
 }
 
 TEMPLATE_HEADER
