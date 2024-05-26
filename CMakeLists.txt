@@ -52,6 +52,7 @@ set(OPAL_FILES
         include/opal/container/span.h
         include/opal/container/string.h
         include/opal/container/array.h
+        include/opal/sort/key-indexed-counting.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})
@@ -93,6 +94,7 @@ if (OPAL_BUILD_TESTS)
             test/string-test.cpp
             test/expected-test.cpp
             test/time-test.cpp
+            test/sort-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
