@@ -249,16 +249,7 @@ template <typename Container>
     requires Opal::Range<Container> && Opal::SameAs<T, typename Container::value_type>
 CLASS_HEADER::Span(Container& container)
 {
-    // Check if underlying array is contiguous
-    u8* start_ptr = reinterpret_cast<u8*>(&(*container.begin()));
-    u8* end_ptr = reinterpret_cast<u8*>(&(*container.end()));
-    SizeType count = container.end() - container.begin();
-    SizeType size = count * sizeof(T);
-    if (start_ptr + size != end_ptr)
-    {
-        return;
-    }
-
+    // TODO: Check if underlying array is contiguous
     m_data = &(*container.begin());
     m_size = container.end() - container.begin();
 }
