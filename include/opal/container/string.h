@@ -192,6 +192,10 @@ public:
     template <typename InputIt>
     ErrorCode AppendIt(InputIt begin, InputIt end);
 
+    String& operator+=(const String& other);
+    String& operator+=(CodeUnitType ch);
+    String& operator+=(const CodeUnitType* str);
+
     // Iterators
     IteratorType Begin() { return IteratorType(m_data); }
     IteratorType End() { return IteratorType(m_data + m_size); }
@@ -880,6 +884,27 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, SizeType pos, SizeType
     m_size += count;
     m_data[m_size] = 0;
     return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator+=(const String& other)
+{
+    Append(other);
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator+=(CodeUnitType ch)
+{
+    Append(ch);
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator+=(const CodeUnitType* str)
+{
+    Append(str);
+    return *this;
 }
 
 TEMPLATE_HEADER
