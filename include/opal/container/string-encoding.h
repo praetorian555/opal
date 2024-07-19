@@ -2,10 +2,10 @@
 
 #include <cuchar>
 
-#include "opal/container/span.h"
-#include "opal/error-codes.h"
 #include "opal/export.h"
+#include "opal/error-codes.h"
 #include "opal/types.h"
+#include "opal/container/span.h"
 
 namespace Opal
 {

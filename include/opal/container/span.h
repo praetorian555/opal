@@ -1,8 +1,8 @@
 #pragma once
 
 #include "opal/container/expected.h"
+#include "opal/container/iterator.h"
 #include "opal/error-codes.h"
-#include "opal/iterator.h"
 #include "opal/types.h"
 
 namespace Opal

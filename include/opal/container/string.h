@@ -4,8 +4,8 @@
 
 #include "opal/allocator.h"
 #include "opal/container/span.h"
+#include "opal/container/string-encoding.h"
 #include "opal/error-codes.h"
-#include "opal/string-encoding.h"
 #include "opal/types.h"
 
 namespace Opal
