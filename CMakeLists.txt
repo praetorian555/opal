@@ -53,6 +53,8 @@ set(OPAL_FILES
         include/opal/container/string.h
         include/opal/container/array.h
         include/opal/container/priority-queue.h
+        include/opal/container/hash-set.h
+        include/opal/container/hash-map.h
         include/opal/sort/key-indexed-counting.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
