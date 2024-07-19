@@ -1395,6 +1395,90 @@ MyString Opal::operator+(typename MyString::CodeUnitType ch, const MyString& rhs
     return result;
 }
 
+template <typename MyString>
+Opal::Expected<typename MyString::SizeType, Opal::ErrorCode> Opal::Find(const MyString& str, const MyString& search,
+                                                                        typename MyString::SizeType str_pos)
+{
+    if (str_pos >= str.GetSize())
+    {
+        return Expected<typename MyString::SizeType, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    if (search.GetSize() == 0)
+    {
+        return Expected<typename MyString::SizeType, ErrorCode>(str_pos);
+    }
+    if (search.GetSize() > str.GetSize() - str_pos)
+    {
+        return Expected<typename MyString::SizeType, ErrorCode>(ErrorCode::StringNotFound);
+    }
+    for (typename MyString::SizeType i = str_pos; i < str.GetSize(); ++i)
+    {
+        bool is_found = true;
+        for (typename MyString::SizeType j = 0; j < search.GetSize(); ++j)
+        {
+            if (search[j] != str[i + j])
+            {
+                is_found = false;
+                break;
+            }
+        }
+        if (is_found)
+        {
+            return Expected<typename MyString::SizeType, ErrorCode>(i);
+        }
+    }
+    return Expected<typename MyString::SizeType, ErrorCode>(ErrorCode::StringNotFound);
+}
+
+template <typename MyString>
+Opal::Expected<typename MyString::SizeType, Opal::ErrorCode> Opal::Find(const MyString& str, const typename MyString::CodeUnitType* search,
+                                                                        typename MyString::SizeType str_pos)
+{
+    if (str_pos >= str.GetSize())
+    {
+        return Expected<typename MyString::SizeType, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    u64 search_string_size = 0;
+    while (search[search_string_size] != 0)
+    {
+        search_string_size++;
+    }
+    MyString search_str(search, search_string_size);
+    if (search_str.GetSize() == 0)
+    {
+        return Expected<typename MyString::SizeType, ErrorCode>(str_pos);
+    }
+    if (search_str.GetSize() > str.GetSize() - str_pos)
+    {
+        return Expected<typename MyString::SizeType, ErrorCode>(ErrorCode::StringNotFound);
+    }
+    for (typename MyString::SizeType i = str_pos; i < str.GetSize(); ++i)
+    {
+        bool is_found = true;
+        for (typename MyString::SizeType j = 0; j < search_str.GetSize(); ++j)
+        {
+            if (search_str[j] != str[i + j])
+            {
+                is_found = false;
+                break;
+            }
+        }
+        if (is_found)
+        {
+            return Expected<typename MyString::SizeType, ErrorCode>(i);
+        }
+    }
+    return Expected<typename MyString::SizeType, ErrorCode>(ErrorCode::StringNotFound);
+}
+
+// template <typename MyString>
+// Opal::Expected<typename MyString::SizeType, Opal::ErrorCode> Opal::Find(const MyString& str, const typename MyString::CodeUnitType*
+// search,
+//                                                       typename MyString::SizeType str_pos, typename MyString::SizeType search_count);
+// template <typename MyString>
+// Opal::Expected<typename MyString::SizeType, Opal::ErrorCode> Opal::Find(const MyString& str, const typename MyString::CodeUnitType& ch,
+//                                                       typename MyString::SizeType str_pos = 0);
+
 template <typename MyString, typename Allocator>
 Opal::Expected<MyString, Opal::ErrorCode> Opal::GetSubString(const MyString& str, typename MyString::SizeType start_pos,
                                                              typename MyString::SizeType count, Allocator* allocator)

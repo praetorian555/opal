@@ -2028,7 +2028,6 @@ TEST_CASE("Operator +=", "[String]")
             str += nullptr;
             REQUIRE(str == "Hello");
         }
-
     }
     SECTION("Long string")
     {
@@ -2040,7 +2039,9 @@ TEST_CASE("Operator +=", "[String]")
                 "book.");
             StringLocale other(" Hello there");
             str += other;
-            REQUIRE(str == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                str ==
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book. Hello there");
         }
@@ -2051,7 +2052,9 @@ TEST_CASE("Operator +=", "[String]")
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
             str += ' ';
-            REQUIRE(str == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                str ==
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book. ");
         }
@@ -2062,18 +2065,22 @@ TEST_CASE("Operator +=", "[String]")
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
             str += " Hello there";
-            REQUIRE(str == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                str ==
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book. Hello there");
         }
         SECTION("Append null")
         {
             StringLocale str(
-    "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
-    "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
-    "book.");
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
             str += nullptr;
-            REQUIRE(str == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                str ==
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
         }
@@ -2132,7 +2139,9 @@ TEST_CASE("Operator +", "[String]")
                 "book.");
             StringLocale other(" Hello there");
             auto result = str + other;
-            REQUIRE(result == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                result ==
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book. Hello there");
         }
@@ -2143,7 +2152,9 @@ TEST_CASE("Operator +", "[String]")
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
             auto result = str + ' ';
-            REQUIRE(result == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                result ==
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book. ");
         }
@@ -2154,7 +2165,9 @@ TEST_CASE("Operator +", "[String]")
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
             auto result = str + " Hello there";
-            REQUIRE(result == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                result ==
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book. Hello there");
         }
@@ -2165,7 +2178,9 @@ TEST_CASE("Operator +", "[String]")
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
             auto result = ' ' + str;
-            REQUIRE(result == " Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                result ==
+                " Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
         }
@@ -2176,7 +2191,10 @@ TEST_CASE("Operator +", "[String]")
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
             auto result = " there" + str;
-            REQUIRE(result == " thereLorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                result ==
+                " thereLorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's "
+                "standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
         }
@@ -2187,9 +2205,94 @@ TEST_CASE("Operator +", "[String]")
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
             auto result = nullptr + str;
-            REQUIRE(result == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            REQUIRE(
+                result ==
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
                 "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
                 "book.");
         }
+    }
+}
+
+TEST_CASE("Find with string", "[String]")
+{
+    SECTION("Bad string position")
+    {
+        const StringLocale str("Hello there");
+        const StringLocale search("there");
+        auto result = Find(str, search, 12);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Search string is empty")
+    {
+        const StringLocale str("Hello there");
+        const StringLocale search("");
+        auto result = Find(str, search);
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(result.GetValue() == 0);
+    }
+    SECTION("Not enough string is left for search")
+    {
+        const StringLocale str("Hello there");
+        const StringLocale search("there");
+        auto result = Find(str, search, 8);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::StringNotFound);
+    }
+    SECTION("Search success")
+    {
+        const StringLocale str("Hello there");
+        const StringLocale search("there");
+        auto result = Find(str, search);
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(result.GetValue() == 6);
+    }
+    SECTION("Search not found")
+    {
+        const StringLocale str("Hello there");
+        const StringLocale search("world");
+        auto result = Find(str, search);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::StringNotFound);
+    }
+}
+
+TEST_CASE("Find with char pointer", "[String]")
+{
+    SECTION("Bad string position")
+    {
+        const StringLocale str("Hello there");
+        auto result = Find(str, "there", 12);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Search string is empty")
+    {
+        const StringLocale str("Hello there");
+        auto result = Find(str, "");
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(result.GetValue() == 0);
+    }
+    SECTION("Not enough string is left for search")
+    {
+        const StringLocale str("Hello there");
+        auto result = Find(str, "there", 8);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::StringNotFound);
+    }
+    SECTION("Search success")
+    {
+        const StringLocale str("Hello there");
+        auto result = Find(str, "there");
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(result.GetValue() == 6);
+    }
+    SECTION("Search not found")
+    {
+        const StringLocale str("Hello there");
+        auto result = Find(str, "world");
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::StringNotFound);
     }
 }
