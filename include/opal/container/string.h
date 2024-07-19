@@ -299,6 +299,21 @@ Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeT
                                  const typename MyString::CodeUnitType* second, typename MyString::SizeType count2);
 
 template <typename MyString>
+MyString operator+(const MyString& lhs, const MyString& rhs);
+
+template <typename MyString>
+MyString operator+(const MyString& lhs, const typename MyString::CodeUnitType* rhs);
+
+template <typename MyString>
+MyString operator+(const MyString& lhs, typename MyString::CodeUnitType ch);
+
+template <typename MyString>
+MyString operator+(const typename MyString::CodeUnitType* lhs, const MyString& rhs);
+
+template <typename MyString>
+MyString operator+(typename MyString::CodeUnitType ch, const MyString& rhs);
+
+template <typename MyString>
 Expected<typename MyString::SizeType, ErrorCode> Find(const MyString& str, const MyString& search, typename MyString::SizeType str_pos = 0);
 template <typename MyString>
 Expected<typename MyString::SizeType, ErrorCode> Find(const MyString& str, const typename MyString::CodeUnitType* search,
@@ -1336,6 +1351,48 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
         return ReturnType(1);
     }
     return ReturnType(0);
+}
+
+template <typename MyString>
+MyString Opal::operator+(const MyString& lhs, const MyString& rhs)
+{
+    MyString result = lhs;
+    result += rhs;
+    return result;
+}
+
+template <typename MyString>
+MyString Opal::operator+(const MyString& lhs, const typename MyString::CodeUnitType* rhs)
+{
+    MyString result = lhs;
+    result += rhs;
+    return result;
+}
+
+template <typename MyString>
+MyString Opal::operator+(const MyString& lhs, typename MyString::CodeUnitType ch)
+{
+    MyString result = lhs;
+    result += ch;
+    return result;
+}
+
+template <typename MyString>
+MyString Opal::operator+(const typename MyString::CodeUnitType* lhs, const MyString& rhs)
+{
+    MyString result;
+    result += lhs;
+    result += rhs;
+    return result;
+}
+
+template <typename MyString>
+MyString Opal::operator+(typename MyString::CodeUnitType ch, const MyString& rhs)
+{
+    MyString result;
+    result += ch;
+    result += rhs;
+    return result;
 }
 
 template <typename MyString, typename Allocator>

@@ -2079,3 +2079,117 @@ TEST_CASE("Operator +=", "[String]")
         }
     }
 }
+
+TEST_CASE("Operator +", "[String]")
+{
+    SECTION("Short string")
+    {
+        SECTION("Add string and string")
+        {
+            StringLocale str("Hello");
+            StringLocale other(" there");
+            auto result = str + other;
+            REQUIRE(result == "Hello there");
+        }
+        SECTION("Add string and char")
+        {
+            StringLocale str("Hello");
+            auto result = str + ' ';
+            REQUIRE(result == "Hello ");
+        }
+        SECTION("Add string and char pointer")
+        {
+            StringLocale str("Hello");
+            auto result = str + " there";
+            REQUIRE(result == "Hello there");
+        }
+        SECTION("Add char and string")
+        {
+            StringLocale str("Hello");
+            auto result = ' ' + str;
+            REQUIRE(result == " Hello");
+        }
+        SECTION("Add char pointer and string")
+        {
+            StringLocale str("Hello");
+            auto result = " there" + str;
+            REQUIRE(result == " thereHello");
+        }
+        SECTION("Add null and string")
+        {
+            StringLocale str("Hello");
+            auto result = nullptr + str;
+            REQUIRE(result == "Hello");
+        }
+    }
+    SECTION("Long string")
+    {
+        SECTION("Add string and string")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            StringLocale other(" Hello there");
+            auto result = str + other;
+            REQUIRE(result == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book. Hello there");
+        }
+        SECTION("Add string and char")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = str + ' ';
+            REQUIRE(result == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book. ");
+        }
+        SECTION("Add string and char pointer")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = str + " Hello there";
+            REQUIRE(result == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book. Hello there");
+        }
+        SECTION("Add char and string")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = ' ' + str;
+            REQUIRE(result == " Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+        }
+        SECTION("Add char pointer and string")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = " there" + str;
+            REQUIRE(result == " thereLorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+        }
+        SECTION("Add null and string")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = nullptr + str;
+            REQUIRE(result == "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+        }
+    }
+}
