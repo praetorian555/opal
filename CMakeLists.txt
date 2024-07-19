@@ -46,11 +46,12 @@ set(OPAL_FILES
         include/opal/error-codes.h
         include/opal/time.h
         include/opal/container/iterator.h
-        include/opal/container/string-encoding.h
         include/opal/container/expected.h
         include/opal/container/deque.h
         include/opal/container/span.h
         include/opal/container/string.h
+        include/opal/container/string-encoding.h
+        include/opal/container/string-hash.h
         include/opal/container/array.h
         include/opal/container/stack-array.h
         include/opal/container/priority-queue.h
