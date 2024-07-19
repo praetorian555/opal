@@ -52,6 +52,7 @@ set(OPAL_FILES
         include/opal/container/span.h
         include/opal/container/string.h
         include/opal/container/array.h
+        include/opal/container/stack-array.h
         include/opal/container/priority-queue.h
         include/opal/container/hash-set.h
         include/opal/container/hash-map.h
