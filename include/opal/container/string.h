@@ -126,7 +126,7 @@ public:
      */
     static constexpr SizeType k_npos = static_cast<SizeType>(-1);
 
-    explicit String(AllocatorT* allocator = nullptr);
+    String(AllocatorT* allocator = nullptr);
     String(SizeType count, CodeUnitT value, AllocatorT* allocator = nullptr);
     String(const CodeUnitT* str, SizeType count, AllocatorT* allocator = nullptr);
     template <u64 N>
