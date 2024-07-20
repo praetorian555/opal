@@ -192,6 +192,20 @@ public:
     template <typename InputIt>
     ErrorCode AppendIt(InputIt begin, InputIt end);
 
+    /**
+     * @brief Erase a range of code units from the string.
+     * @param start_pos Position in the string to start erasing from.
+     * @param count Number of code units to erase. If count is equal to k_npos, the entire string starting from start_pos will be erased.
+     * @return Reference to the current string instance in case of a success. ErrorCode::OutOfBounds if start_pos is greater than the size
+     * of the string.
+     */
+    Expected<String&, ErrorCode> Erase(SizeType start_pos = 0, SizeType count = k_npos);
+
+    Expected<IteratorType, ErrorCode> Erase(IteratorType pos);
+    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType pos);
+    Expected<IteratorType, ErrorCode> Erase(IteratorType first, IteratorType last);
+    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType first, ConstIteratorType last);
+
     String& operator+=(const String& other);
     String& operator+=(CodeUnitType ch);
     String& operator+=(const CodeUnitType* str);
@@ -964,6 +978,24 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, SizeType pos, SizeType
 }
 
 TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER&, Opal::ErrorCode> CLASS_HEADER::Erase(SizeType start_pos, SizeType count)
+{
+    using ReturnType = Expected<CLASS_HEADER&, ErrorCode>;
+    if (start_pos >= m_size)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    count = Min(m_size - start_pos, count);
+    for (SizeType i = start_pos; i < m_size - count; i++)
+    {
+        m_data[i] = m_data[i + count];
+    }
+    m_size -= count;
+    m_data[m_size] = 0;
+    return ReturnType(*this);
+}
+
+TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator+=(const String& other)
 {
     Append(other);
@@ -1561,8 +1593,7 @@ typename MyString::SizeType Opal::Find(const MyString& haystack, const typename 
 }
 
 template <typename MyString>
-typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const MyString& needle,
-                                              typename MyString::SizeType start_pos)
+typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const MyString& needle, typename MyString::SizeType start_pos)
 {
     if (needle.IsEmpty())
     {
@@ -1597,8 +1628,7 @@ typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const My
 
 template <typename MyString>
 typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const typename MyString::CodeUnitType* needle,
-                                              typename MyString::SizeType start_pos,
-                                              typename MyString::SizeType needle_count)
+                                              typename MyString::SizeType start_pos, typename MyString::SizeType needle_count)
 {
     if (needle == nullptr)
     {

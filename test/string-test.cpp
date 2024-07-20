@@ -2468,3 +2468,31 @@ TEST_CASE("Reverse Find", "[String]")
         }
     }
 }
+
+TEST_CASE("Erase", "[String]")
+{
+    SECTION("Erase with start position and count")
+    {
+        SECTION("Start position out of bounds")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(30);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Count out of bounds")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(5, 30);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == "Hello");
+        }
+        SECTION("Small count")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(5, 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == "Hellohere");
+        }
+    }
+}
