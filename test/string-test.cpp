@@ -2214,85 +2214,142 @@ TEST_CASE("Operator +", "[String]")
     }
 }
 
-TEST_CASE("Find with string", "[String]")
+TEST_CASE("Find", "[String]")
 {
-    SECTION("Bad string position")
+    SECTION("Find with string object")
     {
-        const StringLocale str("Hello there");
-        const StringLocale search("there");
-        auto result = Find(str, search, 12);
-        REQUIRE(result.HasValue() == false);
-        REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        SECTION("Search string is empty and start position is valid")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("");
+            auto result = Find(str, search);
+            REQUIRE(result == 0);
+        }
+        SECTION("Search string is empty and start position is not valid")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("");
+            auto result = Find(str, search, 12);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Bad start position")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("there");
+            auto result = Find(str, search, 12);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Not enough string is left for search")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("there");
+            auto result = Find(str, search, 8);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Main string is empty")
+        {
+            const StringLocale str;
+            const StringLocale search("there");
+            auto result = Find(str, search);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Search success")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("there");
+            auto result = Find(str, search);
+            REQUIRE(result == 6);
+        }
+        SECTION("Search not found")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("world");
+            auto result = Find(str, search);
+            REQUIRE(result == StringLocale::k_npos);
+        }
     }
-    SECTION("Search string is empty")
+    SECTION("Find with char pointer")
     {
-        const StringLocale str("Hello there");
-        const StringLocale search("");
-        auto result = Find(str, search);
-        REQUIRE(result.HasValue() == true);
-        REQUIRE(result.GetValue() == 0);
+        SECTION("Search string is nullptr")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, nullptr);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Search string is empty and start position is valid")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, "");
+            REQUIRE(result == 0);
+        }
+        SECTION("Search string is empty and start position is not valid")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, "", 12);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Bad start position")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, "there", 12);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Not enough string is left for search")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, "there", 8);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Main string is empty")
+        {
+            const StringLocale str;
+            auto result = Find(str, "there");
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Search success")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, "there");
+            REQUIRE(result == 6);
+        }
+        SECTION("Search success of part of the search string")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, "therearr", 0, 5);
+            REQUIRE(result == 6);
+        }
+        SECTION("Search not found")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, "world");
+            REQUIRE(result == StringLocale::k_npos);
+        }
     }
-    SECTION("Not enough string is left for search")
+    SECTION("Find a character")
     {
-        const StringLocale str("Hello there");
-        const StringLocale search("there");
-        auto result = Find(str, search, 8);
-        REQUIRE(result.HasValue() == false);
-        REQUIRE(result.GetError() == ErrorCode::StringNotFound);
-    }
-    SECTION("Search success")
-    {
-        const StringLocale str("Hello there");
-        const StringLocale search("there");
-        auto result = Find(str, search);
-        REQUIRE(result.HasValue() == true);
-        REQUIRE(result.GetValue() == 6);
-    }
-    SECTION("Search not found")
-    {
-        const StringLocale str("Hello there");
-        const StringLocale search("world");
-        auto result = Find(str, search);
-        REQUIRE(result.HasValue() == false);
-        REQUIRE(result.GetError() == ErrorCode::StringNotFound);
-    }
-}
-
-TEST_CASE("Find with char pointer", "[String]")
-{
-    SECTION("Bad string position")
-    {
-        const StringLocale str("Hello there");
-        auto result = Find(str, "there", 12);
-        REQUIRE(result.HasValue() == false);
-        REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
-    }
-    SECTION("Search string is empty")
-    {
-        const StringLocale str("Hello there");
-        auto result = Find(str, "");
-        REQUIRE(result.HasValue() == true);
-        REQUIRE(result.GetValue() == 0);
-    }
-    SECTION("Not enough string is left for search")
-    {
-        const StringLocale str("Hello there");
-        auto result = Find(str, "there", 8);
-        REQUIRE(result.HasValue() == false);
-        REQUIRE(result.GetError() == ErrorCode::StringNotFound);
-    }
-    SECTION("Search success")
-    {
-        const StringLocale str("Hello there");
-        auto result = Find(str, "there");
-        REQUIRE(result.HasValue() == true);
-        REQUIRE(result.GetValue() == 6);
-    }
-    SECTION("Search not found")
-    {
-        const StringLocale str("Hello there");
-        auto result = Find(str, "world");
-        REQUIRE(result.HasValue() == false);
-        REQUIRE(result.GetError() == ErrorCode::StringNotFound);
+        SECTION("Main string is empty")
+        {
+            const StringLocale str;
+            auto result = Find(str, 'a');
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Start position is out of bounds")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, 'a', 12);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Search success")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, 't');
+            REQUIRE(result == 6);
+        }
+        SECTION("Search not found")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, 'w');
+            REQUIRE(result == StringLocale::k_npos);
+        }
     }
 }
