@@ -355,18 +355,50 @@ template <typename MyString>
 typename MyString::SizeType Find(const MyString& haystack, const typename MyString::CodeUnitType& ch,
                                  typename MyString::SizeType start_pos = 0);
 
+/**
+ * @brief Find the last occurrence of a string in another string.
+ * @tparam MyString String type to search in.
+ * @param haystack String to search in.
+ * @param needle String to search for.
+ * @param start_pos Position in the haystack to start searching from. Search will start from right to left. If start_pos is greater than
+ * the size of the haystack, the entire haystack will be searched.
+ * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns MyString::k_npos. If needle is
+ * empty, returns start_pos or if start_pos is larger then or equal to the size of the string the size of haystack will be returned.
+ */
 template <typename MyString>
-Expected<typename MyString::SizeType, ErrorCode> ReverseFind(const MyString& str, const MyString& search,
-                                                             typename MyString::SizeType str_pos = MyString::k_npos);
+typename MyString::SizeType ReverseFind(const MyString& haystack, const MyString& needle,
+                                        typename MyString::SizeType start_pos = MyString::k_npos);
+
+/**
+ * @brief Find the last occurrence of a string in another string.
+ * @tparam MyString String type to search in.
+ * @param haystack String to search in.
+ * @param needle String to search for.
+ * @param start_pos Position in the haystack to start searching from. Search will start from right to left. If start_pos is greater than
+ * or equal to the size of the haystack, the entire haystack will be searched.
+ * @param needle_count Number of code units to search for in the needle. Includes the null-terminator characters. If needle_count is
+ * equal to MyString::k_npos, the entire needle will be searched for until the first null-terminator character.
+ * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns MyString::k_npos. If needle is
+ * empty, returns start_pos or if start_pos is larger then or equal to the size of the string the size of haystack will be returned.
+ */
 template <typename MyString>
-Expected<typename MyString::SizeType, ErrorCode> ReverseFind(const MyString& str, const typename MyString::CodeUnitType* search,
-                                                             typename MyString::SizeType str_pos = MyString::k_npos);
+typename MyString::SizeType ReverseFind(const MyString& haystack, const typename MyString::CodeUnitType* needle,
+                                        typename MyString::SizeType start_pos = MyString::k_npos,
+                                        typename MyString::SizeType needle_count = MyString::k_npos);
+
+/**
+ * @brief Find the last occurrence of a character in another string.
+ * @tparam MyString String type to search in.
+ * @param haystack String to search in.
+ * @param ch Character to search for.
+ * @param start_pos Position in the haystack to start searching from. Search will start from right to left. If start_pos is greater than
+ * the size of the haystack, the entire haystack will be searched.
+ * @return Position of the last occurrence of the character in the haystack. If the character is not found, returns MyString::k_npos. If
+ * haystack is empty, returns MyString::k_npos.
+ */
 template <typename MyString>
-Expected<typename MyString::SizeType, ErrorCode> ReverseFind(const MyString& str, const typename MyString::CodeUnitType* search,
-                                                             typename MyString::SizeType str_pos, typename MyString::SizeType search_count);
-template <typename MyString>
-Expected<typename MyString::SizeType, ErrorCode> ReverseFind(const MyString& str, const typename MyString::CodeUnitType& ch,
-                                                             typename MyString::SizeType str_pos = MyString::k_npos);
+typename MyString::SizeType ReverseFind(const MyString& haystack, const typename MyString::CodeUnitType& ch,
+                                        typename MyString::SizeType start_pos = MyString::k_npos);
 
 /**
  * Transcode a string from one encoding to another.
@@ -1519,6 +1551,111 @@ typename MyString::SizeType Opal::Find(const MyString& haystack, const typename 
         return MyString::k_npos;
     }
     for (typename MyString::SizeType haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
+    {
+        if (haystack[haystack_pos] == ch)
+        {
+            return haystack_pos;
+        }
+    }
+    return MyString::k_npos;
+}
+
+template <typename MyString>
+typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const MyString& needle,
+                                              typename MyString::SizeType start_pos)
+{
+    if (needle.IsEmpty())
+    {
+        return start_pos >= haystack.GetSize() ? haystack.GetSize() : start_pos;
+    }
+    if (start_pos >= haystack.GetSize())
+    {
+        start_pos = haystack.GetSize() - 1;
+    }
+    if (needle.GetSize() > start_pos + 1)
+    {
+        return MyString::k_npos;
+    }
+    for (typename MyString::SizeType haystack_pos = start_pos - needle.GetSize(); haystack_pos != MyString::k_npos; --haystack_pos)
+    {
+        bool is_found = true;
+        for (typename MyString::SizeType needle_pos = 0; needle_pos < needle.GetSize(); ++needle_pos)
+        {
+            if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
+            {
+                is_found = false;
+                break;
+            }
+        }
+        if (is_found)
+        {
+            return haystack_pos;
+        }
+    }
+    return MyString::k_npos;
+}
+
+template <typename MyString>
+typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const typename MyString::CodeUnitType* needle,
+                                              typename MyString::SizeType start_pos,
+                                              typename MyString::SizeType needle_count)
+{
+    if (needle == nullptr)
+    {
+        return MyString::k_npos;
+    }
+    if (needle_count == MyString::k_npos)
+    {
+        needle_count = 0;
+        while (needle[needle_count] != 0)
+        {
+            ++needle_count;
+        }
+    }
+    if (needle_count == 0)
+    {
+        return start_pos >= haystack.GetSize() ? haystack.GetSize() : start_pos;
+    }
+    if (start_pos >= haystack.GetSize())
+    {
+        start_pos = haystack.GetSize() - 1;
+    }
+    if (needle_count > start_pos + 1)
+    {
+        return MyString::k_npos;
+    }
+    for (typename MyString::SizeType haystack_pos = start_pos - needle_count; haystack_pos != MyString::k_npos; --haystack_pos)
+    {
+        bool is_found = true;
+        for (typename MyString::SizeType needle_pos = 0; needle_pos < needle_count; ++needle_pos)
+        {
+            if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
+            {
+                is_found = false;
+                break;
+            }
+        }
+        if (is_found)
+        {
+            return haystack_pos;
+        }
+    }
+    return MyString::k_npos;
+}
+
+template <typename MyString>
+typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const typename MyString::CodeUnitType& ch,
+                                              typename MyString::SizeType start_pos)
+{
+    if (haystack.IsEmpty())
+    {
+        return MyString::k_npos;
+    }
+    if (start_pos >= haystack.GetSize())
+    {
+        start_pos = haystack.GetSize() - 1;
+    }
+    for (typename MyString::SizeType haystack_pos = start_pos; haystack_pos != MyString::k_npos; --haystack_pos)
     {
         if (haystack[haystack_pos] == ch)
         {

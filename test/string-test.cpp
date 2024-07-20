@@ -2353,3 +2353,118 @@ TEST_CASE("Find", "[String]")
         }
     }
 }
+
+TEST_CASE("Reverse Find", "[String]")
+{
+    SECTION("With string object")
+    {
+        SECTION("Search string is empty and start position is valid")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("");
+            auto result = ReverseFind(str, search, 5);
+            REQUIRE(result == 5);
+        }
+        SECTION("Search string is empty and start position is not valid")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("");
+            auto result = ReverseFind(str, search, 12);
+            REQUIRE(result == 11);
+        }
+        SECTION("Not enough string is left for search")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("Hello");
+            auto result = ReverseFind(str, search, 2);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Search success")
+        {
+            const StringLocale str("Hello Hello there");
+            const StringLocale search("Hello");
+            auto result = ReverseFind(str, search);
+            REQUIRE(result == 6);
+        }
+        SECTION("Partial search success")
+        {
+            const StringLocale str("Hello Hello there");
+            const StringLocale search("Hello");
+            auto result = ReverseFind(str, search, 5);
+            REQUIRE(result == 0);
+        }
+        SECTION("Search not found")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("world");
+            auto result = ReverseFind(str, search);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+    }
+    SECTION("With char pointer")
+    {
+        SECTION("Search string is nullptr")
+        {
+            const StringLocale str("Hello there");
+            auto result = ReverseFind(str, nullptr);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Search string is empty and start position is valid")
+        {
+            const StringLocale str("Hello there");
+            auto result = ReverseFind(str, "", 5);
+            REQUIRE(result == 5);
+        }
+        SECTION("Search string is empty and start position is not valid")
+        {
+            const StringLocale str("Hello there");
+            auto result = ReverseFind(str, "", 12);
+            REQUIRE(result == 11);
+        }
+        SECTION("Not enough string is left for search")
+        {
+            const StringLocale str("Hello there");
+            auto result = ReverseFind(str, "Hello", 2);
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Search success")
+        {
+            const StringLocale str("Hello Hello there");
+            auto result = ReverseFind(str, "Hello");
+            REQUIRE(result == 6);
+        }
+        SECTION("Partial search success")
+        {
+            const StringLocale str("Hello Hello there");
+            auto result = ReverseFind(str, "Hello", 5);
+            REQUIRE(result == 0);
+        }
+        SECTION("Search not found")
+        {
+            const StringLocale str("Hello there");
+            auto result = ReverseFind(str, "world");
+            REQUIRE(result == StringLocale::k_npos);
+        }
+    }
+    SECTION("Character")
+    {
+        SECTION("Main string is empty")
+        {
+            const StringLocale str;
+            auto result = ReverseFind(str, 'a');
+            REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Success search")
+        {
+            const StringLocale str("Hello there");
+            auto result = ReverseFind(str, 't');
+            REQUIRE(result == 6);
+        }
+        SECTION("Search not found")
+        {
+            const StringLocale str("Hello there");
+            auto result = ReverseFind(str, 'w');
+            REQUIRE(result == StringLocale::k_npos);
+        }
+    }
+}
