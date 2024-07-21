@@ -499,7 +499,7 @@ typename MyString::SizeType ReverseFind(const MyString& haystack, const typename
  * @return ErrorCode::Success if transcoding was successful, other error codes depend on the encoding implementation.
  */
 template <typename InputString, typename OutputString>
-ErrorCode Transcode(InputString& input, OutputString& output);
+ErrorCode Transcode(const InputString& input, OutputString& output);
 
 template <typename MyString, typename Allocator = AllocatorBase>
 Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyString::SizeType start_pos = 0,
@@ -1526,11 +1526,11 @@ void CLASS_HEADER::Deallocate(CodeUnitType* data)
 }
 
 template <typename InputString, typename OutputString>
-Opal::ErrorCode Opal::Transcode(InputString& input, OutputString& output)
+Opal::ErrorCode Opal::Transcode(const InputString& input, OutputString& output)
 {
     typename InputString::EncodingType src_decoder;
     typename OutputString::EncodingType dst_encoder;
-    Span<typename InputString::CodeUnitType> input_span(input.GetData(), input.GetSize());
+    Span<const typename InputString::CodeUnitType> input_span(input.GetData(), input.GetSize());
     Span<typename OutputString::CodeUnitType> output_span(output.GetData(), output.GetSize());
     while (true)
     {

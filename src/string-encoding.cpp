@@ -13,7 +13,7 @@ Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, Spa
     return ErrorCode::Success;
 }
 
-Opal::ErrorCode Opal::EncodingLocale::DecodeOne(Span<CodeUnitType>& input, CodePointType& out_code_point)
+Opal::ErrorCode Opal::EncodingLocale::DecodeOne(Span<const CodeUnitType>& input, CodePointType& out_code_point)
 {
     if (input.GetSize() == 0)
     {
@@ -23,7 +23,7 @@ Opal::ErrorCode Opal::EncodingLocale::DecodeOne(Span<CodeUnitType>& input, CodeP
     if (count == 0)
     {
         // We've just written null character
-        input = Span<CodeUnitType>(input.begin() + 1, input.end());
+        input = Span<const CodeUnitType>(input.begin() + 1, input.end());
         return ErrorCode::Success;
     }
     if (count == static_cast<st>(-1))
@@ -38,6 +38,6 @@ Opal::ErrorCode Opal::EncodingLocale::DecodeOne(Span<CodeUnitType>& input, CodeP
     {
         return ErrorCode::Success;
     }
-    input = Span<CodeUnitType>(input.begin() + static_cast<i64>(count), input.end());
+    input = Span<const CodeUnitType>(input.begin() + static_cast<i64>(count), input.end());
     return ErrorCode::Success;
 }
