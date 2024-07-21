@@ -2563,4 +2563,122 @@ TEST_CASE("Erase", "[String]")
             REQUIRE(str.GetSize() == 10);
         }
     }
+    SECTION("Erase with a iterator range")
+    {
+        SECTION("Bad start iterator")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.End(), str.End());
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Bad end iterator")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.Begin(), str.Begin() - 1);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Invalid range")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.Begin() + 5, str.Begin() + 3);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::BadInput);
+        }
+        SECTION("Empty range")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.Begin(), str.Begin());
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == str.Begin());
+            REQUIRE(str.GetSize() == 11);
+        }
+        SECTION("Remove from beginning")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.Begin(), str.Begin() + 5);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == str.Begin());
+            REQUIRE(str == " there");
+            REQUIRE(str.GetSize() == 6);
+        }
+        SECTION("Remove from middle")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.Begin() + 5, str.Begin() + 8);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == str.Begin() + 5);
+            REQUIRE(str == "Helloere");
+            REQUIRE(str.GetSize() == 8);
+        }
+        SECTION("Remove from end")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.Begin() + 5, str.End());
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == str.End());
+            REQUIRE(str == "Hello");
+            REQUIRE(str.GetSize() == 5);
+        }
+    }
+    SECTION("Erase with a const iterator range")
+    {
+        SECTION("Bad start iterator")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.ConstEnd(), str.ConstEnd());
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Bad end iterator")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.ConstBegin(), str.ConstBegin() - 1);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Invalid range")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.ConstBegin() + 5, str.ConstBegin() + 3);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::BadInput);
+        }
+        SECTION("Empty range")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.ConstBegin(), str.ConstBegin());
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == str.Begin());
+            REQUIRE(str.GetSize() == 11);
+        }
+        SECTION("Remove from beginning")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.ConstBegin(), str.ConstBegin() + 5);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == str.Begin());
+            REQUIRE(str == " there");
+            REQUIRE(str.GetSize() == 6);
+        }
+        SECTION("Remove from middle")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.ConstBegin() + 5, str.ConstBegin() + 8);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == str.Begin() + 5);
+            REQUIRE(str == "Helloere");
+            REQUIRE(str.GetSize() == 8);
+        }
+        SECTION("Remove from end")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.ConstBegin() + 5, str.ConstEnd());
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue() == str.End());
+            REQUIRE(str == "Hello");
+            REQUIRE(str.GetSize() == 5);
+        }
+    }
 }

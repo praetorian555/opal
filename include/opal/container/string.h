@@ -208,7 +208,14 @@ public:
      */
     Expected<IteratorType, ErrorCode> Erase(IteratorType pos);
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType pos);
-    
+
+    /**
+     * @brief Erase a range of code units from the string.
+     * @param first Iterator pointing to the first code unit to erase.
+     * @param last Iterator pointing to the code unit after the last code unit to erase.
+     * @return Iterator pointing to the code unit after the last erased code unit in case of a success. ErrorCode::OutOfBounds if first or
+     * last are out of bounds of the string. ErrorCode::BadInput if first is greater than last.
+     */
     Expected<IteratorType, ErrorCode> Erase(IteratorType first, IteratorType last);
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType first, ConstIteratorType last);
 
@@ -1035,6 +1042,70 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
         m_data[i] = m_data[i + 1];
     }
     m_size -= 1;
+    m_data[m_size] = 0;
+    return ReturnType(IteratorType(m_data + start_index));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType first, IteratorType last)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (first < Begin() || first >= End())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (last < Begin() || last > End())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (first > last)
+    {
+        return ReturnType(ErrorCode::BadInput);
+    }
+    if (first == last)
+    {
+        return ReturnType(first);
+    }
+
+    const SizeType count_to_erase = last - first;
+    const SizeType start_index = first - Begin();
+    for (SizeType i = start_index; i < m_size - count_to_erase; ++i)
+    {
+        m_data[i] = m_data[i + count_to_erase];
+    }
+    m_size -= count_to_erase;
+    m_data[m_size] = 0;
+    return ReturnType(first);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(ConstIteratorType first, ConstIteratorType last)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (first < ConstBegin() || first >= ConstEnd())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (last < ConstBegin() || last > ConstEnd())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (first > last)
+    {
+        return ReturnType(ErrorCode::BadInput);
+    }
+    if (first == last)
+    {
+        return ReturnType(IteratorType(m_data + (first - ConstBegin())));
+    }
+
+    const SizeType count_to_erase = last - first;
+    const SizeType start_index = first - ConstBegin();
+    for (SizeType i = start_index; i < m_size - count_to_erase; ++i)
+    {
+        m_data[i] = m_data[i + count_to_erase];
+    }
+    m_size -= count_to_erase;
     m_data[m_size] = 0;
     return ReturnType(IteratorType(m_data + start_index));
 }
