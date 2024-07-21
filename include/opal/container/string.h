@@ -464,6 +464,12 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(SizeType count, CodeUnitT value, AllocatorT* allocator) : m_allocator(allocator), m_capacity(count + 1), m_size(count)
 {
     m_data = Allocate(m_capacity);
+    if (m_data == nullptr)
+    {
+        m_capacity = 0;
+        m_size = 0;
+        return;
+    }
     for (SizeType i = 0; i < m_size; i++)
     {
         m_data[i] = value;
@@ -476,6 +482,12 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, Allocato
     m_capacity = other.m_size - pos + 1;
     m_size = m_capacity - 1;
     m_data = Allocate(m_capacity);
+    if (m_data == nullptr)
+    {
+        m_size = 0;
+        m_capacity = 0;
+        return;
+    }
     for (SizeType i = 0; i < m_size; i++)
     {
         m_data[i] = other.m_data[pos + i];
@@ -488,6 +500,12 @@ CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT* allocator
     : m_allocator(allocator), m_capacity(count + 1), m_size(count)
 {
     m_data = Allocate(m_capacity);
+    if (m_data == nullptr)
+    {
+        m_capacity = 0;
+        m_size = 0;
+        return;
+    }
     for (SizeType i = 0; i < m_size; i++)
     {
         m_data[i] = str[i];
@@ -502,6 +520,12 @@ CLASS_HEADER::String(const CodeUnitT (&str)[N], AllocatorT* allocator) : m_alloc
     if (m_capacity > 0)
     {
         m_data = Allocate(m_capacity);
+        if (m_data == nullptr)
+        {
+            m_capacity = 0;
+            m_size = 0;
+            return;
+        }
         for (SizeType i = 0; i < m_size; i++)
         {
             m_data[i] = str[i];
@@ -517,6 +541,12 @@ CLASS_HEADER::String(const String& other, AllocatorT* allocator)
     if (m_capacity > 0)
     {
         m_data = Allocate(m_capacity);
+        if (m_data == nullptr)
+        {
+            m_capacity = 0;
+            m_size = 0;
+            return;
+        }
         for (SizeType i = 0; i < m_size; i++)
         {
             m_data[i] = other.GetData()[i];
