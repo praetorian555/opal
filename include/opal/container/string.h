@@ -201,8 +201,14 @@ public:
      */
     Expected<String&, ErrorCode> Erase(SizeType start_pos = 0, SizeType count = k_npos);
 
+    /**
+     * @brief Erase a code unit at a specific position in the string.
+     * @param pos Position in the string to erase the code unit from.
+     * @return Reference to the current string instance in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the string,
+     */
     Expected<IteratorType, ErrorCode> Erase(IteratorType pos);
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType pos);
+    
     Expected<IteratorType, ErrorCode> Erase(IteratorType first, IteratorType last);
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType first, ConstIteratorType last);
 
@@ -993,6 +999,44 @@ Opal::Expected<CLASS_HEADER&, Opal::ErrorCode> CLASS_HEADER::Erase(SizeType star
     m_size -= count;
     m_data[m_size] = 0;
     return ReturnType(*this);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType pos)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (pos < Begin() || pos >= End())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+
+    const SizeType start_index = pos - Begin();
+    for (SizeType i = start_index; i < m_size - 1; ++i)
+    {
+        m_data[i] = m_data[i + 1];
+    }
+    m_size -= 1;
+    m_data[m_size] = 0;
+    return ReturnType(pos);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(ConstIteratorType pos)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (pos < ConstBegin() || pos >= ConstEnd())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+
+    const SizeType start_index = pos - ConstBegin();
+    for (SizeType i = start_index; i < m_size - 1; ++i)
+    {
+        m_data[i] = m_data[i + 1];
+    }
+    m_size -= 1;
+    m_data[m_size] = 0;
+    return ReturnType(IteratorType(m_data + start_index));
 }
 
 TEMPLATE_HEADER
