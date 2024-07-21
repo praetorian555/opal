@@ -53,6 +53,23 @@ struct OPAL_EXPORT MallocAllocator final : public AllocatorBase
     void Free(void* ptr) override;
 };
 
+struct OPAL_EXPORT NullAllocator final : public AllocatorBase
+{
+    NullAllocator() = default;
+    NullAllocator(const NullAllocator& other) = default;
+    NullAllocator(NullAllocator&& other) = default;
+
+    ~NullAllocator() override = default;
+
+    NullAllocator& operator=(const NullAllocator& other) = default;
+    NullAllocator& operator=(NullAllocator&& other) = default;
+
+    bool operator==(const NullAllocator&) const { return true; }
+
+    void* Alloc(u64, u64) override { return nullptr; }
+    void Free(void*) override {}
+};
+
 struct OPAL_EXPORT LinearAllocator final : public AllocatorBase
 {
     explicit LinearAllocator(u64 size);
