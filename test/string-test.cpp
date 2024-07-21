@@ -2485,14 +2485,15 @@ TEST_CASE("Erase", "[String]")
             StringLocale str("Hello there");
             auto result = str.Erase(5, 30);
             REQUIRE(result.HasValue() == true);
-            REQUIRE(result.GetValue() == "Hello");
+            REQUIRE(result.GetValue() == str.Begin() + 5);
         }
         SECTION("Small count")
         {
             StringLocale str("Hello there");
             auto result = str.Erase(5, 2);
             REQUIRE(result.HasValue() == true);
-            REQUIRE(result.GetValue() == "Hellohere");
+            REQUIRE(str == "Hellohere");
+            REQUIRE(result.GetValue() == str.Begin() + 5);
         }
     }
     SECTION("Erase with single iterator")

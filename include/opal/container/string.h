@@ -196,10 +196,10 @@ public:
      * @brief Erase a range of code units from the string.
      * @param start_pos Position in the string to start erasing from.
      * @param count Number of code units to erase. If count is equal to k_npos, the entire string starting from start_pos will be erased.
-     * @return Reference to the current string instance in case of a success. ErrorCode::OutOfBounds if start_pos is greater than the size
-     * of the string.
+     * @return Iterator pointing to the code unit after the last erased code unit in case of a success. ErrorCode::OutOfBounds if start_pos is
+     * out of bounds of the string.
      */
-    Expected<String&, ErrorCode> Erase(SizeType start_pos = 0, SizeType count = k_npos);
+    Expected<IteratorType, ErrorCode> Erase(SizeType start_pos = 0, SizeType count = k_npos);
 
     /**
      * @brief Erase a code unit at a specific position in the string.
@@ -991,9 +991,9 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, SizeType pos, SizeType
 }
 
 TEMPLATE_HEADER
-Opal::Expected<CLASS_HEADER&, Opal::ErrorCode> CLASS_HEADER::Erase(SizeType start_pos, SizeType count)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(SizeType start_pos, SizeType count)
 {
-    using ReturnType = Expected<CLASS_HEADER&, ErrorCode>;
+    using ReturnType = Expected<IteratorType, ErrorCode>;
     if (start_pos >= m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -1005,7 +1005,7 @@ Opal::Expected<CLASS_HEADER&, Opal::ErrorCode> CLASS_HEADER::Erase(SizeType star
     }
     m_size -= count;
     m_data[m_size] = 0;
-    return ReturnType(*this);
+    return ReturnType(IteratorType(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
