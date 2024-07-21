@@ -196,8 +196,8 @@ public:
      * @brief Erase a range of code units from the string.
      * @param start_pos Position in the string to start erasing from.
      * @param count Number of code units to erase. If count is equal to k_npos, the entire string starting from start_pos will be erased.
-     * @return Iterator pointing to the code unit after the last erased code unit in case of a success. ErrorCode::OutOfBounds if start_pos is
-     * out of bounds of the string.
+     * @return Iterator pointing to the code unit after the last erased code unit in case of a success. ErrorCode::OutOfBounds if start_pos
+     * is out of bounds of the string.
      */
     Expected<IteratorType, ErrorCode> Erase(SizeType start_pos = 0, SizeType count = k_npos);
 
