@@ -2849,4 +2849,88 @@ TEST_CASE("Insert", "[String]")
             REQUIRE(result.GetValue() == str.End() - 2);
         }
     }
+    SECTION("With single iterator")
+    {
+        SECTION("Bad start position")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Insert(str.End() + 1, 'a', 2);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Memory allocation failed")
+        {
+            NullAllocator null_allocator;
+            StringLocale str("", &null_allocator);
+            auto result = str.Insert(str.Begin(), 'a', 2);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+        }
+        SECTION("Insert at beginning")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Insert(str.Begin(), 'a', 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "aaHello there");
+            REQUIRE(result.GetValue() == str.Begin());
+        }
+        SECTION("Insert in the middle")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Insert(str.Begin() + 5, 'a', 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "Helloaa there");
+            REQUIRE(result.GetValue() == str.Begin() + 5);
+        }
+        SECTION("Insert at the end")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Insert(str.End(), 'a', 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "Hello thereaa");
+            REQUIRE(result.GetValue() == str.End() - 2);
+        }
+    }
+    SECTION("With single const iterator")
+    {
+        SECTION("Bad start position")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Insert(str.ConstEnd() + 1, 'a', 2);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Memory allocation failed")
+        {
+            NullAllocator null_allocator;
+            StringLocale str("", &null_allocator);
+            auto result = str.Insert(str.ConstBegin(), 'a', 2);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+        }
+        SECTION("Insert at beginning")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Insert(str.ConstBegin(), 'a', 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "aaHello there");
+            REQUIRE(result.GetValue() == str.Begin());
+        }
+        SECTION("Insert in the middle")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Insert(str.ConstBegin() + 5, 'a', 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "Helloaa there");
+            REQUIRE(result.GetValue() == str.Begin() + 5);
+        }
+        SECTION("Insert at the end")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Insert(str.ConstEnd(), 'a', 2);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "Hello thereaa");
+            REQUIRE(result.GetValue() == str.End() - 2);
+        }
+    }
 }

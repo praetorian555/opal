@@ -1188,6 +1188,76 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(IteratorType start, CodeUnitT value,
+                                                                                          SizeType count)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (start < Begin() || start > End())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (count == 0)
+    {
+        return ReturnType(start);
+    }
+    const SizeType start_pos = start - Begin();
+    if (m_size + count + 1 > m_capacity)
+    {
+        const ErrorCode error = Reserve(m_size + count + 1);
+        if (error != ErrorCode::Success)
+        {
+            return ReturnType(error);
+        }
+    }
+    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    {
+        m_data[i + count] = m_data[i];
+    }
+    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    {
+        m_data[i] = value;
+    }
+    m_size += count;
+    m_data[m_size] = 0;
+    return ReturnType(IteratorType(m_data + start_pos));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType start, CodeUnitT value,
+                                                                                          SizeType count)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (start < ConstBegin() || start > ConstEnd())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (count == 0)
+    {
+        return ReturnType(IteratorType(m_data + (start - ConstBegin())));
+    }
+    const SizeType start_pos = start - ConstBegin();
+    if (m_size + count + 1 > m_capacity)
+    {
+        const ErrorCode error = Reserve(m_size + count + 1);
+        if (error != ErrorCode::Success)
+        {
+            return ReturnType(error);
+        }
+    }
+    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    {
+        m_data[i + count] = m_data[i];
+    }
+    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    {
+        m_data[i] = value;
+    }
+    m_size += count;
+    m_data[m_size] = 0;
+    return ReturnType(IteratorType(m_data + start_pos));
+}
+
+TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(SizeType start_pos, SizeType count)
 {
     using ReturnType = Expected<IteratorType, ErrorCode>;
