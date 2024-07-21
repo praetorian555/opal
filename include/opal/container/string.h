@@ -193,6 +193,51 @@ public:
     ErrorCode AppendIt(InputIt begin, InputIt end);
 
     /**
+     * @brief Insert a code unit at a specific position in the string.
+     * @param start_pos Position in the string to insert the code unit at.
+     * @param count Number of code units to insert.
+     * @param value Value of the code unit to insert.
+     * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
+     * of the string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units.
+     */
+    Expected<IteratorType, ErrorCode> Insert(SizeType start_pos, SizeType count, CodeUnitT value);
+
+    /**
+     * @brief Insert a string at a specific position in the string.
+     * @param start_pos Position in the string to insert the string at.
+     * @param str Pointer to the string to insert.
+     * @param count Number of code units to insert. If count is equal to k_npos, the entire string starting from str will be inserted.
+     * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
+     * of the string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units. ErrorCode::BadInput if str
+     * is nullptr.
+     */
+    Expected<IteratorType, ErrorCode> Insert(SizeType start_pos, const CodeUnitT* str, SizeType count = k_npos);
+
+    /**
+     * @brief Insert a string at a specific position in the string.
+     * @param start_pos Position in the string to insert the string at.
+     * @param other String to insert.
+     * @param other_start_pos Position in the other string to start inserting from.
+     * @param count Number of code units to insert. If count is equal to k_npos, the entire string starting from other_start_pos will be
+     * inserted.
+     * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
+     * of the string. ErrorCode::OutOfBounds if other_start_pos is out of bounds of the other string. ErrorCode::OutOfMemory if the string
+     * cannot be resized to accommodate the new code units.
+     */
+    Expected<IteratorType, ErrorCode> Insert(SizeType start_pos, const String& other, SizeType other_start_pos = 0,
+                                             SizeType count = k_npos);
+
+    Expected<IteratorType, ErrorCode> Insert(IteratorType start, CodeUnitT value, SizeType count = 1);
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType start, CodeUnitT value, SizeType count = 1);
+
+    template <typename InputIt>
+        requires RandomAccessIterator<InputIt>
+    Expected<IteratorType, ErrorCode> Insert(IteratorType start, InputIt begin, InputIt end);
+    template <typename InputIt>
+        requires RandomAccessIterator<InputIt>
+    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType start, InputIt begin, InputIt end);
+
+    /**
      * @brief Erase a range of code units from the string.
      * @param start_pos Position in the string to start erasing from.
      * @param count Number of code units to erase. If count is equal to k_npos, the entire string starting from start_pos will be erased.
@@ -1018,6 +1063,128 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, SizeType pos, SizeType
     m_size += count;
     m_data[m_size] = 0;
     return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(SizeType start_pos, SizeType count,
+                                                                                          CodeUnitT value)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (start_pos > m_size)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (count == 0)
+    {
+        return ReturnType(IteratorType(m_data + start_pos));
+    }
+    if (m_size + count + 1 > m_capacity)
+    {
+        const ErrorCode error = Reserve(m_size + count + 1);
+        if (error != ErrorCode::Success)
+        {
+            return ReturnType(error);
+        }
+    }
+    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    {
+        m_data[i + count] = m_data[i];
+    }
+    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    {
+        m_data[i] = value;
+    }
+    m_size += count;
+    m_data[m_size] = 0;
+    return ReturnType(IteratorType(m_data + start_pos));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(SizeType start_pos, const CodeUnitT* str,
+                                                                                          SizeType count)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (start_pos > m_size)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (str == nullptr)
+    {
+        return ReturnType(ErrorCode::BadInput);
+    }
+    if (count == k_npos)
+    {
+        count = 0;
+        while (str[count] != 0)
+        {
+            ++count;
+        }
+    }
+    if (count == 0)
+    {
+        return ReturnType(IteratorType(m_data + start_pos));
+    }
+    if (m_size + count + 1 > m_capacity)
+    {
+        const ErrorCode error = Reserve(m_size + count + 1);
+        if (error != ErrorCode::Success)
+        {
+            return ReturnType(error);
+        }
+    }
+    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    {
+        m_data[i + count] = m_data[i];
+    }
+    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    {
+        m_data[i] = str[i - start_pos];
+    }
+    m_size += count;
+    m_data[m_size] = 0;
+    return ReturnType(IteratorType(m_data + start_pos));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(SizeType start_pos, const String& other,
+                                                                                          SizeType other_start_pos, SizeType count)
+{
+    using ReturnType = Expected<IteratorType, ErrorCode>;
+    if (start_pos > m_size)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (other_start_pos > other.m_size)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (count == k_npos)
+    {
+        count = other.m_size;
+    }
+    if (count == 0)
+    {
+        return ReturnType(IteratorType(m_data + start_pos));
+    }
+    if (m_size + count + 1 > m_capacity)
+    {
+        const ErrorCode error = Reserve(m_size + count + 1);
+        if (error != ErrorCode::Success)
+        {
+            return ReturnType(error);
+        }
+    }
+    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    {
+        m_data[i + count] = m_data[i];
+    }
+    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    {
+        m_data[i] = other[i - start_pos];
+    }
+    m_size += count;
+    m_data[m_size] = 0;
+    return ReturnType(IteratorType(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
