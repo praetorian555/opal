@@ -91,7 +91,23 @@ struct OPAL_EXPORT EncodingLocale
     using CodeUnitType = char;
     using CodePointType = c32;
 
+    /**
+     * Encodes given code point into an output span using system encoding scheme.
+     * @param in_code_point Input code point.
+     * @param output Output span used to append result to. It will be update to point after the inserted data.
+     * @return Returns ErrorCode::Success if encoding was successful, ErrorCode::InsufficientSpace if there is not enough space to
+     * store encoding result in the `output` span.
+     */
     ErrorCode EncodeOne(CodePointType in_code_point, Span<CodeUnitType>& output);
+
+    /**
+     * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`.
+     * @param input Input span. Modified to point after decoded data.
+     * @param out_code_point Output code point.
+     * @return Returns ErrorCode::Success if the decoding was successful, ErrorCode::BadInput if the decoded data does not match rules
+     * for the current encoding, ErrorCode::IncompleteSequence if there is not enough input data to decode current code point,
+     * ErrorCode::EndOfString if there is no more data to decode.
+     */
     ErrorCode DecodeOne(Span<const CodeUnitType>& input, CodePointType& out_code_point);
 
 private:
