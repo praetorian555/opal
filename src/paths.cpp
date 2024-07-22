@@ -42,3 +42,36 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorking
     return Expected<StringUtf8, ErrorCode>(result);
 #endif
 }
+
+Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringLocale path_locale(path.GetSize() * MB_CUR_MAX, 0);
+    const ErrorCode err = Transcode(path, path_locale);
+    if (err != ErrorCode::Success)
+    {
+        return err;
+    }
+    const BOOL result = SetCurrentDirectory(path_locale.GetData());
+    if (result == 0)
+    {
+        return ErrorCode::OSFailure;
+    }
+    return ErrorCode::Success;
+#else
+    StringLocale path_locale(path.GetSize() * MB_CUR_MAX, 0);
+    const ErrorCode err = Transcode(path, path_locale);
+    if (err != ErrorCode::Success)
+    {
+        return err;
+    }
+    const std::filesystem::path std_path(path_locale.GetData());
+    std::error_code std_err;
+    std::filesystem::current_path(std_path, std_err);
+    if (std_err != std::error_code())
+    {
+        return ErrorCode::OSFailure;
+    }
+    return ErrorCode::Success;
+#endif
+}

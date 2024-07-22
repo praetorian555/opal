@@ -20,3 +20,22 @@ TEST_CASE("Get current working directory", "[Paths]")
     REQUIRE(err == ErrorCode::Success);
     REQUIRE(cwd.GetValue() == ref_path_utf8);
 }
+
+TEST_CASE("Set current working directory", "[Paths]")
+{
+    auto cwd = Paths::GetCurrentWorkingDirectory();
+    REQUIRE(cwd.HasValue());
+    REQUIRE(cwd.GetValue().GetSize() > 0);
+
+    auto new_path = cwd.GetValue();
+    new_path.Append(u8"\\..");
+    auto set_cwd_err = Paths::SetCurrentWorkingDirectory(new_path);
+    REQUIRE(set_cwd_err == ErrorCode::Success);
+
+    new_path.Erase(ReverseFind(new_path, u8"\\"));
+    new_path.Erase(ReverseFind(new_path, u8"\\"));
+    auto new_cwd = Paths::GetCurrentWorkingDirectory();
+    REQUIRE(new_cwd.HasValue());
+    REQUIRE(new_cwd.GetValue().GetSize() > 0);
+    REQUIRE(new_cwd.GetValue() == new_path);
+}
