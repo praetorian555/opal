@@ -38,6 +38,7 @@ set(OPAL_FILES
         src/time.cpp
         src/string.cpp
         src/string-encoding.cpp
+        src/paths.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -45,6 +46,7 @@ set(OPAL_FILES
         include/opal/types.h
         include/opal/error-codes.h
         include/opal/time.h
+        include/opal/paths.h
         include/opal/container/iterator.h
         include/opal/container/expected.h
         include/opal/container/deque.h
@@ -102,6 +104,7 @@ if (OPAL_BUILD_TESTS)
             test/expected-test.cpp
             test/time-test.cpp
             test/sort-test.cpp
+            test/paths-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)

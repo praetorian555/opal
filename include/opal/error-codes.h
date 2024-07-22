@@ -15,6 +15,7 @@ enum class ErrorCode : u8
     IncompleteSequence = 5,
     InsufficientSpace = 6,
     StringNotFound = 7,
+    OSFailure = 8,
 };
 
 }
