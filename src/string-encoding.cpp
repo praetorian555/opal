@@ -1,11 +1,17 @@
 #include "opal/container/string-encoding.h"
 
+#include <stdlib.h>
+
 #include <cuchar>
 
 Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, Span<CodeUnitType>& output)
 {
-    st count = c32rtomb(output.GetData(), in_code_point, &m_encoding_state);
-    if (count == static_cast<st>(-1))
+    if (output.GetSize() < MB_CUR_MAX)
+    {
+        return ErrorCode::InsufficientSpace;
+    }
+    const size_t count = c32rtomb(output.GetData(), in_code_point, &m_encoding_state);
+    if (count == static_cast<size_t>(-1))
     {
         return ErrorCode::InsufficientSpace;
     }
@@ -19,22 +25,22 @@ Opal::ErrorCode Opal::EncodingLocale::DecodeOne(Span<const CodeUnitType>& input,
     {
         return ErrorCode::EndOfString;
     }
-    st count = mbrtoc32(&out_code_point, input.GetData(), input.GetSize(), &m_decoding_state);
+    const size_t count = mbrtoc32(&out_code_point, input.GetData(), input.GetSize(), &m_decoding_state);
     if (count == 0)
     {
         // We've just written null character
         input = Span<const CodeUnitType>(input.begin() + 1, input.end());
         return ErrorCode::Success;
     }
-    if (count == static_cast<st>(-1))
+    if (count == static_cast<size_t>(-1))
     {
         return ErrorCode::BadInput;
     }
-    if (count == static_cast<st>(-2))
+    if (count == static_cast<size_t>(-2))
     {
         return ErrorCode::IncompleteSequence;
     }
-    if (count == static_cast<st>(-3))
+    if (count == static_cast<size_t>(-3))
     {
         return ErrorCode::Success;
     }

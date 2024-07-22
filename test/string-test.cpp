@@ -1519,6 +1519,45 @@ TEST_CASE("From const UTF8 to locale", "[String]")
     printf("%s\n", locale_result.GetData());
 }
 
+TEST_CASE("Transcode with empty destination", "[String]")
+{
+    SECTION("Output is StringUtf8")
+    {
+        StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+        StringUtf8 utf8_result;
+        ErrorCode error = Transcode(utf32, utf8_result);
+        REQUIRE(error == ErrorCode::InsufficientSpace);
+    }
+    SECTION("Output is StringUtf16")
+    {
+        StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+        StringUtf16 utf16_result;
+        ErrorCode error = Transcode(utf32, utf16_result);
+        REQUIRE(error == ErrorCode::InsufficientSpace);
+    }
+    SECTION("Output is StringUtf32")
+    {
+        StringUtf16 utf16(u"での日本語文字コードを扱うために使用されている従来の");
+        StringUtf32 utf32_result;
+        ErrorCode error = Transcode(utf16, utf32_result);
+        REQUIRE(error == ErrorCode::InsufficientSpace);
+    }
+    SECTION("Output is StringWide")
+    {
+        StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+        StringWide wide_result;
+        ErrorCode error = Transcode(utf32, wide_result);
+        REQUIRE(error == ErrorCode::InsufficientSpace);
+    }
+    SECTION("Output is StringLocale")
+    {
+        StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+        StringLocale locale_result;
+        ErrorCode error = Transcode(utf32, locale_result);
+        REQUIRE(error == ErrorCode::InsufficientSpace);
+    }
+}
+
 TEST_CASE("Lexicographical compare", "[String]")
 {
     SECTION("Two strings")
