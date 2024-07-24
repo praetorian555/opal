@@ -39,3 +39,68 @@ TEST_CASE("Set current working directory", "[Paths]")
     REQUIRE(new_cwd.GetValue().GetSize() > 0);
     REQUIRE(new_cwd.GetValue() == new_path);
 }
+
+TEST_CASE("Normalize path", "[Paths]")
+{
+    SECTION("Empty path")
+    {
+        auto normalized = Paths::NormalizePath(u8"", nullptr);
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == u8"");
+    }
+    SECTION("Absolute path root")
+    {
+        auto normalized = Paths::NormalizePath(u8"/", nullptr);
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == u8"\\");
+        normalized = Paths::NormalizePath(u8"C://", nullptr);
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == u8"C:\\");
+    }
+    SECTION("Absolute path with separators")
+    {
+        auto normalized = Paths::NormalizePath(u8"C:/Users/\\//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == u8"C:\\Users\\test");
+
+        normalized = Paths::NormalizePath(u8"/Users/\\//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == u8"\\Users\\test");
+    }
+    SECTION("With symlinks")
+    {
+        auto normalized = Paths::NormalizePath(u8"C:/Users/..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == u8"C:\\test");
+
+        normalized = Paths::NormalizePath(u8"C:/Users/test/test/../..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == u8"C:\\Users\\test");
+
+        normalized = Paths::NormalizePath(u8"C:/Users/a/../b/..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == u8"C:\\Users\\test");
+
+        normalized = Paths::NormalizePath(u8"C:/..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == u8"C:\\test");
+    }
+    SECTION("Relative paths")
+    {
+        auto normalized = Paths::NormalizePath(u8"test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test");
+
+        normalized = Paths::NormalizePath(u8"test/test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() +  u8"\\test\\test");
+
+        normalized = Paths::NormalizePath(u8"test/test/../..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test");
+
+        normalized = Paths::NormalizePath(u8"test/a/../b/..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test\\test");
+    }
+}

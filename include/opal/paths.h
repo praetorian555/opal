@@ -15,7 +15,16 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetCurrentWorkingDirectory();
  */
 ErrorCode OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
 
-static StringUtf8 GetExecutableDirectory();
+/**
+ * @brief Normalize the path. This will remove redundant separators, switch separators with preferred separators, resolve relative paths,
+ * and remove trailing separators.
+ * @param path Path to normalize.
+ * @param allocator Allocator to use for temporary memory allocation.
+ * @return Normalized path.
+ */
+Expected<StringUtf8, ErrorCode> OPAL_EXPORT NormalizePath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
+
+bool IsPathAbsolute(const StringUtf8& path);
 
 /**
  * @brief Get name of the file with the extension from the path.

@@ -1,5 +1,6 @@
 #include "opal/paths.h"
 
+#include <filesystem>
 #include "opal/defines.h"
 
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -73,5 +74,142 @@ Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path)
         return ErrorCode::OSFailure;
     }
     return ErrorCode::Success;
+#endif
+}
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(const StringUtf8& path, AllocatorBase* allocator)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    constexpr StringUtf8::CodeUnitType k_preferred_separator = '\\';
+#else
+    constexpr StringUtf8::CodeUnitType k_preferred_separator = '/';
+#endif
+
+    if (path.IsEmpty())
+    {
+        return Expected<StringUtf8, ErrorCode>(StringUtf8(allocator));
+    }
+
+    StringUtf8 original_path(path, allocator);
+    StringUtf8 root(allocator);
+    StringUtf8 relative(allocator);
+
+    if (!IsPathAbsolute(path))
+    {
+        auto result = GetCurrentWorkingDirectory();
+        if (!result.HasValue())
+        {
+            return Expected<StringUtf8, ErrorCode>(result.GetError());
+        }
+        original_path = result.GetValue() + k_preferred_separator + path;
+    }
+
+    bool prev_is_separator = false;
+    StringUtf8::SizeType start = 0;
+
+#if defined(OPAL_PLATFORM_WINDOWS)
+    if (original_path.GetSize() >= 2 && original_path[1] == ':')
+    {
+        // Path is absolute
+        root.Append(original_path[0]);
+        root.Append(original_path[1]);
+        root.Append(k_preferred_separator);
+        prev_is_separator = true;
+        start = 2;
+    }
+    else if (original_path.GetSize() >= 1 && (original_path[0] == '\\' || original_path[0] == '/'))
+    {
+        // Path is absolute
+        root.Append(k_preferred_separator);
+        prev_is_separator = true;
+        start = 1;
+    }
+#endif
+
+    // Remove redundant separators and switch to using preferred separators
+    for (StringUtf8::SizeType i = start; i < original_path.GetSize(); ++i)
+    {
+        if (original_path[i] == '\\' || original_path[i] == '/')
+        {
+            if (prev_is_separator)
+            {
+                continue;
+            }
+
+            prev_is_separator = true;
+            relative.Append(k_preferred_separator);
+        }
+        else
+        {
+            relative.Append(original_path[i]);
+            prev_is_separator = false;
+        }
+    }
+    if (!relative.IsEmpty() && relative.Back().GetValue() == '\\')
+    {
+        relative.Erase(relative.End() - 1);
+    }
+
+    StringUtf8::SizeType end = relative.GetSize();
+    i32 skip_count = 0;
+    StringUtf8::SizeType erase_end = 0;
+    while (end != 0)
+    {
+        StringUtf8::SizeType component_start = ReverseFind(relative, '\\', end);
+        if (component_start == StringUtf8::k_npos)
+        {
+            component_start = 0;
+        }
+        const StringUtf8::SizeType compare_start = component_start != 0 ? component_start + 1 : 0;
+        const StringUtf8::SizeType compare_count = component_start != 0 ? end - component_start : end + 1;
+        auto compare_result = Compare(relative, compare_start, compare_count, u8"..");
+        OPAL_ASSERT(compare_result.HasValue(), "This must always succeed");
+        if (compare_result.GetValue() == 0)
+        {
+            ++skip_count;
+            if (skip_count == 1)
+            {
+                erase_end = end;
+            }
+        }
+        else
+        {
+            if (skip_count == 1)
+            {
+                const StringUtf8::SizeType erase_count = component_start != 0 ? erase_end - component_start + 1 : erase_end + 2;
+                relative.Erase(component_start, erase_count);
+            }
+            if (skip_count != 0)
+            {
+                --skip_count;
+            }
+        }
+        end = component_start != 0 ? component_start - 1 : 0;
+    }
+    if (skip_count > 0)
+    {
+        const StringUtf8::SizeType erase_count = erase_end + 2;
+        relative.Erase(0, erase_count);
+    }
+    return Expected<StringUtf8, ErrorCode>(root + relative);
+}
+
+bool Opal::Paths::IsPathAbsolute(const StringUtf8& path)
+{
+    if (path.IsEmpty())
+    {
+        return false;
+    }
+#if defined(OPAL_PLATFORM_WINDOWS)
+    if (path.GetSize() >= 2 && path[1] == ':')
+    {
+        return true;
+    }
+    if (path.GetSize() >= 1 && (path[0] == '\\' || path[0] == '/'))
+    {
+        return true;
+    }
+    return false;
+#else
+#error "Not implemented"
 #endif
 }
