@@ -5,8 +5,15 @@
 namespace Opal::Paths
 {
 
-Expected<StringUtf8, ErrorCode> GetCurrentWorkingDirectory();
-ErrorCode SetCurrentWorkingDirectory(const StringUtf8& path);
+Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetCurrentWorkingDirectory();
+
+/**
+ * @brief Set current working directory.
+ * @note Not thread-safe.
+ * @param path Path to the new working directory. This must be an existing directory.
+ * @return ErrorCode::Success if the operation was successful, otherwise ErrorCode::OSFailure.
+ */
+ErrorCode OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
 
 static StringUtf8 GetExecutableDirectory();
 
