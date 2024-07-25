@@ -52,6 +52,10 @@ Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path, 
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringLocale path_locale(path.GetSize() * MB_CUR_MAX, 0, allocator);
+    if (path_locale.GetSize() != path.GetSize() * MB_CUR_MAX)
+    {
+        return ErrorCode::OutOfMemory;
+    }
     const ErrorCode err = Transcode(path, path_locale);
     if (err != ErrorCode::Success)
     {
