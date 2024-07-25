@@ -27,8 +27,8 @@ ErrorCode OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path, Allocat
  * remove trailing separators, resolve symlinks (..), etc.
  * @param path Path to normalize.
  * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
- * @return Returns normalized path in case of a success. Returns ErrorCode::OSFailure in case that it can't get the current working directory.
- * Returns ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
+ * @return Returns normalized path in case of a success. Returns ErrorCode::OSFailure in case that it can't get the current working
+ * directory. Returns ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
  */
 Expected<StringUtf8, ErrorCode> OPAL_EXPORT NormalizePath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
@@ -62,9 +62,10 @@ static StringUtf8 GetExtension(const StringUtf8& path);
 
 /**
  * @brief Get parent path of the file from the path.
+ * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
  * @param path Path to the file.
- * @return Parent path of the file.
+ * @return Parent path of the file in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
  */
-static StringUtf8 GetParentPath(const StringUtf8& path);
+Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetParentPath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 }  // namespace Opal::Paths

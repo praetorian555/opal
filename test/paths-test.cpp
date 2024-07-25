@@ -130,3 +130,44 @@ TEST_CASE("Normalize path", "[Paths]")
         REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test\\test");
     }
 }
+
+TEST_CASE("Get parent path", "[String]")
+{
+    SECTION("No memory")
+    {
+        NullAllocator allocator;
+        auto parent = Paths::GetParentPath(u8"a/b/c/d", &allocator);
+        REQUIRE(!parent.HasValue());
+        REQUIRE(parent.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Parent of empty path")
+    {
+        auto parent = Paths::GetParentPath(u8"", nullptr);
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == u8"");
+    }
+    SECTION("Parent of root")
+    {
+        auto parent = Paths::GetParentPath(u8"/", nullptr);
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == u8"/");
+
+        parent = Paths::GetParentPath(u8"C:/", nullptr);
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == u8"C:/");
+    }
+    SECTION("Parent of a file")
+    {
+        auto parent = Paths::GetParentPath(u8"C:/Users/test.txt", nullptr);
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == u8"C:/Users");
+
+        parent = Paths::GetParentPath(u8"C:/Users/test", nullptr);
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == u8"C:/Users");
+
+        parent = Paths::GetParentPath(u8"C:/Users/test/", nullptr);
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == u8"C:/Users/test");
+    }
+}
