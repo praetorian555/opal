@@ -97,14 +97,31 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
     StringUtf8 root(allocator);
     StringUtf8 relative(allocator);
 
+    ErrorCode err = ErrorCode::Success;
     if (!IsPathAbsolute(path))
     {
+        // If the path is relative, attach the current working directory to it before normalization
         auto result = GetCurrentWorkingDirectory();
         if (!result.HasValue())
         {
             return Expected<StringUtf8, ErrorCode>(result.GetError());
         }
-        original_path = result.GetValue() + k_preferred_separator + path;
+        original_path.Erase();
+        err = original_path.Append(result.GetValue());
+        if (err != ErrorCode::Success)
+        {
+            return Expected<StringUtf8, ErrorCode>(err);
+        }
+        err = original_path.Append(k_preferred_separator);
+        if (err != ErrorCode::Success)
+        {
+            return Expected<StringUtf8, ErrorCode>(err);
+        }
+        err = original_path.Append(path);
+        if (err != ErrorCode::Success)
+        {
+            return Expected<StringUtf8, ErrorCode>(err);
+        }
     }
 
     bool prev_is_separator = false;
@@ -113,20 +130,38 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
 #if defined(OPAL_PLATFORM_WINDOWS)
     if (original_path.GetSize() >= 2 && original_path[1] == ':')
     {
-        // Path is absolute
-        root.Append(original_path[0]);
-        root.Append(original_path[1]);
-        root.Append(k_preferred_separator);
+        // Path is absolute and starts with a drive letter
+        err = root.Append(original_path[0]);
+        if (err != ErrorCode::Success)
+        {
+            return Expected<StringUtf8, ErrorCode>(err);
+        }
+        err = root.Append(original_path[1]);
+        if (err != ErrorCode::Success)
+        {
+            return Expected<StringUtf8, ErrorCode>(err);
+        }
+        err = root.Append(k_preferred_separator);
+        if (err != ErrorCode::Success)
+        {
+            return Expected<StringUtf8, ErrorCode>(err);
+        }
         prev_is_separator = true;
         start = 2;
     }
-    else if (original_path.GetSize() >= 1 && (original_path[0] == '\\' || original_path[0] == '/'))
+    if (original_path.GetSize() >= 1 && (original_path[0] == '\\' || original_path[0] == '/'))
     {
-        // Path is absolute
-        root.Append(k_preferred_separator);
+        // Path is absolute but starts only with a separator
+        err = root.Append(k_preferred_separator);
+        if (err != ErrorCode::Success)
+        {
+            return Expected<StringUtf8, ErrorCode>(err);
+        }
         prev_is_separator = true;
         start = 1;
     }
+#else
+#error Not implemented
 #endif
 
     // Remove redundant separators and switch to using preferred separators
@@ -140,12 +175,20 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
             }
 
             prev_is_separator = true;
-            relative.Append(k_preferred_separator);
+            err = relative.Append(k_preferred_separator);
+            if (err != ErrorCode::Success)
+            {
+                return Expected<StringUtf8, ErrorCode>(err);
+            }
         }
         else
         {
-            relative.Append(original_path[i]);
             prev_is_separator = false;
+            err = relative.Append(original_path[i]);
+            if (err != ErrorCode::Success)
+            {
+                return Expected<StringUtf8, ErrorCode>(err);
+            }
         }
     }
     if (!relative.IsEmpty() && relative.Back().GetValue() == '\\')
@@ -153,18 +196,26 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
         relative.Erase(relative.End() - 1);
     }
 
+    // Points to either separator, the first element in the relative path or one after last element in the relative path
     StringUtf8::SizeType end = relative.GetSize();
-    i32 skip_count = 0;
     StringUtf8::SizeType erase_end = 0;
+
+    i32 skip_count = 0;
+
     while (end != 0)
     {
-        StringUtf8::SizeType component_start = ReverseFind(relative, '\\', end);
+        // component_start either points to the separator or to the first element in the relative path
+        StringUtf8::SizeType component_start = ReverseFind(relative, '\\', end - 1);
         if (component_start == StringUtf8::k_npos)
         {
             component_start = 0;
         }
-        const StringUtf8::SizeType compare_start = component_start != 0 ? component_start + 1 : 0;
-        const StringUtf8::SizeType compare_count = component_start != 0 ? end - component_start : end + 1;
+        const bool is_not_first_char = component_start != 0;
+
+        // Here we want to compare from the first char after the separator to the end of the component, which is either
+        // the last element before next separator or the last element in the relative path
+        const StringUtf8::SizeType compare_start = is_not_first_char ? component_start + 1 : 0;
+        const StringUtf8::SizeType compare_count = is_not_first_char ? end - component_start - 1 : end;
         auto compare_result = Compare(relative, compare_start, compare_count, u8"..");
         OPAL_ASSERT(compare_result.HasValue(), "This must always succeed");
         if (compare_result.GetValue() == 0)
@@ -179,7 +230,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
         {
             if (skip_count == 1)
             {
-                const StringUtf8::SizeType erase_count = component_start != 0 ? erase_end - component_start + 1 : erase_end + 2;
+                const StringUtf8::SizeType erase_count = is_not_first_char ? erase_end - component_start : erase_end + 1;
                 relative.Erase(component_start, erase_count);
             }
             if (skip_count != 0)
@@ -187,11 +238,11 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
                 --skip_count;
             }
         }
-        end = component_start != 0 ? component_start - 1 : 0;
+        end = component_start;
     }
     if (skip_count > 0)
     {
-        const StringUtf8::SizeType erase_count = erase_end + 2;
+        const StringUtf8::SizeType erase_count = erase_end + 1;
         relative.Erase(0, erase_count);
     }
     return Expected<StringUtf8, ErrorCode>(root + relative);

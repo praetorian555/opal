@@ -24,13 +24,19 @@ ErrorCode OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path, Allocat
 
 /**
  * @brief Normalize the path. This will remove redundant separators, switch separators with preferred separators, resolve relative paths,
- * and remove trailing separators.
+ * remove trailing separators, resolve symlinks (..), etc.
  * @param path Path to normalize.
- * @param allocator Allocator to use for temporary memory allocation.
- * @return Normalized path.
+ * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
+ * @return Returns normalized path in case of a success. Returns ErrorCode::OSFailure in case that it can't get the current working directory.
+ * Returns ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
  */
 Expected<StringUtf8, ErrorCode> OPAL_EXPORT NormalizePath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
+/**
+ * @brief Check if the path is absolute.
+ * @param path Path to check.
+ * @return True if the path is absolute, otherwise false.
+ */
 bool IsPathAbsolute(const StringUtf8& path);
 
 /**

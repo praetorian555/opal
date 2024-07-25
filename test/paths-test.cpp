@@ -61,6 +61,13 @@ TEST_CASE("Set current working directory", "[Paths]")
 
 TEST_CASE("Normalize path", "[Paths]")
 {
+    SECTION("No memory")
+    {
+        NullAllocator allocator;
+        auto normalized = Paths::NormalizePath(u8"a/b/c/d", &allocator);
+        REQUIRE(!normalized.HasValue());
+        REQUIRE(normalized.GetError() == ErrorCode::OutOfMemory);
+    }
     SECTION("Empty path")
     {
         auto normalized = Paths::NormalizePath(u8"", nullptr);
