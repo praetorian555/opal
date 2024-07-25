@@ -401,3 +401,26 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(con
     }
     return Expected<StringUtf8, ErrorCode>(result);
 }
+
+bool Opal::Paths::Exists(const StringUtf8& path, AllocatorBase* allocator)
+{
+    Expected<StringUtf8, ErrorCode> result = NormalizePath(path, allocator);
+    if (!result.HasValue())
+    {
+        return false;
+    }
+
+    StringLocale path_locale(result.GetValue().GetSize() * MB_CUR_MAX, 0, allocator);
+    if (path_locale.GetSize() != result.GetValue().GetSize() * MB_CUR_MAX)
+    {
+        return false;
+    }
+    const ErrorCode err = Transcode(result.GetValue(), path_locale);
+    if (err != ErrorCode::Success)
+    {
+        return false;
+    }
+
+    const DWORD attributes = GetFileAttributes(path_locale.GetData());
+    return (attributes != INVALID_FILE_ATTRIBUTES);
+}

@@ -380,3 +380,28 @@ TEST_CASE("Combining paths", "[Paths]")
     REQUIRE(!result.HasValue());
     REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
 }
+
+TEST_CASE("Exists", "[Paths]")
+{
+    SECTION("No memory")
+    {
+        NullAllocator allocator;
+        auto exists = Paths::Exists(u8"a/b/c/d", &allocator);
+        REQUIRE(!exists);
+    }
+    SECTION("Empty path")
+    {
+        auto exists = Paths::Exists(u8"", nullptr);
+        REQUIRE(!exists);
+    }
+    SECTION("Non-existing paths")
+    {
+        auto exists = Paths::Exists(u8"test");
+        REQUIRE(!exists);
+    }
+    SECTION("Existing paths")
+    {
+        auto exists = Paths::Exists(u8".");
+        REQUIRE(exists);
+    }
+}

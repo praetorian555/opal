@@ -74,6 +74,14 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetExtension(const StringUtf8& path,
 Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetParentPath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
+ * @brief Check if the path exists.
+ * @param path Path to check.
+ * @param allocator Allocator to use for allocating the temporary function data. If nullptr, the default allocator will be used.
+ * @return True if the path exists, otherwise false, including the errors.
+ */
+bool OPAL_EXPORT Exists(const StringUtf8& path, AllocatorBase* allocator = nullptr);
+
+/**
  * @brief Combine paths.
  * @tparam Args Types of path components. It needs to be types compatible with StringUtf8.
  * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
