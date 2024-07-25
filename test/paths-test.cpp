@@ -348,3 +348,23 @@ TEST_CASE("Get extension", "[Paths]")
         REQUIRE(extension.GetValue() == u8".baz");
     }
 }
+
+TEST_CASE("Combining paths", "[Paths]")
+{
+    auto result = Paths::Combine(nullptr, u8"a", u8"b", u8"c");
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == u8"a\\b\\c");
+
+    result = Paths::Combine(nullptr, u8"a", u8"b", u8"c", u8"");
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == u8"a\\b\\c\\");
+
+    result = Paths::Combine(nullptr);
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == u8"");
+
+    NullAllocator allocator;
+    result = Paths::Combine(&allocator, u8"a", u8"b", u8"c");
+    REQUIRE(!result.HasValue());
+    REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+}

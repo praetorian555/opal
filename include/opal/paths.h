@@ -73,4 +73,59 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetExtension(const StringUtf8& path,
  */
 Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetParentPath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
+/**
+ * @brief Combine paths.
+ * @tparam Args Types of path components. It needs to be types compatible with StringUtf8.
+ * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
+ * @param args Path components.
+ * @return Combined path in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
+ */
+template <typename ...Args>
+Expected<StringUtf8, ErrorCode> Combine(AllocatorBase* allocator, Args... args);
+
 }  // namespace Opal::Paths
+
+template <typename ...Args>
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::Combine(AllocatorBase* allocator, Args... args)
+{
+    StringUtf8 result(allocator);
+    ErrorCode err = ErrorCode::Success;
+
+    auto append = [&result, &err](const auto& part)
+    {
+        constexpr StringUtf8::CodeUnitType k_separator = '\\';
+        if (result.IsEmpty())
+        {
+            err = result.Append(part);
+            if (err != ErrorCode::Success)
+            {
+                return err;
+            }
+        }
+        else
+        {
+            if (result.Back().GetValue() != '/' || result.Back().GetValue() != '\\')
+            {
+                err = result.Append(k_separator);
+                if (err != ErrorCode::Success)
+                {
+                    return err;
+                }
+            }
+
+            err = result.Append(part);
+            if (err != ErrorCode::Success)
+            {
+                return err;
+            }
+        }
+        return ErrorCode::Success;
+    };
+
+    (... && (append(args) == ErrorCode::Success));
+    if (err != ErrorCode::Success)
+    {
+        return Expected<StringUtf8, ErrorCode>(err);
+    }
+    return Expected<StringUtf8, ErrorCode>(result);
+}
