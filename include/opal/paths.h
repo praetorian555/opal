@@ -5,15 +5,22 @@
 namespace Opal::Paths
 {
 
-Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetCurrentWorkingDirectory();
+/**
+ * @brief Get current working directory.
+ * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
+ * @return Returns current working directory in case of a success. Returns ErrorCode::OSFailure in case that it can't get the current
+ * working directory. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
+ */
+Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetCurrentWorkingDirectory(AllocatorBase* allocator = nullptr);
 
 /**
  * @brief Set current working directory.
  * @note Not thread-safe.
  * @param path Path to the new working directory. This must be an existing directory.
+ * @param allocator Allocator to use for allocating the temporary function data. If nullptr, the default allocator will be used.
  * @return ErrorCode::Success if the operation was successful, otherwise ErrorCode::OSFailure.
  */
-ErrorCode OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
+ErrorCode OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
  * @brief Normalize the path. This will remove redundant separators, switch separators with preferred separators, resolve relative paths,

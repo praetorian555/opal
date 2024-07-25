@@ -9,11 +9,15 @@
 #include <filesystem>
 #endif
 
-Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorkingDirectory()
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorkingDirectory(AllocatorBase* allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     const DWORD size_needed = GetCurrentDirectory(0, nullptr);
-    StringLocale buffer(size_needed - 1, 0);
+    StringLocale buffer(size_needed - 1, 0, allocator);
+    if (buffer.GetSize() != size_needed - 1)
+    {
+        return Expected<StringUtf8, ErrorCode>(ErrorCode::OutOfMemory);
+    }
     const DWORD written_size = GetCurrentDirectory(size_needed, buffer.GetData());
     if (written_size == 0)
     {
@@ -33,8 +37,8 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorking
     {
         return Expected<StringUtf8, ErrorCode>(ErrorCode::OSFailure);
     }
-    const StringLocale path_locale(std_path.string().c_str(), std_path.string().size());
-    StringUtf8 result(path_locale.GetSize(), 0);
+    const StringLocale path_locale(std_path.string().c_str(), std_path.string().size(), allocator);
+    StringUtf8 result(path_locale.GetSize(), 0, allocator);
     const ErrorCode err = Transcode(path_locale, result);
     if (err != ErrorCode::Success)
     {
@@ -44,10 +48,10 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorking
 #endif
 }
 
-Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path)
+Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path, AllocatorBase* allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringLocale path_locale(path.GetSize() * MB_CUR_MAX, 0);
+    StringLocale path_locale(path.GetSize() * MB_CUR_MAX, 0, allocator);
     const ErrorCode err = Transcode(path, path_locale);
     if (err != ErrorCode::Success)
     {
