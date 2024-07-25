@@ -129,6 +129,18 @@ TEST_CASE("Normalize path", "[Paths]")
         normalized = Paths::NormalizePath(u8"test/a/../b/..//test//");
         REQUIRE(normalized.HasValue());
         REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test\\test");
+
+        normalized = Paths::NormalizePath(u8"test/.");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test");
+
+        normalized = Paths::NormalizePath(u8"test/./");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test");
+
+        normalized = Paths::NormalizePath(u8".");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue());
     }
 }
 

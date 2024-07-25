@@ -195,6 +195,30 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
             }
         }
     }
+
+    const StringUtf8::SizeType pos = Find(relative, u8"\\.\\");
+    if (pos != StringUtf8::k_npos)
+    {
+        // Remove ./
+        if (pos + 3 < relative.GetSize())
+        {
+            relative.Erase(pos + 1, 2);
+        }
+        else
+        {
+            relative.Erase(pos);
+        }
+    }
+    if (relative.GetSize() > 1 && relative[0] == '.' && relative[1] == '\\')
+    {
+        relative.Erase(0, 2);
+    }
+    if (relative.GetSize() > 1 && *(relative.End() - 1) == '.' && *(relative.End() - 2) == '\\')
+    {
+        relative.Erase(relative.GetSize() - 2, 2);
+    }
+
+    // If there is a separator at the end of the path, remove it
     if (!relative.IsEmpty() && relative.Back().GetValue() == '\\')
     {
         relative.Erase(relative.End() - 1);
