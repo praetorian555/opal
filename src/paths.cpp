@@ -301,6 +301,50 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetFileName(const
     return Expected<StringUtf8, ErrorCode>(result);
 }
 
+Opal::Expected<Opal::String<char8_t, Opal::EncodingUtf8<char8_t>>, Opal::ErrorCode> Opal::Paths::GetStem(const StringUtf8& path,
+                                                                                                         AllocatorBase* allocator)
+{
+    Expected<StringUtf8, ErrorCode> file_name = GetFileName(path, allocator);
+    if (!file_name.HasValue())
+    {
+        return Expected<StringUtf8, ErrorCode>(file_name.GetError());
+    }
+    const StringUtf8::SizeType last_dot = ReverseFind(file_name.GetValue(), '.');
+    if (last_dot == StringUtf8::k_npos || last_dot == 0 || (last_dot == 1 && file_name.GetValue()[0] == '.' && file_name.GetValue().GetSize() == 2))
+    {
+        return Expected<StringUtf8, ErrorCode>(file_name.GetValue());
+    }
+    StringUtf8 result(allocator);
+    const ErrorCode err = result.Append(file_name.GetValue(), 0, last_dot);
+    if (err != ErrorCode::Success)
+    {
+        return Expected<StringUtf8, ErrorCode>(err);
+    }
+    return Expected<StringUtf8, ErrorCode>(result);
+}
+
+Opal::Expected<Opal::String<char8_t, Opal::EncodingUtf8<char8_t>>, Opal::ErrorCode> Opal::Paths::GetExtension(const StringUtf8& path,
+                                                                                                              AllocatorBase* allocator)
+{
+    Expected<StringUtf8, ErrorCode> file_name = GetFileName(path, allocator);
+    if (!file_name.HasValue())
+    {
+        return Expected<StringUtf8, ErrorCode>(file_name.GetError());
+    }
+    const StringUtf8::SizeType last_dot = ReverseFind(file_name.GetValue(), '.');
+    if (last_dot == StringUtf8::k_npos || last_dot == 0 || (last_dot == 1 && file_name.GetValue()[0] == '.' && file_name.GetValue().GetSize() == 2))
+    {
+        return Expected<StringUtf8, ErrorCode>(StringUtf8(allocator));
+    }
+    StringUtf8 result(allocator);
+    const ErrorCode err = result.Append(file_name.GetValue(), last_dot, StringUtf8::k_npos);
+    if (err != ErrorCode::Success)
+    {
+        return Expected<StringUtf8, ErrorCode>(err);
+    }
+    return Expected<StringUtf8, ErrorCode>(result);
+}
+
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(const StringUtf8& path, AllocatorBase* allocator)
 {
     StringUtf8::SizeType last_separator = ReverseFind(path, '\\');

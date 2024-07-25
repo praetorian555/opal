@@ -18,7 +18,8 @@ TEST_CASE("Get current working directory", "[Paths]")
     SECTION("All good")
     {
         auto cwd = Paths::GetCurrentWorkingDirectory();
-        REQUIRE(cwd.HasValue());;
+        REQUIRE(cwd.HasValue());
+        ;
         REQUIRE(cwd.GetValue().GetSize() > 0);
 
         auto ref_path = std::filesystem::current_path();
@@ -119,7 +120,7 @@ TEST_CASE("Normalize path", "[Paths]")
 
         normalized = Paths::NormalizePath(u8"test/test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() +  u8"\\test\\test");
+        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test\\test");
 
         normalized = Paths::NormalizePath(u8"test/test/../..//test//");
         REQUIRE(normalized.HasValue());
@@ -247,5 +248,103 @@ TEST_CASE("Get file name", "[Paths]")
         file_name = Paths::GetFileName(u8"C:/Users/test/.");
         REQUIRE(file_name.HasValue());
         REQUIRE(file_name.GetValue() == u8".");
+    }
+}
+
+TEST_CASE("Get stem", "[Paths]")
+{
+    SECTION("No memory")
+    {
+        NullAllocator allocator;
+        auto stem = Paths::GetStem(u8"a/b/c/d", &allocator);
+        REQUIRE(!stem.HasValue());
+        REQUIRE(stem.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Normal file names")
+    {
+        auto stem = Paths::GetStem(u8"test.txt");
+        REQUIRE(stem.HasValue());
+        REQUIRE(stem.GetValue() == u8"test");
+
+        stem = Paths::GetStem(u8"test");
+        REQUIRE(stem.HasValue());
+        REQUIRE(stem.GetValue() == u8"test");
+
+        stem = Paths::GetStem(u8"test/test2");
+        REQUIRE(stem.HasValue());
+        REQUIRE(stem.GetValue() == u8"test2");
+
+        stem = Paths::GetStem(u8"test/");
+        REQUIRE(stem.HasValue());
+        REQUIRE(stem.GetValue() == u8"");
+
+        stem = Paths::GetStem(u8"test/..");
+        REQUIRE(stem.HasValue());
+        REQUIRE(stem.GetValue() == u8"..");
+
+        stem = Paths::GetStem(u8"test/..txt");
+        REQUIRE(stem.HasValue());
+        REQUIRE(stem.GetValue() == u8".");
+
+        stem = Paths::GetStem(u8"test/.");
+        REQUIRE(stem.HasValue());
+        REQUIRE(stem.GetValue() == u8".");
+
+        stem = Paths::GetStem(u8"test/.ignore");
+        REQUIRE(stem.HasValue());
+        REQUIRE(stem.GetValue() == u8".ignore");
+
+        stem = Paths::GetStem(u8"test/foo.bar.baz");
+        REQUIRE(stem.HasValue());
+        REQUIRE(stem.GetValue() == u8"foo.bar");
+    }
+}
+
+TEST_CASE("Get extension", "[Paths]")
+{
+    SECTION("No memory")
+    {
+        NullAllocator allocator;
+        auto extension = Paths::GetExtension(u8"a/b/c/d", &allocator);
+        REQUIRE(!extension.HasValue());
+        REQUIRE(extension.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Normal paths")
+    {
+        auto extension = Paths::GetExtension(u8"test.txt");
+        REQUIRE(extension.HasValue());
+        REQUIRE(extension.GetValue() == u8".txt");
+
+        extension = Paths::GetExtension(u8"test");
+        REQUIRE(extension.HasValue());
+        REQUIRE(extension.GetValue() == u8"");
+
+        extension = Paths::GetExtension(u8"test/test2");
+        REQUIRE(extension.HasValue());
+        REQUIRE(extension.GetValue() == u8"");
+
+        extension = Paths::GetExtension(u8"test/");
+        REQUIRE(extension.HasValue());
+        REQUIRE(extension.GetValue() == u8"");
+
+        extension = Paths::GetExtension(u8"test/..");
+        REQUIRE(extension.HasValue());
+        REQUIRE(extension.GetValue() == u8"");
+
+        extension = Paths::GetExtension(u8"test/..txt");
+        REQUIRE(extension.HasValue());
+        REQUIRE(extension.GetValue() == u8".txt");
+
+        extension = Paths::GetExtension(u8"test/.");
+        REQUIRE(extension.HasValue());
+        REQUIRE(extension.GetValue() == u8"");
+
+        extension = Paths::GetExtension(u8"test/.ignore");
+        REQUIRE(extension.HasValue());
+        REQUIRE(extension.GetValue() == u8"");
+
+        extension = Paths::GetExtension(u8"test/foo.bar.baz");
+        REQUIRE(extension.HasValue());
+        REQUIRE(extension.GetValue() == u8".baz");
     }
 }

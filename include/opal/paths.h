@@ -50,17 +50,20 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetFileName(const StringUtf8& path, 
 
 /**
  * @brief Get name of the file without the extension from the path.
+ * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
  * @param path Path to the file.
- * @return Name of the file without the extension.
+ * @return Name of the file without the extension in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for
+ * the result.
  */
-static StringUtf8 GetStem(const StringUtf8& path);
+Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetStem(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
  * @brief Get extension of the file from the path.
+ * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
  * @param path Path to the file.
- * @return Extension of the file.
+ * @return Extension of the file in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
  */
-static StringUtf8 GetExtension(const StringUtf8& path);
+Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetExtension(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
  * @brief Get parent path of the file from the path.
