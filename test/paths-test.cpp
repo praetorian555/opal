@@ -131,7 +131,7 @@ TEST_CASE("Normalize path", "[Paths]")
     }
 }
 
-TEST_CASE("Get parent path", "[String]")
+TEST_CASE("Get parent path", "[Paths]")
 {
     SECTION("No memory")
     {
@@ -169,5 +169,28 @@ TEST_CASE("Get parent path", "[String]")
         parent = Paths::GetParentPath(u8"C:/Users/test/", nullptr);
         REQUIRE(parent.HasValue());
         REQUIRE(parent.GetValue() == u8"C:/Users/test");
+    }
+}
+
+TEST_CASE("Is path absolute", "[Paths]")
+{
+    SECTION("Empty string")
+    {
+        REQUIRE(!Paths::IsPathAbsolute(u8""));
+    }
+    SECTION("Relative paths")
+    {
+        REQUIRE(!Paths::IsPathAbsolute(u8"test"));
+        REQUIRE(!Paths::IsPathAbsolute(u8"test/test"));
+        REQUIRE(!Paths::IsPathAbsolute(u8"test/test/../..//test//"));
+        REQUIRE(!Paths::IsPathAbsolute(u8"test/a/../b/..//test//"));
+    }
+    SECTION("Absolute paths")
+    {
+        REQUIRE(Paths::IsPathAbsolute(u8"/"));
+        REQUIRE(Paths::IsPathAbsolute(u8"C:/"));
+        REQUIRE(Paths::IsPathAbsolute(u8"C:/Users/test.txt"));
+        REQUIRE(Paths::IsPathAbsolute(u8"C:/Users/test"));
+        REQUIRE(Paths::IsPathAbsolute(u8"C:/Users/test/"));
     }
 }

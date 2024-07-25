@@ -37,7 +37,7 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT NormalizePath(const StringUtf8& path
  * @param path Path to check.
  * @return True if the path is absolute, otherwise false.
  */
-bool IsPathAbsolute(const StringUtf8& path);
+bool OPAL_EXPORT IsPathAbsolute(const StringUtf8& path);
 
 /**
  * @brief Get name of the file with the extension from the path.
