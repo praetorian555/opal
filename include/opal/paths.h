@@ -41,10 +41,12 @@ bool OPAL_EXPORT IsPathAbsolute(const StringUtf8& path);
 
 /**
  * @brief Get name of the file with the extension from the path.
+ * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
  * @param path Path to the file.
- * @return Name of the file with the extension.
+ * @return Name of the file with the extension in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for the
+ * result.
  */
-static StringUtf8 GetFileName(const StringUtf8& path);
+Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetFileName(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
  * @brief Get name of the file without the extension from the path.

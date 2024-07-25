@@ -194,3 +194,58 @@ TEST_CASE("Is path absolute", "[Paths]")
         REQUIRE(Paths::IsPathAbsolute(u8"C:/Users/test/"));
     }
 }
+
+TEST_CASE("Get file name", "[Paths]")
+{
+    SECTION("No memory")
+    {
+        NullAllocator allocator;
+        auto file_name = Paths::GetFileName(u8"a/b/c/d", &allocator);
+        REQUIRE(!file_name.HasValue());
+        REQUIRE(file_name.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Relative paths")
+    {
+        auto file_name = Paths::GetFileName(u8"test");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8"test");
+
+        file_name = Paths::GetFileName(u8"test/test2");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8"test2");
+
+        file_name = Paths::GetFileName(u8"test/");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8"");
+
+        file_name = Paths::GetFileName(u8"test/..");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8"..");
+
+        file_name = Paths::GetFileName(u8"test/.");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8".");
+    }
+    SECTION("Absolute paths")
+    {
+        auto file_name = Paths::GetFileName(u8"C:/Users/test.txt");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8"test.txt");
+
+        file_name = Paths::GetFileName(u8"C:/Users/test");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8"test");
+
+        file_name = Paths::GetFileName(u8"C:/Users/test/");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8"");
+
+        file_name = Paths::GetFileName(u8"C:/Users/test/..");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8"..");
+
+        file_name = Paths::GetFileName(u8"C:/Users/test/.");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == u8".");
+    }
+}

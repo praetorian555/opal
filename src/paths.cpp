@@ -272,6 +272,34 @@ bool Opal::Paths::IsPathAbsolute(const StringUtf8& path)
 #error "Not implemented"
 #endif
 }
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetFileName(const StringUtf8& path, AllocatorBase* allocator)
+{
+    StringUtf8::SizeType last_separator = ReverseFind(path, '\\');
+    const StringUtf8::SizeType other_last_separator = ReverseFind(path, '/');
+    if (last_separator == StringUtf8::k_npos)
+    {
+        last_separator = other_last_separator;
+    }
+    if (other_last_separator != StringUtf8::k_npos && other_last_separator > last_separator)
+    {
+        last_separator = other_last_separator;
+    }
+    if (last_separator == StringUtf8::k_npos)
+    {
+        return Expected<StringUtf8, ErrorCode>(StringUtf8(path, allocator));
+    }
+    if (last_separator == path.GetSize() - 1)
+    {
+        return Expected<StringUtf8, ErrorCode>(StringUtf8(allocator));
+    }
+    StringUtf8 result(allocator);
+    const ErrorCode err = result.Append(path, last_separator + 1, StringUtf8::k_npos);
+    if (err != ErrorCode::Success)
+    {
+        return Expected<StringUtf8, ErrorCode>(err);
+    }
+    return Expected<StringUtf8, ErrorCode>(result);
+}
 
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(const StringUtf8& path, AllocatorBase* allocator)
 {
