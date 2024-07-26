@@ -129,8 +129,7 @@ public:
     String(AllocatorT* allocator = nullptr);
     String(SizeType count, CodeUnitT value, AllocatorT* allocator = nullptr);
     String(const CodeUnitT* str, SizeType count, AllocatorT* allocator = nullptr);
-    template <u64 N>
-    String(const CodeUnitT (&str)[N], AllocatorT* allocator = nullptr);
+    String(const CodeUnitT* str, AllocatorT* allocator = nullptr);
     String(const String& other, AllocatorT* allocator = nullptr);
     String(const String& other, SizeType pos, AllocatorT* allocator = nullptr);
     String(String&& other) noexcept;
@@ -583,9 +582,10 @@ CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT* allocator
 }
 
 TEMPLATE_HEADER
-template <Opal::u64 N>
-CLASS_HEADER::String(const CodeUnitT (&str)[N], AllocatorT* allocator) : m_allocator(allocator), m_capacity(N), m_size(N - 1)
+CLASS_HEADER::String(const CodeUnitT* str, AllocatorT* allocator) : m_allocator(allocator)
 {
+    m_size = StringLength(str);
+    m_capacity = m_size + 1;
     if (m_capacity > 0)
     {
         m_data = Allocate(m_capacity);
