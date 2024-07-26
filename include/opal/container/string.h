@@ -161,7 +161,10 @@ public:
     [[nodiscard]] const CodeUnitType* GetData() const { return m_data; }
 
     template <typename NewCodeUnitType>
-    const NewCodeUnitType* GetDataAs() const { return reinterpret_cast<const NewCodeUnitType*>(m_data); }
+    const NewCodeUnitType* GetDataAs() const
+    {
+        return reinterpret_cast<const NewCodeUnitType*>(m_data);
+    }
 
     [[nodiscard]] SizeType GetSize() const { return m_size; }
     [[nodiscard]] SizeType GetCapacity() const { return m_capacity; }
@@ -503,10 +506,27 @@ typename MyString::SizeType ReverseFind(const MyString& haystack, const typename
 template <typename InputString, typename OutputString>
 ErrorCode Transcode(const InputString& input, OutputString& output);
 
+/**
+ * @brief Get a substring from a string.
+ * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @tparam Allocator Type of the allocator to use for allocating the result. If nullptr, the default allocator will be used.
+ * @param str String to get the substring from.
+ * @param start_pos Position in the string to start the substring from. Default is 0.
+ * @param count Number of code units to include in the substring. If count is equal to MyString::k_npos, the entire string starting from
+ * start_pos will be included.
+ * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
+ * @return Substring in case of a success. ErrorCode::OutOfBounds if start_pos is greater than the size of the string.
+ */
 template <typename MyString, typename Allocator = AllocatorBase>
 Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyString::SizeType start_pos = 0,
                                            typename MyString::SizeType count = MyString::k_npos, Allocator* allocator = nullptr);
 
+/**
+ * @brief Get the length of a null-terminated string.
+ * @tparam CodeUnitType Type of the code unit in the string.
+ * @param str Null-terminated string to get the length of.
+ * @return Length of the string. If str is nullptr, returns 0.
+ */
 template <typename CodeUnitType>
 i64 StringLength(const CodeUnitType* str);
 
@@ -1325,7 +1345,8 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType start, InputIt begin, InputIt end)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType start, InputIt begin,
+                                                                                          InputIt end)
 {
     using ReturnType = Expected<IteratorType, ErrorCode>;
     if (start < ConstBegin() || start > ConstEnd())
