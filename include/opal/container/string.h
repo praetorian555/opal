@@ -161,6 +161,9 @@ public:
     CodeUnitType* GetData() { return m_data; }
     [[nodiscard]] const CodeUnitType* GetData() const { return m_data; }
 
+    template <typename NewCodeUnitType>
+    const NewCodeUnitType* GetDataAs() const { return reinterpret_cast<const NewCodeUnitType*>(m_data); }
+
     [[nodiscard]] SizeType GetSize() const { return m_size; }
     [[nodiscard]] SizeType GetCapacity() const { return m_capacity; }
 

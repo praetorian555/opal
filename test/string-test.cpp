@@ -3114,3 +3114,26 @@ TEST_CASE("Insert", "[String]")
         }
     }
 }
+
+TEST_CASE("Get data as", "[String]")
+{
+    StringUtf8 str(u8"Hello there");
+    SECTION("Get data as char")
+    {
+        const char* data = str.GetDataAs<char>();
+        REQUIRE(data != nullptr);
+        REQUIRE(data[0] == 'H');
+        REQUIRE(data[1] == 'e');
+        REQUIRE(data[2] == 'l');
+        REQUIRE(data[3] == 'l');
+        REQUIRE(data[4] == 'o');
+        REQUIRE(data[5] == ' ');
+        REQUIRE(data[6] == 't');
+        REQUIRE(data[7] == 'h');
+        REQUIRE(data[8] == 'e');
+        REQUIRE(data[9] == 'r');
+        REQUIRE(data[10] == 'e');
+        REQUIRE(data[11] == '\0');
+
+    }
+}
