@@ -508,6 +508,9 @@ template <typename MyString, typename Allocator = AllocatorBase>
 Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyString::SizeType start_pos = 0,
                                            typename MyString::SizeType count = MyString::k_npos, Allocator* allocator = nullptr);
 
+template <typename CodeUnitType>
+i64 StringLength(const CodeUnitType* str);
+
 /*************************************************************************************************/
 /** Most common String specializations. **********************************************************/
 /*************************************************************************************************/
@@ -2191,4 +2194,20 @@ Opal::Expected<MyString, Opal::ErrorCode> Opal::GetSubString(const MyString& str
     }
     count = MyString::Min(count, str.GetSize() - start_pos);
     return ReturnType(MyString(str.GetData() + start_pos, count, allocator));
+}
+
+template <typename CodeUnitType>
+Opal::i64 Opal::StringLength(const CodeUnitType* str)
+{
+    if (str == nullptr)
+    {
+        return 0;
+    }
+    i64 length = 0;
+    while (*str != 0)
+    {
+        ++str;
+        ++length;
+    }
+    return length;
 }

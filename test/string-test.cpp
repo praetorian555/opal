@@ -3117,7 +3117,7 @@ TEST_CASE("Insert", "[String]")
 
 TEST_CASE("Get data as", "[String]")
 {
-    StringUtf8 str(u8"Hello there");
+    const StringUtf8 str(u8"Hello there");
     SECTION("Get data as char")
     {
         const char* data = str.GetDataAs<char>();
@@ -3135,5 +3135,24 @@ TEST_CASE("Get data as", "[String]")
         REQUIRE(data[10] == 'e');
         REQUIRE(data[11] == '\0');
 
+    }
+}
+
+TEST_CASE("String length", "[String]")
+{
+    SECTION("Null string")
+    {
+        const char* str = nullptr;
+        REQUIRE(Opal::StringLength(str) == 0);
+    }
+    SECTION("Empty string")
+    {
+        const char* str = "";
+        REQUIRE(Opal::StringLength(str) == 0);
+    }
+    SECTION("Non-empty string")
+    {
+        const char* str = "Hello there";
+        REQUIRE(Opal::StringLength(str) == 11);
     }
 }
