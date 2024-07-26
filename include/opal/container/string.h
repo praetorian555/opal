@@ -530,6 +530,14 @@ Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyStrin
 template <typename CodeUnitType>
 i64 StringLength(const CodeUnitType* str);
 
+#define _OPAL_UTF8(text) u8##text
+
+/**
+ * @brief Macro to convert a string literal to UTF-8 encoding.
+ * @param text String literal to convert.
+ */
+#define OPAL_UTF8(text) _OPAL_UTF8(text)
+
 /*************************************************************************************************/
 /** Most common String specializations. **********************************************************/
 /*************************************************************************************************/
