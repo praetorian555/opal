@@ -2005,6 +2005,20 @@ TEST_CASE("Insert", "[Array]")
             REQUIRE(int_arr[1] == 42);
             REQUIRE(int_arr[2] == 42);
         }
+        SECTION("Insert from C style array")
+        {
+            Array<i32> int_arr(3, 42);
+            i32 other[] = {5, 5};
+            Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstBegin() + 1, other, other + 2).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 5);
+            REQUIRE(int_arr.GetSize() == 5);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 5);
+            REQUIRE(int_arr[2] == 5);
+            REQUIRE(int_arr[3] == 42);
+            REQUIRE(int_arr[4] == 42);
+        }
     }
 }
 

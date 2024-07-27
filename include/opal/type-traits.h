@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.h"
+
 namespace Opal
 {
 
@@ -92,14 +94,60 @@ concept MoveAssignable = requires(T a, T b) { a = Move(b); };
 
 template <typename T>
 concept Destructible = requires(T a) {
-    { a.~T() };
+    {
+        a.~T()
+    };
+};
+
+template <typename T>
+concept HasStdDifferenceSubType = requires { typename T::difference_type; };
+
+template <typename T>
+struct DifferenceTypeGetter
+{
+    using Type = typename T::DifferenceType;
+};
+
+template <typename T>
+    requires HasStdDifferenceSubType<T>
+struct DifferenceTypeGetter<T>
+{
+    using Type = typename T::difference_type;
+};
+
+template <typename T>
+struct DifferenceTypeGetter<T*>
+{
+    using Type = i64;
+};
+
+template <typename T>
+concept HasStdReferenceSubType = requires { typename T::reference; };
+
+template <typename T>
+struct ReferenceTypeGetter
+{
+    using Type = typename T::ReferenceType;
+};
+
+template <typename T>
+    requires HasStdReferenceSubType<T>
+struct ReferenceTypeGetter<T>
+{
+    using Type = typename T::reference;
+};
+
+template <typename T>
+struct ReferenceTypeGetter<T*>
+{
+    using Type = T&;
 };
 
 template <typename I>
 concept Iterator = requires(I i) {
-    { *i } -> SameAs<typename I::reference>;
+    { *i } -> SameAs<typename ReferenceTypeGetter<I>::Type>;
     { ++i } -> SameAs<I&>;
-    { *i++ } -> SameAs<typename I::reference>;
+    { *i++ } -> SameAs<typename ReferenceTypeGetter<I>::Type>;
 } && CopyConstructable<I> && CopyAssignable<I> && Destructible<I>;
 
 template <typename I>
@@ -114,30 +162,62 @@ concept ForwardIterator = InputIterator<I> && DefaultConstructable<I> && require
 
 template <typename I>
 concept BidirectionalIterator = ForwardIterator<I> && requires(I i) {
-    { --i } -> SameAs<I&>;
-    { i-- } -> SameAs<I>;
-    { *i-- } -> SameAs<typename I::reference>;
+    {
+        --i
+    } -> SameAs<I&>;
+    {
+        i--
+    } -> SameAs<I>;
+    {
+        *i--
+    } -> SameAs<typename ReferenceTypeGetter<I>::Type>;
 };
 
 template <typename I>
-concept RandomAccessIterator = BidirectionalIterator<I> && requires(I i, I j, typename I::difference_type n) {
-    { i += n } -> SameAs<I&>;
-    { i + n } -> SameAs<I>;
-    { n + i } -> SameAs<I>;
-    { i -= n } -> SameAs<I&>;
-    { i - n } -> SameAs<I>;
-    { i - j } -> SameAs<typename I::difference_type>;
-    { i[n] } -> SameAs<typename I::reference>;
-    { i < j } -> SameAs<bool>;
-    { i > j } -> SameAs<bool>;
-    { i <= j } -> SameAs<bool>;
-    { i >= j } -> SameAs<bool>;
+concept RandomAccessIterator = BidirectionalIterator<I> && requires(I i, I j, typename DifferenceTypeGetter<I>::Type n) {
+    {
+        i += n
+    } -> SameAs<I&>;
+    {
+        i + n
+    } -> SameAs<I>;
+    {
+        n + i
+    } -> SameAs<I>;
+    {
+        i -= n
+    } -> SameAs<I&>;
+    {
+        i - n
+    } -> SameAs<I>;
+    {
+        i - j
+    } -> SameAs<typename DifferenceTypeGetter<I>::Type>;
+    {
+        i[n]
+    } -> SameAs<typename ReferenceTypeGetter<I>::Type>;
+    {
+        i < j
+    } -> SameAs<bool>;
+    {
+        i > j
+    } -> SameAs<bool>;
+    {
+        i <= j
+    } -> SameAs<bool>;
+    {
+        i >= j
+    } -> SameAs<bool>;
 };
 
 template <typename T>
 concept Range = requires(T& t) {
-    { begin(t) } -> RandomAccessIterator;
-    { end(t) } -> RandomAccessIterator;
+    {
+        begin(t)
+    } -> RandomAccessIterator;
+    {
+        end(t)
+    } -> RandomAccessIterator;
 };
 
 }  // namespace Opal
