@@ -47,6 +47,7 @@ set(OPAL_FILES
         include/opal/error-codes.h
         include/opal/time.h
         include/opal/paths.h
+        include/opal/source-location.h
         include/opal/container/iterator.h
         include/opal/container/expected.h
         include/opal/container/deque.h
