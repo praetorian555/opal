@@ -155,6 +155,24 @@ struct ReferenceTypeGetter<T*>
     using Type = T&;
 };
 
+/** Concept to get value sub-type from a given type if it exists. */
+
+template <typename T>
+concept HasStdValueSubType = requires { typename T::value_type; };
+
+template <typename T>
+struct ValueTypeGetter
+{
+    using Type = typename T::ValueType;
+};
+
+template <typename T>
+    requires HasStdValueSubType<T>
+struct ValueTypeGetter<T>
+{
+    using Type = typename T::value_type;
+};
+
 template <typename I>
 concept Iterator = requires(I i) {
     { *i } -> SameAs<typename ReferenceTypeGetter<I>::Type>;
