@@ -130,8 +130,9 @@ public:
     Span(T (&array)[N]);
 
     template <typename Container>
-        requires Range<Container> && SameAs<T, typename Container::value_type>
-    Span(Container& container);
+        requires Range<Container> && (Opal::SameAs<T, typename Opal::ValueTypeGetter<Container>::Type> ||
+                                      Opal::SameAs<typename Opal::RemoveConst<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
+    explicit Span(Container& container);
 
     Span(const Span& other) = default;
     Span(Span&& other) noexcept = default;
@@ -246,7 +247,8 @@ CLASS_HEADER::Span(T (&array)[N]) : m_data(array), m_size(N)
 
 TEMPLATE_HEADER
 template <typename Container>
-    requires Opal::Range<Container> && Opal::SameAs<T, typename Container::value_type>
+    requires Opal::Range<Container> && (Opal::SameAs<T, typename Opal::ValueTypeGetter<Container>::Type> ||
+                                        Opal::SameAs<typename Opal::RemoveConst<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
 CLASS_HEADER::Span(Container& container)
 {
     // TODO: Check if underlying array is contiguous
