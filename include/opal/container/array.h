@@ -849,11 +849,11 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return Expected<IteratorType, ErrorCode>(err);
         }
     }
-    IteratorType it = End();
+    IteratorType it = End() - 1;
     IteratorType mut_position = Begin() + pos_offset;
     while (it > mut_position)
     {
-        *it = Move(*(it - 1));
+        *(it + 1) = Move(*it);
         --it;
     }
     *mut_position = value;
@@ -878,11 +878,11 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return Expected<IteratorType, ErrorCode>(err);
         }
     }
-    IteratorType it = End();
+    IteratorType it = End() - 1;
     IteratorType mut_position = Begin() + pos_offset;
     while (it > mut_position)
     {
-        *it = Move(*(it - 1));
+        *(it + 1) = Move(*it);
         --it;
     }
     *mut_position = Move(value);
@@ -913,11 +913,11 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return Expected<IteratorType, ErrorCode>(err);
         }
     }
-    IteratorType it = End() + count - 1;
+    IteratorType it = End() - 1;
     IteratorType mut_position = Begin() + pos_offset;
     for (SizeType i = 0; i < count; i++)
     {
-        *it = Move(*(it - count));
+        *(it + count) = Move(*it);
         --it;
     }
     IteratorType return_it = mut_position;
@@ -956,11 +956,11 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return Expected<IteratorType, ErrorCode>(err);
         }
     }
-    IteratorType it = End() + count - 1;
+    IteratorType it = End() -  1;
     IteratorType mut_position = Begin() + pos_offset;
     for (SizeType i = 0; i < count; i++)
     {
-        *it = Move(*(it - count));
+        *(it + count) = Move(*it);
         --it;
     }
     IteratorType return_it = mut_position;
