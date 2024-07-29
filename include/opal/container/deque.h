@@ -103,7 +103,7 @@ DequeConstIterator<MyDeque> operator+(typename DequeConstIterator<MyDeque>::Diff
  *
  * Capacity will always be a power of 2.
  */
-template <typename T, typename Allocator = DefaultAllocator>
+template <typename T, typename Allocator = MallocAllocator>
 class Deque
 {
 public:

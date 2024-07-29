@@ -46,14 +46,14 @@ TEST_CASE("Constructor", "[Deque]")
     }
     SECTION("Default constructor with allocator")
     {
-        DefaultAllocator allocator;
+        MallocAllocator allocator;
         Deque<i32> deque(allocator);
         REQUIRE(deque.GetCapacity() == 0);
         REQUIRE(deque.GetSize() == 0);
     }
     SECTION("Default constructor with move allocator")
     {
-        DefaultAllocator allocator;
+        MallocAllocator allocator;
         Deque<i32> deque(Move(allocator));
         REQUIRE(deque.GetCapacity() == 0);
         REQUIRE(deque.GetSize() == 0);
@@ -71,7 +71,7 @@ TEST_CASE("Constructor", "[Deque]")
     }
     SECTION("Constructor with count and allocator")
     {
-        DefaultAllocator allocator;
+        MallocAllocator allocator;
         Deque<i32> deque(5, allocator);
         REQUIRE(deque.GetCapacity() == 8);
         REQUIRE(deque.GetSize() == 5);
@@ -83,7 +83,7 @@ TEST_CASE("Constructor", "[Deque]")
     }
     SECTION("Constructor with count and move allocator")
     {
-        DefaultAllocator allocator;
+        MallocAllocator allocator;
         Deque<i32> deque(5, Move(allocator));
         REQUIRE(deque.GetCapacity() == 8);
         REQUIRE(deque.GetSize() == 5);
@@ -106,7 +106,7 @@ TEST_CASE("Constructor", "[Deque]")
     }
     SECTION("Constructor with count, default value and allocator")
     {
-        DefaultAllocator allocator;
+        MallocAllocator allocator;
         Deque<i32> deque(5, 10, allocator);
         REQUIRE(deque.GetCapacity() == 8);
         REQUIRE(deque.GetSize() == 5);
@@ -118,7 +118,7 @@ TEST_CASE("Constructor", "[Deque]")
     }
     SECTION("Constructor with count, default value and move allocator")
     {
-        DefaultAllocator allocator;
+        MallocAllocator allocator;
         Deque<i32> deque(5, 10, Move(allocator));
         REQUIRE(deque.GetCapacity() == 8);
         REQUIRE(deque.GetSize() == 5);
