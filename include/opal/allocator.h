@@ -1,7 +1,7 @@
 #pragma once
 
-#include "opal/types.h"
 #include "opal/export.h"
+#include "opal/types.h"
 
 namespace Opal
 {
@@ -11,26 +11,7 @@ struct OPAL_EXPORT AllocatorBase
     virtual ~AllocatorBase() = default;
     virtual void* Alloc(u64 size, u64 alignment) = 0;
     virtual void Free(void* ptr) = 0;
-};
-
-/**
- * Stateless allocator that uses system's malloc and free.
- */
-struct OPAL_EXPORT DefaultAllocator final : public AllocatorBase
-{
-    DefaultAllocator() = default;
-    DefaultAllocator(const DefaultAllocator& other) = default;
-    DefaultAllocator(DefaultAllocator&& other) = default;
-
-    ~DefaultAllocator() override = default;
-
-    DefaultAllocator& operator=(const DefaultAllocator& other) = default;
-    DefaultAllocator& operator=(DefaultAllocator&& other) = default;
-
-    bool operator==(const DefaultAllocator& other) const;
-
-    void* Alloc(u64 size, u64 alignment) override;
-    void Free(void* ptr) override;
+    [[nodiscard]] virtual const char* GetName() const = 0;
 };
 
 /**
@@ -51,6 +32,8 @@ struct OPAL_EXPORT MallocAllocator final : public AllocatorBase
 
     void* Alloc(u64 size, u64 alignment) override;
     void Free(void* ptr) override;
+
+    [[nodiscard]] const char* GetName() const override { return "MallocAllocator"; }
 };
 
 struct OPAL_EXPORT NullAllocator final : public AllocatorBase
@@ -68,6 +51,8 @@ struct OPAL_EXPORT NullAllocator final : public AllocatorBase
 
     void* Alloc(u64, u64) override { return nullptr; }
     void Free(void*) override {}
+
+    [[nodiscard]] const char* GetName() const override { return "NullAllocator"; }
 };
 
 struct OPAL_EXPORT LinearAllocator final : public AllocatorBase
@@ -87,10 +72,24 @@ struct OPAL_EXPORT LinearAllocator final : public AllocatorBase
     void Free(void* ptr) override;
     void Reset();
 
+    [[nodiscard]] const char* GetName() const override { return "LinearAllocator"; }
+
 private:
     void* m_memory;
     u64 m_offset = 0;
     u64 m_size = 0;
 };
+
+/**
+ * Get the pointer to the default allocator.
+ * @return Pointer to the default allocator. It will never be nullptr.
+ */
+OPAL_EXPORT AllocatorBase* GetDefaultAllocator();
+
+/**
+ * Set the default allocator.
+ * @param allocator Pointer to the allocator. If its nullptr library's default allocator will be used.
+ */
+OPAL_EXPORT void SetDefaultAllocator(AllocatorBase* allocator);
 
 }  // namespace Opal

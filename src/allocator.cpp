@@ -11,25 +11,9 @@ Opal::u64 AlignForward(Opal::u64 address, Opal::u64 alignment)
     {
         return address + (alignment - modulo);
     }
-    return alignment;
+    return address;
 }
 }  // namespace
-
-bool Opal::DefaultAllocator::operator==(const Opal::DefaultAllocator& other) const
-{
-    (void)other;
-    return true;
-}
-
-void* Opal::DefaultAllocator::Alloc(size_t size, size_t alignment)
-{
-    return _aligned_malloc(size, alignment);
-}
-
-void Opal::DefaultAllocator::Free(void* ptr)
-{
-    _aligned_free(ptr);
-}
 
 void* Opal::MallocAllocator::Alloc(size_t size, size_t alignment)
 {
@@ -80,4 +64,25 @@ void Opal::LinearAllocator::Free(void* ptr)
 void Opal::LinearAllocator::Reset()
 {
     m_offset = 0;
+}
+
+namespace
+{
+Opal::MallocAllocator g_malloc_allocator;
+Opal::AllocatorBase* g_default_allocator = &g_malloc_allocator;
+}  // namespace
+
+Opal::AllocatorBase* Opal::GetDefaultAllocator()
+{
+    return g_default_allocator;
+}
+
+void Opal::SetDefaultAllocator(AllocatorBase* allocator)
+{
+    if (allocator == nullptr)
+    {
+        g_default_allocator = &g_malloc_allocator;
+        return;
+    }
+    g_default_allocator = allocator;
 }
