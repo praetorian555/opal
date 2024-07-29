@@ -554,10 +554,11 @@ using StringWide = String<wc, EncodingUtf16LE<wc>>;
 #define CLASS_HEADER Opal::String<CodeUnitT, EncodingT, AllocatorT>
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(AllocatorT* allocator) : m_allocator(allocator) {}
+CLASS_HEADER::String(AllocatorT* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(SizeType count, CodeUnitT value, AllocatorT* allocator) : m_allocator(allocator), m_capacity(count + 1), m_size(count)
+CLASS_HEADER::String(SizeType count, CodeUnitT value, AllocatorT* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count + 1), m_size(count)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -573,7 +574,8 @@ CLASS_HEADER::String(SizeType count, CodeUnitT value, AllocatorT* allocator) : m
     m_data[m_size] = 0;
 }
 
-TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, AllocatorT* allocator) : m_allocator(allocator)
+TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, AllocatorT* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     m_capacity = other.m_size - pos + 1;
     m_size = m_capacity - 1;
@@ -593,7 +595,7 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, Allocato
 
 TEMPLATE_HEADER
 CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT* allocator)
-    : m_allocator(allocator), m_capacity(count + 1), m_size(count)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count + 1), m_size(count)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -610,7 +612,7 @@ CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT* allocator
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const CodeUnitT* str, AllocatorT* allocator) : m_allocator(allocator)
+CLASS_HEADER::String(const CodeUnitT* str, AllocatorT* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     m_size = StringLength(str);
     m_capacity = m_size + 1;
@@ -633,7 +635,7 @@ CLASS_HEADER::String(const CodeUnitT* str, AllocatorT* allocator) : m_allocator(
 
 TEMPLATE_HEADER
 CLASS_HEADER::String(const String& other, AllocatorT* allocator)
-    : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     if (m_capacity > 0)
     {
@@ -653,8 +655,10 @@ CLASS_HEADER::String(const String& other, AllocatorT* allocator)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(String&& other) noexcept : m_capacity(other.m_capacity), m_size(other.m_size), m_data(other.m_data)
+CLASS_HEADER::String(String&& other) noexcept
+    : m_allocator(other.m_allocator), m_data(other.m_data), m_size(other.m_size), m_capacity(other.m_capacity)
 {
+    other.m_allocator = nullptr;
     other.m_capacity = 0;
     other.m_size = 0;
     other.m_data = nullptr;
@@ -1536,28 +1540,17 @@ CLASS_HEADER& CLASS_HEADER::operator+=(const CodeUnitType* str)
 TEMPLATE_HEADER
 CodeUnitT* CLASS_HEADER::Allocate(SizeType size)
 {
+    OPAL_ASSERT(m_allocator != nullptr, "Allocator should never be null!");
     constexpr u64 k_alignment = 8;
     const u64 size_bytes = size * sizeof(CodeUnitType);
-    if (m_allocator == nullptr)
-    {
-        MallocAllocator allocator;
-        return reinterpret_cast<CodeUnitType*>(allocator.Alloc(size_bytes, k_alignment));
-    }
     return reinterpret_cast<CodeUnitType*>(m_allocator->Alloc(size_bytes, k_alignment));
 }
 
 TEMPLATE_HEADER
 void CLASS_HEADER::Deallocate(CodeUnitType* data)
 {
-    if (m_allocator == nullptr)
-    {
-        MallocAllocator allocator;
-        allocator.Free(data);
-    }
-    else
-    {
-        m_allocator->Free(data);
-    }
+    OPAL_ASSERT(m_allocator != nullptr, "Allocator should never be null!");
+    m_allocator->Free(data);
 }
 
 template <typename InputString, typename OutputString>
