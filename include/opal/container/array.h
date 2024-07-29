@@ -851,7 +851,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     IteratorType it = End() - 1;
     IteratorType mut_position = Begin() + pos_offset;
-    while (it > mut_position)
+    while (it >= mut_position)
     {
         *(it + 1) = Move(*it);
         --it;
@@ -880,7 +880,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     IteratorType it = End() - 1;
     IteratorType mut_position = Begin() + pos_offset;
-    while (it > mut_position)
+    while (it >= mut_position)
     {
         *(it + 1) = Move(*it);
         --it;
