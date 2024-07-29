@@ -335,10 +335,11 @@ private:
 #define CLASS_HEADER Opal::Array<T, Allocator>
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(Allocator* allocator) : m_allocator(allocator) {}
+CLASS_HEADER::Array(Allocator* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(SizeType count, Allocator* allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
+CLASS_HEADER::Array(SizeType count, Allocator* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -359,7 +360,8 @@ CLASS_HEADER::Array(SizeType count, Allocator* allocator) : m_allocator(allocato
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(SizeType count, const T& default_value, Allocator* allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
+CLASS_HEADER::Array(SizeType count, const T& default_value, Allocator* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -380,7 +382,8 @@ CLASS_HEADER::Array(SizeType count, const T& default_value, Allocator* allocator
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(T* data, SizeType count, Allocator* allocator) : m_allocator(allocator), m_capacity(count), m_size(count)
+CLASS_HEADER::Array(T* data, SizeType count, Allocator* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
     {
@@ -402,7 +405,8 @@ CLASS_HEADER::Array(T* data, SizeType count, Allocator* allocator) : m_allocator
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(const Array& other, Allocator* allocator) : m_allocator(allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+CLASS_HEADER::Array(const Array& other, Allocator* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(other.m_capacity), m_size(other.m_size)
 {
     if (m_capacity == 0)
     {
@@ -432,7 +436,8 @@ CLASS_HEADER::Array(Array&& other) noexcept
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Array(const std::initializer_list<T>& init_list, Allocator* allocator) : m_allocator(allocator)
+CLASS_HEADER::Array(const std::initializer_list<T>& init_list, Allocator* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     SizeType count = init_list.size();
     if (count > m_capacity)
@@ -477,6 +482,14 @@ CLASS_HEADER& CLASS_HEADER::operator=(const Array& other)
         {
             m_data[i].~T();  // Invokes destructor on allocated memory
         }
+    }
+    if (m_allocator != other.m_allocator)
+    {
+        Deallocate(m_data);
+        m_data = nullptr;
+        m_capacity = 0;
+        m_size = 0;
+        m_allocator = other.m_allocator;
     }
     if (m_capacity < other.m_size)
     {
@@ -1112,28 +1125,17 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 TEMPLATE_HEADER
 T* CLASS_HEADER::Allocate(SizeType count)
 {
+    OPAL_ASSERT(m_allocator, "Allocator should never be null!");
     constexpr u64 k_alignment = 8;
     const SizeType bytes_to_allocate = count * sizeof(T);
-    if (m_allocator == nullptr)
-    {
-        MallocAllocator allocator;
-        return static_cast<T*>(allocator.Alloc(bytes_to_allocate, k_alignment));
-    }
     return static_cast<T*>(m_allocator->Alloc(bytes_to_allocate, k_alignment));
 }
 
 TEMPLATE_HEADER
 void CLASS_HEADER::Deallocate(T* ptr)
 {
-    if (m_allocator == nullptr)
-    {
-        MallocAllocator allocator;
-        allocator.Free(ptr);
-    }
-    else
-    {
-        m_allocator->Free(ptr);
-    }
+    OPAL_ASSERT(m_allocator, "Allocator should never be null!");
+    m_allocator->Free(ptr);
 }
 
 #undef TEMPLATE_HEADER

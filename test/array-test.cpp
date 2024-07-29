@@ -68,7 +68,7 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetCapacity() == 0);
         REQUIRE(int_arr.GetSize() == 0);
         REQUIRE(int_arr.GetData() == nullptr);
-        REQUIRE(int_arr.GetAllocator() == nullptr);
+        REQUIRE(int_arr.GetAllocator() == Opal::GetDefaultAllocator());
     }
     SECTION("Default constructor with allocator")
     {
@@ -90,7 +90,7 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[2] == 0);
         REQUIRE(int_arr.GetData()[3] == 0);
         REQUIRE(int_arr.GetData()[4] == 0);
-        REQUIRE(int_arr.GetAllocator() == nullptr);
+        REQUIRE(int_arr.GetAllocator() == Opal::GetDefaultAllocator());
     }
     SECTION("Size constructor with allocator")
     {
@@ -115,7 +115,7 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetData()[1] == 42);
         REQUIRE(int_arr.GetData()[2] == 42);
-        REQUIRE(int_arr.GetAllocator() == nullptr);
+        REQUIRE(int_arr.GetAllocator() == Opal::GetDefaultAllocator());
     }
     SECTION("Size and default value constructor with allocator")
     {
@@ -139,7 +139,7 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetData()[1] == 43);
         REQUIRE(int_arr.GetData()[2] == 44);
-        REQUIRE(int_arr.GetAllocator() == nullptr);
+        REQUIRE(int_arr.GetAllocator() == Opal::GetDefaultAllocator());
     }
     SECTION("Pointer, size and allocator constructor")
     {
@@ -164,14 +164,14 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetData()[1] == 42);
         REQUIRE(int_arr.GetData()[2] == 42);
-        REQUIRE(int_arr.GetAllocator() == nullptr);
+        REQUIRE(int_arr.GetAllocator() == Opal::GetDefaultAllocator());
         REQUIRE(int_arr_copy.GetCapacity() == 3);
         REQUIRE(int_arr_copy.GetSize() == 3);
         REQUIRE(int_arr_copy.GetData() != nullptr);
         REQUIRE(int_arr_copy.GetData()[0] == 42);
         REQUIRE(int_arr_copy.GetData()[1] == 42);
         REQUIRE(int_arr_copy.GetData()[2] == 42);
-        REQUIRE(int_arr_copy.GetAllocator() == nullptr);
+        REQUIRE(int_arr_copy.GetAllocator() == Opal::GetDefaultAllocator());
     }
     SECTION("Copy constructor with allocator")
     {
@@ -184,7 +184,7 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetData()[1] == 42);
         REQUIRE(int_arr.GetData()[2] == 42);
-        REQUIRE(int_arr.GetAllocator() == nullptr);
+        REQUIRE(int_arr.GetAllocator() == Opal::GetDefaultAllocator());
         REQUIRE(int_arr_copy.GetCapacity() == 3);
         REQUIRE(int_arr_copy.GetSize() == 3);
         REQUIRE(int_arr_copy.GetData() != nullptr);
@@ -418,6 +418,28 @@ TEST_CASE("Copy assignment", "[Array]")
             REQUIRE(int_arr_copy.GetData()[0] == 42);
             REQUIRE(int_arr_copy.GetData()[1] == 42);
             REQUIRE(int_arr_copy.GetData()[2] == 42);
+        }
+        SECTION("Different allocators")
+        {
+            MallocAllocator allocator1;
+            LinearAllocator allocator2(1024);
+            Array<i32> int_arr(3, 42, &allocator1);
+            Array<i32> int_arr_copy(5, 25, &allocator2);
+            int_arr_copy = int_arr;
+            REQUIRE(int_arr.GetCapacity() == 3);
+            REQUIRE(int_arr.GetSize() == 3);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr.GetData()[0] == 42);
+            REQUIRE(int_arr.GetData()[1] == 42);
+            REQUIRE(int_arr.GetData()[2] == 42);
+            REQUIRE(int_arr.GetAllocator() == &allocator1);
+            REQUIRE(int_arr_copy.GetCapacity() == 3);
+            REQUIRE(int_arr_copy.GetSize() == 3);
+            REQUIRE(int_arr_copy.GetData() != nullptr);
+            REQUIRE(int_arr_copy.GetData()[0] == 42);
+            REQUIRE(int_arr_copy.GetData()[1] == 42);
+            REQUIRE(int_arr_copy.GetData()[2] == 42);
+            REQUIRE(int_arr_copy.GetAllocator() == &allocator1);
         }
     }
     SECTION("Non-POD type")
