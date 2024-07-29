@@ -1987,6 +1987,22 @@ TEST_CASE("Insert", "[Array]")
             REQUIRE(int_arr[3] == 5);
             REQUIRE(int_arr[4] == 5);
         }
+        SECTION("At end, a lot of elements")
+        {
+            Array<i32> int_arr(3, 42);
+            Array<i32> other(100, 5);
+            Array<i32>::IteratorType it = int_arr.Insert(int_arr.ConstEnd(), other.ConstBegin(), other.ConstEnd()).GetValue();
+            REQUIRE(int_arr.GetCapacity() == 103);
+            REQUIRE(int_arr.GetSize() == 103);
+            REQUIRE(int_arr.GetData() != nullptr);
+            REQUIRE(int_arr[0] == 42);
+            REQUIRE(int_arr[1] == 42);
+            REQUIRE(int_arr[2] == 42);
+            for (i32 i = 0; i < 100; ++i)
+            {
+                REQUIRE(int_arr[3 + i] == 5);
+            }
+        }
         SECTION("At beginning")
         {
             Array<i32> int_arr(3, 42);
