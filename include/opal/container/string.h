@@ -686,36 +686,46 @@ CLASS_HEADER::~String()
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator=(const String& other)
 {
-    if (*this == other)
+    // If the strings are the same, return early
+    if (this == &other)
     {
         return *this;
     }
 
-    if (m_data != nullptr)
+    if (m_allocator != other.m_allocator)
     {
         Deallocate(m_data);
         m_data = nullptr;
+        m_capacity = 0;
+        m_size = 0;
+        m_allocator = other.m_allocator;
     }
-    m_allocator = other.m_allocator;
-    m_capacity = other.m_capacity;
-    m_size = other.m_size;
-    if (m_capacity > 0)
+    if (m_capacity < other.m_size + 1)
     {
+        Deallocate(m_data);
+        m_capacity = other.m_capacity;
         m_data = Allocate(m_capacity);
-        memcpy(m_data, other.m_data, m_size * sizeof(CodeUnitT));
-        m_data[m_size] = 0;
+        if (m_data == nullptr)
+        {
+            m_capacity = 0;
+            m_size = 0;
+            return *this;
+        }
     }
+    m_size = other.m_size;
+    memcpy(m_data, other.m_data, m_size * sizeof(CodeUnitT));
+    m_data[m_size] = 0;
     return *this;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator=(String&& other) noexcept
 {
-    if (*this == other)
+    if (this == &other)
     {
         return *this;
     }
-
+    Deallocate(m_data);
     m_allocator = other.m_allocator;
     m_data = other.m_data;
     m_capacity = other.m_capacity;
