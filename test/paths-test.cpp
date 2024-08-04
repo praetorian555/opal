@@ -396,7 +396,7 @@ TEST_CASE("Exists", "[Paths]")
     }
     SECTION("Non-existing paths")
     {
-        auto exists = Paths::Exists(u8"test");
+        auto exists = Paths::Exists(u8"this-does-not-exist");
         REQUIRE(!exists);
     }
     SECTION("Existing paths")
