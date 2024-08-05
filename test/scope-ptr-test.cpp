@@ -13,13 +13,13 @@ TEST_CASE("ScopePtr creation", "[ScopePtr]")
     }
     SECTION("Construction with value")
     {
-        ScopePtr<int> ptr(new int(42));
+        ScopePtr<int> ptr = MakeDefaultScoped<int>(42);
         REQUIRE(ptr.Get() != nullptr);
         REQUIRE(*ptr.Get() == 42);
     }
     SECTION("Move construction")
     {
-        ScopePtr<int> ptr(new int(42));
+        ScopePtr<int> ptr = MakeDefaultScoped<int>(42);
         ScopePtr<int> move(std::move(ptr));
         REQUIRE(move.Get() != nullptr);
         REQUIRE(*move.Get() == 42);
