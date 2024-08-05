@@ -1,18 +1,87 @@
 #pragma once
 
-#include <memory>
+// TODO: See if we can implement std::forward
+#include <utility>
 
 #include "opal/allocator.h"
 #include "opal/defines.h"
+#include "opal/assert.h"
 
 namespace Opal
 {
 
-/**
- * Represents a unique pointer to an object of type T. It can't be copied but can be moved.
- */
-template <typename T, typename Deleter = std::default_delete<T>>
-using ScopePtr = std::unique_ptr<T>;
+template <typename T, typename Allocator = AllocatorBase>
+class ScopePtr
+{
+public:
+    ScopePtr() : m_ptr(nullptr), m_allocator(GetDefaultAllocator()) {}
+
+    explicit ScopePtr(T* ptr, Allocator* allocator = nullptr)
+        : m_ptr(ptr), m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
+    {
+    }
+
+    ScopePtr(const ScopePtr& other) = delete;
+    ScopePtr& operator=(const ScopePtr& other) = delete;
+
+    ScopePtr(ScopePtr&& other)  noexcept : m_ptr(other.m_ptr), m_allocator(other.m_allocator)
+    {
+        other.m_ptr = nullptr;
+        other.m_allocator = nullptr;
+    }
+
+    ScopePtr& operator=(ScopePtr&& other)
+    {
+        if (this != &other)
+        {
+            if (m_ptr != nullptr)
+            {
+                m_ptr->~T();
+                OPAL_ASSERT(m_allocator != nullptr, "Allocator is null!");
+                m_allocator->Free(m_ptr);
+            }
+            m_ptr = other.m_ptr;
+            m_allocator = other.m_allocator;
+            other.m_ptr = nullptr;
+            other.m_allocator = nullptr;
+        }
+        return *this;
+    }
+
+    ~ScopePtr()
+    {
+        if (m_ptr != nullptr)
+        {
+            m_ptr->~T();
+            OPAL_ASSERT(m_allocator != nullptr, "Allocator is null!");
+            m_allocator->Free(m_ptr);
+        }
+    }
+
+    T* operator->() const { return m_ptr; }
+
+    T& operator*() const { return *m_ptr; }
+
+    T* Get() const { return m_ptr; }
+
+    [[nodiscard]] AllocatorBase* GetAllocator() const { return m_allocator; }
+
+    void Reset(T* ptr, Allocator* allocator = nullptr)
+    {
+        if (m_ptr != nullptr)
+        {
+            m_ptr->~T();
+            OPAL_ASSERT(m_allocator != nullptr, "Allocator is null!");
+            m_allocator->Free(m_ptr);
+        }
+        m_ptr = ptr;
+        m_allocator = allocator;
+    }
+
+private:
+    T* m_ptr;
+    AllocatorBase* m_allocator;
+};
 
 /**
  * Allocates memory using the provided allocator and constructs an object of type T in that memory.
@@ -29,14 +98,14 @@ ScopePtr<T> MakeScoped(Allocator* allocator, Args&&... args)
     void* memory = nullptr;
     if (allocator == nullptr)
     {
-        MallocAllocator malloc_allocator;
-        memory = malloc_allocator.Alloc(sizeof(T), 8);
+        AllocatorBase* default_allocator = GetDefaultAllocator();
+        memory = default_allocator->Alloc(sizeof(T), 8);
     }
     else
     {
         memory = allocator->Alloc(sizeof(T), 8);
     }
-    return Opal::ScopePtr<T>{new (memory) T(std::forward<Args>(args)...)};
+    return Opal::ScopePtr<T>{new (memory) T(std::forward<Args>(args)...), allocator};
 }
 
 /**
@@ -50,10 +119,9 @@ template <typename T, typename... Args>
 ScopePtr<T> MakeDefaultScoped(Args&&... args)
 {
     void* memory = nullptr;
-    MallocAllocator malloc_allocator;
-    memory = malloc_allocator.Alloc(sizeof(T), 8);
-
-    return Opal::ScopePtr<T>{new (memory) T(std::forward<Args>(args)...)};
+    AllocatorBase* default_allocator = GetDefaultAllocator();
+    memory = default_allocator->Alloc(sizeof(T), 8);
+    return Opal::ScopePtr<T>{new (memory) T(std::forward<Args>(args)...), default_allocator};
 }
 
 }  // namespace Opal
