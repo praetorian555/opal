@@ -78,6 +78,12 @@ public:
         m_allocator = allocator;
     }
 
+    [[nodiscard]] bool IsValid() const { return m_ptr != nullptr; }
+
+    explicit operator bool() const { return IsValid(); }
+
+    bool operator==(const ScopePtr& other) const { return m_ptr == other.m_ptr; }
+
 private:
     T* m_ptr;
     AllocatorBase* m_allocator;
