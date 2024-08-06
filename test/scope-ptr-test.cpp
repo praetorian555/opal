@@ -25,4 +25,14 @@ TEST_CASE("ScopePtr creation", "[ScopePtr]")
         REQUIRE(*move.Get() == 42);
         REQUIRE(ptr.Get() == nullptr);
     }
+    SECTION("Move construction with derived type")
+    {
+        struct A{};
+        struct B : public A{};
+
+        ScopePtr<A> ptr = MakeDefaultScoped<B>();
+        ScopePtr<B> move(std::move(ptr));
+        REQUIRE(move.Get() != nullptr);
+        REQUIRE(ptr.Get() == nullptr);
+    }
 }

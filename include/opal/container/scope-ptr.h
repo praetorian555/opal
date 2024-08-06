@@ -6,6 +6,7 @@
 #include "opal/allocator.h"
 #include "opal/defines.h"
 #include "opal/assert.h"
+#include "opal/type-traits.h"
 
 namespace Opal
 {
@@ -28,6 +29,14 @@ public:
     {
         other.m_ptr = nullptr;
         other.m_allocator = nullptr;
+    }
+
+    template <typename U, typename OtherAllocator = AllocatorBase>
+        requires Convertible<U*, T*> && Convertible<Allocator*, AllocatorBase*>
+    ScopePtr(ScopePtr<U, OtherAllocator>&& other)  noexcept
+    {
+        m_ptr = static_cast<T*>(other.Release());
+        m_allocator = static_cast<AllocatorBase*>(other.GetAllocator());
     }
 
     ScopePtr& operator=(ScopePtr&& other)
@@ -63,7 +72,6 @@ public:
     T& operator*() const { return *m_ptr; }
 
     T* Get() const { return m_ptr; }
-
     [[nodiscard]] AllocatorBase* GetAllocator() const { return m_allocator; }
 
     void Reset(T* ptr, Allocator* allocator = nullptr)
@@ -76,6 +84,13 @@ public:
         }
         m_ptr = ptr;
         m_allocator = allocator;
+    }
+
+    T* Release()
+    {
+        T* ptr = m_ptr;
+        m_ptr = nullptr;
+        return ptr;
     }
 
     [[nodiscard]] bool IsValid() const { return m_ptr != nullptr; }
