@@ -59,6 +59,15 @@ inline constexpr bool k_is_const_value = false;
 template <typename T>
 inline constexpr bool k_is_const_value<const T> = true;
 
+template <typename From, typename To, typename = void>
+inline constexpr bool k_is_convertible_value = false;
+
+template <typename From, typename To>
+inline constexpr bool k_is_convertible_value<From, To, decltype(void(static_cast<To>(From{})))> = true;
+
+template <typename From, typename To>
+concept Convertible = k_is_convertible_value<From, To>;
+
 template <bool k_test, typename T1, typename T2>
 struct Conditional
 {
