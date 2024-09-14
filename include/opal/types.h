@@ -1,5 +1,7 @@
 #pragma once
 
+#include "opal/defines.h"
+
 namespace Opal
 {
 
@@ -13,16 +15,19 @@ using u16 = unsigned short;
 using u32 = unsigned int;
 using u64 = unsigned long long;
 
-using st = size_t;
-
 using f32 = float;
 using f64 = double;
 
-using c = char;
-using wc = wchar_t;
-using c8 = char8_t;
-using c16 = char16_t;
-using c32 = char32_t;
+using size_t = u64;
+
+using char8 = char;
+using uchar32 = char32_t;
+
+#if defined(OPAL_PLATFORM_WINDOWS)
+using char16 = wchar_t;
+#elif defined(OPAL_PLATFORM_LINUX)
+using char16 = char16_t;
+#endif
 
 static_assert(sizeof(i8) == 1);
 static_assert(sizeof(i16) == 2);
@@ -37,8 +42,11 @@ static_assert(sizeof(u64) == 8);
 static_assert(sizeof(f32) == 4);
 static_assert(sizeof(f64) == 8);
 
-static_assert(sizeof(c8) == 1);
-static_assert(sizeof(c16) == 2);
-static_assert(sizeof(c32) == 4);
+static_assert(sizeof(char8) == 1);
+static_assert(sizeof(char16) == 2);
+
+//static_assert(sizeof(c8) == 1);
+//static_assert(sizeof(c16) == 2);
+//static_assert(sizeof(c32) == 4);
 
 }  // namespace Opal
