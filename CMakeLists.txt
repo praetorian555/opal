@@ -8,6 +8,9 @@ message(STATUS "OPAL_HARDENING: ${OPAL_HARDENING}")
 option(OPAL_SHARED_LIBS "Build shared libraries" OFF)
 message(STATUS "OPAL_SHARED_LIBS: ${OPAL_SHARED_LIBS}")
 
+# Don't use C++ 20 modules
+set(CMAKE_CXX_SCAN_FOR_MODULES 0)
+
 ## C++ language configuration boilerplate, hide symbols by default
 if (NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET AND NOT DEFINED CMAKE_VISIBILITY_INLINES_HIDDEN)
     set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -36,7 +39,6 @@ endif ()
 set(OPAL_FILES
         src/allocator.cpp
         src/time.cpp
-        src/string.cpp
         src/string-encoding.cpp
         src/paths.cpp
         include/opal/defines.h
