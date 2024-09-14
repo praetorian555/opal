@@ -187,6 +187,12 @@ public:
     ErrorCode Resize(SizeType new_size);
     ErrorCode Resize(SizeType new_size, CodeUnitT value);
 
+    /**
+     * Shrink the size of the string to fit the data. This will only reduce the size of the string so that there is only one null-terminator
+     * character at the end of the string and the size of the string will not count it.
+     */
+    void Trim();
+
     ErrorCode Append(const CodeUnitType& ch);
     ErrorCode Append(const CodeUnitType* str);
     ErrorCode Append(const CodeUnitType* str, SizeType size);
@@ -528,7 +534,7 @@ Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyStrin
  * @return Length of the string. If str is nullptr, returns 0.
  */
 template <typename CodeUnitType>
-i64 StringLength(const CodeUnitType* str);
+u64 StringLength(const CodeUnitType* str);
 
 #define _OPAL_UTF8(text) u8##text
 
@@ -542,11 +548,10 @@ i64 StringLength(const CodeUnitType* str);
 /** Most common String specializations. **********************************************************/
 /*************************************************************************************************/
 
-using StringUtf8 = String<c8, EncodingUtf8<c8>>;
-using StringUtf16 = String<c16, EncodingUtf16LE<c16>>;
-using StringUtf32 = String<c32, EncodingUtf32LE<c32>>;
-using StringLocale = String<c, EncodingLocale>;
-using StringWide = String<wc, EncodingUtf16LE<wc>>;
+using StringUtf8 = String<char8, EncodingUtf8<char8>>;
+using StringUtf32 = String<uchar32, EncodingUtf32LE<uchar32>>;
+using StringLocale = String<char8, EncodingLocale>;
+using StringWide = String<char16, EncodingUtf16LE<char16>>;
 
 };  // namespace Opal
 
@@ -558,7 +563,7 @@ CLASS_HEADER::String(AllocatorT* allocator) : m_allocator(allocator == nullptr ?
 
 TEMPLATE_HEADER
 CLASS_HEADER::String(SizeType count, CodeUnitT value, AllocatorT* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count + 1), m_size(count)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(count), m_capacity(count + 1)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -595,7 +600,7 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, Allocato
 
 TEMPLATE_HEADER
 CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count + 1), m_size(count)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(count), m_capacity(count + 1)
 {
     m_data = Allocate(m_capacity);
     if (m_data == nullptr)
@@ -635,7 +640,7 @@ CLASS_HEADER::String(const CodeUnitT* str, AllocatorT* allocator) : m_allocator(
 
 TEMPLATE_HEADER
 CLASS_HEADER::String(const String& other, AllocatorT* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(other.m_capacity), m_size(other.m_size)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(other.m_size), m_capacity(other.m_capacity)
 {
     if (m_capacity > 0)
     {
@@ -672,7 +677,7 @@ CLASS_HEADER::String(InputIt start, InputIt end, AllocatorT* allocator) : String
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::~String()
+CLASS_HEADER::String::~String()
 {
     if (m_data != nullptr)
     {
@@ -744,6 +749,12 @@ bool CLASS_HEADER::operator==(const String& other) const
     {
         return false;
     }
+    if (m_size == 0)
+    {
+        return true;
+    }
+    OPAL_ASSERT(m_data != nullptr, "String data is null");
+    OPAL_ASSERT(other.m_data != nullptr, "Other string data is null");
     return std::memcmp(m_data, other.m_data, m_size * sizeof(CodeUnitType)) == 0;
 }
 
@@ -1006,6 +1017,17 @@ TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Resize(SizeType new_size)
 {
     return Resize(new_size, CodeUnitT());
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::Trim()
+{
+    const SizeType real_size = StringLength(m_data);
+    if (m_size != 0 && m_size > real_size)
+    {
+        m_size = real_size;
+        m_data[m_size] = 0;
+    }
 }
 
 TEMPLATE_HEADER
@@ -1399,7 +1421,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     for (SizeType i = start_pos; i < start_pos + count; ++i)
     {
-        m_data[i] = *(begin + i - start_pos);
+        m_data[i] = *(begin + static_cast<DifferenceType>(i - start_pos));
     }
     m_size += count;
     m_data[m_size] = 0;
@@ -1433,7 +1455,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
         return ReturnType(ErrorCode::OutOfBounds);
     }
 
-    const SizeType start_index = pos - Begin();
+    const SizeType start_index = static_cast<SizeType>(pos - Begin());
     for (SizeType i = start_index; i < m_size - 1; ++i)
     {
         m_data[i] = m_data[i + 1];
@@ -1572,7 +1594,7 @@ Opal::ErrorCode Opal::Transcode(const InputString& input, OutputString& output)
     Span<typename OutputString::CodeUnitType> output_span(output.GetData(), output.GetSize());
     while (true)
     {
-        c32 code_point = 0;
+        uchar32 code_point = 0;
         ErrorCode error = src_decoder.DecodeOne(input_span, code_point);
         if (error == ErrorCode::EndOfString)
         {
@@ -2229,13 +2251,13 @@ Opal::Expected<MyString, Opal::ErrorCode> Opal::GetSubString(const MyString& str
 }
 
 template <typename CodeUnitType>
-Opal::i64 Opal::StringLength(const CodeUnitType* str)
+Opal::u64 Opal::StringLength(const CodeUnitType* str)
 {
     if (str == nullptr)
     {
         return 0;
     }
-    i64 length = 0;
+    u64 length = 0;
     while (*str != 0)
     {
         ++str;

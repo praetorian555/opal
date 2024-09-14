@@ -75,17 +75,17 @@ private:
 /** Implementation *******************************************************************************/
 
 template <typename T, typename E>
-Opal::Expected<T, E>::Expected() : m_has_value(true), m_value()
+Opal::Expected<T, E>::Expected() : m_value(), m_has_value(true)
 {
 }
 
 template <typename T, typename E>
-Opal::Expected<T, E>::Expected(const T& value) : m_has_value(true), m_value(value)
+Opal::Expected<T, E>::Expected(const T& value) : m_value(value), m_has_value(true)
 {
 }
 
 template <typename T, typename E>
-Opal::Expected<T&, E>::Expected(T& value) : m_has_value(true), m_value(&value)
+Opal::Expected<T&, E>::Expected(T& value) : m_value(&value), m_has_value(true)
 {
 }
 
@@ -153,7 +153,7 @@ Opal::Expected<T&, E>::Expected(Expected&& other) noexcept : m_has_value(other.m
 }
 
 template <typename T, typename E>
-Opal::Expected<T, E>::~Expected()
+Opal::Expected<T, E>::Expected::~Expected()
 {
     if (m_has_value)
     {
@@ -166,7 +166,7 @@ Opal::Expected<T, E>::~Expected()
 }
 
 template <typename T, typename E>
-Opal::Expected<T&, E>::~Expected()
+Opal::Expected<T&, E>::Expected::~Expected()
 {
     if (!m_has_value)
     {

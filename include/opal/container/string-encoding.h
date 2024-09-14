@@ -14,7 +14,7 @@ template <typename CodeUnitT>
 struct EncodingUtf8
 {
     using CodeUnitType = CodeUnitT;
-    using CodePointType = c32;
+    using CodePointType = uchar32;
 
     /**
      * Encodes given code point into an output span using this encoding scheme.
@@ -40,7 +40,7 @@ template <typename CodeUnitT>
 struct EncodingUtf16LE
 {
     using CodeUnitType = CodeUnitT;
-    using CodePointType = c32;
+    using CodePointType = uchar32;
 
     /**
      * Encodes given code point into an output span using this encoding scheme.
@@ -66,7 +66,7 @@ template <typename CodeUnitT>
 struct EncodingUtf32LE
 {
     using CodeUnitType = CodeUnitT;
-    using CodePointType = c32;
+    using CodePointType = uchar32;
 
     /**
      * Encodes given code point into an output span using this encoding scheme.
@@ -89,7 +89,9 @@ struct EncodingUtf32LE
 struct OPAL_EXPORT EncodingLocale
 {
     using CodeUnitType = char;
-    using CodePointType = c32;
+    using CodePointType = uchar32;
+
+    EncodingLocale();
 
     /**
      * Encodes given code point into an output span using system encoding scheme.
@@ -111,8 +113,8 @@ struct OPAL_EXPORT EncodingLocale
     ErrorCode DecodeOne(Span<const CodeUnitType>& input, CodePointType& out_code_point);
 
 private:
-    std::mbstate_t m_encoding_state = std::mbstate_t{};
-    std::mbstate_t m_decoding_state = std::mbstate_t{};
+    std::mbstate_t m_encoding_state;
+    std::mbstate_t m_decoding_state;
 };
 
 }  // namespace Opal

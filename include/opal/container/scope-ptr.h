@@ -99,7 +99,7 @@ public:
 
     bool operator==(const ScopePtr& other) const { return m_ptr == other.m_ptr; }
     bool operator==(const T* ptr) const { return m_ptr == ptr; }
-    bool operator==(nullptr_t) const { return m_ptr == nullptr; }
+    bool operator==(decltype(nullptr)) const { return m_ptr == nullptr; }
 
 private:
     T* m_ptr;

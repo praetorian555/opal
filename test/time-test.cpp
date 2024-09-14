@@ -25,9 +25,9 @@ TEST_CASE("Get time stamp", "[Time]")
 TEST_CASE("Measuring short time", "[Time]")
 {
     const f64 start = Opal::GetMicroSeconds();
-    for (int i = 0; i < 100'000; i++)
+    for (i64 i = 0; i < 100'000; i++)
     {
-        int j = i * i;
+        i64 j = i * i;
         (void)j;
     }
     const f64 end = Opal::GetMicroSeconds();
@@ -39,9 +39,9 @@ TEST_CASE("Measuring short time", "[Time]")
 TEST_CASE("Measuring long time", "[Time]")
 {
     const f64 start = Opal::GetMilliSeconds();
-    for (int i = 0; i < 1'000'000'000; i++)
+    for (i64 i = 0; i < 1'000'000'000; i++)
     {
-        int j = i * i;
+        i64 j = i + i;
         (void)j;
     }
     const f64 end = Opal::GetMilliSeconds();

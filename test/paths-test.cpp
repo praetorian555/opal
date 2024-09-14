@@ -1,4 +1,9 @@
+#include "opal/defines.h"
+
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
 #include "catch2/catch2.hpp"
+OPAL_END_DISABLE_WARNINGS
 
 #include <filesystem>
 
@@ -6,29 +11,35 @@
 
 using namespace Opal;
 
+#if defined(OPAL_PLATFORM_WINDOWS)
+#define PATH_SEPARATOR "\\"
+#else
+#define PATH_SEPARATOR "/"
+#endif
+
 TEST_CASE("Get current working directory", "[Paths]")
 {
     SECTION("No memory")
     {
         NullAllocator allocator;
-        auto cwd = Paths::GetCurrentWorkingDirectory(&allocator);
-        REQUIRE(!cwd.HasValue());
-        REQUIRE(cwd.GetError() == ErrorCode::OutOfMemory);
+        StringUtf8 cwd(&allocator);
+        ErrorCode err = Paths::GetCurrentWorkingDirectory(cwd);
+        REQUIRE(err == ErrorCode::OutOfMemory);
     }
     SECTION("All good")
     {
-        auto cwd = Paths::GetCurrentWorkingDirectory();
-        REQUIRE(cwd.HasValue());
-        ;
-        REQUIRE(cwd.GetValue().GetSize() > 0);
+        StringUtf8 cwd;
+        ErrorCode err = Paths::GetCurrentWorkingDirectory(cwd);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(cwd.GetSize() > 0);
 
         auto ref_path = std::filesystem::current_path();
         auto ref_path_str = ref_path.string();
         const StringLocale ref_path_locale(ref_path_str.c_str(), ref_path_str.size());
         StringUtf8 ref_path_utf8(ref_path_locale.GetSize(), 0);
-        auto err = Transcode(ref_path_locale, ref_path_utf8);
+        err = Transcode(ref_path_locale, ref_path_utf8);
         REQUIRE(err == ErrorCode::Success);
-        REQUIRE(cwd.GetValue() == ref_path_utf8);
+        REQUIRE(cwd == ref_path_utf8);
     }
 }
 
@@ -37,26 +48,28 @@ TEST_CASE("Set current working directory", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        auto set_cwd_err = Paths::SetCurrentWorkingDirectory(u8"a/b/c/d", &allocator);
+        auto set_cwd_err = Paths::SetCurrentWorkingDirectory("a/b/c/d", &allocator);
         REQUIRE(set_cwd_err == ErrorCode::OutOfMemory);
     }
     SECTION("All good")
     {
-        auto cwd = Paths::GetCurrentWorkingDirectory();
-        REQUIRE(cwd.HasValue());
-        REQUIRE(cwd.GetValue().GetSize() > 0);
+        StringUtf8 cwd;
+        ErrorCode err = Paths::GetCurrentWorkingDirectory(cwd);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(cwd.GetSize() > 0);
 
-        auto new_path = cwd.GetValue();
-        new_path.Append(u8"\\..");
+        auto new_path = cwd;
+        new_path.Append("\\..");
         auto set_cwd_err = Paths::SetCurrentWorkingDirectory(new_path);
         REQUIRE(set_cwd_err == ErrorCode::Success);
 
-        new_path.Erase(ReverseFind(new_path, u8"\\"));
-        new_path.Erase(ReverseFind(new_path, u8"\\"));
-        auto new_cwd = Paths::GetCurrentWorkingDirectory();
-        REQUIRE(new_cwd.HasValue());
-        REQUIRE(new_cwd.GetValue().GetSize() > 0);
-        REQUIRE(new_cwd.GetValue() == new_path);
+        new_path.Erase(ReverseFind(new_path, "\\"));
+        new_path.Erase(ReverseFind(new_path, PATH_SEPARATOR));
+        StringUtf8 new_cwd;
+        err = Paths::GetCurrentWorkingDirectory(new_cwd);
+        REQUIRE(err == ErrorCode::Success);
+        REQUIRE(new_cwd.GetSize() > 0);
+        REQUIRE(new_cwd == new_path);
     }
 }
 
@@ -65,82 +78,118 @@ TEST_CASE("Normalize path", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        auto normalized = Paths::NormalizePath(u8"a/b/c/d", &allocator);
+        auto normalized = Paths::NormalizePath("a/b/c/d", &allocator);
         REQUIRE(!normalized.HasValue());
         REQUIRE(normalized.GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Empty path")
     {
-        auto normalized = Paths::NormalizePath(u8"", nullptr);
+        auto normalized = Paths::NormalizePath("", nullptr);
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == u8"");
+        REQUIRE(normalized.GetValue() == "");
     }
     SECTION("Absolute path root")
     {
-        auto normalized = Paths::NormalizePath(u8"/", nullptr);
+        auto normalized = Paths::NormalizePath("/", nullptr);
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == u8"\\");
-        normalized = Paths::NormalizePath(u8"C://", nullptr);
+        REQUIRE(normalized.GetValue() == PATH_SEPARATOR);
+        normalized = Paths::NormalizePath("\\", nullptr);
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == u8"C:\\");
+        REQUIRE(normalized.GetValue() == PATH_SEPARATOR);
+#if defined(OPAL_PLATFORM_WINDOWS)
+        normalized = Paths::NormalizePath("C://", nullptr);
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == "C:" PATH_SEPARATOR);
+        normalized = Paths::NormalizePath("C:\\\\", nullptr);
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == "C:" PATH_SEPARATOR);
+#endif
     }
     SECTION("Absolute path with separators")
     {
-        auto normalized = Paths::NormalizePath(u8"C:/Users/\\//test//");
+#if defined(OPAL_PLATFORM_WINDOWS)
+        auto normalized = Paths::NormalizePath("C:/Users/\\//test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == u8"C:\\Users\\test");
+        REQUIRE(normalized.GetValue() == "C:" PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 
-        normalized = Paths::NormalizePath(u8"/Users/\\//test//");
+        normalized = Paths::NormalizePath("/Users/\\//test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == u8"\\Users\\test");
+        REQUIRE(normalized.GetValue() == PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
+#else
+        auto normalized = Paths::NormalizePath("/Users/\\//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
+#endif
     }
     SECTION("With symlinks")
     {
-        auto normalized = Paths::NormalizePath(u8"C:/Users/..//test//");
+#if defined(OPAL_PLATFORM_WINDOWS)
+        auto normalized = Paths::NormalizePath("C:/Users/..//test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == u8"C:\\test");
+        REQUIRE(normalized.GetValue() == "C:" PATH_SEPARATOR "test");
 
-        normalized = Paths::NormalizePath(u8"C:/Users/test/test/../..//test//");
+        normalized = Paths::NormalizePath("C:/Users/test/test/../..//test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == u8"C:\\Users\\test");
+        REQUIRE(normalized.GetValue() == "C:" PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 
-        normalized = Paths::NormalizePath(u8"C:/Users/a/../b/..//test//");
+        normalized = Paths::NormalizePath("C:/Users/a/../b/..//test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == u8"C:\\Users\\test");
+        REQUIRE(normalized.GetValue() == "C:" PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 
-        normalized = Paths::NormalizePath(u8"C:/..//test//");
+        normalized = Paths::NormalizePath("C:/..//test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == u8"C:\\test");
+        REQUIRE(normalized.GetValue() == "C:" PATH_SEPARATOR "test");
+#else
+        auto normalized = Paths::NormalizePath("/Users/..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == PATH_SEPARATOR "test");
+
+        normalized = Paths::NormalizePath("/Users/test/test/../..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
+
+        normalized = Paths::NormalizePath("/Users/a/../b/..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
+
+        normalized = Paths::NormalizePath("/..//test//");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == PATH_SEPARATOR "test");
+#endif
     }
     SECTION("Relative paths")
     {
-        auto normalized = Paths::NormalizePath(u8"test//");
-        REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test");
+        StringUtf8 cwd;
+        ErrorCode err = Paths::GetCurrentWorkingDirectory(cwd);
+        REQUIRE(err == ErrorCode::Success);
 
-        normalized = Paths::NormalizePath(u8"test/test//");
+        auto normalized = Paths::NormalizePath("test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test\\test");
+        REQUIRE(normalized.GetValue() == cwd + PATH_SEPARATOR + "test");
 
-        normalized = Paths::NormalizePath(u8"test/test/../..//test//");
+        normalized = Paths::NormalizePath("test/test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test");
+        REQUIRE(normalized.GetValue() == cwd + PATH_SEPARATOR + "test" + PATH_SEPARATOR + "test");
 
-        normalized = Paths::NormalizePath(u8"test/a/../b/..//test//");
+        normalized = Paths::NormalizePath("test/test/../..//test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test\\test");
+        REQUIRE(normalized.GetValue() == cwd + PATH_SEPARATOR + "test");
 
-        normalized = Paths::NormalizePath(u8"test/.");
+        normalized = Paths::NormalizePath("test/a/../b/..//test//");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test");
+        REQUIRE(normalized.GetValue() == cwd + PATH_SEPARATOR + "test" + PATH_SEPARATOR + "test");
 
-        normalized = Paths::NormalizePath(u8"test/./");
+        normalized = Paths::NormalizePath("test/.");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue() + u8"\\test");
+        REQUIRE(normalized.GetValue() == cwd + PATH_SEPARATOR + "test");
 
-        normalized = Paths::NormalizePath(u8".");
+        normalized = Paths::NormalizePath("test/./");
         REQUIRE(normalized.HasValue());
-        REQUIRE(normalized.GetValue() == Paths::GetCurrentWorkingDirectory().GetValue());
+        REQUIRE(normalized.GetValue() == cwd + PATH_SEPARATOR + "test");
+
+        normalized = Paths::NormalizePath(".");
+        REQUIRE(normalized.HasValue());
+        REQUIRE(normalized.GetValue() == cwd);
     }
 }
 
@@ -149,39 +198,55 @@ TEST_CASE("Get parent path", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        auto parent = Paths::GetParentPath(u8"a/b/c/d", &allocator);
+        auto parent = Paths::GetParentPath("a/b/c/d", &allocator);
         REQUIRE(!parent.HasValue());
         REQUIRE(parent.GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Parent of empty path")
     {
-        auto parent = Paths::GetParentPath(u8"", nullptr);
+        auto parent = Paths::GetParentPath("", nullptr);
         REQUIRE(parent.HasValue());
-        REQUIRE(parent.GetValue() == u8"");
+        REQUIRE(parent.GetValue() == "");
     }
     SECTION("Parent of root")
     {
-        auto parent = Paths::GetParentPath(u8"/", nullptr);
+        auto parent = Paths::GetParentPath("/", nullptr);
         REQUIRE(parent.HasValue());
-        REQUIRE(parent.GetValue() == u8"/");
+        REQUIRE(parent.GetValue() == "/");
 
-        parent = Paths::GetParentPath(u8"C:/", nullptr);
+#if defined(OPAL_PLATFORM_WINDOWS)
+        parent = Paths::GetParentPath("C:/", nullptr);
         REQUIRE(parent.HasValue());
-        REQUIRE(parent.GetValue() == u8"C:/");
+        REQUIRE(parent.GetValue() == "C:/");
+#endif
     }
     SECTION("Parent of a file")
     {
-        auto parent = Paths::GetParentPath(u8"C:/Users/test.txt", nullptr);
+#if defined(OPAL_PLATFORM_WINDOWS)
+        auto parent = Paths::GetParentPath("C:/Users/test.txt", nullptr);
         REQUIRE(parent.HasValue());
-        REQUIRE(parent.GetValue() == u8"C:/Users");
+        REQUIRE(parent.GetValue() == "C:/Users");
 
-        parent = Paths::GetParentPath(u8"C:/Users/test", nullptr);
+        parent = Paths::GetParentPath("C:/Users/test", nullptr);
         REQUIRE(parent.HasValue());
-        REQUIRE(parent.GetValue() == u8"C:/Users");
+        REQUIRE(parent.GetValue() == "C:/Users");
 
-        parent = Paths::GetParentPath(u8"C:/Users/test/", nullptr);
+        parent = Paths::GetParentPath("C:/Users/test/", nullptr);
         REQUIRE(parent.HasValue());
-        REQUIRE(parent.GetValue() == u8"C:/Users/test");
+        REQUIRE(parent.GetValue() == "C:/Users/test");
+#else
+        auto parent = Paths::GetParentPath("/Users/test.txt", nullptr);
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == "/Users");
+
+        parent = Paths::GetParentPath("/Users/test", nullptr);
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == "/Users");
+
+        parent = Paths::GetParentPath("/Users/test/", nullptr);
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == "/Users/test");
+#endif
     }
 }
 
@@ -189,22 +254,24 @@ TEST_CASE("Is path absolute", "[Paths]")
 {
     SECTION("Empty string")
     {
-        REQUIRE(!Paths::IsPathAbsolute(u8""));
+        REQUIRE(!Paths::IsPathAbsolute(""));
     }
     SECTION("Relative paths")
     {
-        REQUIRE(!Paths::IsPathAbsolute(u8"test"));
-        REQUIRE(!Paths::IsPathAbsolute(u8"test/test"));
-        REQUIRE(!Paths::IsPathAbsolute(u8"test/test/../..//test//"));
-        REQUIRE(!Paths::IsPathAbsolute(u8"test/a/../b/..//test//"));
+        REQUIRE(!Paths::IsPathAbsolute("test"));
+        REQUIRE(!Paths::IsPathAbsolute("test/test"));
+        REQUIRE(!Paths::IsPathAbsolute("test/test/../..//test//"));
+        REQUIRE(!Paths::IsPathAbsolute("test/a/../b/..//test//"));
     }
     SECTION("Absolute paths")
     {
-        REQUIRE(Paths::IsPathAbsolute(u8"/"));
-        REQUIRE(Paths::IsPathAbsolute(u8"C:/"));
-        REQUIRE(Paths::IsPathAbsolute(u8"C:/Users/test.txt"));
-        REQUIRE(Paths::IsPathAbsolute(u8"C:/Users/test"));
-        REQUIRE(Paths::IsPathAbsolute(u8"C:/Users/test/"));
+        REQUIRE(Paths::IsPathAbsolute("/"));
+#if defined(OPAL_PLATFORM_WINDOWS)
+        REQUIRE(Paths::IsPathAbsolute("C:/"));
+        REQUIRE(Paths::IsPathAbsolute("C:/Users/test.txt"));
+        REQUIRE(Paths::IsPathAbsolute("C:/Users/test"));
+        REQUIRE(Paths::IsPathAbsolute("C:/Users/test/"));
+#endif
     }
 }
 
@@ -213,53 +280,75 @@ TEST_CASE("Get file name", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        auto file_name = Paths::GetFileName(u8"a/b/c/d", &allocator);
+        auto file_name = Paths::GetFileName("a/b/c/d", &allocator);
         REQUIRE(!file_name.HasValue());
         REQUIRE(file_name.GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Relative paths")
     {
-        auto file_name = Paths::GetFileName(u8"test");
+        auto file_name = Paths::GetFileName("test");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8"test");
+        REQUIRE(file_name.GetValue() == "test");
 
-        file_name = Paths::GetFileName(u8"test/test2");
+        file_name = Paths::GetFileName("test/test2");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8"test2");
+        REQUIRE(file_name.GetValue() == "test2");
 
-        file_name = Paths::GetFileName(u8"test/");
+        file_name = Paths::GetFileName("test/");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8"");
+        REQUIRE(file_name.GetValue() == "");
 
-        file_name = Paths::GetFileName(u8"test/..");
+        file_name = Paths::GetFileName("test/..");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8"..");
+        REQUIRE(file_name.GetValue() == "..");
 
-        file_name = Paths::GetFileName(u8"test/.");
+        file_name = Paths::GetFileName("test/.");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8".");
+        REQUIRE(file_name.GetValue() == ".");
     }
     SECTION("Absolute paths")
     {
-        auto file_name = Paths::GetFileName(u8"C:/Users/test.txt");
+#if defined(OPAL_PLATFORM_WINDOWS)
+        auto file_name = Paths::GetFileName("C:/Users/test.txt");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8"test.txt");
+        REQUIRE(file_name.GetValue() == "test.txt");
 
-        file_name = Paths::GetFileName(u8"C:/Users/test");
+        file_name = Paths::GetFileName("C:/Users/test");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8"test");
+        REQUIRE(file_name.GetValue() == "test");
 
-        file_name = Paths::GetFileName(u8"C:/Users/test/");
+        file_name = Paths::GetFileName("C:/Users/test/");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8"");
+        REQUIRE(file_name.GetValue() == "");
 
-        file_name = Paths::GetFileName(u8"C:/Users/test/..");
+        file_name = Paths::GetFileName("C:/Users/test/..");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8"..");
+        REQUIRE(file_name.GetValue() == "..");
 
-        file_name = Paths::GetFileName(u8"C:/Users/test/.");
+        file_name = Paths::GetFileName("C:/Users/test/.");
         REQUIRE(file_name.HasValue());
-        REQUIRE(file_name.GetValue() == u8".");
+        REQUIRE(file_name.GetValue() == ".");
+#else
+        auto file_name = Paths::GetFileName("/Users/test.txt");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == "test.txt");
+
+        file_name = Paths::GetFileName("/Users/test");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == "test");
+
+        file_name = Paths::GetFileName("/Users/test/");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == "");
+
+        file_name = Paths::GetFileName("/Users/test/..");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == "..");
+
+        file_name = Paths::GetFileName("/Users/test/.");
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == ".");
+#endif
     }
 }
 
@@ -268,47 +357,47 @@ TEST_CASE("Get stem", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        auto stem = Paths::GetStem(u8"a/b/c/d", &allocator);
+        auto stem = Paths::GetStem("a/b/c/d", &allocator);
         REQUIRE(!stem.HasValue());
         REQUIRE(stem.GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Normal file names")
     {
-        auto stem = Paths::GetStem(u8"test.txt");
+        auto stem = Paths::GetStem("test.txt");
         REQUIRE(stem.HasValue());
-        REQUIRE(stem.GetValue() == u8"test");
+        REQUIRE(stem.GetValue() == "test");
 
-        stem = Paths::GetStem(u8"test");
+        stem = Paths::GetStem("test");
         REQUIRE(stem.HasValue());
-        REQUIRE(stem.GetValue() == u8"test");
+        REQUIRE(stem.GetValue() == "test");
 
-        stem = Paths::GetStem(u8"test/test2");
+        stem = Paths::GetStem("test/test2");
         REQUIRE(stem.HasValue());
-        REQUIRE(stem.GetValue() == u8"test2");
+        REQUIRE(stem.GetValue() == "test2");
 
-        stem = Paths::GetStem(u8"test/");
+        stem = Paths::GetStem("test/");
         REQUIRE(stem.HasValue());
-        REQUIRE(stem.GetValue() == u8"");
+        REQUIRE(stem.GetValue() == "");
 
-        stem = Paths::GetStem(u8"test/..");
+        stem = Paths::GetStem("test/..");
         REQUIRE(stem.HasValue());
-        REQUIRE(stem.GetValue() == u8"..");
+        REQUIRE(stem.GetValue() == "..");
 
-        stem = Paths::GetStem(u8"test/..txt");
+        stem = Paths::GetStem("test/..txt");
         REQUIRE(stem.HasValue());
-        REQUIRE(stem.GetValue() == u8".");
+        REQUIRE(stem.GetValue() == ".");
 
-        stem = Paths::GetStem(u8"test/.");
+        stem = Paths::GetStem("test/.");
         REQUIRE(stem.HasValue());
-        REQUIRE(stem.GetValue() == u8".");
+        REQUIRE(stem.GetValue() == ".");
 
-        stem = Paths::GetStem(u8"test/.ignore");
+        stem = Paths::GetStem("test/.ignore");
         REQUIRE(stem.HasValue());
-        REQUIRE(stem.GetValue() == u8".ignore");
+        REQUIRE(stem.GetValue() == ".ignore");
 
-        stem = Paths::GetStem(u8"test/foo.bar.baz");
+        stem = Paths::GetStem("test/foo.bar.baz");
         REQUIRE(stem.HasValue());
-        REQUIRE(stem.GetValue() == u8"foo.bar");
+        REQUIRE(stem.GetValue() == "foo.bar");
     }
 }
 
@@ -317,66 +406,66 @@ TEST_CASE("Get extension", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        auto extension = Paths::GetExtension(u8"a/b/c/d", &allocator);
+        auto extension = Paths::GetExtension("a/b/c/d", &allocator);
         REQUIRE(!extension.HasValue());
         REQUIRE(extension.GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Normal paths")
     {
-        auto extension = Paths::GetExtension(u8"test.txt");
+        auto extension = Paths::GetExtension("test.txt");
         REQUIRE(extension.HasValue());
-        REQUIRE(extension.GetValue() == u8".txt");
+        REQUIRE(extension.GetValue() == ".txt");
 
-        extension = Paths::GetExtension(u8"test");
+        extension = Paths::GetExtension("test");
         REQUIRE(extension.HasValue());
-        REQUIRE(extension.GetValue() == u8"");
+        REQUIRE(extension.GetValue() == "");
 
-        extension = Paths::GetExtension(u8"test/test2");
+        extension = Paths::GetExtension("test/test2");
         REQUIRE(extension.HasValue());
-        REQUIRE(extension.GetValue() == u8"");
+        REQUIRE(extension.GetValue() == "");
 
-        extension = Paths::GetExtension(u8"test/");
+        extension = Paths::GetExtension("test/");
         REQUIRE(extension.HasValue());
-        REQUIRE(extension.GetValue() == u8"");
+        REQUIRE(extension.GetValue() == "");
 
-        extension = Paths::GetExtension(u8"test/..");
+        extension = Paths::GetExtension("test/..");
         REQUIRE(extension.HasValue());
-        REQUIRE(extension.GetValue() == u8"");
+        REQUIRE(extension.GetValue() == "");
 
-        extension = Paths::GetExtension(u8"test/..txt");
+        extension = Paths::GetExtension("test/..txt");
         REQUIRE(extension.HasValue());
-        REQUIRE(extension.GetValue() == u8".txt");
+        REQUIRE(extension.GetValue() == ".txt");
 
-        extension = Paths::GetExtension(u8"test/.");
+        extension = Paths::GetExtension("test/.");
         REQUIRE(extension.HasValue());
-        REQUIRE(extension.GetValue() == u8"");
+        REQUIRE(extension.GetValue() == "");
 
-        extension = Paths::GetExtension(u8"test/.ignore");
+        extension = Paths::GetExtension("test/.ignore");
         REQUIRE(extension.HasValue());
-        REQUIRE(extension.GetValue() == u8"");
+        REQUIRE(extension.GetValue() == "");
 
-        extension = Paths::GetExtension(u8"test/foo.bar.baz");
+        extension = Paths::GetExtension("test/foo.bar.baz");
         REQUIRE(extension.HasValue());
-        REQUIRE(extension.GetValue() == u8".baz");
+        REQUIRE(extension.GetValue() == ".baz");
     }
 }
 
 TEST_CASE("Combining paths", "[Paths]")
 {
-    auto result = Paths::Combine(nullptr, u8"a", u8"b", u8"c");
+    auto result = Paths::Combine(nullptr, "a", "b", "c");
     REQUIRE(result.HasValue());
-    REQUIRE(result.GetValue() == u8"a\\b\\c");
+    REQUIRE(result.GetValue() == "a\\b\\c");
 
-    result = Paths::Combine(nullptr, u8"a", u8"b", u8"c", u8"");
+    result = Paths::Combine(nullptr, "a", "b", "c", "");
     REQUIRE(result.HasValue());
-    REQUIRE(result.GetValue() == u8"a\\b\\c\\");
+    REQUIRE(result.GetValue() == "a\\b\\c\\");
 
     result = Paths::Combine(nullptr);
     REQUIRE(result.HasValue());
-    REQUIRE(result.GetValue() == u8"");
+    REQUIRE(result.GetValue() == "");
 
     NullAllocator allocator;
-    result = Paths::Combine(&allocator, u8"a", u8"b", u8"c");
+    result = Paths::Combine(&allocator, "a", "b", "c");
     REQUIRE(!result.HasValue());
     REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
 }
@@ -386,22 +475,22 @@ TEST_CASE("Exists", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        auto exists = Paths::Exists(u8"a/b/c/d", &allocator);
+        auto exists = Paths::Exists("a/b/c/d", &allocator);
         REQUIRE(!exists);
     }
     SECTION("Empty path")
     {
-        auto exists = Paths::Exists(u8"", nullptr);
+        auto exists = Paths::Exists("", nullptr);
         REQUIRE(!exists);
     }
     SECTION("Non-existing paths")
     {
-        auto exists = Paths::Exists(u8"this-does-not-exist");
+        auto exists = Paths::Exists("this-does-not-exist");
         REQUIRE(!exists);
     }
     SECTION("Existing paths")
     {
-        auto exists = Paths::Exists(u8".");
+        auto exists = Paths::Exists(".");
         REQUIRE(exists);
     }
 }

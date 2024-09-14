@@ -457,7 +457,7 @@ CLASS_HEADER::Array(const std::initializer_list<T>& init_list, Allocator* alloca
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::~Array()
+CLASS_HEADER::Array::~Array()
 {
     if (m_data != nullptr)
     {
@@ -1239,6 +1239,7 @@ typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) 
 TEMPLATE_HEADER
 typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
 {
+    OPAL_ASSERT(m_ptr, "Dereferencing null pointer");
     return *m_ptr;
 }
 

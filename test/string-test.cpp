@@ -1,4 +1,10 @@
+#include "opal/defines.h"
+
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
+#define CATCH_CONFIG_RUNNER
 #include "catch2/catch2.hpp"
+OPAL_END_DISABLE_WARNINGS
 
 #include <iostream>
 
@@ -7,6 +13,19 @@
 #include "opal/container/stack-array.h"
 
 using namespace Opal;
+
+int main(int argc, char* argv[])
+{
+    setlocale(LC_ALL, "");
+
+    Catch::Session session;
+    int return_code = session.applyCommandLine(argc, argv);
+    if (return_code != 0)
+    {
+        return return_code;
+    }
+    return session.run();
+}
 
 TEST_CASE("Construction", "[String]")
 {
@@ -457,7 +476,7 @@ TEST_CASE("Assign", "[String]")
     {
         SECTION("Count and value smaller then current capacity")
         {
-            StringUtf8 str(u8"Hello there");
+            StringUtf8 str("Hello there");
             str.Assign(5, 'd');
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 5);
@@ -479,8 +498,8 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("String literal and count smaller then current capacity")
         {
-            StringUtf8 str(u8"Goodbye and get lost");
-            str.Assign(u8"Hello there", 5);
+            StringUtf8 str("Goodbye and get lost");
+            str.Assign("Hello there", 5);
             REQUIRE(str.GetCapacity() == 21);
             REQUIRE(str.GetSize() == 5);
             for (i32 i = 0; i < 5; i++)
@@ -490,8 +509,8 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("String literal and count larger then current capacity")
         {
-            StringUtf8 str(u8"Other");
-            str.Assign(u8"Hello there", 10);
+            StringUtf8 str("Other");
+            str.Assign("Hello there", 10);
             REQUIRE(str.GetCapacity() == 11);
             REQUIRE(str.GetSize() == 10);
             for (i32 i = 0; i < str.GetSize(); i++)
@@ -501,8 +520,8 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Only string literal")
         {
-            StringUtf8 str(u8"Other");
-            str.Assign(u8"Hello there");
+            StringUtf8 str("Other");
+            str.Assign("Hello there");
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 11);
             for (i32 i = 0; i < str.GetSize(); i++)
@@ -512,7 +531,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Copy other string")
         {
-            StringUtf8 ref(u8"Hello there");
+            StringUtf8 ref("Hello there");
             StringUtf8 copy;
             copy.Assign(ref);
             REQUIRE(copy.GetSize() == ref.GetSize());
@@ -524,7 +543,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Copy part of the other string")
         {
-            StringUtf8 ref(u8"Hello there");
+            StringUtf8 ref("Hello there");
             StringUtf8 copy1;
             copy1.Assign(ref, 6, 10);
             REQUIRE(copy1.GetSize() == 5);
@@ -549,7 +568,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Move string")
         {
-            StringUtf8 ref(u8"Hello there");
+            StringUtf8 ref("Hello there");
             StringUtf8 copy;
             copy.Assign(Move(ref));
             REQUIRE(copy.GetSize() == 11);
@@ -562,15 +581,15 @@ TEST_CASE("Assign", "[String]")
     }
     SECTION("Long string")
     {
-        const c8 ref_str[] =
-            u8"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
-            u8"dummy "
-            u8"text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It "
-            u8"has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It "
-            u8"was "
-            u8"popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with "
-            u8"desktop "
-            u8"publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+        const char8 ref_str[] =
+            "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            "dummy "
+            "text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It "
+            "has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It "
+            "was "
+            "popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with "
+            "desktop "
+            "publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
         SECTION("Count and value smaller then current capacity")
         {
             StringUtf8 str(ref_str);
@@ -606,7 +625,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("String literal and count larger then current capacity")
         {
-            StringUtf8 str(u8"Other");
+            StringUtf8 str("Other");
             str.Assign(ref_str, 50);
             REQUIRE(str.GetCapacity() == 51);
             REQUIRE(str.GetSize() == 50);
@@ -617,7 +636,7 @@ TEST_CASE("Assign", "[String]")
         }
         SECTION("Only string literal")
         {
-            StringUtf8 str(u8"Other");
+            StringUtf8 str("Other");
             str.Assign(ref_str);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 574);
@@ -684,7 +703,7 @@ TEST_CASE("Accessors", "[String]")
     {
         SECTION("At")
         {
-            StringUtf8 str(u8"Hello there");
+            StringUtf8 str("Hello there");
             REQUIRE(str.At(0).GetValue() == 'H');
             REQUIRE(str.At(1).GetValue() == 'e');
             REQUIRE(str.At(2).GetValue() == 'l');
@@ -699,13 +718,13 @@ TEST_CASE("Accessors", "[String]")
         }
         SECTION("Out of bounds At")
         {
-            StringUtf8 str(u8"Hello there");
+            StringUtf8 str("Hello there");
             REQUIRE(!str.At(12).HasValue());
             REQUIRE(str.At(12).GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("Const At")
         {
-            const StringUtf8 str(u8"Hello there");
+            const StringUtf8 str("Hello there");
             REQUIRE(str.At(0).GetValue() == 'H');
             REQUIRE(str.At(1).GetValue() == 'e');
             REQUIRE(str.At(2).GetValue() == 'l');
@@ -720,27 +739,27 @@ TEST_CASE("Accessors", "[String]")
         }
         SECTION("Out of bounds const At")
         {
-            const StringUtf8 str(u8"Hello there");
+            const StringUtf8 str("Hello there");
             REQUIRE(!str.At(11).HasValue());
             REQUIRE(str.At(11).GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("Array operator")
         {
-            StringUtf8 str(u8"Hello there");
+            StringUtf8 str("Hello there");
             REQUIRE(str[0] == 'H');
             REQUIRE(str[1] == 'e');
             REQUIRE(str[2] == 'l');
         }
         SECTION("Const array operator")
         {
-            const StringUtf8 str(u8"Hello there");
+            const StringUtf8 str("Hello there");
             REQUIRE(str[0] == 'H');
             REQUIRE(str[1] == 'e');
             REQUIRE(str[2] == 'l');
         }
         SECTION("Front")
         {
-            StringUtf8 str(u8"Hello there");
+            StringUtf8 str("Hello there");
             REQUIRE(str.Front().GetValue() == 'H');
         }
         SECTION("Bad Front")
@@ -751,7 +770,7 @@ TEST_CASE("Accessors", "[String]")
         }
         SECTION("Const Front")
         {
-            const StringUtf8 str(u8"Hello there");
+            const StringUtf8 str("Hello there");
             REQUIRE(str.Front().GetValue() == 'H');
         }
         SECTION("Const bad Front")
@@ -762,7 +781,7 @@ TEST_CASE("Accessors", "[String]")
         }
         SECTION("Back")
         {
-            StringUtf8 str(u8"Hello there");
+            StringUtf8 str("Hello there");
             REQUIRE(str.Back().GetValue() == 'e');
         }
         SECTION("Bad Back")
@@ -773,7 +792,7 @@ TEST_CASE("Accessors", "[String]")
         }
         SECTION("Const Back")
         {
-            const StringUtf8 str(u8"Hello there");
+            const StringUtf8 str("Hello there");
             REQUIRE(str.Back().GetValue() == 'e');
         }
         SECTION("Const bad Back")
@@ -808,7 +827,7 @@ TEST_CASE("Reserve", "[String]")
     {
         SECTION("Reserve larger then current capacity")
         {
-            StringUtf8 str(u8"Hello there");
+            StringUtf8 str("Hello there");
             str.Reserve(20);
             REQUIRE(str.GetCapacity() == 20);
             REQUIRE(str.GetSize() == 11);
@@ -819,7 +838,7 @@ TEST_CASE("Reserve", "[String]")
         }
         SECTION("Reserve smaller then current capacity")
         {
-            StringUtf8 str(u8"Hello there");
+            StringUtf8 str("Hello there");
             str.Reserve(5);
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 11);
@@ -831,13 +850,13 @@ TEST_CASE("Reserve", "[String]")
     }
     SECTION("Long string")
     {
-        const c8 ref_str[] =
-            u8"Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
-            u8"dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
-            u8"book. "
-            u8"It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. "
-            u8"It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with "
-            u8"desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+        const char8 ref_str[] =
+            "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+            "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+            "book. "
+            "It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. "
+            "It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with "
+            "desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
         SECTION("Reserve larger then current capacity")
         {
 
@@ -1488,7 +1507,7 @@ TEST_CASE("Const iterator", "[String]")
 
 TEST_CASE("From UTF8 to UTF32", "[String]")
 {
-    StringUtf8 utf8(u8"での日本語文字コードを扱うために使用されている従来の");
+    StringUtf8 utf8("での日本語文字コードを扱うために使用されている従来の");
     StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
     StringUtf32 utf32_result;
@@ -1500,7 +1519,7 @@ TEST_CASE("From UTF8 to UTF32", "[String]")
 
 TEST_CASE("From UTF32 to UTF8", "[String]")
 {
-    StringUtf8 utf8(u8"での日本語文字コードを扱うために使用されている従来の");
+    StringUtf8 utf8("での日本語文字コードを扱うために使用されている従来の");
     StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
     StringUtf8 utf8_result;
@@ -1510,33 +1529,13 @@ TEST_CASE("From UTF32 to UTF8", "[String]")
     REQUIRE(utf8_result == utf8);
 }
 
-TEST_CASE("From UTF16 to UTF32", "[String]")
-{
-    StringUtf16 utf16(u"での日本語文字コードを扱うために使用されている従来の");
-    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
-
-    StringUtf32 utf32_result;
-    utf32_result.Resize(200);
-    ErrorCode error = Transcode(utf16, utf32_result);
-    REQUIRE(error == ErrorCode::Success);
-    REQUIRE(utf32_result == utf32);
-}
-
-TEST_CASE("From UTF32 to UTF16", "[String]")
-{
-    StringUtf16 utf16(u"での日本語文字コードを扱うために使用されている従来の");
-    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
-
-    StringUtf16 utf16_result;
-    utf16_result.Resize(200);
-    ErrorCode error = Transcode(utf32, utf16_result);
-    REQUIRE(error == ErrorCode::Success);
-    REQUIRE(utf16_result == utf16);
-}
-
 TEST_CASE("From native wide to UTF32", "[String]")
 {
+#if defined(OPAL_PLATFORM_WINDOWS)
     StringWide utf_wide(L"での日本語文字コードを扱うために使用されている従来の");
+#elif defined(OPAL_PLATFORM_LINUX)
+    const StringWide utf_wide(u"での日本語文字コードを扱うために使用されている従来の");
+#endif
     StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
     StringUtf32 utf32_result;
@@ -1548,8 +1547,12 @@ TEST_CASE("From native wide to UTF32", "[String]")
 
 TEST_CASE("From UTF32 to native wide", "[String]")
 {
+#if defined(OPAL_PLATFORM_WINDOWS)
     StringWide wide(L"での日本語文字コードを扱うために使用されている従来の");
-    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+#elif defined(OPAL_PLATFORM_LINUX)
+    const StringWide wide(u"での日本語文字コードを扱うために使用されている従来の");
+#endif
+    const StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
     StringWide wide_result;
     wide_result.Resize(200);
@@ -1560,7 +1563,7 @@ TEST_CASE("From UTF32 to native wide", "[String]")
 
 TEST_CASE("From locale to UTF32", "[String][FromLocale]")
 {
-    StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
+    const StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
     StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
     StringUtf32 utf32_result;
@@ -1572,11 +1575,11 @@ TEST_CASE("From locale to UTF32", "[String][FromLocale]")
 
 TEST_CASE("From UTF32 to locale", "[String]")
 {
-    StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
-    StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+    StringLocale str_locale(reinterpret_cast<const char8*>(u8"での日本語文字コードを扱うために使用されている従来の"));
+    const StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
 
     StringLocale locale_result;
-    locale_result.Resize(200);
+    locale_result.Resize(300);
     ErrorCode error = Transcode(utf32, locale_result);
     REQUIRE(error == ErrorCode::Success);
     REQUIRE(locale_result == str_locale);
@@ -1585,11 +1588,15 @@ TEST_CASE("From UTF32 to locale", "[String]")
 
 TEST_CASE("From wide to locale", "[String]")
 {
+#if defined(OPAL_PLATFORM_WINDOWS)
     StringWide wide(L"での日本語文字コードを扱うために使用されている従来の");
+#elif defined(OPAL_PLATFORM_LINUX)
+    const StringWide wide(u"での日本語文字コードを扱うために使用されている従来の");
+#endif
     StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
 
     StringLocale locale_result;
-    locale_result.Resize(200);
+    locale_result.Resize(300);
     ErrorCode error = Transcode(wide, locale_result);
     REQUIRE(error == ErrorCode::Success);
     REQUIRE(locale_result == str_locale);
@@ -1598,11 +1605,11 @@ TEST_CASE("From wide to locale", "[String]")
 
 TEST_CASE("From const UTF8 to locale", "[String]")
 {
-    const StringUtf8 utf8(u8"での日本語文字コードを扱うために使用されている従来の");
+    const StringUtf8 utf8("での日本語文字コードを扱うために使用されている従来の");
     StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
 
     StringLocale locale_result;
-    locale_result.Resize(200);
+    locale_result.Resize(300);
     ErrorCode error = Transcode(utf8, locale_result);
     REQUIRE(error == ErrorCode::Success);
     REQUIRE(locale_result == str_locale);
@@ -1621,15 +1628,15 @@ TEST_CASE("Transcode with empty destination", "[String]")
     SECTION("Output is StringUtf16")
     {
         StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
-        StringUtf16 utf16_result;
-        ErrorCode error = Transcode(utf32, utf16_result);
+        StringUtf8 utf8_result;
+        ErrorCode error = Transcode(utf32, utf8_result);
         REQUIRE(error == ErrorCode::InsufficientSpace);
     }
     SECTION("Output is StringUtf32")
     {
-        StringUtf16 utf16(u"での日本語文字コードを扱うために使用されている従来の");
+        StringUtf8 utf8("での日本語文字コードを扱うために使用されている従来の");
         StringUtf32 utf32_result;
-        ErrorCode error = Transcode(utf16, utf32_result);
+        ErrorCode error = Transcode(utf8, utf32_result);
         REQUIRE(error == ErrorCode::InsufficientSpace);
     }
     SECTION("Output is StringWide")
@@ -3207,7 +3214,7 @@ TEST_CASE("Insert", "[String]")
 
 TEST_CASE("Get data as", "[String]")
 {
-    const StringUtf8 str(u8"Hello there");
+    const StringUtf8 str("Hello there");
     SECTION("Get data as char")
     {
         const char* data = str.GetDataAs<char>();

@@ -7,11 +7,11 @@ namespace Opal::Paths
 
 /**
  * @brief Get current working directory.
- * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
- * @return Returns current working directory in case of a success. Returns ErrorCode::OSFailure in case that it can't get the current
- * working directory. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
+ * @param out_path String to store the current working directory.
+ * @return Returns ErrorCode::Success if the current working directory is obtained. Returns ErrorCode::OSFailure in case that it can't get
+ * the current working directory. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
  */
-Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetCurrentWorkingDirectory(AllocatorBase* allocator = nullptr);
+ErrorCode OPAL_EXPORT GetCurrentWorkingDirectory(StringUtf8& out_path);
 
 /**
  * @brief Set current working directory.
@@ -93,6 +93,8 @@ Expected<StringUtf8, ErrorCode> Combine(AllocatorBase* allocator, Args... args);
 
 }  // namespace Opal::Paths
 
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_WARNING(-Wunused-value)
 template <typename ...Args>
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::Combine(AllocatorBase* allocator, Args... args)
 {
@@ -137,3 +139,4 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::Combine(Allocator
     }
     return Expected<StringUtf8, ErrorCode>(result);
 }
+OPAL_END_DISABLE_WARNINGS

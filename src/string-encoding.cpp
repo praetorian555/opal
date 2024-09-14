@@ -1,8 +1,14 @@
 #include "opal/container/string-encoding.h"
 
-#include <stdlib.h>
-
+#include <cstdlib>
 #include <cuchar>
+#include <cwchar>
+
+Opal::EncodingLocale::EncodingLocale() : m_encoding_state(), m_decoding_state()
+{
+    OPAL_ASSERT(std::mbsinit(&m_encoding_state) != 0, "Encoding state is not initialized!");
+    OPAL_ASSERT(std::mbsinit(&m_decoding_state) != 0, "Decoding state is not initialized!");
+}
 
 Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, Span<CodeUnitType>& output)
 {
@@ -13,7 +19,7 @@ Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, Spa
     const size_t count = c32rtomb(output.GetData(), in_code_point, &m_encoding_state);
     if (count == static_cast<size_t>(-1))
     {
-        return ErrorCode::InsufficientSpace;
+        return ErrorCode::BadInput;
     }
     output = Span<CodeUnitType>(output.begin() + static_cast<i64>(count), output.end());
     return ErrorCode::Success;

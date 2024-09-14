@@ -116,6 +116,7 @@ if (OPAL_BUILD_TESTS)
     target_link_libraries(opal_test opal)
     target_link_libraries(opal_test opal_warnings)
     target_link_libraries(opal_test opal_options)
+    target_compile_definitions(opal_test PRIVATE CATCH_AMALGAMATED_CUSTOM_MAIN)
     enable_testing()
     add_test(NAME opal_test COMMAND opal_test)
     # Install the test executable

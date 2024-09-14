@@ -235,7 +235,7 @@ CLASS_HEADER::Span(InputIt first, SizeType count) : m_data(&(*first)), m_size(co
 
 TEMPLATE_HEADER
 template <typename InputIt>
-CLASS_HEADER::Span(InputIt first, InputIt last) : m_size(last - first), m_data(&(*first))
+CLASS_HEADER::Span(InputIt first, InputIt last) : m_data(&(*first)), m_size(static_cast<SizeType>(last - first))
 {
 }
 
@@ -252,8 +252,14 @@ template <typename Container>
 CLASS_HEADER::Span(Container& container)
 {
     // TODO: Check if underlying array is contiguous
+    if (Opal::begin(container) == Opal::end(container))
+    {
+        m_data = nullptr;
+        m_size = 0;
+        return;
+    }
     m_data = &(*container.begin());
-    m_size = container.end() - container.begin();
+    m_size = static_cast<SizeType>(container.end() - container.begin());
 }
 
 TEMPLATE_HEADER

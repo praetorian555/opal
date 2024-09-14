@@ -142,13 +142,14 @@ struct DifferenceTypeGetter<T*>
     using Type = i64;
 };
 
+#if defined(OPAL_PLATFORM_WINDOWS)
 template <typename T>
 concept HasStdReferenceSubType = requires { typename T::reference; };
 
-template <typename T>
+template <typename T, bool Helper = false>
 struct ReferenceTypeGetter
 {
-    using Type = typename T::ReferenceType;
+    using Type = T::ReferenceType;
 };
 
 template <typename T>
@@ -163,6 +164,39 @@ struct ReferenceTypeGetter<T*>
 {
     using Type = T&;
 };
+#elif defined(OPAL_PLATFORM_LINUX)
+template <typename T>
+concept HasOpalReferenceSubType = requires { typename T::ReferenceType; };
+
+template <typename T>
+concept HasStdReferenceSubType = requires { typename T::reference; };
+
+template <typename T, bool Helper = false>
+struct ReferenceTypeGetter
+{
+    using Type = int;
+};
+
+template <typename T>
+    requires HasOpalReferenceSubType<T>
+struct ReferenceTypeGetter<T, false>
+{
+    using Type = typename T::ReferenceType;
+};
+
+template <typename T>
+    requires HasStdReferenceSubType<T>
+struct ReferenceTypeGetter<T, true>
+{
+    using Type = typename T::reference;
+};
+
+template <typename T>
+struct ReferenceTypeGetter<T*>
+{
+    using Type = T&;
+};
+#endif
 
 /** Concept to get value sub-type from a given type if it exists. */
 
@@ -231,7 +265,7 @@ concept RandomAccessIterator = BidirectionalIterator<I> && requires(I i, I j, ty
     } -> SameAs<I>;
     {
         i - j
-    } -> SameAs<typename DifferenceTypeGetter<I>::Type>;
+    } -> Convertible<typename DifferenceTypeGetter<I>::Type>;
     {
         i[n]
     } -> SameAs<typename ReferenceTypeGetter<I>::Type>;
