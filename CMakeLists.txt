@@ -99,6 +99,7 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
 
 if (OPAL_BUILD_TESTS)
     set(OPAL_TEST_FILES
+            test/main-test.cpp
             test/allocator-test.cpp
             test/array-test.cpp
             test/deque-test.cpp

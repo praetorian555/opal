@@ -2,7 +2,6 @@
 
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#define CATCH_CONFIG_RUNNER
 #include "catch2/catch2.hpp"
 OPAL_END_DISABLE_WARNINGS
 
@@ -10,22 +9,7 @@ OPAL_END_DISABLE_WARNINGS
 
 #include "opal/container/string.h"
 
-#include "opal/container/stack-array.h"
-
 using namespace Opal;
-
-int main(int argc, char* argv[])
-{
-    setlocale(LC_ALL, "");
-
-    Catch::Session session;
-    int return_code = session.applyCommandLine(argc, argv);
-    if (return_code != 0)
-    {
-        return return_code;
-    }
-    return session.run();
-}
 
 TEST_CASE("Construction", "[String]")
 {
