@@ -74,19 +74,19 @@ jobs:
           os: ubuntu-latest
           build_type: "Debug"
           cxx: "clang++"
-          generators: "Ninja"
+          generators: "Unix Makefiles"
           shared_libs: "OFF"
         - name: Clang Test
           os: ubuntu-latest
           build_type: "Test"
           cxx: "clang++"
-          generators: "Ninja"
+          generators: "Unix Makefiles"
           shared_libs: "OFF"
         - name: Clang Release
           os: ubuntu-latest
           build_type: "Release"
           cxx: "clang++"
-          generators: "Ninja"
+          generators: "Unix Makefiles"
           shared_libs: "OFF"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
