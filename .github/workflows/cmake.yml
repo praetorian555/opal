@@ -74,19 +74,19 @@ jobs:
           os: ubuntu-latest
           build_type: "Debug"
           cxx: "clang++"
-          generators: "ninja"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: Clang Test
           os: ubuntu-latest
           build_type: "Test"
           cxx: "clang++"
-          generators: "ninja"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: Clang Release
           os: ubuntu-latest
           build_type: "Release"
           cxx: "clang++"
-          generators: "ninja"
+          generators: "Ninja"
           shared_libs: "OFF"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
@@ -107,4 +107,4 @@ jobs:
     - name: Test
       working-directory: ${{github.workspace}}/install-dir/bin
       # Execute tests defined by the CMake configuration.
-      run: ./opal_test.exe
+      run: ./opal_test
