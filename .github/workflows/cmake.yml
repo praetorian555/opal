@@ -52,6 +52,42 @@ jobs:
           cxx: "cl"
           generators: "Visual Studio 17 2022"
           shared_libs: "ON"
+        - name: "GCC Debug"
+          os: ubuntu-latest
+          build_type: "Debug"
+          cxx: "g++"
+          generators: "Unix Makefiles"
+          shared_libs: "OFF"
+        - name: "GCC Test"
+          os: ubuntu-latest
+          build_type: "RelWithDebInfo"
+          cxx: "g++"
+          generators: "Unix Makefiles"
+          shared_libs: "OFF"
+        - name: "GCC Release"
+          os: ubuntu-latest
+          build_type: "Release"
+          cxx: "g++"
+          generators: "Unix Makefiles"
+          shared_libs: "OFF"
+        - name: Clang Debug
+          os: ubuntu-latest
+          build_type: "Debug"
+          cxx: "clang++"
+          generators: "ninja"
+          shared_libs: "OFF"
+        - name: Clang Test
+          os: ubuntu-latest
+          build_type: "Test"
+          cxx: "clang++"
+          generators: "ninja"
+          shared_libs: "OFF"
+        - name: Clang Release
+          os: ubuntu-latest
+          build_type: "Release"
+          cxx: "clang++"
+          generators: "ninja"
+          shared_libs: "OFF"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
     steps:
