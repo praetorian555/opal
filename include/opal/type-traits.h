@@ -167,16 +167,16 @@ struct ReferenceTypeGetter<T*>
 /** Concept to get value sub-type from a given type if it exists. */
 
 template <typename T>
-concept HasStdValueSubType = requires { typename T::value_type; };
+concept HasValueSubType = requires { typename T::value_type; };
 
 template <typename T>
 struct ValueTypeGetter
 {
-    using Type = typename T::ValueType;
+    using Type = void;
 };
 
 template <typename T>
-    requires HasStdValueSubType<T>
+    requires HasValueSubType<T>
 struct ValueTypeGetter<T>
 {
     using Type = typename T::value_type;
