@@ -101,9 +101,9 @@ if (OPAL_BUILD_TESTS)
     set(OPAL_TEST_FILES
             test/main-test.cpp
             test/allocator-test.cpp
-            test/array-test.cpp
+            test/dynamic-array-test.cpp
             test/deque-test.cpp
-            test/span-test.cpp
+            test/array-view-test.cpp
             test/string-test.cpp
             test/expected-test.cpp
             test/time-test.cpp
