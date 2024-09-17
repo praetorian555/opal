@@ -11,6 +11,10 @@ OPAL_DISABLE_WARNING(-Wsign-conversion)
 namespace Opal
 {
 
+/*************************************************************************************************/
+/** Iterator API *********************************************************************************/
+/*************************************************************************************************/
+
 template <typename MySpan>
 class SpanIterator
 {
@@ -51,6 +55,10 @@ private:
 
 template <typename MySpan>
 SpanIterator<MySpan> operator+(typename SpanIterator<MySpan>::difference_type n, const SpanIterator<MySpan>& it);
+
+/*************************************************************************************************/
+/** Const Iterator API ***************************************************************************/
+/*************************************************************************************************/
 
 template <typename MySpan>
 class SpanConstIterator
@@ -93,6 +101,9 @@ private:
 template <typename MySpan>
 SpanConstIterator<MySpan> operator+(typename SpanConstIterator<MySpan>::difference_type n, const SpanConstIterator<MySpan>& it);
 
+/**
+ * Represents a non-owning view of contiguous sequence of elements.
+ */
 template <typename T>
 class Span
 {
@@ -109,15 +120,40 @@ public:
 
     Span() = default;
 
+    /**
+     * Construct a span from an iterator and a count.
+     * @tparam InputIt Type of iterator. Must be a random access iterator.
+     * @param first Iterator to the first element.
+     * @param count Number of elements.
+     */
     template <typename InputIt>
+        requires RandomAccessIterator<InputIt>
     Span(InputIt first, size_type count);
 
+    /**
+     * Construct a span from start and end iterators.
+     * @tparam InputIt Type of iterator. Must be a random access iterator.
+     * @param first Iterator to the first element.
+     * @param last Iterator to the element after the last element.
+     */
     template <typename InputIt>
+        requires RandomAccessIterator<InputIt>
     Span(InputIt first, InputIt last);
 
+    /**
+     * Construct a span from an array.
+     * @tparam N Size of the array.
+     * @param array Pointer to the first element of the array.
+     */
     template <u64 N>
     Span(T (&array)[N]);
 
+    /**
+     * Construct a span from a container.
+     * @tparam Container Type of container. Must be a range. The value type of the container must match T, and if T is mutable then value type
+     * of the container must be mutable as well.
+     * @param container Container to construct the span from.
+     */
     template <typename Container>
         requires Range<Container> && (Opal::SameAs<T, typename Opal::ValueTypeGetter<Container>::Type> ||
                                       Opal::SameAs<typename Opal::RemoveConst<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
@@ -131,6 +167,11 @@ public:
     Span& operator=(const Span& other) = default;
     Span& operator=(Span&& other) noexcept = default;
 
+    /**
+     * Compare two spans for equality. Two spans are equal if they point to the same data and have the same size.
+     * @param other Span to compare with.
+     * @return True if the spans are equal, false otherwise.
+     */
     bool operator==(const Span& other) const;
 
     T* GetData() { return m_data; }
@@ -138,29 +179,86 @@ public:
 
     [[nodiscard]] size_type GetSize() const { return m_size; }
 
+    /**
+     * Check if the span is empty.
+     * @return True if the span is empty, false otherwise.
+     */
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
 
+    /**
+     * Get a reference to the element at the specified index.
+     * @param index Index of the element.
+     * @return Reference to the element. If the index is out of bounds, an ErrorCode::OutOfBounds is returned.
+     */
     Expected<T&, ErrorCode> At(size_type index);
     [[nodiscard]] Expected<const T&, ErrorCode> At(size_type index) const;
 
+    /**
+     * Get a reference to the element at the specified index. No bounds checking is performed.
+     * @param index Index of the element.
+     * @return Reference to the element.
+     */
     T& operator[](size_type index) { return m_data[index]; }
     const T& operator[](size_type index) const { return m_data[index]; }
 
+    /**
+     * Get a reference to the first element.
+     * @return Reference to the first element. If the span is empty, an ErrorCode::OutOfBounds is returned.
+     */
     Expected<T&, ErrorCode> Front();
     [[nodiscard]] Expected<const T&, ErrorCode> Front() const;
 
+    /**
+     * Get a reference to the last element.
+     * @return Reference to the last element. If the span is empty, an ErrorCode::OutOfBounds is returned.
+     */
     Expected<T&, ErrorCode> Back();
     [[nodiscard]] Expected<const T&, ErrorCode> Back() const;
 
+    /**
+     * Get a sub span of the span.
+     * @param offset Offset of the sub span.
+     * @param count Number of elements in the sub span.
+     * @return Sub span. If the offset or count are out of bounds, an ErrorCode::OutOfBounds is returned.
+     */
     [[nodiscard]] Expected<Span<T>, ErrorCode> SubSpan(size_type offset, size_type count) const;
 
-    // Compatible with std::begin and std::end
+    /** Iterator API - Compatible with standard library. */
+
+    /**
+     * Get an iterator to the first element.
+     * @return Iterator to the first element.
+     */
     iterator begin() { return iterator(m_data); }
+
+    /**
+     * Get a const iterator to the first element.
+     * @return Const iterator to the first element.
+     */
     [[nodiscard]] const_iterator begin() const { return const_iterator(m_data); }
+
+    /**
+     * Get a const iterator to the first element.
+     * @return Const iterator to the first element.
+     */
     [[nodiscard]] const_iterator cbegin() const { return const_iterator(m_data); }
 
+    /**
+     * Get an iterator to the element after the last element.
+     * @return Iterator to the element after the last element.
+     */
     iterator end() { return iterator(m_data + m_size); }
+
+    /**
+     * Get a const iterator to the element after the last element.
+     * @return Const iterator to the element after the last element.
+     */
     [[nodiscard]] const_iterator end() const { return const_iterator(m_data + m_size); }
+
+    /**
+     * Get a const iterator to the element after the last element.
+     * @return Const iterator to the element after the last element.
+     */
     [[nodiscard]] const_iterator cend() const { return const_iterator(m_data + m_size); }
 
 private:
@@ -213,12 +311,14 @@ Span<u8> AsWritableBytes(Container& container);
 
 TEMPLATE_HEADER
 template <typename InputIt>
+    requires Opal::RandomAccessIterator<InputIt>
 CLASS_HEADER::Span(InputIt first, size_type count) : m_data(&(*first)), m_size(count)
 {
 }
 
 TEMPLATE_HEADER
 template <typename InputIt>
+    requires Opal::RandomAccessIterator<InputIt>
 CLASS_HEADER::Span(InputIt first, InputIt last) : m_data(&(*first)), m_size(static_cast<size_type>(last - first))
 {
 }
