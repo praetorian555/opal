@@ -127,7 +127,7 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
 {
     auto out_begin = output.begin();
     auto out_end = output.end();
-    typename Span<CodeUnitT>::DifferenceType out_size = out_end - out_begin;
+    typename Span<CodeUnitT>::difference_type out_size = out_end - out_begin;
     if (in_code_point <= 0x7F)
     {
         if (out_size < 1)

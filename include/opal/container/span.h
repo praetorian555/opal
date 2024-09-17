@@ -5,6 +5,9 @@
 #include "opal/error-codes.h"
 #include "opal/types.h"
 
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_WARNING(-Wsign-conversion)
+
 namespace Opal
 {
 
@@ -12,18 +15,13 @@ template <typename MySpan>
 class SpanIterator
 {
 public:
-    using ValueType = typename MySpan::ValueType;
-    using ReferenceType = typename MySpan::ReferenceType;
-    using PointerType = typename MySpan::PointerType;
-    using DifferenceType = typename MySpan::DifferenceType;
-
-    // Type aliases to be compatible with std library
-    using reference = ReferenceType;
-    using difference_type = DifferenceType;
-    using value_type = ValueType;
+    using value_type = typename MySpan::value_type;
+    using difference_type = typename MySpan::difference_type;
+    using reference = typename MySpan::reference;
+    using pointer = typename MySpan::pointer;
 
     SpanIterator() = default;
-    explicit SpanIterator(PointerType ptr) : m_ptr(ptr) {}
+    explicit SpanIterator(pointer ptr) : m_ptr(ptr) {}
 
     bool operator==(const SpanIterator& other) const { return m_ptr == other.m_ptr; }
     bool operator>(const SpanIterator& other) const;
@@ -36,40 +34,35 @@ public:
     SpanIterator& operator--();
     SpanIterator operator--(int);
 
-    SpanIterator operator+(DifferenceType n) const;
-    SpanIterator operator-(DifferenceType n) const;
-    SpanIterator& operator+=(DifferenceType n);
-    SpanIterator& operator-=(DifferenceType n);
+    SpanIterator operator+(difference_type n) const;
+    SpanIterator operator-(difference_type n) const;
+    SpanIterator& operator+=(difference_type n);
+    SpanIterator& operator-=(difference_type n);
 
-    DifferenceType operator-(const SpanIterator& other) const;
+    difference_type operator-(const SpanIterator& other) const;
 
-    ReferenceType operator[](DifferenceType n) const;
-    ReferenceType operator*() const;
-    PointerType operator->() const;
+    reference operator[](difference_type n) const;
+    reference operator*() const;
+    pointer operator->() const;
 
 private:
-    PointerType m_ptr = nullptr;
+    pointer m_ptr = nullptr;
 };
 
 template <typename MySpan>
-SpanIterator<MySpan> operator+(typename SpanIterator<MySpan>::DifferenceType n, const SpanIterator<MySpan>& it);
+SpanIterator<MySpan> operator+(typename SpanIterator<MySpan>::difference_type n, const SpanIterator<MySpan>& it);
 
 template <typename MySpan>
 class SpanConstIterator
 {
 public:
-    using ValueType = typename MySpan::ValueType;
-    using ReferenceType = typename MySpan::ConstReferenceType;
-    using PointerType = typename MySpan::PointerType;
-    using DifferenceType = typename MySpan::DifferenceType;
-
-    // Type aliases to be compatible with std library
-    using reference = ReferenceType;
-    using difference_type = DifferenceType;
-    using value_type = ValueType;
+    using value_type = typename MySpan::value_type;
+    using difference_type = typename MySpan::difference_type;
+    using reference = typename MySpan::reference;
+    using pointer = typename MySpan::pointer;
 
     SpanConstIterator() = default;
-    explicit SpanConstIterator(PointerType ptr) : m_ptr(ptr) {}
+    explicit SpanConstIterator(pointer ptr) : m_ptr(ptr) {}
 
     bool operator==(const SpanConstIterator& other) const { return m_ptr == other.m_ptr; }
     bool operator>(const SpanConstIterator& other) const;
@@ -82,46 +75,42 @@ public:
     SpanConstIterator& operator--();
     SpanConstIterator operator--(int);
 
-    SpanConstIterator operator+(DifferenceType n) const;
-    SpanConstIterator operator-(DifferenceType n) const;
-    SpanConstIterator& operator+=(DifferenceType n);
-    SpanConstIterator& operator-=(DifferenceType n);
+    SpanConstIterator operator+(difference_type n) const;
+    SpanConstIterator operator-(difference_type n) const;
+    SpanConstIterator& operator+=(difference_type n);
+    SpanConstIterator& operator-=(difference_type n);
 
-    DifferenceType operator-(const SpanConstIterator& other) const;
+    difference_type operator-(const SpanConstIterator& other) const;
 
-    ReferenceType operator[](DifferenceType n) const;
-    ReferenceType operator*() const;
-    PointerType operator->() const;
+    reference operator[](difference_type n) const;
+    reference operator*() const;
+    pointer operator->() const;
 
 private:
-    PointerType m_ptr = nullptr;
+    pointer m_ptr = nullptr;
 };
 
 template <typename MySpan>
-SpanConstIterator<MySpan> operator+(typename SpanConstIterator<MySpan>::DifferenceType n, const SpanConstIterator<MySpan>& it);
+SpanConstIterator<MySpan> operator+(typename SpanConstIterator<MySpan>::difference_type n, const SpanConstIterator<MySpan>& it);
 
 template <typename T>
 class Span
 {
 public:
-    using ValueType = T;
-    using ReferenceType = T&;
-    using ConstReferenceType = const T&;
-    using PointerType = T*;
-    using SizeType = u64;
-    using DifferenceType = i64;
-    using IteratorType = SpanIterator<Span<T>>;
-    using ConstIteratorType = SpanConstIterator<Span<T>>;
-
-    using value_type = ValueType;
-    using reference = ReferenceType;
-    using const_reference = ConstReferenceType;
-    using pointer = PointerType;
+    using value_type = T;
+    using size_type = u64;
+    using difference_type = i64;
+    using reference = T&;
+    using const_reference = const T&;
+    using pointer = T*;
+    using const_pointer = const T*;
+    using iterator = SpanIterator<Span<T>>;
+    using const_iterator = SpanConstIterator<Span<T>>;
 
     Span() = default;
 
     template <typename InputIt>
-    Span(InputIt first, SizeType count);
+    Span(InputIt first, size_type count);
 
     template <typename InputIt>
     Span(InputIt first, InputIt last);
@@ -147,15 +136,15 @@ public:
     T* GetData() { return m_data; }
     [[nodiscard]] const T* GetData() const { return m_data; }
 
-    [[nodiscard]] SizeType GetSize() const { return m_size; }
+    [[nodiscard]] size_type GetSize() const { return m_size; }
 
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
 
-    Expected<T&, ErrorCode> At(SizeType index);
-    [[nodiscard]] Expected<const T&, ErrorCode> At(SizeType index) const;
+    Expected<T&, ErrorCode> At(size_type index);
+    [[nodiscard]] Expected<const T&, ErrorCode> At(size_type index) const;
 
-    T& operator[](SizeType index) { return m_data[index]; }
-    const T& operator[](SizeType index) const { return m_data[index]; }
+    T& operator[](size_type index) { return m_data[index]; }
+    const T& operator[](size_type index) const { return m_data[index]; }
 
     Expected<T&, ErrorCode> Front();
     [[nodiscard]] Expected<const T&, ErrorCode> Front() const;
@@ -163,25 +152,20 @@ public:
     Expected<T&, ErrorCode> Back();
     [[nodiscard]] Expected<const T&, ErrorCode> Back() const;
 
-    [[nodiscard]] Expected<Span<T>, ErrorCode> SubSpan(SizeType offset, SizeType count) const;
-
-    // Iterators
-    IteratorType Begin() { return IteratorType(m_data); }
-    IteratorType End() { return IteratorType(m_data + m_size); }
-    [[nodiscard]] ConstIteratorType Begin() const { return ConstIteratorType(m_data); }
-    [[nodiscard]] ConstIteratorType End() const { return ConstIteratorType(m_data + m_size); }
-    [[nodiscard]] ConstIteratorType ConstBegin() const { return ConstIteratorType(m_data); }
-    [[nodiscard]] ConstIteratorType ConstEnd() const { return ConstIteratorType(m_data + m_size); }
+    [[nodiscard]] Expected<Span<T>, ErrorCode> SubSpan(size_type offset, size_type count) const;
 
     // Compatible with std::begin and std::end
-    IteratorType begin() { return IteratorType(m_data); }
-    IteratorType end() { return IteratorType(m_data + m_size); }
-    [[nodiscard]] ConstIteratorType begin() const { return ConstIteratorType(m_data); }
-    [[nodiscard]] ConstIteratorType end() const { return ConstIteratorType(m_data + m_size); }
+    iterator begin() { return iterator(m_data); }
+    [[nodiscard]] const_iterator begin() const { return const_iterator(m_data); }
+    [[nodiscard]] const_iterator cbegin() const { return const_iterator(m_data); }
+
+    iterator end() { return iterator(m_data + m_size); }
+    [[nodiscard]] const_iterator end() const { return const_iterator(m_data + m_size); }
+    [[nodiscard]] const_iterator cend() const { return const_iterator(m_data + m_size); }
 
 private:
     T* m_data = nullptr;
-    SizeType m_size = 0;
+    size_type m_size = 0;
 };
 
 /**
@@ -229,13 +213,13 @@ Span<u8> AsWritableBytes(Container& container);
 
 TEMPLATE_HEADER
 template <typename InputIt>
-CLASS_HEADER::Span(InputIt first, SizeType count) : m_data(&(*first)), m_size(count)
+CLASS_HEADER::Span(InputIt first, size_type count) : m_data(&(*first)), m_size(count)
 {
 }
 
 TEMPLATE_HEADER
 template <typename InputIt>
-CLASS_HEADER::Span(InputIt first, InputIt last) : m_data(&(*first)), m_size(static_cast<SizeType>(last - first))
+CLASS_HEADER::Span(InputIt first, InputIt last) : m_data(&(*first)), m_size(static_cast<size_type>(last - first))
 {
 }
 
@@ -259,7 +243,7 @@ CLASS_HEADER::Span(Container& container)
         return;
     }
     m_data = &(*container.begin());
-    m_size = static_cast<SizeType>(container.end() - container.begin());
+    m_size = static_cast<size_type>(container.end() - container.begin());
 }
 
 TEMPLATE_HEADER
@@ -269,7 +253,7 @@ bool CLASS_HEADER::operator==(const Span& other) const
 }
 
 TEMPLATE_HEADER
-Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::At(SizeType index)
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::At(size_type index)
 {
     if (index >= m_size)
     {
@@ -279,7 +263,7 @@ Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::At(SizeType index)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::At(SizeType index) const
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::At(size_type index) const
 {
     if (index >= m_size)
     {
@@ -359,7 +343,7 @@ Opal::Span<Opal::u8> Opal::AsWritableBytes(Container& container)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::SubSpan(SizeType offset, SizeType count) const
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::SubSpan(size_type offset, size_type count) const
 {
     if (offset + count > m_size)
     {
@@ -429,57 +413,57 @@ CLASS_HEADER CLASS_HEADER::operator--(int)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
 {
     return SpanIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
 {
     return SpanIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(difference_type n)
 {
     m_ptr += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
 {
     m_ptr -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const SpanIterator& other) const
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const SpanIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](difference_type n) const
 {
     return *(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
+typename CLASS_HEADER::reference CLASS_HEADER::operator*() const
 {
     return *m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
+typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 {
     return m_ptr;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename SpanIterator<MySpan>::DifferenceType n, const SpanIterator<MySpan>& it)
+CLASS_HEADER Opal::operator+(typename SpanIterator<MySpan>::difference_type n, const SpanIterator<MySpan>& it)
 {
     return it + n;
 }
@@ -545,60 +529,62 @@ CLASS_HEADER CLASS_HEADER::operator--(int)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
 {
     return SpanConstIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
 {
     return SpanConstIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(difference_type n)
 {
     m_ptr += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
 {
     m_ptr -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const SpanConstIterator& other) const
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const SpanConstIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](difference_type n) const
 {
     return *(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
+typename CLASS_HEADER::reference CLASS_HEADER::operator*() const
 {
     return *m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
+typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 {
     return m_ptr;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename SpanConstIterator<MySpan>::DifferenceType n, const SpanConstIterator<MySpan>& it)
+CLASS_HEADER Opal::operator+(typename SpanConstIterator<MySpan>::difference_type n, const SpanConstIterator<MySpan>& it)
 {
     return it + n;
 }
 
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
+
+OPAL_END_DISABLE_WARNINGS
