@@ -16,8 +16,8 @@ TEST_CASE("KeyIndexedCounting", "[sort]")
     {
         DynamicArray<u64> keys = {2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3};
         DynamicArray<u64> values = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
-        Span<u64> keys_span(keys);
-        Span<u64> values_span(values);
+        ArrayView<u64> keys_span(keys);
+        ArrayView<u64> values_span(values);
 
         ErrorCode err = KeyIndexedCounting<4>(keys_span, values_span);
         REQUIRE(err == ErrorCode::Success);
@@ -27,8 +27,8 @@ TEST_CASE("KeyIndexedCounting", "[sort]")
     {
         DynamicArray<u64> keys;
         DynamicArray<u64> values;
-        Span<u64> keys_span(keys);
-        Span<u64> values_span(values);
+        ArrayView<u64> keys_span(keys);
+        ArrayView<u64> values_span(values);
 
         ErrorCode err = KeyIndexedCounting<4>(keys_span, values_span);
         REQUIRE(err == ErrorCode::Success);
@@ -38,8 +38,8 @@ TEST_CASE("KeyIndexedCounting", "[sort]")
     {
         DynamicArray<u64> keys = {2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3};
         DynamicArray<u64> values = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-        Span<u64> keys_span(keys);
-        Span<u64> values_span(values);
+        ArrayView<u64> keys_span(keys);
+        ArrayView<u64> values_span(values);
 
         ErrorCode err = KeyIndexedCounting<4>(keys_span, values_span);
         REQUIRE(err == ErrorCode::BadInput);

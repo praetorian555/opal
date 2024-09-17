@@ -10,7 +10,7 @@ Opal::EncodingLocale::EncodingLocale() : m_encoding_state(), m_decoding_state()
     OPAL_ASSERT(std::mbsinit(&m_decoding_state) != 0, "Decoding state is not initialized!");
 }
 
-Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, Span<CodeUnitType>& output)
+Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, ArrayView<CodeUnitType>& output)
 {
     if (output.GetSize() < MB_CUR_MAX)
     {
@@ -21,11 +21,11 @@ Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, Spa
     {
         return ErrorCode::BadInput;
     }
-    output = Span<CodeUnitType>(output.begin() + static_cast<i64>(count), output.end());
+    output = ArrayView<CodeUnitType>(output.begin() + static_cast<i64>(count), output.end());
     return ErrorCode::Success;
 }
 
-Opal::ErrorCode Opal::EncodingLocale::DecodeOne(Span<const CodeUnitType>& input, CodePointType& out_code_point)
+Opal::ErrorCode Opal::EncodingLocale::DecodeOne(ArrayView<const CodeUnitType>& input, CodePointType& out_code_point)
 {
     if (input.GetSize() == 0)
     {
@@ -35,7 +35,7 @@ Opal::ErrorCode Opal::EncodingLocale::DecodeOne(Span<const CodeUnitType>& input,
     if (count == 0)
     {
         // We've just written null character
-        input = Span<const CodeUnitType>(input.begin() + 1, input.end());
+        input = ArrayView<const CodeUnitType>(input.begin() + 1, input.end());
         return ErrorCode::Success;
     }
     if (count == static_cast<size_t>(-1))
@@ -50,6 +50,6 @@ Opal::ErrorCode Opal::EncodingLocale::DecodeOne(Span<const CodeUnitType>& input,
     {
         return ErrorCode::Success;
     }
-    input = Span<const CodeUnitType>(input.begin() + static_cast<i64>(count), input.end());
+    input = ArrayView<const CodeUnitType>(input.begin() + static_cast<i64>(count), input.end());
     return ErrorCode::Success;
 }

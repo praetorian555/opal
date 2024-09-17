@@ -3,7 +3,7 @@
 #include <cstring>
 
 #include "opal/allocator.h"
-#include "opal/container/span.h"
+#include "opal/container/array-view.h"
 #include "opal/container/string-encoding.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
@@ -1590,8 +1590,8 @@ Opal::ErrorCode Opal::Transcode(const InputString& input, OutputString& output)
 {
     typename InputString::EncodingType src_decoder;
     typename OutputString::EncodingType dst_encoder;
-    Span<const typename InputString::CodeUnitType> input_span(input.GetData(), input.GetSize());
-    Span<typename OutputString::CodeUnitType> output_span(output.GetData(), output.GetSize());
+    ArrayView<const typename InputString::CodeUnitType> input_span(input.GetData(), input.GetSize());
+    ArrayView<typename OutputString::CodeUnitType> output_span(output.GetData(), output.GetSize());
     while (true)
     {
         uchar32 code_point = 0;

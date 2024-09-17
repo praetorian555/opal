@@ -1,6 +1,6 @@
 #pragma once
 
-#include "opal/container/span.h"
+#include "opal/container/array-view.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -18,7 +18,7 @@ namespace Opal
  * @return ErrorCode::Success if the sort was successful, ErrorCode::BadInput if the input keys and values are not the same size.
  */
 template <u64 k_number_of_unique_keys, typename Key, typename Value, typename Allocator = AllocatorBase>
-ErrorCode KeyIndexedCounting(const Span<Key>& in_keys, Span<Value>& in_out_value, Allocator* scratch_allocator = nullptr)
+ErrorCode KeyIndexedCounting(const ArrayView<Key>& in_keys, ArrayView<Value>& in_out_value, Allocator* scratch_allocator = nullptr)
 {
     if (in_out_value.GetSize() != in_keys.GetSize())
     {

@@ -16,7 +16,7 @@ namespace Opal
 /*************************************************************************************************/
 
 template <typename MySpan>
-class SpanIterator
+class ArrayViewIterator
 {
 public:
     using value_type = typename MySpan::value_type;
@@ -24,26 +24,26 @@ public:
     using reference = typename MySpan::reference;
     using pointer = typename MySpan::pointer;
 
-    SpanIterator() = default;
-    explicit SpanIterator(pointer ptr) : m_ptr(ptr) {}
+    ArrayViewIterator() = default;
+    explicit ArrayViewIterator(pointer ptr) : m_ptr(ptr) {}
 
-    bool operator==(const SpanIterator& other) const { return m_ptr == other.m_ptr; }
-    bool operator>(const SpanIterator& other) const;
-    bool operator>=(const SpanIterator& other) const;
-    bool operator<(const SpanIterator& other) const;
-    bool operator<=(const SpanIterator& other) const;
+    bool operator==(const ArrayViewIterator& other) const { return m_ptr == other.m_ptr; }
+    bool operator>(const ArrayViewIterator& other) const;
+    bool operator>=(const ArrayViewIterator& other) const;
+    bool operator<(const ArrayViewIterator& other) const;
+    bool operator<=(const ArrayViewIterator& other) const;
 
-    SpanIterator& operator++();
-    SpanIterator operator++(int);
-    SpanIterator& operator--();
-    SpanIterator operator--(int);
+    ArrayViewIterator& operator++();
+    ArrayViewIterator operator++(int);
+    ArrayViewIterator& operator--();
+    ArrayViewIterator operator--(int);
 
-    SpanIterator operator+(difference_type n) const;
-    SpanIterator operator-(difference_type n) const;
-    SpanIterator& operator+=(difference_type n);
-    SpanIterator& operator-=(difference_type n);
+    ArrayViewIterator operator+(difference_type n) const;
+    ArrayViewIterator operator-(difference_type n) const;
+    ArrayViewIterator& operator+=(difference_type n);
+    ArrayViewIterator& operator-=(difference_type n);
 
-    difference_type operator-(const SpanIterator& other) const;
+    difference_type operator-(const ArrayViewIterator& other) const;
 
     reference operator[](difference_type n) const;
     reference operator*() const;
@@ -54,14 +54,14 @@ private:
 };
 
 template <typename MySpan>
-SpanIterator<MySpan> operator+(typename SpanIterator<MySpan>::difference_type n, const SpanIterator<MySpan>& it);
+ArrayViewIterator<MySpan> operator+(typename ArrayViewIterator<MySpan>::difference_type n, const ArrayViewIterator<MySpan>& it);
 
 /*************************************************************************************************/
 /** Const Iterator API ***************************************************************************/
 /*************************************************************************************************/
 
 template <typename MySpan>
-class SpanConstIterator
+class ArrayViewConstIterator
 {
 public:
     using value_type = typename MySpan::value_type;
@@ -69,26 +69,26 @@ public:
     using reference = typename MySpan::reference;
     using pointer = typename MySpan::pointer;
 
-    SpanConstIterator() = default;
-    explicit SpanConstIterator(pointer ptr) : m_ptr(ptr) {}
+    ArrayViewConstIterator() = default;
+    explicit ArrayViewConstIterator(pointer ptr) : m_ptr(ptr) {}
 
-    bool operator==(const SpanConstIterator& other) const { return m_ptr == other.m_ptr; }
-    bool operator>(const SpanConstIterator& other) const;
-    bool operator>=(const SpanConstIterator& other) const;
-    bool operator<(const SpanConstIterator& other) const;
-    bool operator<=(const SpanConstIterator& other) const;
+    bool operator==(const ArrayViewConstIterator& other) const { return m_ptr == other.m_ptr; }
+    bool operator>(const ArrayViewConstIterator& other) const;
+    bool operator>=(const ArrayViewConstIterator& other) const;
+    bool operator<(const ArrayViewConstIterator& other) const;
+    bool operator<=(const ArrayViewConstIterator& other) const;
 
-    SpanConstIterator& operator++();
-    SpanConstIterator operator++(int);
-    SpanConstIterator& operator--();
-    SpanConstIterator operator--(int);
+    ArrayViewConstIterator& operator++();
+    ArrayViewConstIterator operator++(int);
+    ArrayViewConstIterator& operator--();
+    ArrayViewConstIterator operator--(int);
 
-    SpanConstIterator operator+(difference_type n) const;
-    SpanConstIterator operator-(difference_type n) const;
-    SpanConstIterator& operator+=(difference_type n);
-    SpanConstIterator& operator-=(difference_type n);
+    ArrayViewConstIterator operator+(difference_type n) const;
+    ArrayViewConstIterator operator-(difference_type n) const;
+    ArrayViewConstIterator& operator+=(difference_type n);
+    ArrayViewConstIterator& operator-=(difference_type n);
 
-    difference_type operator-(const SpanConstIterator& other) const;
+    difference_type operator-(const ArrayViewConstIterator& other) const;
 
     reference operator[](difference_type n) const;
     reference operator*() const;
@@ -99,13 +99,13 @@ private:
 };
 
 template <typename MySpan>
-SpanConstIterator<MySpan> operator+(typename SpanConstIterator<MySpan>::difference_type n, const SpanConstIterator<MySpan>& it);
+ArrayViewConstIterator<MySpan> operator+(typename ArrayViewConstIterator<MySpan>::difference_type n, const ArrayViewConstIterator<MySpan>& it);
 
 /**
  * Represents a non-owning view of contiguous sequence of elements.
  */
 template <typename T>
-class Span
+class ArrayView
 {
 public:
     using value_type = T;
@@ -115,10 +115,10 @@ public:
     using const_reference = const T&;
     using pointer = T*;
     using const_pointer = const T*;
-    using iterator = SpanIterator<Span<T>>;
-    using const_iterator = SpanConstIterator<Span<T>>;
+    using iterator = ArrayViewIterator<ArrayView<T>>;
+    using const_iterator = ArrayViewConstIterator<ArrayView<T>>;
 
-    Span() = default;
+    ArrayView() = default;
 
     /**
      * Construct a span from an iterator and a count.
@@ -128,7 +128,7 @@ public:
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
-    Span(InputIt first, size_type count);
+    ArrayView(InputIt first, size_type count);
 
     /**
      * Construct a span from start and end iterators.
@@ -138,7 +138,7 @@ public:
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
-    Span(InputIt first, InputIt last);
+    ArrayView(InputIt first, InputIt last);
 
     /**
      * Construct a span from an array.
@@ -146,7 +146,7 @@ public:
      * @param array Pointer to the first element of the array.
      */
     template <u64 N>
-    Span(T (&array)[N]);
+    ArrayView(T (&array)[N]);
 
     /**
      * Construct a span from a container.
@@ -157,22 +157,22 @@ public:
     template <typename Container>
         requires Range<Container> && (Opal::SameAs<T, typename Opal::ValueTypeGetter<Container>::Type> ||
                                       Opal::SameAs<typename Opal::RemoveConst<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
-    explicit Span(Container& container);
+    explicit ArrayView(Container& container);
 
-    Span(const Span& other) = default;
-    Span(Span&& other) noexcept = default;
+    ArrayView(const ArrayView& other) = default;
+    ArrayView(ArrayView&& other) noexcept = default;
 
-    ~Span() = default;
+    ~ArrayView() = default;
 
-    Span& operator=(const Span& other) = default;
-    Span& operator=(Span&& other) noexcept = default;
+    ArrayView& operator=(const ArrayView& other) = default;
+    ArrayView& operator=(ArrayView&& other) noexcept = default;
 
     /**
      * Compare two spans for equality. Two spans are equal if they point to the same data and have the same size.
      * @param other Span to compare with.
      * @return True if the spans are equal, false otherwise.
      */
-    bool operator==(const Span& other) const;
+    bool operator==(const ArrayView& other) const;
 
     T* GetData() { return m_data; }
     [[nodiscard]] const T* GetData() const { return m_data; }
@@ -221,7 +221,7 @@ public:
      * @param count Number of elements in the sub span.
      * @return Sub span. If the offset or count are out of bounds, an ErrorCode::OutOfBounds is returned.
      */
-    [[nodiscard]] Expected<Span<T>, ErrorCode> SubSpan(size_type offset, size_type count) const;
+    [[nodiscard]] Expected<ArrayView<T>, ErrorCode> SubSpan(size_type offset, size_type count) const;
 
     /** Iterator API - Compatible with standard library. */
 
@@ -273,7 +273,7 @@ private:
  * @return Span of bytes that can't be modified.
  */
 template <typename T>
-Span<const u8> AsBytes(T& object);
+ArrayView<const u8> AsBytes(T& object);
 
 /**
  * @brief Converts object to a span of bytes.
@@ -282,7 +282,7 @@ Span<const u8> AsBytes(T& object);
  * @return Span of bytes that can be modified.
  */
 template <typename T>
-Span<u8> AsWritableBytes(T& object);
+ArrayView<u8> AsWritableBytes(T& object);
 
 /**
  * @brief Converts container to a span of bytes.
@@ -292,7 +292,7 @@ Span<u8> AsWritableBytes(T& object);
  */
 template <typename Container>
     requires Opal::Range<Container>
-Span<const u8> AsBytes(Container& container);
+ArrayView<const u8> AsBytes(Container& container);
 
 /**
  * @brief Converts container to a span of bytes.
@@ -302,30 +302,30 @@ Span<const u8> AsBytes(Container& container);
  */
 template <typename Container>
     requires Opal::Range<Container>
-Span<u8> AsWritableBytes(Container& container);
+ArrayView<u8> AsWritableBytes(Container& container);
 
 }  // namespace Opal
 
 #define TEMPLATE_HEADER template <typename T>
-#define CLASS_HEADER Opal::Span<T>
+#define CLASS_HEADER Opal::ArrayView<T>
 
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-CLASS_HEADER::Span(InputIt first, size_type count) : m_data(&(*first)), m_size(count)
+CLASS_HEADER::ArrayView(InputIt first, size_type count) : m_data(&(*first)), m_size(count)
 {
 }
 
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-CLASS_HEADER::Span(InputIt first, InputIt last) : m_data(&(*first)), m_size(static_cast<size_type>(last - first))
+CLASS_HEADER::ArrayView(InputIt first, InputIt last) : m_data(&(*first)), m_size(static_cast<size_type>(last - first))
 {
 }
 
 TEMPLATE_HEADER
 template <Opal::u64 N>
-CLASS_HEADER::Span(T (&array)[N]) : m_data(array), m_size(N)
+CLASS_HEADER::ArrayView(T (&array)[N]) : m_data(array), m_size(N)
 {
 }
 
@@ -333,7 +333,7 @@ TEMPLATE_HEADER
 template <typename Container>
     requires Opal::Range<Container> && (Opal::SameAs<T, typename Opal::ValueTypeGetter<Container>::Type> ||
                                         Opal::SameAs<typename Opal::RemoveConst<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
-CLASS_HEADER::Span(Container& container)
+CLASS_HEADER::ArrayView(Container& container)
 {
     // TODO: Check if underlying array is contiguous
     if (Opal::begin(container) == Opal::end(container))
@@ -347,7 +347,7 @@ CLASS_HEADER::Span(Container& container)
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator==(const Span& other) const
+bool CLASS_HEADER::operator==(const ArrayView& other) const
 {
     return m_data == other.m_data && m_size == other.m_size;
 }
@@ -413,20 +413,20 @@ Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::Back() const
 }
 
 template <typename T>
-Opal::Span<const Opal::u8> Opal::AsBytes(T& object)
+Opal::ArrayView<const Opal::u8> Opal::AsBytes(T& object)
 {
     return {reinterpret_cast<const u8*>(&object), sizeof(T)};
 }
 
 template <typename T>
-Opal::Span<Opal::u8> Opal::AsWritableBytes(T& object)
+Opal::ArrayView<Opal::u8> Opal::AsWritableBytes(T& object)
 {
     return {reinterpret_cast<u8*>(&object), sizeof(T)};
 }
 
 template <typename Container>
     requires Opal::Range<Container>
-Opal::Span<const Opal::u8> Opal::AsBytes(Container& container)
+Opal::ArrayView<const Opal::u8> Opal::AsBytes(Container& container)
 {
     auto data = &(*container.begin());
     Opal::u64 size = sizeof(typename Container::value_type) * (container.end() - container.begin());
@@ -435,7 +435,7 @@ Opal::Span<const Opal::u8> Opal::AsBytes(Container& container)
 
 template <typename Container>
     requires Opal::Range<Container>
-Opal::Span<Opal::u8> Opal::AsWritableBytes(Container& container)
+Opal::ArrayView<Opal::u8> Opal::AsWritableBytes(Container& container)
 {
     auto data = &(*container.begin());
     Opal::u64 size = sizeof(typename Container::value_type) * (container.end() - container.begin());
@@ -447,37 +447,37 @@ Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::SubSpan(size_type of
 {
     if (offset + count > m_size)
     {
-        return Expected<Span<T>, ErrorCode>(ErrorCode::OutOfBounds);
+        return Expected<ArrayView<T>, ErrorCode>(ErrorCode::OutOfBounds);
     }
-    return Expected<Span<T>, ErrorCode>(Span<T>(m_data + offset, count));
+    return Expected<ArrayView<T>, ErrorCode>(ArrayView<T>(m_data + offset, count));
 }
 
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
 
 #define TEMPLATE_HEADER template <typename MySpan>
-#define CLASS_HEADER Opal::SpanIterator<MySpan>
+#define CLASS_HEADER Opal::ArrayViewIterator<MySpan>
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator>(const SpanIterator& other) const
+bool CLASS_HEADER::operator>(const ArrayViewIterator& other) const
 {
     return m_ptr > other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator>=(const SpanIterator& other) const
+bool CLASS_HEADER::operator>=(const ArrayViewIterator& other) const
 {
     return m_ptr >= other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator<(const SpanIterator& other) const
+bool CLASS_HEADER::operator<(const ArrayViewIterator& other) const
 {
     return m_ptr < other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator<=(const SpanIterator& other) const
+bool CLASS_HEADER::operator<=(const ArrayViewIterator& other) const
 {
     return m_ptr <= other.m_ptr;
 }
@@ -492,7 +492,7 @@ CLASS_HEADER& CLASS_HEADER::operator++()
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator++(int)
 {
-    SpanIterator temp = *this;
+    ArrayViewIterator temp = *this;
     m_ptr++;
     return temp;
 }
@@ -507,7 +507,7 @@ CLASS_HEADER& CLASS_HEADER::operator--()
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator--(int)
 {
-    SpanIterator temp = *this;
+    ArrayViewIterator temp = *this;
     m_ptr--;
     return temp;
 }
@@ -515,13 +515,13 @@ CLASS_HEADER CLASS_HEADER::operator--(int)
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
 {
-    return SpanIterator(m_ptr + n);
+    return ArrayViewIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
 {
-    return SpanIterator(m_ptr - n);
+    return ArrayViewIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
@@ -539,7 +539,7 @@ CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const SpanIterator& other) const
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const ArrayViewIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
@@ -563,7 +563,7 @@ typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename SpanIterator<MySpan>::difference_type n, const SpanIterator<MySpan>& it)
+CLASS_HEADER Opal::operator+(typename ArrayViewIterator<MySpan>::difference_type n, const ArrayViewIterator<MySpan>& it)
 {
     return it + n;
 }
@@ -572,28 +572,28 @@ CLASS_HEADER Opal::operator+(typename SpanIterator<MySpan>::difference_type n, c
 #undef CLASS_HEADER
 
 #define TEMPLATE_HEADER template <typename MySpan>
-#define CLASS_HEADER Opal::SpanConstIterator<MySpan>
+#define CLASS_HEADER Opal::ArrayViewConstIterator<MySpan>
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator>(const SpanConstIterator& other) const
+bool CLASS_HEADER::operator>(const ArrayViewConstIterator& other) const
 {
     return m_ptr > other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator>=(const SpanConstIterator& other) const
+bool CLASS_HEADER::operator>=(const ArrayViewConstIterator& other) const
 {
     return m_ptr >= other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator<(const SpanConstIterator& other) const
+bool CLASS_HEADER::operator<(const ArrayViewConstIterator& other) const
 {
     return m_ptr < other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator<=(const SpanConstIterator& other) const
+bool CLASS_HEADER::operator<=(const ArrayViewConstIterator& other) const
 {
     return m_ptr <= other.m_ptr;
 }
@@ -608,7 +608,7 @@ CLASS_HEADER& CLASS_HEADER::operator++()
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator++(int)
 {
-    SpanConstIterator temp = *this;
+    ArrayViewConstIterator temp = *this;
     m_ptr++;
     return temp;
 }
@@ -623,7 +623,7 @@ CLASS_HEADER& CLASS_HEADER::operator--()
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator--(int)
 {
-    SpanConstIterator temp = *this;
+    ArrayViewConstIterator temp = *this;
     m_ptr--;
     return temp;
 }
@@ -631,13 +631,13 @@ CLASS_HEADER CLASS_HEADER::operator--(int)
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
 {
-    return SpanConstIterator(m_ptr + n);
+    return ArrayViewConstIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
 {
-    return SpanConstIterator(m_ptr - n);
+    return ArrayViewConstIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
@@ -655,7 +655,7 @@ CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const SpanConstIterator& other) const
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const ArrayViewConstIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
@@ -679,7 +679,7 @@ typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename SpanConstIterator<MySpan>::difference_type n, const SpanConstIterator<MySpan>& it)
+CLASS_HEADER Opal::operator+(typename ArrayViewConstIterator<MySpan>::difference_type n, const ArrayViewConstIterator<MySpan>& it)
 {
     return it + n;
 }

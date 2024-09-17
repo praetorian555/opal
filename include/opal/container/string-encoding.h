@@ -2,10 +2,10 @@
 
 #include <cuchar>
 
-#include "opal/export.h"
+#include "opal/container/array-view.h"
 #include "opal/error-codes.h"
+#include "opal/export.h"
 #include "opal/types.h"
-#include "opal/container/span.h"
 
 namespace Opal
 {
@@ -23,7 +23,7 @@ struct EncodingUtf8
      * @return Returns ErrorCode::Success if encoding was successful, ErrorCode::InsufficientSpace if there is not enough space to
      * store encoding result in the `output` span, ErrorCode::BadInput if the `in_code_point` is unsupported code point.
      */
-    ErrorCode EncodeOne(CodePointType in_code_point, Span<CodeUnitT>& output);
+    ErrorCode EncodeOne(CodePointType in_code_point, ArrayView<CodeUnitT>& output);
 
     /**
      * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`.
@@ -33,7 +33,7 @@ struct EncodingUtf8
      * to decode current code point, ErrorCode::BadInput if the decoded data does not match rules for the current encoding,
      * ErrorCode::EndOfString if there is no more data to decode.
      */
-    ErrorCode DecodeOne(Span<const CodeUnitT>& input, CodePointType& out_code_point);
+    ErrorCode DecodeOne(ArrayView<const CodeUnitT>& input, CodePointType& out_code_point);
 };
 
 template <typename CodeUnitT>
@@ -49,7 +49,7 @@ struct EncodingUtf16LE
      * @return Returns ErrorCode::Success if encoding was successful, ErrorCode::InsufficientSpace if there is not enough space to
      * store encoding result in the `output` span, ErrorCode::BadInput if the `in_code_point` is unsupported code point.
      */
-    ErrorCode EncodeOne(CodePointType in_code_point, Span<CodeUnitT>& output);
+    ErrorCode EncodeOne(CodePointType in_code_point, ArrayView<CodeUnitT>& output);
 
     /**
      * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`.
@@ -59,7 +59,7 @@ struct EncodingUtf16LE
      * to decode current code point, ErrorCode::BadInput if the decoded data does not match rules for the current encoding,
      * ErrorCode::EndOfString if there is no more data to decode.
      */
-    ErrorCode DecodeOne(Span<const CodeUnitT>& input, CodePointType& out_code_point);
+    ErrorCode DecodeOne(ArrayView<const CodeUnitT>& input, CodePointType& out_code_point);
 };
 
 template <typename CodeUnitT>
@@ -75,7 +75,7 @@ struct EncodingUtf32LE
      * @return Returns ErrorCode::Success if encoding was successful, ErrorCode::InsufficientSpace if there is not enough space to
      * store encoding result in the `output` span.
      */
-    ErrorCode EncodeOne(CodePointType in_code_point, Span<CodeUnitT>& output);
+    ErrorCode EncodeOne(CodePointType in_code_point, ArrayView<CodeUnitT>& output);
 
     /**
      * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`.
@@ -83,7 +83,7 @@ struct EncodingUtf32LE
      * @param out_code_point Output code point.
      * @return Returns ErrorCode::Success if the decoding was successful, ErrorCode::EndOfString if there is no more data to decode.
      */
-    ErrorCode DecodeOne(Span<const CodeUnitT>& input, CodePointType& out_code_point);
+    ErrorCode DecodeOne(ArrayView<const CodeUnitT>& input, CodePointType& out_code_point);
 };
 
 struct OPAL_EXPORT EncodingLocale
@@ -100,7 +100,7 @@ struct OPAL_EXPORT EncodingLocale
      * @return Returns ErrorCode::Success if encoding was successful, ErrorCode::InsufficientSpace if there is not enough space to
      * store encoding result in the `output` span.
      */
-    ErrorCode EncodeOne(CodePointType in_code_point, Span<CodeUnitType>& output);
+    ErrorCode EncodeOne(CodePointType in_code_point, ArrayView<CodeUnitType>& output);
 
     /**
      * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`.
@@ -110,7 +110,7 @@ struct OPAL_EXPORT EncodingLocale
      * for the current encoding, ErrorCode::IncompleteSequence if there is not enough input data to decode current code point,
      * ErrorCode::EndOfString if there is no more data to decode.
      */
-    ErrorCode DecodeOne(Span<const CodeUnitType>& input, CodePointType& out_code_point);
+    ErrorCode DecodeOne(ArrayView<const CodeUnitType>& input, CodePointType& out_code_point);
 
 private:
     std::mbstate_t m_encoding_state;
@@ -123,11 +123,11 @@ private:
 #define CLASS_HEADER Opal::EncodingUtf8<CodeUnitT>
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_code_point, Span<CodeUnitT>& output)
+Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_code_point, ArrayView<CodeUnitT>& output)
 {
     auto out_begin = output.begin();
     auto out_end = output.end();
-    typename Span<CodeUnitT>::difference_type out_size = out_end - out_begin;
+    typename ArrayView<CodeUnitT>::difference_type out_size = out_end - out_begin;
     if (in_code_point <= 0x7F)
     {
         if (out_size < 1)
@@ -135,7 +135,7 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
             return ErrorCode::InsufficientSpace;
         }
         output[0] = static_cast<CodeUnitType>(in_code_point);
-        output = Span<CodeUnitT>(out_begin + 1, out_end);
+        output = ArrayView<CodeUnitT>(out_begin + 1, out_end);
         return ErrorCode::Success;
     }
     if (in_code_point <= 0x7FF)
@@ -146,7 +146,7 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
         }
         output[0] = static_cast<CodeUnitType>(0xC0 | ((in_code_point >> 6) & 0x1F));
         output[1] = static_cast<CodeUnitType>(0x80 | (in_code_point & 0x3F));
-        output = Span<CodeUnitT>(out_begin + 2, out_end);
+        output = ArrayView<CodeUnitT>(out_begin + 2, out_end);
         return ErrorCode::Success;
     }
     if (in_code_point <= 0xFFFF)
@@ -158,7 +158,7 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
         output[0] = static_cast<CodeUnitType>(0xE0 | ((in_code_point >> 12) & 0x0F));
         output[1] = static_cast<CodeUnitType>(0x80 | ((in_code_point >> 6) & 0x3F));
         output[2] = static_cast<CodeUnitType>(0x80 | (in_code_point & 0x3F));
-        output = Span<CodeUnitT>(out_begin + 3, out_end);
+        output = ArrayView<CodeUnitT>(out_begin + 3, out_end);
         return ErrorCode::Success;
     }
     if (in_code_point <= 0x10FFFF)
@@ -171,14 +171,14 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
         output[1] = static_cast<CodeUnitType>(0x80 | ((in_code_point >> 12) & 0x3F));
         output[2] = static_cast<CodeUnitType>(0x80 | ((in_code_point >> 6) & 0x3F));
         output[3] = static_cast<CodeUnitType>(0x80 | (in_code_point & 0x3F));
-        output = Span<CodeUnitT>(out_begin + 4, out_end);
+        output = ArrayView<CodeUnitT>(out_begin + 4, out_end);
         return ErrorCode::Success;
     }
     return ErrorCode::BadInput;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointType& out_code_point)
+Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodePointType& out_code_point)
 {
     auto in_begin = input.begin();
     auto in_end = input.end();
@@ -190,7 +190,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointT
     if ((input[0] & 0x80) == 0)
     {
         out_code_point = input[0];
-        input = Span<const CodeUnitT>(in_begin + 1, in_end);
+        input = ArrayView<const CodeUnitT>(in_begin + 1, in_end);
         return ErrorCode::Success;
     }
     if ((input[0] & 0xF0) == 0xF0)
@@ -204,7 +204,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointT
             return ErrorCode::BadInput;
         }
         out_code_point = ((input[0] & 0x07) << 18) | ((input[1] & 0x3F) << 12) | ((input[2] & 0x3F) << 6) | (input[3] & 0x3F);
-        input = Span<const CodeUnitT>(in_begin + 4, in_end);
+        input = ArrayView<const CodeUnitT>(in_begin + 4, in_end);
         return ErrorCode::Success;
     }
     if ((input[0] & 0xE0) == 0xE0)
@@ -218,7 +218,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointT
             return ErrorCode::BadInput;
         }
         out_code_point = ((input[0] & 0x0F) << 12) | ((input[1] & 0x3F) << 6) | (input[2] & 0x3F);
-        input = Span<const CodeUnitT>(in_begin + 3, in_end);
+        input = ArrayView<const CodeUnitT>(in_begin + 3, in_end);
         return ErrorCode::Success;
     }
     if ((input[0] & 0xC0) == 0xC0)
@@ -232,7 +232,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointT
             return ErrorCode::BadInput;
         }
         out_code_point = ((input[0] & 0x1F) << 6) | (input[1] & 0x3F);
-        input = Span<const CodeUnitT>(in_begin + 2, in_end);
+        input = ArrayView<const CodeUnitT>(in_begin + 2, in_end);
         return ErrorCode::Success;
     }
     return ErrorCode::BadInput;
@@ -245,26 +245,26 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointT
 #define CLASS_HEADER Opal::EncodingUtf32LE<CodeUnitT>
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_code_point, Span<CodeUnitT>& output)
+Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_code_point, ArrayView<CodeUnitT>& output)
 {
     if (output.GetSize() == 0)
     {
         return ErrorCode::InsufficientSpace;
     }
     output[0] = static_cast<CodeUnitT>(in_code_point);
-    output = Span<CodeUnitT>(output.begin() + 1, output.end());
+    output = ArrayView<CodeUnitT>(output.begin() + 1, output.end());
     return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointType& out_code_point)
+Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodePointType& out_code_point)
 {
     if (input.GetSize() == 0)
     {
         return ErrorCode::EndOfString;
     }
     out_code_point = static_cast<CodePointType>(input[0]);
-    input = Span<const CodeUnitT>(input.begin() + 1, input.end());
+    input = ArrayView<const CodeUnitT>(input.begin() + 1, input.end());
     return ErrorCode::Success;
 }
 
@@ -275,7 +275,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointT
 #define CLASS_HEADER Opal::EncodingUtf16LE<CodeUnitT>
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_code_point, Span<CodeUnitT>& output)
+Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_code_point, ArrayView<CodeUnitT>& output)
 {
     if (output.GetSize() == 0)
     {
@@ -289,7 +289,7 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
             return ErrorCode::BadInput;
         }
         output[0] = static_cast<CodeUnitT>(in_code_point);
-        output = Span<CodeUnitT>(output.begin() + 1, output.end());
+        output = ArrayView<CodeUnitT>(output.begin() + 1, output.end());
         return ErrorCode::Success;
     }
     if (in_code_point <= 0x10FFFF)
@@ -303,14 +303,14 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
         const CodeUnitT low_surrogate = static_cast<CodeUnitT>((code & 0x3FF) + 0xDC00);
         output[0] = high_surrogate;
         output[1] = low_surrogate;
-        output = Span<CodeUnitT>(output.begin() + 2, output.end());
+        output = ArrayView<CodeUnitT>(output.begin() + 2, output.end());
         return ErrorCode::Success;
     }
     return ErrorCode::BadInput;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointType& out_code_point)
+Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodePointType& out_code_point)
 {
     if (input.GetSize() == 0)
     {
@@ -319,7 +319,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointT
     if (input[0] < 0xD800)
     {
         out_code_point = static_cast<CodePointType>(input[0]);
-        input = Span<const CodeUnitT>(input.begin() + 1, input.end());
+        input = ArrayView<const CodeUnitT>(input.begin() + 1, input.end());
         return ErrorCode::Success;
     }
     if (input[0] >= 0xD800 && input[0] <= 0xDBFF)
@@ -332,7 +332,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(Span<const CodeUnitT>& input, CodePointT
         {
             out_code_point = ((input[0] - 0xD800) << 10) | (input[1] - 0xDC00);
             out_code_point += 0x10000;
-            input = Span<const CodeUnitT>(input.begin() + 2, input.end());
+            input = ArrayView<const CodeUnitT>(input.begin() + 2, input.end());
             return ErrorCode::Success;
         }
         return ErrorCode::BadInput;
