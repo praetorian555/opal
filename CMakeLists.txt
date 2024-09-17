@@ -57,7 +57,7 @@ set(OPAL_FILES
         include/opal/container/string.h
         include/opal/container/string-encoding.h
         include/opal/container/string-hash.h
-        include/opal/container/array.h
+        include/opal/container/dynamic-array.h
         include/opal/container/stack-array.h
         include/opal/container/priority-queue.h
         include/opal/container/hash-set.h

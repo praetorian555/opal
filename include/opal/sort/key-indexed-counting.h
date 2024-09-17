@@ -29,8 +29,8 @@ ErrorCode KeyIndexedCounting(const Span<Key>& in_keys, Span<Value>& in_out_value
         return ErrorCode::Success;
     }
 
-    Array<u64> count(k_number_of_unique_keys + 1, scratch_allocator);
-    Array<Value> aux(in_out_value.GetSize(), scratch_allocator);
+    DynamicArray<u64> count(k_number_of_unique_keys + 1, scratch_allocator);
+    DynamicArray<Value> aux(in_out_value.GetSize(), scratch_allocator);
 
     // Calculate frequency of each key
     for (u64 i = 0; i < in_keys.GetSize(); ++i)

@@ -7,7 +7,7 @@ OPAL_END_DISABLE_WARNINGS
 
 #include <array>
 
-#include "opal/container/array.h"
+#include "opal/container/dynamic-array.h"
 #include "opal/container/span.h"
 
 using namespace Opal;
@@ -48,14 +48,14 @@ TEST_CASE("Construction", "[Span]")
     {
         SECTION("iterator and count")
         {
-            Array<i32> array(5);
+            DynamicArray<i32> array(5);
             Span<int> span(array.begin(), 5);
             REQUIRE(span.GetData() == array.GetData());
             REQUIRE(span.GetSize() == 5);
         }
         SECTION("iterator and iterator")
         {
-            Array<i32> array(5);
+            DynamicArray<i32> array(5);
             Span<int> span(array.begin(), array.end());
             REQUIRE(span.GetData() == array.GetData());
             REQUIRE(span.GetSize() == 5);
@@ -63,7 +63,7 @@ TEST_CASE("Construction", "[Span]")
     }
     SECTION("From Array as range")
     {
-        Array<i32> array(5);
+        DynamicArray<i32> array(5);
         Span<int> span(array);
         REQUIRE(span.GetData() == array.GetData());
         REQUIRE(span.GetSize() == 5);
@@ -197,7 +197,7 @@ TEST_CASE("As bytes", "[Span]")
     }
     SECTION("From Array")
     {
-        Array<i32> array(5);
+        DynamicArray<i32> array(5);
         Span<const u8> bytes = AsBytes(array);
         REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
         REQUIRE(bytes.GetData() == reinterpret_cast<const u8*>(array.GetData()));
@@ -237,7 +237,7 @@ TEST_CASE("As writable bytes", "[Span]")
     }
     SECTION("From Array")
     {
-        Array<i32> array(5);
+        DynamicArray<i32> array(5);
         Span<u8> bytes = AsWritableBytes(array);
         REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
         REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(array.GetData()));
