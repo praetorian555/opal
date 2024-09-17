@@ -1498,14 +1498,14 @@ TEST_CASE("Iterator", "[Array]")
     SECTION("Difference")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it1 = int_arr.begin();
-        DynamicArray<i32>::IteratorType it2 = int_arr.end();
+        DynamicArray<i32>::iterator it1 = int_arr.begin();
+        DynamicArray<i32>::iterator it2 = int_arr.end();
         REQUIRE(it2 - it1 == 3);
     }
     SECTION("Increment")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.begin();
+        DynamicArray<i32>::iterator it = int_arr.begin();
         REQUIRE(*it == 42);
         ++it;
         REQUIRE(*it == 42);
@@ -1517,20 +1517,20 @@ TEST_CASE("Iterator", "[Array]")
     SECTION("Post increment")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.begin();
+        DynamicArray<i32>::iterator it = int_arr.begin();
         REQUIRE(*it == 42);
         it++;
         REQUIRE(*it == 42);
         it++;
         REQUIRE(*it == 42);
-        DynamicArray<i32>::IteratorType prev = it++;
+        DynamicArray<i32>::iterator prev = it++;
         REQUIRE(it - prev == 1);
         REQUIRE(it == int_arr.end());
     }
     SECTION("Decrement")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.end();
+        DynamicArray<i32>::iterator it = int_arr.end();
         --it;
         REQUIRE(*it == 42);
         --it;
@@ -1542,31 +1542,31 @@ TEST_CASE("Iterator", "[Array]")
     SECTION("Post decrement")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.end();
+        DynamicArray<i32>::iterator it = int_arr.end();
         it--;
         REQUIRE(*it == 42);
         it--;
         REQUIRE(*it == 42);
-        DynamicArray<i32>::IteratorType prev = it--;
+        DynamicArray<i32>::iterator prev = it--;
         REQUIRE(prev - it == 1);
         REQUIRE(it == int_arr.begin());
     }
     SECTION("Add")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.begin();
+        DynamicArray<i32>::iterator it = int_arr.begin();
         REQUIRE(*(it + 0) == 42);
         REQUIRE(*(it + 1) == 42);
         REQUIRE(*(it + 2) == 42);
         REQUIRE((it + 3) == int_arr.end());
 
-        DynamicArray<i32>::IteratorType it2 = int_arr.begin();
+        DynamicArray<i32>::iterator it2 = int_arr.begin();
         REQUIRE((3 + it2) == int_arr.end());
     }
     SECTION("Add assignment")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.begin();
+        DynamicArray<i32>::iterator it = int_arr.begin();
         REQUIRE(*(it += 0) == 42);
         REQUIRE(*(it += 1) == 42);
         REQUIRE(*(it += 1) == 42);
@@ -1575,7 +1575,7 @@ TEST_CASE("Iterator", "[Array]")
     SECTION("Subtract")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.end();
+        DynamicArray<i32>::iterator it = int_arr.end();
         REQUIRE((it - 0) == int_arr.end());
         REQUIRE(*(it - 1) == 42);
         REQUIRE(*(it - 2) == 42);
@@ -1585,7 +1585,7 @@ TEST_CASE("Iterator", "[Array]")
     SECTION("Subtract assignment")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.end();
+        DynamicArray<i32>::iterator it = int_arr.end();
         REQUIRE((it -= 0) == int_arr.end());
         REQUIRE(*(it -= 1) == 42);
         REQUIRE(*(it -= 1) == 42);
@@ -1595,7 +1595,7 @@ TEST_CASE("Iterator", "[Array]")
     SECTION("Access")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.begin();
+        DynamicArray<i32>::iterator it = int_arr.begin();
         REQUIRE(it[0] == 42);
         REQUIRE(it[1] == 42);
         REQUIRE(it[2] == 42);
@@ -1603,20 +1603,20 @@ TEST_CASE("Iterator", "[Array]")
     SECTION("Dereference")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it = int_arr.begin();
+        DynamicArray<i32>::iterator it = int_arr.begin();
         REQUIRE(*it == 42);
     }
     SECTION("Pointer")
     {
         DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
-        DynamicArray<NonPod>::IteratorType it = non_pod_arr.begin();
+        DynamicArray<NonPod>::iterator it = non_pod_arr.begin();
         REQUIRE(*(it->ptr) == 42);
     }
     SECTION("Compare")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::IteratorType it1 = int_arr.begin();
-        DynamicArray<i32>::IteratorType it2 = int_arr.begin();
+        DynamicArray<i32>::iterator it1 = int_arr.begin();
+        DynamicArray<i32>::iterator it2 = int_arr.begin();
         REQUIRE(it1 == it2);
         REQUIRE(it1 <= it2);
         REQUIRE(it1 >= it2);
@@ -1636,7 +1636,7 @@ TEST_CASE("Iterator", "[Array]")
     {
         DynamicArray<i32> int_arr(3, 42);
         i32 sum = 0;
-        for (DynamicArray<i32>::IteratorType it = int_arr.begin(); it != int_arr.end(); ++it)
+        for (DynamicArray<i32>::iterator it = int_arr.begin(); it != int_arr.end(); ++it)
         {
             sum += *it;
         }
@@ -1659,14 +1659,14 @@ TEST_CASE("Const iterator", "[Array]")
     SECTION("Difference")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it1 = int_arr.cbegin();
-        DynamicArray<i32>::ConstIteratorType it2 = int_arr.cend();
+        DynamicArray<i32>::const_iterator it1 = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it2 = int_arr.cend();
         REQUIRE(it2 - it1 == 3);
     }
     SECTION("Increment")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it = int_arr.cbegin();
         REQUIRE(*it == 42);
         ++it;
         REQUIRE(*it == 42);
@@ -1678,20 +1678,20 @@ TEST_CASE("Const iterator", "[Array]")
     SECTION("Post increment")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it = int_arr.cbegin();
         REQUIRE(*it == 42);
         it++;
         REQUIRE(*it == 42);
         it++;
         REQUIRE(*it == 42);
-        DynamicArray<i32>::ConstIteratorType prev = it++;
+        DynamicArray<i32>::const_iterator prev = it++;
         REQUIRE(it - prev == 1);
         REQUIRE(it == int_arr.cend());
     }
     SECTION("Decrement")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cend();
+        DynamicArray<i32>::const_iterator it = int_arr.cend();
         --it;
         REQUIRE(*it == 42);
         --it;
@@ -1703,31 +1703,31 @@ TEST_CASE("Const iterator", "[Array]")
     SECTION("Post decrement")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cend();
+        DynamicArray<i32>::const_iterator it = int_arr.cend();
         it--;
         REQUIRE(*it == 42);
         it--;
         REQUIRE(*it == 42);
-        DynamicArray<i32>::ConstIteratorType prev = it--;
+        DynamicArray<i32>::const_iterator prev = it--;
         REQUIRE(prev - it == 1);
         REQUIRE(it == int_arr.cbegin());
     }
     SECTION("Add")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it = int_arr.cbegin();
         REQUIRE(*(it + 0) == 42);
         REQUIRE(*(it + 1) == 42);
         REQUIRE(*(it + 2) == 42);
         REQUIRE((it + 3) == int_arr.cend());
 
-        DynamicArray<i32>::ConstIteratorType it2 = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it2 = int_arr.cbegin();
         REQUIRE((3 + it2) == int_arr.cend());
     }
     SECTION("Add assignment")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it = int_arr.cbegin();
         REQUIRE(*(it += 0) == 42);
         REQUIRE(*(it += 1) == 42);
         REQUIRE(*(it += 1) == 42);
@@ -1736,7 +1736,7 @@ TEST_CASE("Const iterator", "[Array]")
     SECTION("Subtract")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cend();
+        DynamicArray<i32>::const_iterator it = int_arr.cend();
         REQUIRE((it - 0) == int_arr.cend());
         REQUIRE(*(it - 1) == 42);
         REQUIRE(*(it - 2) == 42);
@@ -1746,7 +1746,7 @@ TEST_CASE("Const iterator", "[Array]")
     SECTION("Subtract assignment")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cend();
+        DynamicArray<i32>::const_iterator it = int_arr.cend();
         REQUIRE((it -= 0) == int_arr.cend());
         REQUIRE(*(it -= 1) == 42);
         REQUIRE(*(it -= 1) == 42);
@@ -1756,7 +1756,7 @@ TEST_CASE("Const iterator", "[Array]")
     SECTION("Access")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it = int_arr.cbegin();
         REQUIRE(it[0] == 42);
         REQUIRE(it[1] == 42);
         REQUIRE(it[2] == 42);
@@ -1764,20 +1764,20 @@ TEST_CASE("Const iterator", "[Array]")
     SECTION("Dereference")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it = int_arr.cbegin();
         REQUIRE(*it == 42);
     }
     SECTION("Pointer")
     {
         DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
-        DynamicArray<NonPod>::ConstIteratorType it = non_pod_arr.cbegin();
+        DynamicArray<NonPod>::const_iterator it = non_pod_arr.cbegin();
         REQUIRE(*(it->ptr) == 42);
     }
     SECTION("Compare")
     {
         DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32>::ConstIteratorType it1 = int_arr.cbegin();
-        DynamicArray<i32>::ConstIteratorType it2 = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it1 = int_arr.cbegin();
+        DynamicArray<i32>::const_iterator it2 = int_arr.cbegin();
         REQUIRE(it1 == it2);
         REQUIRE(it1 <= it2);
         REQUIRE(it1 >= it2);
@@ -1797,7 +1797,7 @@ TEST_CASE("Const iterator", "[Array]")
     {
         DynamicArray<i32> int_arr(3, 42);
         i32 sum = 0;
-        for (DynamicArray<i32>::ConstIteratorType it = int_arr.cbegin(); it != int_arr.cend(); ++it)
+        for (DynamicArray<i32>::const_iterator it = int_arr.cbegin(); it != int_arr.cend(); ++it)
         {
             sum += *it;
         }
@@ -2000,7 +2000,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(100, 5);
-            DynamicArray<i32>::IteratorType it = int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()).GetValue();
             REQUIRE(int_arr.GetCapacity() == 103);
             REQUIRE(int_arr.GetSize() == 103);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2016,7 +2016,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(2, 5);
-            DynamicArray<i32>::IteratorType it = int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()).GetValue();
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2056,7 +2056,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             i32 other[] = {5, 5};
-            DynamicArray<i32>::IteratorType it = int_arr.Insert(int_arr.cbegin() + 1, other, other + 2).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Insert(int_arr.cbegin() + 1, other, other + 2).GetValue();
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2076,7 +2076,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from mid")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.cbegin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cbegin() + 1).GetValue();
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2087,7 +2087,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from end")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.cend() - 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cend() - 1).GetValue();
             REQUIRE(it - int_arr.begin() == int_arr.cend() - int_arr.cbegin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2098,7 +2098,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from beginning")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.cbegin()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cbegin()).GetValue();
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2121,7 +2121,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from mid non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.begin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.begin() + 1).GetValue();
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2132,7 +2132,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from end non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.end() - 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.end() - 1).GetValue();
             REQUIRE(it - int_arr.begin() == int_arr.end() - int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2143,7 +2143,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from beginning non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.begin()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.begin()).GetValue();
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2169,7 +2169,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from mid")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.cbegin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.cbegin() + 1).GetValue();
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2180,7 +2180,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from end")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.cend() - 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.cend() - 1).GetValue();
             REQUIRE(it - int_arr.begin() == int_arr.cend() - int_arr.cbegin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2191,7 +2191,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from beginning")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.cbegin()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.cbegin()).GetValue();
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2214,7 +2214,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from mid non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.begin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.begin() + 1).GetValue();
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2225,7 +2225,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from end non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.end() - 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.end() - 1).GetValue();
             REQUIRE(it - int_arr.begin() == int_arr.end() - int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2236,7 +2236,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from beginning non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.EraseWithSwap(int_arr.begin()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.begin()).GetValue();
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2262,7 +2262,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("From mid")
         {
             DynamicArray<i32> int_arr(5, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.cbegin() + 1, int_arr.cbegin() + 3).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cbegin() + 1, int_arr.cbegin() + 3).GetValue();
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 3);
@@ -2274,7 +2274,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("From end")
         {
             DynamicArray<i32> int_arr(5, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.cend() - 3, int_arr.cend()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cend() - 3, int_arr.cend()).GetValue();
             REQUIRE(it == int_arr.end());
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2285,7 +2285,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("From beginning")
         {
             DynamicArray<i32> int_arr(5, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.cbegin(), int_arr.cbegin() + 2).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cbegin(), int_arr.cbegin() + 2).GetValue();
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 3);
@@ -2325,7 +2325,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("Empty range")
         {
             DynamicArray<i32> int_arr(5, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.cbegin() + 1, int_arr.cbegin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cbegin() + 1, int_arr.cbegin() + 1).GetValue();
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
@@ -2339,7 +2339,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("From mid non-const")
         {
             DynamicArray<i32> int_arr(5, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.begin() + 1, int_arr.begin() + 3).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.begin() + 1, int_arr.begin() + 3).GetValue();
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 3);
@@ -2351,7 +2351,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("From end non-const")
         {
             DynamicArray<i32> int_arr(5, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.end() - 3, int_arr.end()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.end() - 3, int_arr.end()).GetValue();
             REQUIRE(it == int_arr.end());
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2362,7 +2362,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("From beginning non-const")
         {
             DynamicArray<i32> int_arr(5, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.begin(), int_arr.begin() + 2).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.begin(), int_arr.begin() + 2).GetValue();
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 3);
@@ -2402,7 +2402,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("Empty range non-const")
         {
             DynamicArray<i32> int_arr(5, 42);
-            DynamicArray<i32>::IteratorType it = int_arr.Erase(int_arr.begin() + 1, int_arr.begin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.begin() + 1, int_arr.begin() + 1).GetValue();
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);

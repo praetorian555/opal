@@ -20,100 +20,90 @@ namespace Opal
 /*************************************************************************************************/
 
 template <typename MyArray>
-class ArrayIterator
+class DynamicArrayIterator
 {
 public:
-    using ValueType = typename MyArray::ValueType;
-    using ReferenceType = typename MyArray::ReferenceType;
-    using PointerType = typename MyArray::PointerType;
-    using DifferenceType = typename MyArray::DifferenceType;
+    using value_type = typename MyArray::value_type;
+    using difference_type = typename MyArray::difference_type;
+    using reference = typename MyArray::reference;
+    using pointer = typename MyArray::pointer;
 
-    // Type aliases to be compatible with std library
-    using reference = ReferenceType;
-    using difference_type = DifferenceType;
-    using value_type = ValueType;
+    DynamicArrayIterator() = default;
+    explicit DynamicArrayIterator(pointer ptr) : m_ptr(ptr) {}
 
-    ArrayIterator() = default;
-    explicit ArrayIterator(PointerType ptr) : m_ptr(ptr) {}
+    bool operator==(const DynamicArrayIterator& other) const { return m_ptr == other.m_ptr; }
+    bool operator>(const DynamicArrayIterator& other) const;
+    bool operator>=(const DynamicArrayIterator& other) const;
+    bool operator<(const DynamicArrayIterator& other) const;
+    bool operator<=(const DynamicArrayIterator& other) const;
 
-    bool operator==(const ArrayIterator& other) const { return m_ptr == other.m_ptr; }
-    bool operator>(const ArrayIterator& other) const;
-    bool operator>=(const ArrayIterator& other) const;
-    bool operator<(const ArrayIterator& other) const;
-    bool operator<=(const ArrayIterator& other) const;
+    DynamicArrayIterator& operator++();
+    DynamicArrayIterator operator++(int);
+    DynamicArrayIterator& operator--();
+    DynamicArrayIterator operator--(int);
 
-    ArrayIterator& operator++();
-    ArrayIterator operator++(int);
-    ArrayIterator& operator--();
-    ArrayIterator operator--(int);
+    DynamicArrayIterator operator+(difference_type n) const;
+    DynamicArrayIterator operator-(difference_type n) const;
+    DynamicArrayIterator& operator+=(difference_type n);
+    DynamicArrayIterator& operator-=(difference_type n);
 
-    ArrayIterator operator+(DifferenceType n) const;
-    ArrayIterator operator-(DifferenceType n) const;
-    ArrayIterator& operator+=(DifferenceType n);
-    ArrayIterator& operator-=(DifferenceType n);
+    difference_type operator-(const DynamicArrayIterator& other) const;
 
-    DifferenceType operator-(const ArrayIterator& other) const;
-
-    ReferenceType operator[](DifferenceType n) const;
-    ReferenceType operator*() const;
-    PointerType operator->() const;
+    reference operator[](difference_type n) const;
+    reference operator*() const;
+    pointer operator->() const;
 
 private:
-    PointerType m_ptr = nullptr;
+    pointer m_ptr = nullptr;
 };
 
 template <typename MyArray>
-ArrayIterator<MyArray> operator+(typename ArrayIterator<MyArray>::DifferenceType n, const ArrayIterator<MyArray>& it);
+DynamicArrayIterator<MyArray> operator+(typename DynamicArrayIterator<MyArray>::difference_type n, const DynamicArrayIterator<MyArray>& it);
 
 /*************************************************************************************************/
 /** Const Iterator API ***************************************************************************/
 /*************************************************************************************************/
 
 template <typename MyArray>
-class ArrayConstIterator
+class DynamicArrayConstIterator
 {
 public:
-    using ValueType = typename MyArray::ValueType;
-    using ReferenceType = typename MyArray::ConstReferenceType;
-    using PointerType = typename MyArray::PointerType;
-    using DifferenceType = typename MyArray::DifferenceType;
+    using value_type = typename MyArray::value_type;
+    using difference_type = typename MyArray::difference_type;
+    using reference = typename MyArray::reference;
+    using pointer = typename MyArray::pointer;
 
-    // Type aliases to be compatible with std library
-    using reference = ReferenceType;
-    using difference_type = DifferenceType;
-    using value_type = ValueType;
+    DynamicArrayConstIterator() = default;
+    explicit DynamicArrayConstIterator(pointer ptr) : m_ptr(ptr) {}
 
-    ArrayConstIterator() = default;
-    explicit ArrayConstIterator(PointerType ptr) : m_ptr(ptr) {}
+    bool operator==(const DynamicArrayConstIterator& other) const { return m_ptr == other.m_ptr; }
+    bool operator>(const DynamicArrayConstIterator& other) const;
+    bool operator>=(const DynamicArrayConstIterator& other) const;
+    bool operator<(const DynamicArrayConstIterator& other) const;
+    bool operator<=(const DynamicArrayConstIterator& other) const;
 
-    bool operator==(const ArrayConstIterator& other) const { return m_ptr == other.m_ptr; }
-    bool operator>(const ArrayConstIterator& other) const;
-    bool operator>=(const ArrayConstIterator& other) const;
-    bool operator<(const ArrayConstIterator& other) const;
-    bool operator<=(const ArrayConstIterator& other) const;
+    DynamicArrayConstIterator& operator++();
+    DynamicArrayConstIterator operator++(int);
+    DynamicArrayConstIterator& operator--();
+    DynamicArrayConstIterator operator--(int);
 
-    ArrayConstIterator& operator++();
-    ArrayConstIterator operator++(int);
-    ArrayConstIterator& operator--();
-    ArrayConstIterator operator--(int);
+    DynamicArrayConstIterator operator+(difference_type n) const;
+    DynamicArrayConstIterator operator-(difference_type n) const;
+    DynamicArrayConstIterator& operator+=(difference_type n);
+    DynamicArrayConstIterator& operator-=(difference_type n);
 
-    ArrayConstIterator operator+(DifferenceType n) const;
-    ArrayConstIterator operator-(DifferenceType n) const;
-    ArrayConstIterator& operator+=(DifferenceType n);
-    ArrayConstIterator& operator-=(DifferenceType n);
+    difference_type operator-(const DynamicArrayConstIterator& other) const;
 
-    DifferenceType operator-(const ArrayConstIterator& other) const;
-
-    ReferenceType operator[](DifferenceType n) const;
-    ReferenceType operator*() const;
-    PointerType operator->() const;
+    reference operator[](difference_type n) const;
+    reference operator*() const;
+    pointer operator->() const;
 
 private:
-    PointerType m_ptr = nullptr;
+    pointer m_ptr = nullptr;
 };
 
 template <typename MyArray>
-ArrayConstIterator<MyArray> operator+(typename ArrayConstIterator<MyArray>::DifferenceType n, const ArrayConstIterator<MyArray>& it);
+DynamicArrayConstIterator<MyArray> operator+(typename DynamicArrayConstIterator<MyArray>::difference_type n, const DynamicArrayConstIterator<MyArray>& it);
 
 /**
  * Represents continuous memory storage on the heap that can dynamically grow in size. Similar to std::vector.
@@ -122,26 +112,25 @@ template <typename T, typename Allocator = AllocatorBase>
 class DynamicArray
 {
 public:
-    using ValueType = T;
-    using ReferenceType = T&;
-    using ConstReferenceType = const T&;
-    using PointerType = T*;
-    using SizeType = u64;
-    using AllocatorType = Allocator;
-    using DifferenceType = i64;
-    using IteratorType = ArrayIterator<DynamicArray<T, Allocator>>;
-    using ConstIteratorType = ArrayConstIterator<DynamicArray<T, Allocator>>;
+    using value_type = T;
+    using allocator_type = Allocator;
+    using size_type = u64;
+    using difference_type = i64;
+    using reference = T&;
+    using const_reference = const T&;
+    using pointer = T*;
+    using const_pointer = const T*;
+    using iterator = DynamicArrayIterator<DynamicArray<T, Allocator>>;
+    using const_iterator = DynamicArrayConstIterator<DynamicArray<T, Allocator>>;
 
-    using value_type = ValueType;
-
-    static_assert(!k_is_reference_value<ValueType>, "Value type must not be a reference");
-    static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
+    static_assert(!k_is_reference_value<value_type>, "Value type must not be a reference");
+    static_assert(!k_is_const_value<value_type>, "Value type must not be const");
 
     // Constructors
     DynamicArray(Allocator* allocator = nullptr);
-    explicit DynamicArray(SizeType count, Allocator* allocator = nullptr);
-    DynamicArray(SizeType count, const T& default_value, Allocator* allocator = nullptr);
-    DynamicArray(T* data, SizeType count, Allocator* allocator = nullptr);
+    explicit DynamicArray(size_type count, Allocator* allocator = nullptr);
+    DynamicArray(size_type count, const T& default_value, Allocator* allocator = nullptr);
+    DynamicArray(T* data, size_type count, Allocator* allocator = nullptr);
     DynamicArray(const DynamicArray& other, Allocator* allocator = nullptr);
     DynamicArray(DynamicArray&& other) noexcept;
     DynamicArray(const std::initializer_list<T>& init_list, Allocator* allocator = nullptr);
@@ -159,7 +148,7 @@ public:
      * @param value Value of the new elements.
      * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
      */
-    ErrorCode Assign(SizeType count, const T& value);
+    ErrorCode Assign(size_type count, const T& value);
 
     /**
      * Clears the array and adds new elements based on the input iterator range.
@@ -178,36 +167,36 @@ public:
      * @param index Index of the element in the array.
      * @return Returns reference to the element or ErrorCode::OutOfBounds if the index is out of bounds.
      */
-    Expected<ReferenceType, ErrorCode> At(SizeType index);
-    Expected<ConstReferenceType, ErrorCode> At(SizeType index) const;
+    Expected<reference, ErrorCode> At(size_type index);
+    Expected<const_reference, ErrorCode> At(size_type index) const;
 
     /**
      * Get a reference to the element at specified index. No index bounds checking.
      * @param index Index of the element in the array.
      * @return Reference to the element.
      */
-    ReferenceType operator[](SizeType index);
-    ConstReferenceType operator[](SizeType index) const;
+    reference operator[](size_type index);
+    const_reference operator[](size_type index) const;
 
     /**
      * Get a reference to the first element in the array.
      * @return Reference to the first element or ErrorCode::OutOfBounds if the array is empty.
      */
-    Expected<ReferenceType, ErrorCode> Front();
-    Expected<ConstReferenceType, ErrorCode> Front() const;
+    Expected<reference, ErrorCode> Front();
+    Expected<const_reference, ErrorCode> Front() const;
 
     /**
      * Get a reference to the last element in the array.
      * @return Reference to the last element or ErrorCode::OutOfBounds if the array is empty.
      */
-    Expected<ReferenceType, ErrorCode> Back();
-    Expected<ConstReferenceType, ErrorCode> Back() const;
+    Expected<reference, ErrorCode> Back();
+    Expected<const_reference, ErrorCode> Back() const;
 
     T* GetData();
     const T* GetData() const;
 
-    [[nodiscard]] SizeType GetCapacity() const;
-    [[nodiscard]] SizeType GetSize() const;
+    [[nodiscard]] size_type GetCapacity() const;
+    [[nodiscard]] size_type GetSize() const;
 
     Allocator* GetAllocator() const { return m_allocator; }
 
@@ -222,14 +211,14 @@ public:
      * @param new_capacity New capacity of the array.
      * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
      */
-    ErrorCode Reserve(SizeType new_capacity);
+    ErrorCode Reserve(size_type new_capacity);
 
     /**
      * Change the size of the array to `new_size`. If `new_size` is greater than current size, new elements are default constructed.
      * @param new_size New size of the array.
      * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
      */
-    ErrorCode Resize(SizeType new_size);
+    ErrorCode Resize(size_type new_size);
 
     /**
      * Change the size of the array to `new_size`. If `new_size` is greater than current size, new elements are copy constructed from
@@ -238,7 +227,7 @@ public:
      * @param default_value Value to copy construct new elements from.
      * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
      */
-    ErrorCode Resize(SizeType new_size, const T& default_value);
+    ErrorCode Resize(size_type new_size, const T& default_value);
 
     /**
      * Clear the array and set its size to 0. Does not deallocate memory.
@@ -265,8 +254,8 @@ public:
      * @return Iterator pointing to the newly inserted element or ErrorCode::OutOfBounds if the position is invalid,
      * ErrorCode::OutOfMemory if memory allocation failed.
      */
-    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, const T& value);
-    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, T&& value);
+    Expected<iterator, ErrorCode> Insert(const_iterator position, const T& value);
+    Expected<iterator, ErrorCode> Insert(const_iterator position, T&& value);
 
     /**
      * Insert `count` new elements with value `value` at the specified position.
@@ -277,7 +266,7 @@ public:
      * @return Iterator pointing to the first newly inserted element or ErrorCode::OutOfBounds if the position is invalid,
      * ErrorCode::BadInput if count is 0, ErrorCode::OutOfMemory if memory allocation failed.
      */
-    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, SizeType count, const T& value);
+    Expected<iterator, ErrorCode> Insert(const_iterator position, size_type count, const T& value);
 
     /**
      * Insert new elements from the range [start, end) at the specified position.
@@ -291,23 +280,23 @@ public:
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
-    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType position, InputIt start, InputIt end_it);
+    Expected<iterator, ErrorCode> Insert(const_iterator position, InputIt start, InputIt end_it);
 
     /**
      * Erase the element at the specified position. Does not deallocate memory.
      * @param position Iterator pointing to the element to erase.
      * @return Iterator pointing to the element following the erased element or ErrorCode::OutOfBounds if the position is invalid.
      */
-    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType position);
-    Expected<IteratorType, ErrorCode> Erase(IteratorType position);
+    Expected<iterator, ErrorCode> Erase(const_iterator position);
+    Expected<iterator, ErrorCode> Erase(iterator position);
 
     /**
      * Erase the element at the specified position by swapping it with the last element. Does not deallocate memory.
      * @param position Iterator pointing to the element to erase.
      * @return Iterator pointing to the new element at the position or ErrorCode::OutOfBounds if the position is invalid.
      */
-    Expected<IteratorType, ErrorCode> EraseWithSwap(ConstIteratorType position);
-    Expected<IteratorType, ErrorCode> EraseWithSwap(IteratorType position);
+    Expected<iterator, ErrorCode> EraseWithSwap(const_iterator position);
+    Expected<iterator, ErrorCode> EraseWithSwap(iterator position);
 
     /**
      * Erase elements in the range [start, end). Does not deallocate memory.
@@ -316,8 +305,8 @@ public:
      * @return Iterator pointing to the element following the last erased element or ErrorCode::BadInput if start > end,
      * ErrorCode::OutOfBounds if start or end are out of bounds.
      */
-    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType start_it, ConstIteratorType end_it);
-    Expected<IteratorType, ErrorCode> Erase(IteratorType start_it, IteratorType end_it);
+    Expected<iterator, ErrorCode> Erase(const_iterator start_it, const_iterator end_it);
+    Expected<iterator, ErrorCode> Erase(iterator start_it, iterator end_it);
 
     /** Iterator API - Compatible with standard library. */
 
@@ -325,47 +314,47 @@ public:
      * Get an iterator pointing to the first element in the array.
      * @return Iterator pointing to the first element.
      */
-    IteratorType begin() { return IteratorType(m_data); }
+    iterator begin() { return iterator(m_data); }
 
     /**
      * Get a const iterator pointing to the first element in the array.
      * @return Const iterator pointing to the first element.
      */
-    ConstIteratorType begin() const { return ConstIteratorType(m_data); }
+    const_iterator begin() const { return const_iterator(m_data); }
 
     /**
      * Get a const iterator pointing to the first element in the array.
      * @return Const iterator pointing to the first element.
      */
-    ConstIteratorType cbegin() const { return ConstIteratorType(m_data); }
+    const_iterator cbegin() const { return const_iterator(m_data); }
 
     /**
      * Get an iterator pointing to the element following the last element in the array.
      * @return Iterator pointing to the element following the last element.
      */
-    IteratorType end() { return IteratorType(m_data + m_size); }
+    iterator end() { return iterator(m_data + m_size); }
 
     /**
      * Get a const iterator pointing to the element following the last element in the array.
      * @return Const iterator pointing to the element following the last element.
      */
-    ConstIteratorType end() const { return ConstIteratorType(m_data + m_size); }
+    const_iterator end() const { return const_iterator(m_data + m_size); }
 
     /**
      * Get a const iterator pointing to the element following the last element in the array.
      * @return Const iterator pointing to the element following the last element.
      */
-    ConstIteratorType cend() const { return ConstIteratorType(m_data + m_size); }
+    const_iterator cend() const { return const_iterator(m_data + m_size); }
 
 private:
-    T* Allocate(SizeType count);
+    T* Allocate(size_type count);
     void Deallocate(T* ptr);
 
     static constexpr f64 k_resize_factor = 1.5;
 
     Allocator* m_allocator = nullptr;
-    SizeType m_capacity = 0;
-    SizeType m_size = 0;
+    size_type m_capacity = 0;
+    size_type m_size = 0;
     T* m_data = nullptr;
 };
 
@@ -382,7 +371,7 @@ TEMPLATE_HEADER
 CLASS_HEADER::DynamicArray(Allocator* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
 
 TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(SizeType count, Allocator* allocator)
+CLASS_HEADER::DynamicArray(size_type count, Allocator* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
@@ -397,14 +386,14 @@ CLASS_HEADER::DynamicArray(SizeType count, Allocator* allocator)
         OPAL_ASSERT(false, "Failed to allocate memory for Array");
         return;
     }
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T();  // Invokes default constructor on allocated memory
     }
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(SizeType count, const T& default_value, Allocator* allocator)
+CLASS_HEADER::DynamicArray(size_type count, const T& default_value, Allocator* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
@@ -419,14 +408,14 @@ CLASS_HEADER::DynamicArray(SizeType count, const T& default_value, Allocator* al
         OPAL_ASSERT(false, "Failed to allocate memory for Array");
         return;
     }
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
     }
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(T* data, SizeType count, Allocator* allocator)
+CLASS_HEADER::DynamicArray(T* data, size_type count, Allocator* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
@@ -442,7 +431,7 @@ CLASS_HEADER::DynamicArray(T* data, SizeType count, Allocator* allocator)
         OPAL_ASSERT(false, "Failed to allocate memory for Array");
         return;
     }
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(data[i]);  // Invokes copy constructor on allocated memory
     }
@@ -464,7 +453,7 @@ CLASS_HEADER::DynamicArray(const DynamicArray& other, Allocator* allocator)
         OPAL_ASSERT(false, "Failed to allocate memory for Array");
         return;
     }
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
     }
@@ -483,7 +472,7 @@ TEMPLATE_HEADER
 CLASS_HEADER::DynamicArray(const std::initializer_list<T>& init_list, Allocator* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
-    SizeType count = init_list.size();
+    size_type count = init_list.size();
     if (count > m_capacity)
     {
         m_data = Allocate(count);
@@ -494,7 +483,7 @@ CLASS_HEADER::DynamicArray(const std::initializer_list<T>& init_list, Allocator*
         m_capacity = count;
     }
     m_size = count;
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(*(init_list.begin() + i));  // Invokes copy constructor on allocated memory
     }
@@ -505,7 +494,7 @@ CLASS_HEADER::DynamicArray::~DynamicArray()
 {
     if (m_data != nullptr)
     {
-        for (SizeType i = 0; i < m_size; i++)
+        for (size_type i = 0; i < m_size; i++)
         {
             m_data[i].~T();  // Invokes destructor on allocated memory
         }
@@ -522,7 +511,7 @@ CLASS_HEADER& CLASS_HEADER::operator=(const DynamicArray& other)
     }
     if (m_data != nullptr)
     {
-        for (SizeType i = 0; i < m_size; i++)
+        for (size_type i = 0; i < m_size; i++)
         {
             m_data[i].~T();  // Invokes destructor on allocated memory
         }
@@ -548,7 +537,7 @@ CLASS_HEADER& CLASS_HEADER::operator=(const DynamicArray& other)
         }
     }
     m_size = other.m_size;
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
     }
@@ -564,7 +553,7 @@ CLASS_HEADER& CLASS_HEADER::operator=(DynamicArray&& other) noexcept
     }
     if (m_data != nullptr)
     {
-        for (SizeType i = 0; i < m_size; i++)
+        for (size_type i = 0; i < m_size; i++)
         {
             m_data[i].~T();  // Invokes destructor on allocated memory
         }
@@ -587,7 +576,7 @@ bool CLASS_HEADER::operator==(const DynamicArray& other) const
     {
         return false;
     }
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         if (m_data[i] != other.m_data[i])
         {
@@ -598,21 +587,21 @@ bool CLASS_HEADER::operator==(const DynamicArray& other) const
 }
 
 TEMPLATE_HEADER
-inline CLASS_HEADER::SizeType CLASS_HEADER::GetCapacity() const
+inline CLASS_HEADER::size_type CLASS_HEADER::GetCapacity() const
 {
     return m_capacity;
 }
 
 TEMPLATE_HEADER
-inline CLASS_HEADER::SizeType CLASS_HEADER::GetSize() const
+inline CLASS_HEADER::size_type CLASS_HEADER::GetSize() const
 {
     return m_size;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(DynamicArray::SizeType count, const T& value)
+Opal::ErrorCode CLASS_HEADER::Assign(DynamicArray::size_type count, const T& value)
 {
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         m_data[i].~T();  // Invokes destructor on allocated memory
     }
@@ -627,7 +616,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(DynamicArray::SizeType count, const T& valu
         }
     }
     m_size = count;
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(value);  // Invokes copy constructor on allocated memory
     }
@@ -643,8 +632,8 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start, InputIt end)
     {
         return ErrorCode::BadInput;
     }
-    SizeType count = static_cast<SizeType>(end - start);
-    for (SizeType i = 0; i < m_size; i++)
+    size_type count = static_cast<size_type>(end - start);
+    for (size_type i = 0; i < m_size; i++)
     {
         m_data[i].~T();  // Invokes destructor on allocated memory
     }
@@ -660,7 +649,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start, InputIt end)
     }
     m_size = count;
     InputIt current = start;
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         new (&m_data[i]) T(*(current + i));  // Invokes copy constructor on allocated memory
     }
@@ -668,9 +657,9 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start, InputIt end)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEADER::At(SizeType index)
+Opal::Expected<typename CLASS_HEADER::reference, Opal::ErrorCode> CLASS_HEADER::At(size_type index)
 {
-    using ReturnType = Expected<ReferenceType, ErrorCode>;
+    using ReturnType = Expected<reference, ErrorCode>;
     if (index >= m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -679,9 +668,9 @@ Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEAD
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS_HEADER::At(SizeType index) const
+Opal::Expected<typename CLASS_HEADER::const_reference, Opal::ErrorCode> CLASS_HEADER::At(size_type index) const
 {
-    using ReturnType = Expected<ConstReferenceType, ErrorCode>;
+    using ReturnType = Expected<const_reference, ErrorCode>;
     if (index >= m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -690,23 +679,23 @@ Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DynamicArray::SizeType index)
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](DynamicArray::size_type index)
 {
     OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ConstReferenceType CLASS_HEADER::operator[](DynamicArray::SizeType index) const
+typename CLASS_HEADER::const_reference CLASS_HEADER::operator[](DynamicArray::size_type index) const
 {
     OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEADER::Front()
+Opal::Expected<typename CLASS_HEADER::reference, Opal::ErrorCode> CLASS_HEADER::Front()
 {
-    using ReturnType = Expected<ReferenceType, ErrorCode>;
+    using ReturnType = Expected<reference, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -715,9 +704,9 @@ Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEAD
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS_HEADER::Front() const
+Opal::Expected<typename CLASS_HEADER::const_reference, Opal::ErrorCode> CLASS_HEADER::Front() const
 {
-    using ReturnType = Expected<ConstReferenceType, ErrorCode>;
+    using ReturnType = Expected<const_reference, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -726,9 +715,9 @@ Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEADER::Back()
+Opal::Expected<typename CLASS_HEADER::reference, Opal::ErrorCode> CLASS_HEADER::Back()
 {
-    using ReturnType = Expected<ReferenceType, ErrorCode>;
+    using ReturnType = Expected<reference, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -737,9 +726,9 @@ Opal::Expected<typename CLASS_HEADER::ReferenceType, Opal::ErrorCode> CLASS_HEAD
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::ConstReferenceType, Opal::ErrorCode> CLASS_HEADER::Back() const
+Opal::Expected<typename CLASS_HEADER::const_reference, Opal::ErrorCode> CLASS_HEADER::Back() const
 {
-    using ReturnType = Expected<ConstReferenceType, ErrorCode>;
+    using ReturnType = Expected<const_reference, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -760,7 +749,7 @@ inline const T* CLASS_HEADER::GetData() const
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Reserve(DynamicArray::SizeType new_capacity)
+Opal::ErrorCode CLASS_HEADER::Reserve(DynamicArray::size_type new_capacity)
 {
     if (new_capacity <= m_capacity)
     {
@@ -771,7 +760,7 @@ Opal::ErrorCode CLASS_HEADER::Reserve(DynamicArray::SizeType new_capacity)
     {
         return ErrorCode::OutOfMemory;
     }
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         new (&new_data[i]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
     }
@@ -782,13 +771,13 @@ Opal::ErrorCode CLASS_HEADER::Reserve(DynamicArray::SizeType new_capacity)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Resize(DynamicArray::SizeType new_size)
+Opal::ErrorCode CLASS_HEADER::Resize(DynamicArray::size_type new_size)
 {
     return Resize(new_size, T());
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Resize(DynamicArray::SizeType new_size, const T& default_value)
+Opal::ErrorCode CLASS_HEADER::Resize(DynamicArray::size_type new_size, const T& default_value)
 {
     if (new_size == m_size)
     {
@@ -796,7 +785,7 @@ Opal::ErrorCode CLASS_HEADER::Resize(DynamicArray::SizeType new_size, const T& d
     }
     if (new_size < m_size)
     {
-        for (SizeType i = new_size; i < m_size; i++)
+        for (size_type i = new_size; i < m_size; i++)
         {
             m_data[i].~T();  // Invokes destructor on allocated memory
         }
@@ -812,7 +801,7 @@ Opal::ErrorCode CLASS_HEADER::Resize(DynamicArray::SizeType new_size, const T& d
                 return err;
             }
         }
-        for (SizeType i = m_size; i < new_size; i++)
+        for (size_type i = m_size; i < new_size; i++)
         {
             new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
         }
@@ -824,7 +813,7 @@ Opal::ErrorCode CLASS_HEADER::Resize(DynamicArray::SizeType new_size, const T& d
 TEMPLATE_HEADER
 void CLASS_HEADER::Clear()
 {
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         m_data[i].~T();  // Invokes destructor on allocated memory
     }
@@ -836,7 +825,7 @@ Opal::ErrorCode CLASS_HEADER::PushBack(const T& value)
 {
     if (m_size == m_capacity)
     {
-        const SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        const size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
@@ -853,7 +842,7 @@ Opal::ErrorCode CLASS_HEADER::PushBack(T&& value)
 {
     if (m_size == m_capacity)
     {
-        const SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        const size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
@@ -877,24 +866,24 @@ void CLASS_HEADER::PopBack()
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType position, const T& value)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(const_iterator position, const T& value)
 {
     if (position < cbegin() || position > cend())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+        return Expected<iterator, ErrorCode>(ErrorCode::OutOfBounds);
     }
-    SizeType pos_offset = position - cbegin();
+    size_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
     {
-        const SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        const size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
-            return Expected<IteratorType, ErrorCode>(err);
+            return Expected<iterator, ErrorCode>(err);
         }
     }
-    IteratorType it = end() - 1;
-    IteratorType mut_position = begin() + pos_offset;
+    iterator it = end() - 1;
+    iterator mut_position = begin() + pos_offset;
     while (it >= mut_position)
     {
         *(it + 1) = Move(*it);
@@ -902,28 +891,28 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     *mut_position = value;
     m_size++;
-    return Expected<IteratorType, ErrorCode>(mut_position);
+    return Expected<iterator, ErrorCode>(mut_position);
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(DynamicArray::ConstIteratorType position, T&& value)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(DynamicArray::const_iterator position, T&& value)
 {
     if (position < cbegin() || position > cend())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+        return Expected<iterator, ErrorCode>(ErrorCode::OutOfBounds);
     }
-    SizeType pos_offset = position - cbegin();
+    size_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
     {
-        const SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        const size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
-            return Expected<IteratorType, ErrorCode>(err);
+            return Expected<iterator, ErrorCode>(err);
         }
     }
-    IteratorType it = end() - 1;
-    IteratorType mut_position = begin() + pos_offset;
+    iterator it = end() - 1;
+    iterator mut_position = begin() + pos_offset;
     while (it >= mut_position)
     {
         *(it + 1) = Move(*it);
@@ -931,102 +920,102 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     *mut_position = Move(value);
     m_size++;
-    return Expected<IteratorType, ErrorCode>(mut_position);
+    return Expected<iterator, ErrorCode>(mut_position);
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(DynamicArray::ConstIteratorType position,
-                                                                                          DynamicArray::SizeType count, const T& value)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(DynamicArray::const_iterator position,
+                                                                                          DynamicArray::size_type count, const T& value)
 {
     if (position < cbegin() || position > cend())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+        return Expected<iterator, ErrorCode>(ErrorCode::OutOfBounds);
     }
     if (count == 0)
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<iterator, ErrorCode>(ErrorCode::BadInput);
     }
-    SizeType pos_offset = position - cbegin();
+    size_type pos_offset = position - cbegin();
     if (m_size + count > m_capacity)
     {
-        SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
         new_capacity = m_size + count > new_capacity ? m_size + count : new_capacity;
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
-            return Expected<IteratorType, ErrorCode>(err);
+            return Expected<iterator, ErrorCode>(err);
         }
     }
-    IteratorType it = end() - 1;
-    IteratorType mut_position = begin() + pos_offset;
+    iterator it = end() - 1;
+    iterator mut_position = begin() + pos_offset;
     while (it >= mut_position)
     {
         *(it + count) = Move(*it);
         --it;
     }
-    IteratorType return_it = mut_position;
-    for (SizeType i = 0; i < count; i++)
+    iterator return_it = mut_position;
+    for (size_type i = 0; i < count; i++)
     {
         *mut_position = value;
         ++mut_position;
     }
     m_size += count;
-    return Expected<IteratorType, ErrorCode>(return_it);
+    return Expected<iterator, ErrorCode>(return_it);
 }
 
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType position, InputIt start,
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(const_iterator position, InputIt start,
                                                                                           InputIt end_it)
 {
     if (position < cbegin() || position > cend())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+        return Expected<iterator, ErrorCode>(ErrorCode::OutOfBounds);
     }
     if (start >= end_it)
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<iterator, ErrorCode>(ErrorCode::BadInput);
     }
-    SizeType pos_offset = position - cbegin();
-    SizeType count = static_cast<SizeType>(end_it - start);
+    size_type pos_offset = position - cbegin();
+    size_type count = static_cast<size_type>(end_it - start);
     if (m_size + count > m_capacity)
     {
-        SizeType new_capacity = static_cast<SizeType>((m_capacity * k_resize_factor) + 1.0);
+        size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
         new_capacity = m_size + count > new_capacity ? m_size + count : new_capacity;
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
-            return Expected<IteratorType, ErrorCode>(err);
+            return Expected<iterator, ErrorCode>(err);
         }
     }
-    IteratorType it = end() -  1;
-    IteratorType mut_position = begin() + pos_offset;
+    iterator it = end() -  1;
+    iterator mut_position = begin() + pos_offset;
     while (it >= mut_position)
     {
         *(it + count) = Move(*it);
         --it;
     }
-    IteratorType return_it = mut_position;
+    iterator return_it = mut_position;
     for (InputIt current = start; current < end_it; ++current)
     {
         *mut_position = *current;
         ++mut_position;
     }
     m_size += count;
-    return Expected<IteratorType, ErrorCode>(return_it);
+    return Expected<iterator, ErrorCode>(return_it);
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(DynamicArray::ConstIteratorType position)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(DynamicArray::const_iterator position)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (position < cbegin() || position >= cend())
     {
         return ReturnType{ErrorCode::OutOfBounds};
     }
-    SizeType pos_offset = position - cbegin();
-    IteratorType mut_position = begin() + pos_offset;
+    size_type pos_offset = position - cbegin();
+    iterator mut_position = begin() + pos_offset;
     (*mut_position).~T();  // Invokes destructor on allocated memory
     while (mut_position < end() - 1)
     {
@@ -1038,15 +1027,15 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType position)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(iterator position)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (position < begin() || position >= end())
     {
         return ReturnType{ErrorCode::OutOfBounds};
     }
-    SizeType pos_offset = position - begin();
-    IteratorType mut_position = begin() + pos_offset;
+    size_type pos_offset = position - begin();
+    iterator mut_position = begin() + pos_offset;
     (*mut_position).~T();  // Invokes destructor on allocated memory
     while (mut_position < end() - 1)
     {
@@ -1058,14 +1047,14 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(DynamicArray::ConstIteratorType position)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(DynamicArray::const_iterator position)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (position < cbegin() || position >= cend())
     {
         return ReturnType{ErrorCode::OutOfBounds};
     }
-    IteratorType mut_position = begin() + (position - cbegin());
+    iterator mut_position = begin() + (position - cbegin());
     (*mut_position).~T();  // Invokes destructor on allocated memory
     if (mut_position != end() - 1)
     {
@@ -1078,14 +1067,14 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(IteratorType position)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(iterator position)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (position < begin() || position >= end())
     {
         return ReturnType{ErrorCode::OutOfBounds};
     }
-    IteratorType mut_position = begin() + (position - begin());
+    iterator mut_position = begin() + (position - begin());
     (*mut_position).~T();  // Invokes destructor on allocated memory
     if (mut_position != end() - 1)
     {
@@ -1098,29 +1087,29 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(DynamicArray::ConstIteratorType start_it,
-                                                                                         DynamicArray::ConstIteratorType end_it)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(DynamicArray::const_iterator start_it,
+                                                                                         DynamicArray::const_iterator end_it)
 {
     if (start_it > end_it)
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<iterator, ErrorCode>(ErrorCode::BadInput);
     }
     if (start_it < cbegin() || end_it > cend())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+        return Expected<iterator, ErrorCode>(ErrorCode::OutOfBounds);
     }
     if (start_it == end_it)
     {
-        return Expected<IteratorType, ErrorCode>(begin() + (start_it - cbegin()));
+        return Expected<iterator, ErrorCode>(begin() + (start_it - cbegin()));
     }
-    const SizeType start_offset = start_it - cbegin();
-    const SizeType end_offset = end_it - cbegin();
-    for (SizeType i = start_offset; i < end_offset; i++)
+    const size_type start_offset = start_it - cbegin();
+    const size_type end_offset = end_it - cbegin();
+    for (size_type i = start_offset; i < end_offset; i++)
     {
         m_data[i].~T();  // Invokes destructor on allocated memory
     }
-    IteratorType mut_start = begin() + start_offset;
-    IteratorType mut_end = begin() + end_offset;
+    iterator mut_start = begin() + start_offset;
+    iterator mut_end = begin() + end_offset;
     while (mut_end < end())
     {
         *mut_start = Move(*mut_end);
@@ -1128,33 +1117,33 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
         ++mut_end;
     }
     m_size += start_offset - end_offset;
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     return ReturnType{begin() + start_offset};
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType start_it, IteratorType end_it)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(iterator start_it, iterator end_it)
 {
     if (start_it > end_it)
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<iterator, ErrorCode>(ErrorCode::BadInput);
     }
     if (start_it < begin() || end_it > end())
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
+        return Expected<iterator, ErrorCode>(ErrorCode::OutOfBounds);
     }
     if (start_it == end_it)
     {
-        return Expected<IteratorType, ErrorCode>(begin() + (start_it - begin()));
+        return Expected<iterator, ErrorCode>(begin() + (start_it - begin()));
     }
-    const SizeType start_offset = start_it - begin();
-    const SizeType end_offset = end_it - begin();
-    for (SizeType i = start_offset; i < end_offset; i++)
+    const size_type start_offset = start_it - begin();
+    const size_type end_offset = end_it - begin();
+    for (size_type i = start_offset; i < end_offset; i++)
     {
         m_data[i].~T();  // Invokes destructor on allocated memory
     }
-    IteratorType mut_start = begin() + start_offset;
-    IteratorType mut_end = begin() + end_offset;
+    iterator mut_start = begin() + start_offset;
+    iterator mut_end = begin() + end_offset;
     while (mut_end < end())
     {
         *mut_start = Move(*mut_end);
@@ -1162,16 +1151,16 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
         ++mut_end;
     }
     m_size += start_offset - end_offset;
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     return ReturnType{begin() + start_offset};
 }
 
 TEMPLATE_HEADER
-T* CLASS_HEADER::Allocate(SizeType count)
+T* CLASS_HEADER::Allocate(size_type count)
 {
     OPAL_ASSERT(m_allocator, "Allocator should never be null!");
     constexpr u64 k_alignment = 8;
-    const SizeType bytes_to_allocate = count * sizeof(T);
+    const size_type bytes_to_allocate = count * sizeof(T);
     return static_cast<T*>(m_allocator->Alloc(bytes_to_allocate, k_alignment));
 }
 
@@ -1186,28 +1175,28 @@ void CLASS_HEADER::Deallocate(T* ptr)
 #undef CLASS_HEADER
 
 #define TEMPLATE_HEADER template <typename MyArray>
-#define CLASS_HEADER Opal::ArrayIterator<MyArray>
+#define CLASS_HEADER Opal::DynamicArrayIterator<MyArray>
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator>(const ArrayIterator& other) const
+bool CLASS_HEADER::operator>(const DynamicArrayIterator& other) const
 {
     return m_ptr > other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator>=(const ArrayIterator& other) const
+bool CLASS_HEADER::operator>=(const DynamicArrayIterator& other) const
 {
     return m_ptr >= other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator<(const ArrayIterator& other) const
+bool CLASS_HEADER::operator<(const DynamicArrayIterator& other) const
 {
     return m_ptr < other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator<=(const ArrayIterator& other) const
+bool CLASS_HEADER::operator<=(const DynamicArrayIterator& other) const
 {
     return m_ptr <= other.m_ptr;
 }
@@ -1222,7 +1211,7 @@ CLASS_HEADER& CLASS_HEADER::operator++()
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator++(int)
 {
-    ArrayIterator temp = *this;
+    DynamicArrayIterator temp = *this;
     m_ptr++;
     return temp;
 }
@@ -1237,64 +1226,64 @@ CLASS_HEADER& CLASS_HEADER::operator--()
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator--(int)
 {
-    ArrayIterator temp = *this;
+    DynamicArrayIterator temp = *this;
     m_ptr--;
     return temp;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
 {
-    return ArrayIterator(m_ptr + n);
+    return DynamicArrayIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
 {
-    return ArrayIterator(m_ptr - n);
+    return DynamicArrayIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(difference_type n)
 {
     m_ptr += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
 {
     m_ptr -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const ArrayIterator& other) const
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const DynamicArrayIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](difference_type n) const
 {
     return *(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
+typename CLASS_HEADER::reference CLASS_HEADER::operator*() const
 {
     OPAL_ASSERT(m_ptr, "Dereferencing null pointer");
     return *m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
+typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 {
     return m_ptr;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename ArrayIterator<MyArray>::DifferenceType n, const ArrayIterator<MyArray>& it)
+CLASS_HEADER Opal::operator+(typename DynamicArrayIterator<MyArray>::difference_type n, const DynamicArrayIterator<MyArray>& it)
 {
     return it + n;
 }
@@ -1303,28 +1292,28 @@ CLASS_HEADER Opal::operator+(typename ArrayIterator<MyArray>::DifferenceType n, 
 #undef CLASS_HEADER
 
 #define TEMPLATE_HEADER template <typename MyArray>
-#define CLASS_HEADER Opal::ArrayConstIterator<MyArray>
+#define CLASS_HEADER Opal::DynamicArrayConstIterator<MyArray>
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator>(const ArrayConstIterator& other) const
+bool CLASS_HEADER::operator>(const DynamicArrayConstIterator& other) const
 {
     return m_ptr > other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator>=(const ArrayConstIterator& other) const
+bool CLASS_HEADER::operator>=(const DynamicArrayConstIterator& other) const
 {
     return m_ptr >= other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator<(const ArrayConstIterator& other) const
+bool CLASS_HEADER::operator<(const DynamicArrayConstIterator& other) const
 {
     return m_ptr < other.m_ptr;
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::operator<=(const ArrayConstIterator& other) const
+bool CLASS_HEADER::operator<=(const DynamicArrayConstIterator& other) const
 {
     return m_ptr <= other.m_ptr;
 }
@@ -1339,7 +1328,7 @@ CLASS_HEADER& CLASS_HEADER::operator++()
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator++(int)
 {
-    ArrayConstIterator temp = *this;
+    DynamicArrayConstIterator temp = *this;
     m_ptr++;
     return temp;
 }
@@ -1354,63 +1343,63 @@ CLASS_HEADER& CLASS_HEADER::operator--()
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator--(int)
 {
-    ArrayConstIterator temp = *this;
+    DynamicArrayConstIterator temp = *this;
     m_ptr--;
     return temp;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
 {
-    return ArrayConstIterator(m_ptr + n);
+    return DynamicArrayConstIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
 {
-    return ArrayConstIterator(m_ptr - n);
+    return DynamicArrayConstIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(difference_type n)
 {
     m_ptr += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
 {
     m_ptr -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const ArrayConstIterator& other) const
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const DynamicArrayConstIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](difference_type n) const
 {
     return *(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
+typename CLASS_HEADER::reference CLASS_HEADER::operator*() const
 {
     return *m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
+typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 {
     return m_ptr;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename ArrayConstIterator<MyArray>::DifferenceType n, const ArrayConstIterator<MyArray>& it)
+CLASS_HEADER Opal::operator+(typename DynamicArrayConstIterator<MyArray>::difference_type n, const DynamicArrayConstIterator<MyArray>& it)
 {
     return it + n;
 }
