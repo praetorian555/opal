@@ -121,16 +121,16 @@ concept Destructible = requires(T a) {
 };
 
 template <typename T>
-concept HasStdDifferenceSubType = requires { typename T::difference_type; };
+concept HasDifferenceSubType = requires { typename T::difference_type; };
 
 template <typename T>
 struct DifferenceTypeGetter
 {
-    using Type = typename T::DifferenceType;
+    using Type = void;
 };
 
 template <typename T>
-    requires HasStdDifferenceSubType<T>
+    requires HasDifferenceSubType<T>
 struct DifferenceTypeGetter<T>
 {
     using Type = typename T::difference_type;
@@ -142,18 +142,17 @@ struct DifferenceTypeGetter<T*>
     using Type = i64;
 };
 
-#if defined(OPAL_PLATFORM_WINDOWS)
 template <typename T>
-concept HasStdReferenceSubType = requires { typename T::reference; };
+concept HasReferenceSubType = requires { typename T::reference; };
 
-template <typename T, bool Helper = false>
+template <typename T>
 struct ReferenceTypeGetter
 {
-    using Type = T::ReferenceType;
+    using Type = void;
 };
 
 template <typename T>
-    requires HasStdReferenceSubType<T>
+    requires HasReferenceSubType<T>
 struct ReferenceTypeGetter<T>
 {
     using Type = typename T::reference;
@@ -164,39 +163,6 @@ struct ReferenceTypeGetter<T*>
 {
     using Type = T&;
 };
-#elif defined(OPAL_PLATFORM_LINUX)
-template <typename T>
-concept HasOpalReferenceSubType = requires { typename T::ReferenceType; };
-
-template <typename T>
-concept HasStdReferenceSubType = requires { typename T::reference; };
-
-template <typename T, bool Helper = false>
-struct ReferenceTypeGetter
-{
-    using Type = int;
-};
-
-template <typename T>
-    requires HasOpalReferenceSubType<T>
-struct ReferenceTypeGetter<T, false>
-{
-    using Type = typename T::ReferenceType;
-};
-
-template <typename T>
-    requires HasStdReferenceSubType<T>
-struct ReferenceTypeGetter<T, true>
-{
-    using Type = typename T::reference;
-};
-
-template <typename T>
-struct ReferenceTypeGetter<T*>
-{
-    using Type = T&;
-};
-#endif
 
 /** Concept to get value sub-type from a given type if it exists. */
 
