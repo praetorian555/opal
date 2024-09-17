@@ -8,6 +8,6 @@ namespace Opal
 {
 
 template <typename T, u64 N>
-using StackArray = std::array<T, N>;
+using InPlaceArray = std::array<T, N>;
 
 } // namespace Opal
