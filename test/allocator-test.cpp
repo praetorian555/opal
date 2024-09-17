@@ -56,4 +56,5 @@ TEST_CASE("Default allocator", "[Allocator]")
     REQUIRE(std::strcmp(allocator->GetName(), "MallocAllocator") == 0);
     void* memory3 = allocator->Alloc(16, 16);
     REQUIRE(memory3 != nullptr);
+    allocator->Free(memory3);
 }
