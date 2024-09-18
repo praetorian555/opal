@@ -45,6 +45,12 @@ RemoveReferenceType<T>&& Move(T&& value)
 }
 
 template <typename T>
+inline constexpr bool k_is_pointer_value = false;
+
+template <typename T>
+inline constexpr bool k_is_pointer_value<T*> = true;
+
+template <typename T>
 inline constexpr bool k_is_reference_value = false;
 
 template <typename T>
@@ -58,6 +64,12 @@ inline constexpr bool k_is_const_value = false;
 
 template <typename T>
 inline constexpr bool k_is_const_value<const T> = true;
+
+template <typename T>
+inline constexpr bool k_is_array_literal_value = false;
+
+template <typename T, u64 N>
+inline constexpr bool k_is_array_literal_value<T[N]> = true;
 
 template <typename From, typename To, typename = void>
 inline constexpr bool k_is_convertible_value = false;
@@ -88,6 +100,15 @@ inline constexpr bool k_is_same_value = false;
 
 template <typename T>
 inline constexpr bool k_is_same_value<T, T> = true;
+
+template <typename T>
+concept Pointer = k_is_pointer_value<T>;
+
+template <typename T>
+concept Reference = k_is_reference_value<T>;
+
+template <typename T>
+concept ArrayLiteral = k_is_array_literal_value<T>;
 
 template <typename T, typename U>
 concept SameAs = k_is_same_value<T, U>;
