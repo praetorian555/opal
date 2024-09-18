@@ -174,7 +174,7 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
         output = ArrayView<CodeUnitT>(out_begin + 4, out_end);
         return ErrorCode::Success;
     }
-    return ErrorCode::BadInput;
+    return ErrorCode::InvalidArgument;
 }
 
 TEMPLATE_HEADER
@@ -201,7 +201,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
         }
         if ((input[1] & 0x80) != 0x80 || (input[2] & 0x80) != 0x80 || (input[3] & 0x80) != 0x80)
         {
-            return ErrorCode::BadInput;
+            return ErrorCode::InvalidArgument;
         }
         out_code_point = ((input[0] & 0x07) << 18) | ((input[1] & 0x3F) << 12) | ((input[2] & 0x3F) << 6) | (input[3] & 0x3F);
         input = ArrayView<const CodeUnitT>(in_begin + 4, in_end);
@@ -215,7 +215,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
         }
         if ((input[1] & 0x80) != 0x80 || (input[2] & 0x80) != 0x80)
         {
-            return ErrorCode::BadInput;
+            return ErrorCode::InvalidArgument;
         }
         out_code_point = ((input[0] & 0x0F) << 12) | ((input[1] & 0x3F) << 6) | (input[2] & 0x3F);
         input = ArrayView<const CodeUnitT>(in_begin + 3, in_end);
@@ -229,13 +229,13 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
         }
         if ((input[1] & 0x80) != 0x80)
         {
-            return ErrorCode::BadInput;
+            return ErrorCode::InvalidArgument;
         }
         out_code_point = ((input[0] & 0x1F) << 6) | (input[1] & 0x3F);
         input = ArrayView<const CodeUnitT>(in_begin + 2, in_end);
         return ErrorCode::Success;
     }
-    return ErrorCode::BadInput;
+    return ErrorCode::InvalidArgument;
 }
 
 #undef TEMPLATE_HEADER
@@ -286,7 +286,7 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
         if (in_code_point >= 0xD800 && in_code_point <= 0xDFFF)
         {
             // Surrogate values are not valid Unicode code points
-            return ErrorCode::BadInput;
+            return ErrorCode::InvalidArgument;
         }
         output[0] = static_cast<CodeUnitT>(in_code_point);
         output = ArrayView<CodeUnitT>(output.begin() + 1, output.end());
@@ -306,7 +306,7 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
         output = ArrayView<CodeUnitT>(output.begin() + 2, output.end());
         return ErrorCode::Success;
     }
-    return ErrorCode::BadInput;
+    return ErrorCode::InvalidArgument;
 }
 
 TEMPLATE_HEADER
@@ -335,9 +335,9 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
             input = ArrayView<const CodeUnitT>(input.begin() + 2, input.end());
             return ErrorCode::Success;
         }
-        return ErrorCode::BadInput;
+        return ErrorCode::InvalidArgument;
     }
-    return ErrorCode::BadInput;
+    return ErrorCode::InvalidArgument;
 }
 
 #undef TEMPLATE_HEADER

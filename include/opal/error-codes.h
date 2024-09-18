@@ -10,7 +10,7 @@ enum class ErrorCode : u8
     Success = 0,
     OutOfBounds = 1,
     OutOfMemory = 2,
-    BadInput = 3,
+    InvalidArgument = 3,
     EndOfString = 4,
     IncompleteSequence = 5,
     InsufficientSpace = 6,

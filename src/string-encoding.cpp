@@ -19,7 +19,7 @@ Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, Arr
     const size_t count = c32rtomb(output.GetData(), in_code_point, &m_encoding_state);
     if (count == static_cast<size_t>(-1))
     {
-        return ErrorCode::BadInput;
+        return ErrorCode::InvalidArgument;
     }
     output = ArrayView<CodeUnitType>(output.begin() + static_cast<i64>(count), output.end());
     return ErrorCode::Success;
@@ -40,7 +40,7 @@ Opal::ErrorCode Opal::EncodingLocale::DecodeOne(ArrayView<const CodeUnitType>& i
     }
     if (count == static_cast<size_t>(-1))
     {
-        return ErrorCode::BadInput;
+        return ErrorCode::InvalidArgument;
     }
     if (count == static_cast<size_t>(-2))
     {

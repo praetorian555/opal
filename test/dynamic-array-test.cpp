@@ -736,7 +736,7 @@ TEST_CASE("Assign with POD data", "[Array]")
         DynamicArray<i32> int_arr(3, 42);
         std::array<i32, 5> values = {25, 26, 27, 28, 29};
         ErrorCode err = int_arr.Assign(values.end(), values.begin());
-        REQUIRE(err == ErrorCode::BadInput);
+        REQUIRE(err == ErrorCode::InvalidArgument);
         REQUIRE(int_arr.GetCapacity() == 3);
         REQUIRE(int_arr.GetSize() == 3);
         REQUIRE(int_arr.GetData() != nullptr);
@@ -1957,7 +1957,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             i32 val = 25;
             ErrorCode err = int_arr.Insert(int_arr.cbegin(), 0, val).GetError();
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::InvalidArgument);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2044,7 +2044,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(2, 5);
             ErrorCode err = int_arr.Insert(int_arr.cbegin(), other.cend(), other.cbegin()).GetError();
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::InvalidArgument);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2312,7 +2312,7 @@ TEST_CASE("Erase", "[Array]")
         {
             DynamicArray<i32> int_arr(5, 42);
             ErrorCode err = int_arr.Erase(int_arr.cend(), int_arr.cbegin()).GetError();
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::InvalidArgument);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2389,7 +2389,7 @@ TEST_CASE("Erase", "[Array]")
         {
             DynamicArray<i32> int_arr(5, 42);
             ErrorCode err = int_arr.Erase(int_arr.end(), int_arr.begin()).GetError();
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::InvalidArgument);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);

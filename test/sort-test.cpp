@@ -42,6 +42,6 @@ TEST_CASE("KeyIndexedCounting", "[sort]")
         ArrayView<u64> values_span(values);
 
         ErrorCode err = KeyIndexedCounting<4>(keys_span, values_span);
-        REQUIRE(err == ErrorCode::BadInput);
+        REQUIRE(err == ErrorCode::InvalidArgument);
     }
 }

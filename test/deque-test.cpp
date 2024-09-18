@@ -1222,7 +1222,7 @@ TEST_CASE("Insert multiple with iterators", "[Deque]")
     {
         Deque<i32> deque(5, 10);
         ErrorCode err = deque.InsertIt(deque.ConstEnd(), deque.ConstEnd(), deque.ConstBegin()).GetError();
-        REQUIRE(err == ErrorCode::BadInput);
+        REQUIRE(err == ErrorCode::InvalidArgument);
         REQUIRE(deque.GetCapacity() == 8);
         REQUIRE(deque.GetSize() == 5);
         REQUIRE(deque[0] == 10);
@@ -1418,7 +1418,7 @@ TEST_CASE("Erase multiple", "[Deque]")
     {
         Deque<i32> deque(5, 10);
         ErrorCode err = deque.Erase(deque.ConstEnd(), deque.ConstBegin()).GetError();
-        REQUIRE(err == ErrorCode::BadInput);
+        REQUIRE(err == ErrorCode::InvalidArgument);
         REQUIRE(deque.GetCapacity() == 8);
         REQUIRE(deque.GetSize() == 5);
         REQUIRE(deque[0] == 10);

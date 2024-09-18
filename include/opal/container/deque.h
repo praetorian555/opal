@@ -597,7 +597,7 @@ Opal::ErrorCode CLASS_HEADER::AssignIt(InputIt first, InputIt last)
 {
     if (first > last)
     {
-        return ErrorCode::BadInput;
+        return ErrorCode::InvalidArgument;
     }
     if (first == last)
     {
@@ -964,7 +964,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     if (first > last)
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<IteratorType, ErrorCode>(ErrorCode::InvalidArgument);
     }
     const SizeType count = last - first;
     if (count == 0)
@@ -1091,7 +1091,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     if (first > last)
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<IteratorType, ErrorCode>(ErrorCode::InvalidArgument);
     }
     if (first == last)
     {
@@ -1128,7 +1128,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     if (first > last)
     {
-        return Expected<IteratorType, ErrorCode>(ErrorCode::BadInput);
+        return Expected<IteratorType, ErrorCode>(ErrorCode::InvalidArgument);
     }
     if (first == last)
     {

@@ -22,7 +22,7 @@ ErrorCode KeyIndexedCounting(const ArrayView<Key>& in_keys, ArrayView<Value>& in
 {
     if (in_out_value.GetSize() != in_keys.GetSize())
     {
-        return ErrorCode::BadInput;
+        return ErrorCode::InvalidArgument;
     }
     if (in_keys.GetSize() == 0)
     {

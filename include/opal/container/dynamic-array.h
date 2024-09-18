@@ -670,7 +670,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start, InputIt end)
 {
     if (start > end)
     {
-        return ErrorCode::BadInput;
+        return ErrorCode::InvalidArgument;
     }
     size_type count = static_cast<size_type>(end - start);
     for (size_type i = 0; i < m_size; i++)
@@ -973,7 +973,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     if (count == 0)
     {
-        return Expected<iterator, ErrorCode>(ErrorCode::BadInput);
+        return Expected<iterator, ErrorCode>(ErrorCode::InvalidArgument);
     }
     size_type pos_offset = position - cbegin();
     if (m_size + count > m_capacity)
@@ -1015,7 +1015,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     if (start >= end_it)
     {
-        return Expected<iterator, ErrorCode>(ErrorCode::BadInput);
+        return Expected<iterator, ErrorCode>(ErrorCode::InvalidArgument);
     }
     size_type pos_offset = position - cbegin();
     size_type count = static_cast<size_type>(end_it - start);
@@ -1132,7 +1132,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
 {
     if (start_it > end_it)
     {
-        return Expected<iterator, ErrorCode>(ErrorCode::BadInput);
+        return Expected<iterator, ErrorCode>(ErrorCode::InvalidArgument);
     }
     if (start_it < cbegin() || end_it > cend())
     {
@@ -1166,7 +1166,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
 {
     if (start_it > end_it)
     {
-        return Expected<iterator, ErrorCode>(ErrorCode::BadInput);
+        return Expected<iterator, ErrorCode>(ErrorCode::InvalidArgument);
     }
     if (start_it < begin() || end_it > end())
     {
