@@ -126,13 +126,53 @@ public:
     static_assert(!k_is_reference_value<value_type>, "Value type must not be a reference");
     static_assert(!k_is_const_value<value_type>, "Value type must not be const");
 
-    // Constructors
+    /**
+     * Default constructor.
+     * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
+     */
     DynamicArray(Allocator* allocator = nullptr);
+
+    /**
+     * Construct an array with `count` default constructed elements.
+     * @param count Number of elements to construct.
+     * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
+     */
     explicit DynamicArray(size_type count, Allocator* allocator = nullptr);
+
+    /**
+     * Construct an array with `count` elements with value `default_value`.
+     * @param count Number of elements to construct.
+     * @param default_value Value of the elements.
+     * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
+     */
     DynamicArray(size_type count, const T& default_value, Allocator* allocator = nullptr);
+
+    /**
+     * Construct an array with `count` elements copied from `data`.
+     * @param data Source data.
+     * @param count Number of elements to copy.
+     * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
+     */
     DynamicArray(T* data, size_type count, Allocator* allocator = nullptr);
+
+    /**
+     * Copy constructor.
+     * @param other Source array.
+     * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
+     */
     DynamicArray(const DynamicArray& other, Allocator* allocator = nullptr);
+
+    /**
+     * Move constructor.
+     * @param other Source array.
+     */
     DynamicArray(DynamicArray&& other) noexcept;
+
+    /**
+     * Construct an array with elements from the initializer list.
+     * @param init_list Initializer list.
+     * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
+     */
     DynamicArray(const std::initializer_list<T>& init_list, Allocator* allocator = nullptr);
 
     ~DynamicArray();
