@@ -49,6 +49,7 @@ set(OPAL_FILES
         include/opal/error-codes.h
         include/opal/time.h
         include/opal/paths.h
+        include/opal/common.h
         include/opal/source-location.h
         include/opal/container/iterator.h
         include/opal/container/expected.h
@@ -110,6 +111,7 @@ if (OPAL_BUILD_TESTS)
             test/sort-test.cpp
             test/paths-test.cpp
             test/scope-ptr-test.cpp
+            test/common-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
