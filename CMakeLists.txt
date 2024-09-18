@@ -111,6 +111,7 @@ if (OPAL_BUILD_TESTS)
             test/sort-test.cpp
             test/paths-test.cpp
             test/scope-ptr-test.cpp
+            test/in-place-array-test.cpp
             test/common-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
