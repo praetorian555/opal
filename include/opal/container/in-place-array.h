@@ -22,7 +22,69 @@ public:
     using difference_type = typename MyArray::difference_type;
     using reference = typename MyArray::reference;
     using pointer = typename MyArray::pointer;
+
+    InPlaceArrayIterator() = default;
+    explicit InPlaceArrayIterator(pointer ptr) : m_ptr(ptr) {}
+
+    bool operator==(const InPlaceArrayIterator& other) const { return m_ptr == other.m_ptr; }
+    bool operator>(const InPlaceArrayIterator& other) const { return m_ptr > other.m_ptr; }
+    bool operator>=(const InPlaceArrayIterator& other) const { return m_ptr >= other.m_ptr; }
+    bool operator<(const InPlaceArrayIterator& other) const { return m_ptr < other.m_ptr; }
+    bool operator<=(const InPlaceArrayIterator& other) const { return m_ptr <= other.m_ptr; }
+
+    InPlaceArrayIterator& operator++()
+    {
+        ++m_ptr;
+        return *this;
+    }
+    InPlaceArrayIterator operator++(int)
+    {
+        InPlaceArrayIterator tmp = *this;
+        ++m_ptr;
+        return tmp;
+    }
+
+    InPlaceArrayIterator& operator--()
+    {
+        --m_ptr;
+        return *this;
+    }
+    InPlaceArrayIterator operator--(int)
+    {
+        InPlaceArrayIterator tmp = *this;
+        --m_ptr;
+        return tmp;
+    }
+
+    InPlaceArrayIterator operator+(difference_type n) const { return InPlaceArrayIterator(m_ptr + n); }
+    InPlaceArrayIterator operator-(difference_type n) const { return InPlaceArrayIterator(m_ptr - n); }
+
+    InPlaceArrayIterator& operator+=(difference_type n)
+    {
+        m_ptr += n;
+        return *this;
+    }
+    InPlaceArrayIterator& operator-=(difference_type n)
+    {
+        m_ptr -= n;
+        return *this;
+    }
+
+    difference_type operator-(const InPlaceArrayIterator& other) const { return m_ptr - other.m_ptr; }
+
+    reference operator[](difference_type n) const { return *(m_ptr + n); }
+    reference operator*() const { return *m_ptr; }
+    pointer operator->() const { return m_ptr; }
+
+private:
+    pointer m_ptr;
 };
+
+template <typename MyArray>
+InPlaceArrayIterator<MyArray> operator+(typename InPlaceArrayIterator<MyArray>::difference_type n, const InPlaceArrayIterator<MyArray>& it)
+{
+    return it + n;
+}
 
 template <typename MyArray>
 class InPlaceArrayConstIterator
@@ -30,9 +92,71 @@ class InPlaceArrayConstIterator
 public:
     using value_type = typename MyArray::value_type;
     using difference_type = typename MyArray::difference_type;
-    using reference = typename MyArray::reference;
-    using pointer = typename MyArray::pointer;
+    using const_reference = typename MyArray::const_reference;
+    using const_pointer = typename MyArray::const_pointer;
+
+    InPlaceArrayConstIterator() = default;
+    explicit InPlaceArrayConstIterator(const_pointer ptr) : m_ptr(ptr) {}
+
+    bool operator==(const InPlaceArrayConstIterator& other) const { return m_ptr == other.m_ptr; }
+    bool operator>(const InPlaceArrayConstIterator& other) const { return m_ptr > other.m_ptr; }
+    bool operator>=(const InPlaceArrayConstIterator& other) const { return m_ptr >= other.m_ptr; }
+    bool operator<(const InPlaceArrayConstIterator& other) const { return m_ptr < other.m_ptr; }
+    bool operator<=(const InPlaceArrayConstIterator& other) const { return m_ptr <= other.m_ptr; }
+
+    InPlaceArrayConstIterator& operator++()
+    {
+        ++m_ptr;
+        return *this;
+    }
+    InPlaceArrayConstIterator operator++(int)
+    {
+        InPlaceArrayConstIterator tmp = *this;
+        ++m_ptr;
+        return tmp;
+    }
+    InPlaceArrayConstIterator& operator--()
+    {
+        --m_ptr;
+        return *this;
+    }
+    InPlaceArrayConstIterator operator--(int)
+    {
+        InPlaceArrayConstIterator tmp = *this;
+        --m_ptr;
+        return tmp;
+    }
+
+    InPlaceArrayConstIterator operator+(difference_type n) const { return InPlaceArrayConstIterator(m_ptr + n); }
+    InPlaceArrayConstIterator operator-(difference_type n) const { return InPlaceArrayConstIterator(m_ptr - n); }
+
+    InPlaceArrayConstIterator& operator+=(difference_type n)
+    {
+        m_ptr += n;
+        return *this;
+    }
+    InPlaceArrayConstIterator& operator-=(difference_type n)
+    {
+        m_ptr -= n;
+        return *this;
+    }
+
+    difference_type operator-(const InPlaceArrayConstIterator& other) const { return m_ptr - other.m_ptr; }
+
+    const_reference operator[](difference_type n) const { return *(m_ptr + n); }
+    const_reference operator*() const { return *m_ptr; }
+    const_pointer operator->() const { return m_ptr; }
+
+private:
+    const_pointer m_ptr;
 };
+
+template <typename MyArray>
+InPlaceArrayConstIterator<MyArray> operator+(typename InPlaceArrayConstIterator<MyArray>::difference_type n,
+                                             const InPlaceArrayConstIterator<MyArray>& it)
+{
+    return it + n;
+}
 
 /**
  * A fixed-size array that stores its elements in-place.
@@ -116,6 +240,42 @@ public:
      * @param value The value to fill the array with.
      */
     void Fill(const T& value);
+
+    /**
+     * Get an iterator to the beginning of the array.
+     * @return An iterator to the beginning of the array.
+     */
+    iterator begin() { return iterator(m_data); }
+
+    /**
+     * Get a const iterator to the beginning of the array.
+     * @return A const iterator to the beginning of the array.
+     */
+    const_iterator begin() const { return const_iterator(m_data); }
+
+    /**
+     * Get a const iterator to the beginning of the array.
+     * @return A const iterator to the beginning of the array.
+     */
+    const_iterator cbegin() const { return const_iterator(m_data); }
+
+    /**
+     * Get an iterator to the end of the array.
+     * @return An iterator to the end of the array.
+     */
+    iterator end() { return iterator(m_data + N); }
+
+    /**
+     * Get a const iterator to the end of the array.
+     * @return A const iterator to the end of the array.
+     */
+    const_iterator end() const { return const_iterator(m_data + N); }
+
+    /**
+     * Get a const iterator to the end of the array.
+     * @return A const iterator to the end of the array.
+     */
+    const_iterator cend() const { return const_iterator(m_data + N); }
 
 private:
     T m_data[N];
