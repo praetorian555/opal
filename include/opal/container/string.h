@@ -6,6 +6,7 @@
 #include "opal/container/array-view.h"
 #include "opal/container/string-encoding.h"
 #include "opal/error-codes.h"
+#include "opal/type-traits.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -15,18 +16,13 @@ template <typename MyString>
 class StringIterator
 {
 public:
-    using ValueType = typename MyString::ValueType;
-    using ReferenceType = typename MyString::ReferenceType;
-    using PointerType = typename MyString::PointerType;
-    using DifferenceType = typename MyString::DifferenceType;
-
-    // Type aliases to be compatible with std library
-    using reference = ReferenceType;
-    using difference_type = DifferenceType;
-    using value_type = ValueType;
+    using value_type = typename MyString::value_type;
+    using difference_type = typename MyString::difference_type;
+    using reference = typename MyString::reference;
+    using pointer = typename MyString::pointer;
 
     StringIterator() = default;
-    explicit StringIterator(PointerType ptr) : m_ptr(ptr) {}
+    explicit StringIterator(pointer ptr) : m_ptr(ptr) {}
 
     bool operator==(const StringIterator& other) const { return m_ptr == other.m_ptr; }
     bool operator>(const StringIterator& other) const;
@@ -39,40 +35,35 @@ public:
     StringIterator& operator--();
     StringIterator operator--(int);
 
-    StringIterator operator+(DifferenceType n) const;
-    StringIterator operator-(DifferenceType n) const;
-    StringIterator& operator+=(DifferenceType n);
-    StringIterator& operator-=(DifferenceType n);
+    StringIterator operator+(difference_type n) const;
+    StringIterator operator-(difference_type n) const;
+    StringIterator& operator+=(difference_type n);
+    StringIterator& operator-=(difference_type n);
 
-    DifferenceType operator-(const StringIterator& other) const;
+    difference_type operator-(const StringIterator& other) const;
 
-    ReferenceType operator[](DifferenceType n) const;
-    ReferenceType operator*() const;
-    PointerType operator->() const;
+    reference operator[](difference_type n) const;
+    reference operator*() const;
+    pointer operator->() const;
 
 private:
-    PointerType m_ptr = nullptr;
+    pointer m_ptr = nullptr;
 };
 
 template <typename MyString>
-StringIterator<MyString> operator+(typename StringIterator<MyString>::DifferenceType n, const StringIterator<MyString>& it);
+StringIterator<MyString> operator+(typename StringIterator<MyString>::difference_type n, const StringIterator<MyString>& it);
 
 template <typename MyString>
 class StringConstIterator
 {
 public:
-    using ValueType = typename MyString::ValueType;
-    using ReferenceType = typename MyString::ConstReferenceType;
-    using PointerType = typename MyString::PointerType;
-    using DifferenceType = typename MyString::DifferenceType;
-
-    // Type aliases to be compatible with std library
-    using reference = ReferenceType;
-    using difference_type = DifferenceType;
-    using value_type = ValueType;
+    using value_type = typename MyString::value_type;
+    using difference_type = typename MyString::difference_type;
+    using const_reference = typename MyString::const_reference;
+    using pointer = typename MyString::pointer;
 
     StringConstIterator() = default;
-    explicit StringConstIterator(PointerType ptr) : m_ptr(ptr) {}
+    explicit StringConstIterator(pointer ptr) : m_ptr(ptr) {}
 
     bool operator==(const StringConstIterator& other) const { return m_ptr == other.m_ptr; }
     bool operator>(const StringConstIterator& other) const;
@@ -85,58 +76,109 @@ public:
     StringConstIterator& operator--();
     StringConstIterator operator--(int);
 
-    StringConstIterator operator+(DifferenceType n) const;
-    StringConstIterator operator-(DifferenceType n) const;
-    StringConstIterator& operator+=(DifferenceType n);
-    StringConstIterator& operator-=(DifferenceType n);
+    StringConstIterator operator+(difference_type n) const;
+    StringConstIterator operator-(difference_type n) const;
+    StringConstIterator& operator+=(difference_type n);
+    StringConstIterator& operator-=(difference_type n);
 
-    DifferenceType operator-(const StringConstIterator& other) const;
+    difference_type operator-(const StringConstIterator& other) const;
 
-    ReferenceType operator[](DifferenceType n) const;
-    ReferenceType operator*() const;
-    PointerType operator->() const;
+    const_reference operator[](difference_type n) const;
+    const_reference operator*() const;
+    pointer operator->() const;
 
 private:
-    PointerType m_ptr = nullptr;
+    pointer m_ptr = nullptr;
 };
 
 template <typename MyString>
-StringConstIterator<MyString> operator+(typename StringConstIterator<MyString>::DifferenceType n, const StringConstIterator<MyString>& it);
+StringConstIterator<MyString> operator+(typename StringConstIterator<MyString>::difference_type n, const StringConstIterator<MyString>& it);
 
-template <typename CodeUnitT, typename EncodingT, typename AllocatorT = AllocatorBase>
+/**
+ * @brief String class that stores a sequence of code units.
+ * @tparam CodeUnitType Type of the code unit used in the string.
+ * @tparam EncodingType Type of the encoding used in the string.
+ * @tparam AllocatorType Type of the allocator used for memory management. Default is AllocatorBase so that any allocator can be used.
+ */
+template <typename CodeUnitType, typename EncodingType, typename AllocatorType = AllocatorBase>
 class String
 {
 public:
-    using ValueType = CodeUnitT;
-    using ReferenceType = CodeUnitT&;
-    using ConstReferenceType = const CodeUnitT&;
-    using PointerType = CodeUnitT*;
-    using DifferenceType = i64;
-    using CodeUnitType = CodeUnitT;
-    using SizeType = u64;
-    using EncodingType = EncodingT;
-    using IteratorType = StringIterator<String<CodeUnitT, EncodingT, AllocatorT>>;
-    using ConstIteratorType = StringConstIterator<String<CodeUnitT, EncodingT, AllocatorT>>;
+    using value_type = CodeUnitType;
+    using allocator_type = AllocatorType;
+    using size_type = u64;
+    using difference_type = i64;
+    using reference = CodeUnitType&;
+    using const_reference = const CodeUnitType&;
+    using pointer = CodeUnitType*;
+    using const_pointer = CodeUnitType*;
+    using encoding_type = EncodingType;
+    using iterator = StringIterator<String<CodeUnitType, EncodingType, AllocatorType>>;
+    using const_iterator = StringConstIterator<String<CodeUnitType, EncodingType, AllocatorType>>;
 
-    static_assert(k_is_same_value<CodeUnitType, typename EncodingType::CodeUnitType>,
+    static_assert(k_is_same_value<value_type, typename encoding_type::CodeUnitType>,
                   "Encoding code unit type needs to match string code unit type");
 
     /**
      * @brief Value used to represent an invalid position in the string.
      */
-    static constexpr SizeType k_npos = static_cast<SizeType>(-1);
+    static constexpr size_type k_npos = static_cast<size_type>(-1);
 
-    String(AllocatorT* allocator = nullptr);
-    String(SizeType count, CodeUnitT value, AllocatorT* allocator = nullptr);
-    String(const CodeUnitT* str, SizeType count, AllocatorT* allocator = nullptr);
-    String(const CodeUnitT* str, AllocatorT* allocator = nullptr);
-    String(const String& other, AllocatorT* allocator = nullptr);
-    String(const String& other, SizeType pos, AllocatorT* allocator = nullptr);
+    /**
+     * @brief Default constructor.
+     * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     */
+    String(AllocatorType* allocator = nullptr);
+
+    /**
+     * @brief Construct a string with a specific size and value.
+     * @param count Number of code units to initialize the string with.
+     * @param value Value of the code unit to initialize the string with.
+     * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     */
+    String(size_type count, CodeUnitType value, AllocatorType* allocator = nullptr);
+
+    /**
+     * @brief Construct a string using 'count' code units from a null-terminated string.
+     * @param count Number of code units to initialize the string with.
+     * @param str Pointer to the null-terminated string to initialize the string with.
+     * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     */
+    String(const CodeUnitType* str, size_type count, AllocatorType* allocator = nullptr);
+
+    /**
+     * @brief Construct a string using a null-terminated string.
+     * @param str Pointer to the null-terminated string to initialize the string with.
+     * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     */
+    String(const CodeUnitType* str, AllocatorType* allocator = nullptr);
+
+    /**
+     * Copy constructor.
+     * @param other String to copy.
+     * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     */
+    String(const String& other, AllocatorType* allocator = nullptr);
+
+    /**
+     * @brief Construct a string using a substring of another string.
+     * @param other String to copy from.
+     * @param pos Position in the other string to start copying from.
+     * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     */
+    String(const String& other, size_type pos, AllocatorType* allocator = nullptr);
     String(String&& other) noexcept;
 
+    /**
+     * Construct a string using a range specified using random access iterators.
+     * @tparam InputIt Type of the input iterator.
+     * @param start Start of the range.
+     * @param end End of the range.
+     * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
-    String(InputIt start, InputIt end, AllocatorT* allocator = nullptr);
+    String(InputIt start, InputIt end, AllocatorType* allocator = nullptr);
 
     ~String();
 
@@ -145,20 +187,69 @@ public:
 
     bool operator==(const String& other) const;
 
-    ErrorCode Assign(SizeType count, CodeUnitT value);
+    /**
+     * @brief Override a string with a specific number of code units.
+     * @param count Number of code units to assign.
+     * @param value Value of the code unit to assign.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
+     * units.
+     */
+    ErrorCode Assign(size_type count, CodeUnitType value);
+
+    /**
+     * Override a string with another string.
+     * @param other String to assign.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
+     * units.
+     */
     ErrorCode Assign(const String& other);
-    ErrorCode Assign(const String& other, SizeType pos, SizeType count);
-    ErrorCode Assign(String&& other);
-    ErrorCode Assign(const CodeUnitT* str, SizeType count);
-    ErrorCode Assign(const CodeUnitT* str);
 
+    /**
+     * @brief Override a string with a substring of another string.
+     * @param other String to assign.
+     * @param pos Position in the other string to start assigning from.
+     * @param count Number of code units to assign. If count is equal to k_npos, the entire string starting from pos will be assigned.
+     * Default is k_npos.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the other string or count is
+     * larger than the amount of code units in the other string starting from pos. ErrorCode::OutOfMemory if the string cannot be resized to
+     * accommodate the new code units. ErrorCode::SelfNotAllowed if the other is the same as this.
+     */
+    ErrorCode Assign(const String& other, size_type pos, size_type count = k_npos);
+
+    /**
+     * Override a string by moving other string into it.
+     * @param other String to move.
+     */
+    void Assign(String&& other);
+
+    /**
+     * @brief Override a string with a specific number of code units from a null-terminated string.
+     * @param str Pointer to the null-terminated string to assign.
+     * @param count Number of code units to assign. If count is equal to k_npos, the entire string starting from str will be assigned.
+     * Default is k_npos.
+     * @return ErrorCode::Success in case of a success. ErrorCode::BadInput if str is nullptr. ErrorCode::OutOfBounds if count is larger
+     * then the size of the null-terminated string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
+     * units.
+     */
+    ErrorCode Assign(const CodeUnitType* str, size_type count = k_npos);
+
+    /**
+     * @brief Override a string with a range specified using random access iterators.
+     * @tparam InputIt Type of the input iterator. Must be a random access iterator.
+     * @param start_it Start of the range.
+     * @param end_it End of the range.
+     * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if start_it is greater than end_it. ErrorCode::OutOfMemory
+     * if the string cannot be resized to accommodate the new code units. ErrorCode::SelfNotAllowed if the range is the same as the current
+     * string.
+     */
     template <typename InputIt>
-    ErrorCode Assign(InputIt start, InputIt end);
+        requires RandomAccessIterator<InputIt>
+    ErrorCode Assign(InputIt start_it, InputIt end_it);
 
-    AllocatorT& GetAllocator() const { return *m_allocator; }
+    AllocatorType& GetAllocator() const { return *m_allocator; }
 
-    CodeUnitType* GetData() { return m_data; }
-    [[nodiscard]] const CodeUnitType* GetData() const { return m_data; }
+    value_type* GetData() { return m_data; }
+    [[nodiscard]] const value_type* GetData() const { return m_data; }
 
     template <typename NewCodeUnitType>
     const NewCodeUnitType* GetDataAs() const
@@ -166,26 +257,26 @@ public:
         return reinterpret_cast<const NewCodeUnitType*>(m_data);
     }
 
-    [[nodiscard]] SizeType GetSize() const { return m_size; }
-    [[nodiscard]] SizeType GetCapacity() const { return m_capacity; }
+    [[nodiscard]] size_type GetSize() const { return m_size; }
+    [[nodiscard]] size_type GetCapacity() const { return m_capacity; }
 
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
 
-    Expected<CodeUnitT&, ErrorCode> At(SizeType pos);
-    Expected<const CodeUnitT&, ErrorCode> At(SizeType pos) const;
+    Expected<CodeUnitType&, ErrorCode> At(size_type pos);
+    Expected<const CodeUnitType&, ErrorCode> At(size_type pos) const;
 
-    CodeUnitT& operator[](SizeType pos);
-    const CodeUnitT& operator[](SizeType pos) const;
+    CodeUnitType& operator[](size_type pos);
+    const CodeUnitType& operator[](size_type pos) const;
 
-    Expected<CodeUnitT&, ErrorCode> Front();
-    Expected<const CodeUnitT&, ErrorCode> Front() const;
+    Expected<CodeUnitType&, ErrorCode> Front();
+    Expected<const CodeUnitType&, ErrorCode> Front() const;
 
-    Expected<CodeUnitT&, ErrorCode> Back();
-    Expected<const CodeUnitT&, ErrorCode> Back() const;
+    Expected<CodeUnitType&, ErrorCode> Back();
+    Expected<const CodeUnitType&, ErrorCode> Back() const;
 
-    ErrorCode Reserve(SizeType new_capacity);
-    ErrorCode Resize(SizeType new_size);
-    ErrorCode Resize(SizeType new_size, CodeUnitT value);
+    ErrorCode Reserve(size_type new_capacity);
+    ErrorCode Resize(size_type new_size);
+    ErrorCode Resize(size_type new_size, CodeUnitType value);
 
     /**
      * Shrink the size of the string to fit the data. This will only reduce the size of the string so that there is only one null-terminator
@@ -193,12 +284,12 @@ public:
      */
     void Trim();
 
-    ErrorCode Append(const CodeUnitType& ch);
-    ErrorCode Append(const CodeUnitType* str);
-    ErrorCode Append(const CodeUnitType* str, SizeType size);
-    ErrorCode Append(SizeType count, CodeUnitT value);
+    ErrorCode Append(const value_type& ch);
+    ErrorCode Append(const value_type* str);
+    ErrorCode Append(const value_type* str, size_type size);
+    ErrorCode Append(size_type count, CodeUnitType value);
     ErrorCode Append(const String& other);
-    ErrorCode Append(const String& other, SizeType pos, SizeType count);
+    ErrorCode Append(const String& other, size_type pos, size_type count);
 
     template <typename InputIt>
     ErrorCode AppendIt(InputIt begin, InputIt end);
@@ -211,7 +302,7 @@ public:
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
      * of the string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units.
      */
-    Expected<IteratorType, ErrorCode> Insert(SizeType start_pos, SizeType count, CodeUnitT value);
+    Expected<iterator, ErrorCode> Insert(size_type start_pos, size_type count, CodeUnitType value);
 
     /**
      * @brief Insert a string at a specific position in the string.
@@ -222,7 +313,7 @@ public:
      * of the string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units. ErrorCode::BadInput if str
      * is nullptr.
      */
-    Expected<IteratorType, ErrorCode> Insert(SizeType start_pos, const CodeUnitT* str, SizeType count = k_npos);
+    Expected<iterator, ErrorCode> Insert(size_type start_pos, const CodeUnitType* str, size_type count = k_npos);
 
     /**
      * @brief Insert a string at a specific position in the string.
@@ -235,8 +326,7 @@ public:
      * of the string. ErrorCode::OutOfBounds if other_start_pos is out of bounds of the other string. ErrorCode::OutOfMemory if the string
      * cannot be resized to accommodate the new code units.
      */
-    Expected<IteratorType, ErrorCode> Insert(SizeType start_pos, const String& other, SizeType other_start_pos = 0,
-                                             SizeType count = k_npos);
+    Expected<iterator, ErrorCode> Insert(size_type start_pos, const String& other, size_type other_start_pos = 0, size_type count = k_npos);
 
     /**
      * @brief Insert a code unit at a specific position in the string.
@@ -246,8 +336,8 @@ public:
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start is out of bounds of
      * the string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units.
      */
-    Expected<IteratorType, ErrorCode> Insert(IteratorType start, CodeUnitT value, SizeType count = 1);
-    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType start, CodeUnitT value, SizeType count = 1);
+    Expected<iterator, ErrorCode> Insert(iterator start, CodeUnitType value, size_type count = 1);
+    Expected<iterator, ErrorCode> Insert(const_iterator start, CodeUnitType value, size_type count = 1);
 
     /**
      * @brief Insert a string at a specific position in the string.
@@ -261,10 +351,10 @@ public:
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
-    Expected<IteratorType, ErrorCode> Insert(IteratorType start, InputIt begin, InputIt end);
+    Expected<iterator, ErrorCode> Insert(iterator start, InputIt begin, InputIt end);
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
-    Expected<IteratorType, ErrorCode> Insert(ConstIteratorType start, InputIt begin, InputIt end);
+    Expected<iterator, ErrorCode> Insert(const_iterator start, InputIt begin, InputIt end);
 
     /**
      * @brief Erase a range of code units from the string.
@@ -273,15 +363,15 @@ public:
      * @return Iterator pointing to the code unit after the last erased code unit in case of a success. ErrorCode::OutOfBounds if start_pos
      * is out of bounds of the string.
      */
-    Expected<IteratorType, ErrorCode> Erase(SizeType start_pos = 0, SizeType count = k_npos);
+    Expected<iterator, ErrorCode> Erase(size_type start_pos = 0, size_type count = k_npos);
 
     /**
      * @brief Erase a code unit at a specific position in the string.
      * @param pos Position in the string to erase the code unit from.
      * @return Reference to the current string instance in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the string,
      */
-    Expected<IteratorType, ErrorCode> Erase(IteratorType pos);
-    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType pos);
+    Expected<iterator, ErrorCode> Erase(iterator pos);
+    Expected<iterator, ErrorCode> Erase(const_iterator pos);
 
     /**
      * @brief Erase a range of code units from the string.
@@ -290,39 +380,39 @@ public:
      * @return Iterator pointing to the code unit after the last erased code unit in case of a success. ErrorCode::OutOfBounds if first or
      * last are out of bounds of the string. ErrorCode::BadInput if first is greater than last.
      */
-    Expected<IteratorType, ErrorCode> Erase(IteratorType first, IteratorType last);
-    Expected<IteratorType, ErrorCode> Erase(ConstIteratorType first, ConstIteratorType last);
+    Expected<iterator, ErrorCode> Erase(iterator first, iterator last);
+    Expected<iterator, ErrorCode> Erase(const_iterator first, const_iterator last);
 
     String& operator+=(const String& other);
-    String& operator+=(CodeUnitType ch);
-    String& operator+=(const CodeUnitType* str);
+    String& operator+=(value_type ch);
+    String& operator+=(const value_type* str);
 
     // Iterators
-    IteratorType Begin() { return IteratorType(m_data); }
-    IteratorType End() { return IteratorType(m_data + m_size); }
-    ConstIteratorType Begin() const { return ConstIteratorType(m_data); }
-    ConstIteratorType End() const { return ConstIteratorType(m_data + m_size); }
-    ConstIteratorType ConstBegin() const { return ConstIteratorType(m_data); }
-    ConstIteratorType ConstEnd() const { return ConstIteratorType(m_data + m_size); }
+    iterator Begin() { return iterator(m_data); }
+    iterator End() { return iterator(m_data + m_size); }
+    const_iterator Begin() const { return const_iterator(m_data); }
+    const_iterator End() const { return const_iterator(m_data + m_size); }
+    const_iterator ConstBegin() const { return const_iterator(m_data); }
+    const_iterator ConstEnd() const { return const_iterator(m_data + m_size); }
 
     // Compatible with std::begin and std::end
-    IteratorType begin() { return IteratorType(m_data); }
-    IteratorType end() { return IteratorType(m_data + m_size); }
-    ConstIteratorType begin() const { return ConstIteratorType(m_data); }
-    ConstIteratorType end() const { return ConstIteratorType(m_data + m_size); }
-    ConstIteratorType cbegin() const { return ConstIteratorType(m_data); }
-    ConstIteratorType cend() const { return ConstIteratorType(m_data + m_size); }
+    iterator begin() { return iterator(m_data); }
+    iterator end() { return iterator(m_data + m_size); }
+    const_iterator begin() const { return const_iterator(m_data); }
+    const_iterator end() const { return const_iterator(m_data + m_size); }
+    const_iterator cbegin() const { return const_iterator(m_data); }
+    const_iterator cend() const { return const_iterator(m_data + m_size); }
 
-    [[nodiscard]] static constexpr SizeType Min(SizeType a, SizeType b) { return a > b ? b : a; }
+    [[nodiscard]] static constexpr size_type Min(size_type a, size_type b) { return a > b ? b : a; }
 
 private:
-    inline CodeUnitType* Allocate(SizeType size);
-    inline void Deallocate(CodeUnitType* data);
+    inline value_type* Allocate(size_type size);
+    inline void Deallocate(value_type* data);
 
-    AllocatorT* m_allocator = nullptr;
-    CodeUnitType* m_data = nullptr;
-    SizeType m_size = 0;
-    SizeType m_capacity = 0;
+    AllocatorType* m_allocator = nullptr;
+    value_type* m_data = nullptr;
+    size_type m_size = 0;
+    size_type m_capacity = 0;
 };
 
 /**
@@ -347,7 +437,7 @@ i32 Compare(const MyString& first, const MyString& second);
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string.
  */
 template <typename MyString>
-Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeType pos1, typename MyString::SizeType count1,
+Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_type pos1, typename MyString::size_type count1,
                                  const MyString& second);
 
 /**
@@ -365,8 +455,8 @@ Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeT
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string or pos2 is greater than the size of the second string.
  */
 template <typename MyString>
-Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeType pos1, typename MyString::SizeType count1,
-                                 const MyString& second, typename MyString::SizeType pos2, typename MyString::SizeType count2);
+Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_type pos1, typename MyString::size_type count1,
+                                 const MyString& second, typename MyString::size_type pos2, typename MyString::size_type count2);
 
 /**
  * @brief Compare a string with a null-terminated string lexicographically.
@@ -380,8 +470,8 @@ Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeT
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
  */
 template <typename MyString>
-Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeType pos1, typename MyString::SizeType count1,
-                                 const typename MyString::CodeUnitType* second);
+Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_type pos1, typename MyString::size_type count1,
+                                 const typename MyString::value_type* second);
 
 /**
  * @brief Compare a string with a null-terminated string lexicographically.
@@ -396,23 +486,23 @@ Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeT
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
  */
 template <typename MyString>
-Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::SizeType pos1, typename MyString::SizeType count1,
-                                 const typename MyString::CodeUnitType* second, typename MyString::SizeType count2);
+Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_type pos1, typename MyString::size_type count1,
+                                 const typename MyString::value_type* second, typename MyString::size_type count2);
 
 template <typename MyString>
 MyString operator+(const MyString& lhs, const MyString& rhs);
 
 template <typename MyString>
-MyString operator+(const MyString& lhs, const typename MyString::CodeUnitType* rhs);
+MyString operator+(const MyString& lhs, const typename MyString::value_type* rhs);
 
 template <typename MyString>
-MyString operator+(const MyString& lhs, typename MyString::CodeUnitType ch);
+MyString operator+(const MyString& lhs, typename MyString::value_type ch);
 
 template <typename MyString>
-MyString operator+(const typename MyString::CodeUnitType* lhs, const MyString& rhs);
+MyString operator+(const typename MyString::value_type* lhs, const MyString& rhs);
 
 template <typename MyString>
-MyString operator+(typename MyString::CodeUnitType ch, const MyString& rhs);
+MyString operator+(typename MyString::value_type ch, const MyString& rhs);
 
 /**
  * @brief Find the first occurrence of a string in another string.
@@ -425,7 +515,7 @@ MyString operator+(typename MyString::CodeUnitType ch, const MyString& rhs);
  * the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns MyString::k_npos.
  */
 template <typename MyString>
-typename MyString::SizeType Find(const MyString& haystack, const MyString& needle, typename MyString::SizeType start_pos = 0);
+typename MyString::size_type Find(const MyString& haystack, const MyString& needle, typename MyString::size_type start_pos = 0);
 
 /**
  * @brief Find the first occurrence of a string in another string.
@@ -440,8 +530,8 @@ typename MyString::SizeType Find(const MyString& haystack, const MyString& needl
  * the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns MyString::k_npos.
  */
 template <typename MyString>
-typename MyString::SizeType Find(const MyString& haystack, const typename MyString::CodeUnitType* needle,
-                                 typename MyString::SizeType start_pos = 0, typename MyString::SizeType needle_count = MyString::k_npos);
+typename MyString::size_type Find(const MyString& haystack, const typename MyString::value_type* needle,
+                                  typename MyString::size_type start_pos = 0, typename MyString::size_type needle_count = MyString::k_npos);
 
 /**
  * @brief Find the first occurrence of a character in another string.
@@ -453,8 +543,8 @@ typename MyString::SizeType Find(const MyString& haystack, const typename MyStri
  * start_pos is greater than the size of the haystack, returns MyString::k_npos. If haystack is empty, returns MyString::k_npos.
  */
 template <typename MyString>
-typename MyString::SizeType Find(const MyString& haystack, const typename MyString::CodeUnitType& ch,
-                                 typename MyString::SizeType start_pos = 0);
+typename MyString::size_type Find(const MyString& haystack, const typename MyString::value_type& ch,
+                                  typename MyString::size_type start_pos = 0);
 
 /**
  * @brief Find the last occurrence of a string in another string.
@@ -467,8 +557,8 @@ typename MyString::SizeType Find(const MyString& haystack, const typename MyStri
  * empty, returns start_pos or if start_pos is larger then or equal to the size of the string the size of haystack will be returned.
  */
 template <typename MyString>
-typename MyString::SizeType ReverseFind(const MyString& haystack, const MyString& needle,
-                                        typename MyString::SizeType start_pos = MyString::k_npos);
+typename MyString::size_type ReverseFind(const MyString& haystack, const MyString& needle,
+                                         typename MyString::size_type start_pos = MyString::k_npos);
 
 /**
  * @brief Find the last occurrence of a string in another string.
@@ -483,9 +573,9 @@ typename MyString::SizeType ReverseFind(const MyString& haystack, const MyString
  * empty, returns start_pos or if start_pos is larger then or equal to the size of the string the size of haystack will be returned.
  */
 template <typename MyString>
-typename MyString::SizeType ReverseFind(const MyString& haystack, const typename MyString::CodeUnitType* needle,
-                                        typename MyString::SizeType start_pos = MyString::k_npos,
-                                        typename MyString::SizeType needle_count = MyString::k_npos);
+typename MyString::size_type ReverseFind(const MyString& haystack, const typename MyString::value_type* needle,
+                                         typename MyString::size_type start_pos = MyString::k_npos,
+                                         typename MyString::size_type needle_count = MyString::k_npos);
 
 /**
  * @brief Find the last occurrence of a character in another string.
@@ -498,8 +588,8 @@ typename MyString::SizeType ReverseFind(const MyString& haystack, const typename
  * haystack is empty, returns MyString::k_npos.
  */
 template <typename MyString>
-typename MyString::SizeType ReverseFind(const MyString& haystack, const typename MyString::CodeUnitType& ch,
-                                        typename MyString::SizeType start_pos = MyString::k_npos);
+typename MyString::size_type ReverseFind(const MyString& haystack, const typename MyString::value_type& ch,
+                                         typename MyString::size_type start_pos = MyString::k_npos);
 
 /**
  * Transcode a string from one encoding to another.
@@ -524,8 +614,8 @@ ErrorCode Transcode(const InputString& input, OutputString& output);
  * @return Substring in case of a success. ErrorCode::OutOfBounds if start_pos is greater than the size of the string.
  */
 template <typename MyString, typename Allocator = AllocatorBase>
-Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyString::SizeType start_pos = 0,
-                                           typename MyString::SizeType count = MyString::k_npos, Allocator* allocator = nullptr);
+Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyString::size_type start_pos = 0,
+                                           typename MyString::size_type count = MyString::k_npos, Allocator* allocator = nullptr);
 
 /**
  * @brief Get the length of a null-terminated string.
@@ -555,14 +645,14 @@ using StringWide = String<char16, EncodingUtf16LE<char16>>;
 
 };  // namespace Opal
 
-#define TEMPLATE_HEADER template <typename CodeUnitT, typename EncodingT, typename AllocatorT>
-#define CLASS_HEADER Opal::String<CodeUnitT, EncodingT, AllocatorT>
+#define TEMPLATE_HEADER template <typename CodeUnitType, typename EncodingType, typename AllocatorType>
+#define CLASS_HEADER Opal::String<CodeUnitType, EncodingType, AllocatorType>
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(AllocatorT* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
+CLASS_HEADER::String(AllocatorType* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(SizeType count, CodeUnitT value, AllocatorT* allocator)
+CLASS_HEADER::String(size_type count, CodeUnitType value, AllocatorType* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(count), m_capacity(count + 1)
 {
     m_data = Allocate(m_capacity);
@@ -572,14 +662,14 @@ CLASS_HEADER::String(SizeType count, CodeUnitT value, AllocatorT* allocator)
         m_size = 0;
         return;
     }
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         m_data[i] = value;
     }
     m_data[m_size] = 0;
 }
 
-TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, AllocatorT* allocator)
+TEMPLATE_HEADER CLASS_HEADER::String(const String& other, size_type pos, AllocatorType* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     m_capacity = other.m_size - pos + 1;
@@ -591,7 +681,7 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, Allocato
         m_capacity = 0;
         return;
     }
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         m_data[i] = other.m_data[pos + i];
     }
@@ -599,7 +689,7 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, SizeType pos, Allocato
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT* allocator)
+CLASS_HEADER::String(const CodeUnitType* str, size_type count, AllocatorType* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(count), m_capacity(count + 1)
 {
     m_data = Allocate(m_capacity);
@@ -609,7 +699,7 @@ CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT* allocator
         m_size = 0;
         return;
     }
-    for (SizeType i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; i++)
     {
         m_data[i] = str[i];
     }
@@ -617,7 +707,8 @@ CLASS_HEADER::String(const CodeUnitT* str, SizeType count, AllocatorT* allocator
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const CodeUnitT* str, AllocatorT* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+CLASS_HEADER::String(const CodeUnitType* str, AllocatorType* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     m_size = StringLength(str);
     m_capacity = m_size + 1;
@@ -630,7 +721,7 @@ CLASS_HEADER::String(const CodeUnitT* str, AllocatorT* allocator) : m_allocator(
             m_size = 0;
             return;
         }
-        for (SizeType i = 0; i < m_size; i++)
+        for (size_type i = 0; i < m_size; i++)
         {
             m_data[i] = str[i];
         }
@@ -639,7 +730,7 @@ CLASS_HEADER::String(const CodeUnitT* str, AllocatorT* allocator) : m_allocator(
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const String& other, AllocatorT* allocator)
+CLASS_HEADER::String(const String& other, AllocatorType* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(other.m_size), m_capacity(other.m_capacity)
 {
     if (m_capacity > 0)
@@ -651,7 +742,7 @@ CLASS_HEADER::String(const String& other, AllocatorT* allocator)
             m_size = 0;
             return;
         }
-        for (SizeType i = 0; i < m_size; i++)
+        for (size_type i = 0; i < m_size; i++)
         {
             m_data[i] = other.GetData()[i];
         }
@@ -672,7 +763,7 @@ CLASS_HEADER::String(String&& other) noexcept
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-CLASS_HEADER::String(InputIt start, InputIt end, AllocatorT* allocator) : String(&(*start), end - start, allocator)
+CLASS_HEADER::String(InputIt start, InputIt end, AllocatorType* allocator) : String(&(*start), end - start, allocator)
 {
 }
 
@@ -718,7 +809,7 @@ CLASS_HEADER& CLASS_HEADER::operator=(const String& other)
         }
     }
     m_size = other.m_size;
-    memcpy(m_data, other.m_data, m_size * sizeof(CodeUnitT));
+    memcpy(m_data, other.m_data, m_size * sizeof(CodeUnitType));
     m_data[m_size] = 0;
     return *this;
 }
@@ -755,11 +846,11 @@ bool CLASS_HEADER::operator==(const String& other) const
     }
     OPAL_ASSERT(m_data != nullptr, "String data is null");
     OPAL_ASSERT(other.m_data != nullptr, "Other string data is null");
-    return std::memcmp(m_data, other.m_data, m_size * sizeof(CodeUnitType)) == 0;
+    return std::memcmp(m_data, other.m_data, m_size * sizeof(value_type)) == 0;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(SizeType count, CodeUnitT value)
+Opal::ErrorCode CLASS_HEADER::Assign(size_type count, CodeUnitType value)
 {
     if (count + 1 > m_capacity)
     {
@@ -774,7 +865,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(SizeType count, CodeUnitT value)
         }
         m_capacity = count + 1;
     }
-    for (SizeType i = 0; i < count; i++)
+    for (size_type i = 0; i < count; i++)
     {
         m_data[i] = value;
     }
@@ -786,6 +877,10 @@ Opal::ErrorCode CLASS_HEADER::Assign(SizeType count, CodeUnitT value)
 TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
 {
+    if (this == &other)
+    {
+        return ErrorCode::Success;
+    }
     if (other.m_size + 1 > m_capacity)
     {
         if (m_data != nullptr)
@@ -801,7 +896,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
     }
     if (other.m_size > 0)
     {
-        std::memcpy(m_data, other.m_data, other.m_size * sizeof(CodeUnitT));
+        std::memcpy(m_data, other.m_data, other.m_size * sizeof(CodeUnitType));
     }
     m_size = other.m_size;
     m_data[m_size] = 0;
@@ -809,13 +904,24 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(const String& other, SizeType pos, SizeType count)
+Opal::ErrorCode CLASS_HEADER::Assign(const String& other, size_type pos, size_type count)
 {
+    if (this == &other)
+    {
+        return ErrorCode::SelfNotAllowed;
+    }
     if (pos >= other.m_size)
     {
         return ErrorCode::OutOfBounds;
     }
-    count = Min(other.GetSize() - pos, count);
+    if (count == k_npos)
+    {
+        count = other.m_size - pos;
+    }
+    if (count > other.m_size - pos)
+    {
+        return ErrorCode::OutOfBounds;
+    }
     if (count + 1 > m_capacity)
     {
         if (m_data != nullptr)
@@ -831,7 +937,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other, SizeType pos, SizeType
     }
     if (count > 0)
     {
-        std::memcpy(m_data, other.m_data + pos, count * sizeof(CodeUnitT));
+        std::memcpy(m_data, other.m_data + pos, count * sizeof(CodeUnitType));
     }
     m_size = count;
     m_data[m_size] = 0;
@@ -839,15 +945,27 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other, SizeType pos, SizeType
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(String&& other)
+void CLASS_HEADER::Assign(String&& other)
 {
     *this = Move(other);
-    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitT* str, SizeType count)
+Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitType* str, size_type count)
 {
+    if (str == nullptr)
+    {
+        return ErrorCode::InvalidArgument;
+    }
+    u64 str_size = StringLength(str);
+    if (count == k_npos)
+    {
+        count = str_size;
+    }
+    if (count > str_size)
+    {
+        return ErrorCode::OutOfBounds;
+    }
     if (count + 1 > m_capacity)
     {
         if (m_data != nullptr)
@@ -861,7 +979,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitT* str, SizeType count)
         }
         m_capacity = count + 1;
     }
-    for (SizeType i = 0; i < count; i++)
+    for (size_type i = 0; i < count; i++)
     {
         m_data[i] = str[i];
     }
@@ -871,22 +989,46 @@ Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitT* str, SizeType count)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitT* str)
+template <typename InputIt>
+    requires Opal::RandomAccessIterator<InputIt>
+Opal::ErrorCode CLASS_HEADER::Assign(InputIt start_it, InputIt end_it)
 {
-    SizeType count = 0;
-    const CodeUnitT* it = str;
-    while (*it != 0)
+    if (start_it > end_it)
     {
-        count++;
-        it++;
+        return ErrorCode::InvalidArgument;
     }
-    return Assign(str, count);
+    if (&(*start_it) >= m_data && &(*start_it) < m_data + m_size)
+    {
+        return ErrorCode::SelfNotAllowed;
+    }
+    u64 count = static_cast<u64>(end_it - start_it);
+    if (count + 1 > m_capacity)
+    {
+        if (m_data != nullptr)
+        {
+            Deallocate(m_data);
+        }
+        m_data = Allocate(count + 1);
+        if (m_data == nullptr)
+        {
+            return ErrorCode::OutOfMemory;
+        }
+        m_capacity = count + 1;
+    }
+    for (size_type i = 0; i < count; i++)
+    {
+        m_data[i] = *start_it;
+        start_it++;
+    }
+    m_size = count;
+    m_data[m_size] = 0;
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
-Opal::Expected<CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::At(SizeType pos)
+Opal::Expected<CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::At(size_type pos)
 {
-    using ReturnType = Expected<CodeUnitT&, ErrorCode>;
+    using ReturnType = Expected<CodeUnitType&, ErrorCode>;
     if (pos >= m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -895,9 +1037,9 @@ Opal::Expected<CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::At(SizeType pos)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::At(SizeType pos) const
+Opal::Expected<const CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::At(size_type pos) const
 {
-    using ReturnType = Expected<const CodeUnitT&, ErrorCode>;
+    using ReturnType = Expected<const CodeUnitType&, ErrorCode>;
     if (pos >= m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -906,21 +1048,21 @@ Opal::Expected<const CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::At(SizeType pos)
 }
 
 TEMPLATE_HEADER
-CodeUnitT& CLASS_HEADER::operator[](SizeType pos)
+CodeUnitType& CLASS_HEADER::operator[](size_type pos)
 {
     return m_data[pos];
 }
 
 TEMPLATE_HEADER
-const CodeUnitT& CLASS_HEADER::operator[](SizeType pos) const
+const CodeUnitType& CLASS_HEADER::operator[](size_type pos) const
 {
     return m_data[pos];
 }
 
 TEMPLATE_HEADER
-Opal::Expected<CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Front()
+Opal::Expected<CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::Front()
 {
-    using ReturnType = Expected<CodeUnitT&, ErrorCode>;
+    using ReturnType = Expected<CodeUnitType&, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -929,9 +1071,9 @@ Opal::Expected<CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Front()
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Front() const
+Opal::Expected<const CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::Front() const
 {
-    using ReturnType = Expected<const CodeUnitT&, ErrorCode>;
+    using ReturnType = Expected<const CodeUnitType&, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -940,9 +1082,9 @@ Opal::Expected<const CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Front() const
 }
 
 TEMPLATE_HEADER
-Opal::Expected<CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Back()
+Opal::Expected<CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::Back()
 {
-    using ReturnType = Expected<CodeUnitT&, ErrorCode>;
+    using ReturnType = Expected<CodeUnitType&, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -951,9 +1093,9 @@ Opal::Expected<CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Back()
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Back() const
+Opal::Expected<const CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::Back() const
 {
-    using ReturnType = Expected<const CodeUnitT&, ErrorCode>;
+    using ReturnType = Expected<const CodeUnitType&, ErrorCode>;
     if (m_size == 0)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -962,20 +1104,20 @@ Opal::Expected<const CodeUnitT&, Opal::ErrorCode> CLASS_HEADER::Back() const
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Reserve(SizeType new_capacity)
+Opal::ErrorCode CLASS_HEADER::Reserve(size_type new_capacity)
 {
     if (new_capacity <= m_capacity)
     {
         return ErrorCode::Success;
     }
-    CodeUnitType* new_data = Allocate(new_capacity);
+    value_type* new_data = Allocate(new_capacity);
     if (new_data == nullptr)
     {
         return ErrorCode::OutOfMemory;
     }
     if (m_data != nullptr)
     {
-        std::memcpy(new_data, m_data, (m_size + 1) * sizeof(CodeUnitType));
+        std::memcpy(new_data, m_data, (m_size + 1) * sizeof(value_type));
         Deallocate(m_data);
     }
     m_data = new_data;
@@ -984,7 +1126,7 @@ Opal::ErrorCode CLASS_HEADER::Reserve(SizeType new_capacity)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Resize(SizeType new_size, CodeUnitT value)
+Opal::ErrorCode CLASS_HEADER::Resize(size_type new_size, CodeUnitType value)
 {
     if (new_size == m_size)
     {
@@ -1004,7 +1146,7 @@ Opal::ErrorCode CLASS_HEADER::Resize(SizeType new_size, CodeUnitT value)
             return error;
         }
     }
-    for (SizeType i = m_size; i < new_size; i++)
+    for (size_type i = m_size; i < new_size; i++)
     {
         m_data[i] = value;
     }
@@ -1014,15 +1156,15 @@ Opal::ErrorCode CLASS_HEADER::Resize(SizeType new_size, CodeUnitT value)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Resize(SizeType new_size)
+Opal::ErrorCode CLASS_HEADER::Resize(size_type new_size)
 {
-    return Resize(new_size, CodeUnitT());
+    return Resize(new_size, CodeUnitType());
 }
 
 TEMPLATE_HEADER
 void CLASS_HEADER::Trim()
 {
-    const SizeType real_size = StringLength(m_data);
+    const size_type real_size = StringLength(m_data);
     if (m_size != 0 && m_size > real_size)
     {
         m_size = real_size;
@@ -1031,7 +1173,7 @@ void CLASS_HEADER::Trim()
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType& ch)
+Opal::ErrorCode CLASS_HEADER::Append(const value_type& ch)
 {
     if (m_size + 2 > m_capacity)
     {
@@ -1048,14 +1190,14 @@ Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType& ch)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* str)
+Opal::ErrorCode CLASS_HEADER::Append(const value_type* str)
 {
     if (str == nullptr)
     {
-        return ErrorCode::BadInput;
+        return ErrorCode::InvalidArgument;
     }
-    SizeType count = 0;
-    const CodeUnitT* it = str;
+    size_type count = 0;
+    const CodeUnitType* it = str;
     while (*it != 0)
     {
         count++;
@@ -1065,11 +1207,11 @@ Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* str)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* str, SizeType size)
+Opal::ErrorCode CLASS_HEADER::Append(const value_type* str, size_type size)
 {
     if (str == nullptr)
     {
-        return ErrorCode::BadInput;
+        return ErrorCode::InvalidArgument;
     }
     if (m_size + size + 1 > m_capacity)
     {
@@ -1081,7 +1223,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* str, SizeType size)
     }
     if (size > 0)
     {
-        std::memcpy(m_data + m_size, str, size * sizeof(CodeUnitType));
+        std::memcpy(m_data + m_size, str, size * sizeof(value_type));
     }
     m_size += size;
     m_data[m_size] = 0;
@@ -1089,7 +1231,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const CodeUnitType* str, SizeType size)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Append(SizeType count, CodeUnitT value)
+Opal::ErrorCode CLASS_HEADER::Append(size_type count, CodeUnitType value)
 {
     if (count + 1 > m_capacity)
     {
@@ -1099,7 +1241,7 @@ Opal::ErrorCode CLASS_HEADER::Append(SizeType count, CodeUnitT value)
             return error;
         }
     }
-    for (SizeType i = m_size; i < m_size + count; i++)
+    for (size_type i = m_size; i < m_size + count; i++)
     {
         m_data[i] = value;
     }
@@ -1121,7 +1263,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other)
     }
     if (other.m_size > 0)
     {
-        std::memcpy(m_data + m_size, other.m_data, other.m_size * sizeof(CodeUnitT));
+        std::memcpy(m_data + m_size, other.m_data, other.m_size * sizeof(CodeUnitType));
     }
     m_size += other.m_size;
     m_data[m_size] = 0;
@@ -1129,7 +1271,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Append(const String& other, SizeType pos, SizeType count)
+Opal::ErrorCode CLASS_HEADER::Append(const String& other, size_type pos, size_type count)
 {
     if (pos >= other.m_size)
     {
@@ -1146,7 +1288,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, SizeType pos, SizeType
     }
     if (count > 0)
     {
-        std::memcpy(m_data + m_size, other.m_data + pos, count * sizeof(CodeUnitT));
+        std::memcpy(m_data + m_size, other.m_data + pos, count * sizeof(CodeUnitType));
     }
     m_size += count;
     m_data[m_size] = 0;
@@ -1154,17 +1296,17 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, SizeType pos, SizeType
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(SizeType start_pos, SizeType count,
-                                                                                          CodeUnitT value)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(size_type start_pos, size_type count,
+                                                                                      CodeUnitType value)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (start_pos > m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
     if (count == 0)
     {
-        return ReturnType(IteratorType(m_data + start_pos));
+        return ReturnType(iterator(m_data + start_pos));
     }
     if (m_size + count + 1 > m_capacity)
     {
@@ -1174,31 +1316,31 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return ReturnType(error);
         }
     }
-    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
         m_data[i + count] = m_data[i];
     }
-    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    for (size_type i = start_pos; i < start_pos + count; ++i)
     {
         m_data[i] = value;
     }
     m_size += count;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_pos));
+    return ReturnType(iterator(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(SizeType start_pos, const CodeUnitT* str,
-                                                                                          SizeType count)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(size_type start_pos, const CodeUnitType* str,
+                                                                                      size_type count)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (start_pos > m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
     if (str == nullptr)
     {
-        return ReturnType(ErrorCode::BadInput);
+        return ReturnType(ErrorCode::InvalidArgument);
     }
     if (count == k_npos)
     {
@@ -1210,7 +1352,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     if (count == 0)
     {
-        return ReturnType(IteratorType(m_data + start_pos));
+        return ReturnType(iterator(m_data + start_pos));
     }
     if (m_size + count + 1 > m_capacity)
     {
@@ -1220,24 +1362,24 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return ReturnType(error);
         }
     }
-    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
         m_data[i + count] = m_data[i];
     }
-    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    for (size_type i = start_pos; i < start_pos + count; ++i)
     {
         m_data[i] = str[i - start_pos];
     }
     m_size += count;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_pos));
+    return ReturnType(iterator(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(SizeType start_pos, const String& other,
-                                                                                          SizeType other_start_pos, SizeType count)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(size_type start_pos, const String& other,
+                                                                                      size_type other_start_pos, size_type count)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (start_pos > m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -1252,7 +1394,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     if (count == 0)
     {
-        return ReturnType(IteratorType(m_data + start_pos));
+        return ReturnType(iterator(m_data + start_pos));
     }
     if (m_size + count + 1 > m_capacity)
     {
@@ -1262,24 +1404,23 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return ReturnType(error);
         }
     }
-    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
         m_data[i + count] = m_data[i];
     }
-    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    for (size_type i = start_pos; i < start_pos + count; ++i)
     {
         m_data[i] = other[i - start_pos];
     }
     m_size += count;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_pos));
+    return ReturnType(iterator(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(IteratorType start, CodeUnitT value,
-                                                                                          SizeType count)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(iterator start, CodeUnitType value, size_type count)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (start < Begin() || start > End())
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -1288,7 +1429,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     {
         return ReturnType(start);
     }
-    const SizeType start_pos = start - Begin();
+    const size_type start_pos = start - Begin();
     if (m_size + count + 1 > m_capacity)
     {
         const ErrorCode error = Reserve(m_size + count + 1);
@@ -1297,33 +1438,33 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return ReturnType(error);
         }
     }
-    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
         m_data[i + count] = m_data[i];
     }
-    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    for (size_type i = start_pos; i < start_pos + count; ++i)
     {
         m_data[i] = value;
     }
     m_size += count;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_pos));
+    return ReturnType(iterator(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType start, CodeUnitT value,
-                                                                                          SizeType count)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(const_iterator start, CodeUnitType value,
+                                                                                      size_type count)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (start < ConstBegin() || start > ConstEnd())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
     if (count == 0)
     {
-        return ReturnType(IteratorType(m_data + (start - ConstBegin())));
+        return ReturnType(iterator(m_data + (start - ConstBegin())));
     }
-    const SizeType start_pos = start - ConstBegin();
+    const size_type start_pos = start - ConstBegin();
     if (m_size + count + 1 > m_capacity)
     {
         const ErrorCode error = Reserve(m_size + count + 1);
@@ -1332,39 +1473,39 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return ReturnType(error);
         }
     }
-    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
         m_data[i + count] = m_data[i];
     }
-    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    for (size_type i = start_pos; i < start_pos + count; ++i)
     {
         m_data[i] = value;
     }
     m_size += count;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_pos));
+    return ReturnType(iterator(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(IteratorType start, InputIt begin, InputIt end)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(iterator start, InputIt begin, InputIt end)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (start < Begin() || start > End())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
     if (begin > end)
     {
-        return ReturnType(ErrorCode::BadInput);
+        return ReturnType(ErrorCode::InvalidArgument);
     }
-    const SizeType count = end - begin;
+    const size_type count = end - begin;
     if (count == 0)
     {
         return ReturnType(start);
     }
-    const SizeType start_pos = start - Begin();
+    const size_type start_pos = start - Begin();
     if (m_size + count + 1 > m_capacity)
     {
         const ErrorCode error = Reserve(m_size + count + 1);
@@ -1373,40 +1514,39 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return ReturnType(error);
         }
     }
-    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
         m_data[i + count] = m_data[i];
     }
-    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    for (size_type i = start_pos; i < start_pos + count; ++i)
     {
         m_data[i] = *(begin + i - start_pos);
     }
     m_size += count;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_pos));
+    return ReturnType(iterator(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType start, InputIt begin,
-                                                                                          InputIt end)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(const_iterator start, InputIt begin, InputIt end)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (start < ConstBegin() || start > ConstEnd())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
     if (begin > end)
     {
-        return ReturnType(ErrorCode::BadInput);
+        return ReturnType(ErrorCode::InvalidArgument);
     }
-    const SizeType count = end - begin;
+    const size_type count = end - begin;
     if (count == 0)
     {
-        return ReturnType(IteratorType(m_data + (start - ConstBegin())));
+        return ReturnType(iterator(m_data + (start - ConstBegin())));
     }
-    const SizeType start_pos = start - ConstBegin();
+    const size_type start_pos = start - ConstBegin();
     if (m_size + count + 1 > m_capacity)
     {
         const ErrorCode error = Reserve(m_size + count + 1);
@@ -1415,48 +1555,48 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return ReturnType(error);
         }
     }
-    for (SizeType i = m_size - 1; i >= start_pos && i != k_npos; --i)
+    for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
         m_data[i + count] = m_data[i];
     }
-    for (SizeType i = start_pos; i < start_pos + count; ++i)
+    for (size_type i = start_pos; i < start_pos + count; ++i)
     {
-        m_data[i] = *(begin + static_cast<DifferenceType>(i - start_pos));
+        m_data[i] = *(begin + static_cast<difference_type>(i - start_pos));
     }
     m_size += count;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_pos));
+    return ReturnType(iterator(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(SizeType start_pos, SizeType count)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(size_type start_pos, size_type count)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (start_pos >= m_size)
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
     count = Min(m_size - start_pos, count);
-    for (SizeType i = start_pos; i < m_size - count; i++)
+    for (size_type i = start_pos; i < m_size - count; i++)
     {
         m_data[i] = m_data[i + count];
     }
     m_size -= count;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_pos));
+    return ReturnType(iterator(m_data + start_pos));
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType pos)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(iterator pos)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (pos < Begin() || pos >= End())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
 
-    const SizeType start_index = static_cast<SizeType>(pos - Begin());
-    for (SizeType i = start_index; i < m_size - 1; ++i)
+    const size_type start_index = static_cast<size_type>(pos - Begin());
+    for (size_type i = start_index; i < m_size - 1; ++i)
     {
         m_data[i] = m_data[i + 1];
     }
@@ -1466,28 +1606,28 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(ConstIteratorType pos)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(const_iterator pos)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (pos < ConstBegin() || pos >= ConstEnd())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
 
-    const SizeType start_index = pos - ConstBegin();
-    for (SizeType i = start_index; i < m_size - 1; ++i)
+    const size_type start_index = pos - ConstBegin();
+    for (size_type i = start_index; i < m_size - 1; ++i)
     {
         m_data[i] = m_data[i + 1];
     }
     m_size -= 1;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_index));
+    return ReturnType(iterator(m_data + start_index));
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(IteratorType first, IteratorType last)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(iterator first, iterator last)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (first < Begin() || first >= End())
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -1498,16 +1638,16 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     if (first > last)
     {
-        return ReturnType(ErrorCode::BadInput);
+        return ReturnType(ErrorCode::InvalidArgument);
     }
     if (first == last)
     {
         return ReturnType(first);
     }
 
-    const SizeType count_to_erase = last - first;
-    const SizeType start_index = first - Begin();
-    for (SizeType i = start_index; i < m_size - count_to_erase; ++i)
+    const size_type count_to_erase = last - first;
+    const size_type start_index = first - Begin();
+    for (size_type i = start_index; i < m_size - count_to_erase; ++i)
     {
         m_data[i] = m_data[i + count_to_erase];
     }
@@ -1517,9 +1657,9 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(ConstIteratorType first, ConstIteratorType last)
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(const_iterator first, const_iterator last)
 {
-    using ReturnType = Expected<IteratorType, ErrorCode>;
+    using ReturnType = Expected<iterator, ErrorCode>;
     if (first < ConstBegin() || first >= ConstEnd())
     {
         return ReturnType(ErrorCode::OutOfBounds);
@@ -1530,22 +1670,22 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     if (first > last)
     {
-        return ReturnType(ErrorCode::BadInput);
+        return ReturnType(ErrorCode::InvalidArgument);
     }
     if (first == last)
     {
-        return ReturnType(IteratorType(m_data + (first - ConstBegin())));
+        return ReturnType(iterator(m_data + (first - ConstBegin())));
     }
 
-    const SizeType count_to_erase = last - first;
-    const SizeType start_index = first - ConstBegin();
-    for (SizeType i = start_index; i < m_size - count_to_erase; ++i)
+    const size_type count_to_erase = last - first;
+    const size_type start_index = first - ConstBegin();
+    for (size_type i = start_index; i < m_size - count_to_erase; ++i)
     {
         m_data[i] = m_data[i + count_to_erase];
     }
     m_size -= count_to_erase;
     m_data[m_size] = 0;
-    return ReturnType(IteratorType(m_data + start_index));
+    return ReturnType(iterator(m_data + start_index));
 }
 
 TEMPLATE_HEADER
@@ -1556,30 +1696,30 @@ CLASS_HEADER& CLASS_HEADER::operator+=(const String& other)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator+=(CodeUnitType ch)
+CLASS_HEADER& CLASS_HEADER::operator+=(value_type ch)
 {
     Append(ch);
     return *this;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator+=(const CodeUnitType* str)
+CLASS_HEADER& CLASS_HEADER::operator+=(const value_type* str)
 {
     Append(str);
     return *this;
 }
 
 TEMPLATE_HEADER
-CodeUnitT* CLASS_HEADER::Allocate(SizeType size)
+CodeUnitType* CLASS_HEADER::Allocate(size_type size)
 {
     OPAL_ASSERT(m_allocator != nullptr, "Allocator should never be null!");
     constexpr u64 k_alignment = 8;
-    const u64 size_bytes = size * sizeof(CodeUnitType);
-    return reinterpret_cast<CodeUnitType*>(m_allocator->Alloc(size_bytes, k_alignment));
+    const u64 size_bytes = size * sizeof(value_type);
+    return reinterpret_cast<value_type*>(m_allocator->Alloc(size_bytes, k_alignment));
 }
 
 TEMPLATE_HEADER
-void CLASS_HEADER::Deallocate(CodeUnitType* data)
+void CLASS_HEADER::Deallocate(value_type* data)
 {
     OPAL_ASSERT(m_allocator != nullptr, "Allocator should never be null!");
     m_allocator->Free(data);
@@ -1588,10 +1728,10 @@ void CLASS_HEADER::Deallocate(CodeUnitType* data)
 template <typename InputString, typename OutputString>
 Opal::ErrorCode Opal::Transcode(const InputString& input, OutputString& output)
 {
-    typename InputString::EncodingType src_decoder;
-    typename OutputString::EncodingType dst_encoder;
-    ArrayView<const typename InputString::CodeUnitType> input_span(input.GetData(), input.GetSize());
-    ArrayView<typename OutputString::CodeUnitType> output_span(output.GetData(), output.GetSize());
+    typename InputString::encoding_type src_decoder;
+    typename OutputString::encoding_type dst_encoder;
+    ArrayView<const typename InputString::value_type> input_span(input.GetData(), input.GetSize());
+    ArrayView<typename OutputString::value_type> output_span(output.GetData(), output.GetSize());
     while (true)
     {
         uchar32 code_point = 0;
@@ -1675,57 +1815,57 @@ CLASS_HEADER CLASS_HEADER::operator--(int)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
 {
     return StringIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
 {
     return StringIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(difference_type n)
 {
     m_ptr += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
 {
     m_ptr -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const StringIterator& other) const
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const StringIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](difference_type n) const
 {
     return *(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
+typename CLASS_HEADER::reference CLASS_HEADER::operator*() const
 {
     return *m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
+typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 {
     return m_ptr;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename StringIterator<MyString>::DifferenceType n, const StringIterator<MyString>& it)
+CLASS_HEADER Opal::operator+(typename StringIterator<MyString>::difference_type n, const StringIterator<MyString>& it)
 {
     return it + n;
 }
@@ -1791,57 +1931,57 @@ CLASS_HEADER CLASS_HEADER::operator--(int)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
 {
     return StringConstIterator(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
+CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
 {
     return StringConstIterator(m_ptr - n);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator+=(difference_type n)
 {
     m_ptr += n;
     return *this;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
+CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
 {
     m_ptr -= n;
     return *this;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const StringConstIterator& other) const
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const StringConstIterator& other) const
 {
     return m_ptr - other.m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
+typename CLASS_HEADER::const_reference CLASS_HEADER::operator[](difference_type n) const
 {
     return *(m_ptr + n);
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator*() const
+typename CLASS_HEADER::const_reference CLASS_HEADER::operator*() const
 {
     return *m_ptr;
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::PointerType CLASS_HEADER::operator->() const
+typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 {
     return m_ptr;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename StringConstIterator<MyString>::DifferenceType n, const StringConstIterator<MyString>& it)
+CLASS_HEADER Opal::operator+(typename StringConstIterator<MyString>::difference_type n, const StringConstIterator<MyString>& it)
 {
     return it + n;
 }
@@ -1856,19 +1996,19 @@ Opal::i32 Opal::Compare(const MyString& first, const MyString& second)
 }
 
 template <typename MyString>
-Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::SizeType pos1,
-                                                         typename MyString::SizeType count1, const MyString& second)
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::size_type pos1,
+                                                         typename MyString::size_type count1, const MyString& second)
 {
     return Compare(first, pos1, count1, second, 0, second.GetSize());
 }
 
 template <typename MyString>
-Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::SizeType pos1,
-                                                         typename MyString::SizeType count1, const MyString& second,
-                                                         typename MyString::SizeType pos2, typename MyString::SizeType count2)
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::size_type pos1,
+                                                         typename MyString::size_type count1, const MyString& second,
+                                                         typename MyString::size_type pos2, typename MyString::size_type count2)
 {
     using ReturnType = Expected<i32, ErrorCode>;
-    using SizeType = typename MyString::SizeType;
+    using size_type = typename MyString::size_type;
 
     if (count1 != 0 && pos1 >= first.GetSize())
     {
@@ -1881,8 +2021,8 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
 
     count1 = first.GetSize() - pos1 > count1 ? count1 : first.GetSize() - pos1;
     count2 = second.GetSize() - pos2 > count2 ? count2 : second.GetSize() - pos2;
-    const SizeType count = count1 > count2 ? count2 : count1;
-    for (SizeType i = 0; i < count; i++)
+    const size_type count = count1 > count2 ? count2 : count1;
+    for (size_type i = 0; i < count; i++)
     {
         if (first[pos1 + i] < second[pos2 + i])
         {
@@ -1905,11 +2045,11 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
 }
 
 template <typename MyString>
-Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::SizeType pos1,
-                                                         typename MyString::SizeType count1, const typename MyString::CodeUnitType* second)
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::size_type pos1,
+                                                         typename MyString::size_type count1, const typename MyString::value_type* second)
 {
     using ReturnType = Expected<i32, ErrorCode>;
-    using SizeType = typename MyString::SizeType;
+    using size_type = typename MyString::size_type;
 
     if (count1 != 0 && pos1 >= first.GetSize())
     {
@@ -1917,11 +2057,11 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
     }
     if (second == nullptr)
     {
-        return ReturnType(ErrorCode::BadInput);
+        return ReturnType(ErrorCode::InvalidArgument);
     }
 
     count1 = first.GetSize() - pos1 > count1 ? count1 : first.GetSize() - pos1;
-    SizeType size2 = 0;
+    size_type size2 = 0;
     while (*second != 0)
     {
         if (first[pos1 + size2] < *second)
@@ -1947,12 +2087,12 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
 }
 
 template <typename MyString>
-Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::SizeType pos1,
-                                                         typename MyString::SizeType count1, const typename MyString::CodeUnitType* second,
-                                                         typename MyString::SizeType count2)
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::size_type pos1,
+                                                         typename MyString::size_type count1, const typename MyString::value_type* second,
+                                                         typename MyString::size_type count2)
 {
     using ReturnType = Expected<i32, ErrorCode>;
-    using SizeType = typename MyString::SizeType;
+    using size_type = typename MyString::size_type;
 
     if (count1 != 0 && pos1 >= first.GetSize())
     {
@@ -1960,11 +2100,11 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
     }
     if (second == nullptr)
     {
-        return ReturnType(ErrorCode::BadInput);
+        return ReturnType(ErrorCode::InvalidArgument);
     }
 
     count1 = first.GetSize() - pos1 > count1 ? count1 : first.GetSize() - pos1;
-    SizeType size2 = 0;
+    size_type size2 = 0;
     while (*second != 0 && size2 < count2)
     {
         if (first[pos1 + size2] < *second)
@@ -1998,7 +2138,7 @@ MyString Opal::operator+(const MyString& lhs, const MyString& rhs)
 }
 
 template <typename MyString>
-MyString Opal::operator+(const MyString& lhs, const typename MyString::CodeUnitType* rhs)
+MyString Opal::operator+(const MyString& lhs, const typename MyString::value_type* rhs)
 {
     MyString result = lhs;
     result += rhs;
@@ -2006,7 +2146,7 @@ MyString Opal::operator+(const MyString& lhs, const typename MyString::CodeUnitT
 }
 
 template <typename MyString>
-MyString Opal::operator+(const MyString& lhs, typename MyString::CodeUnitType ch)
+MyString Opal::operator+(const MyString& lhs, typename MyString::value_type ch)
 {
     MyString result = lhs;
     result += ch;
@@ -2014,7 +2154,7 @@ MyString Opal::operator+(const MyString& lhs, typename MyString::CodeUnitType ch
 }
 
 template <typename MyString>
-MyString Opal::operator+(const typename MyString::CodeUnitType* lhs, const MyString& rhs)
+MyString Opal::operator+(const typename MyString::value_type* lhs, const MyString& rhs)
 {
     MyString result;
     result += lhs;
@@ -2023,7 +2163,7 @@ MyString Opal::operator+(const typename MyString::CodeUnitType* lhs, const MyStr
 }
 
 template <typename MyString>
-MyString Opal::operator+(typename MyString::CodeUnitType ch, const MyString& rhs)
+MyString Opal::operator+(typename MyString::value_type ch, const MyString& rhs)
 {
     MyString result;
     result += ch;
@@ -2032,7 +2172,7 @@ MyString Opal::operator+(typename MyString::CodeUnitType ch, const MyString& rhs
 }
 
 template <typename MyString>
-typename MyString::SizeType Opal::Find(const MyString& haystack, const MyString& needle, typename MyString::SizeType start_pos)
+typename MyString::size_type Opal::Find(const MyString& haystack, const MyString& needle, typename MyString::size_type start_pos)
 {
     if (needle.IsEmpty())
     {
@@ -2046,10 +2186,10 @@ typename MyString::SizeType Opal::Find(const MyString& haystack, const MyString&
     {
         return MyString::k_npos;
     }
-    for (typename MyString::SizeType haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
+    for (typename MyString::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
     {
         bool is_found = true;
-        for (typename MyString::SizeType needle_pos = 0; needle_pos < needle.GetSize(); ++needle_pos)
+        for (typename MyString::size_type needle_pos = 0; needle_pos < needle.GetSize(); ++needle_pos)
         {
             if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
             {
@@ -2066,8 +2206,8 @@ typename MyString::SizeType Opal::Find(const MyString& haystack, const MyString&
 }
 
 template <typename MyString>
-typename MyString::SizeType Opal::Find(const MyString& haystack, const typename MyString::CodeUnitType* needle,
-                                       typename MyString::SizeType start_pos, typename MyString::SizeType needle_count)
+typename MyString::size_type Opal::Find(const MyString& haystack, const typename MyString::value_type* needle,
+                                        typename MyString::size_type start_pos, typename MyString::size_type needle_count)
 {
     if (needle == nullptr)
     {
@@ -2093,10 +2233,10 @@ typename MyString::SizeType Opal::Find(const MyString& haystack, const typename 
     {
         return MyString::k_npos;
     }
-    for (typename MyString::SizeType haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
+    for (typename MyString::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
     {
         bool is_found = true;
-        for (typename MyString::SizeType needle_pos = 0; needle_pos < needle_count; ++needle_pos)
+        for (typename MyString::size_type needle_pos = 0; needle_pos < needle_count; ++needle_pos)
         {
             if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
             {
@@ -2113,8 +2253,8 @@ typename MyString::SizeType Opal::Find(const MyString& haystack, const typename 
 }
 
 template <typename MyString>
-typename MyString::SizeType Opal::Find(const MyString& haystack, const typename MyString::CodeUnitType& ch,
-                                       typename MyString::SizeType start_pos)
+typename MyString::size_type Opal::Find(const MyString& haystack, const typename MyString::value_type& ch,
+                                        typename MyString::size_type start_pos)
 {
     if (haystack.IsEmpty())
     {
@@ -2124,7 +2264,7 @@ typename MyString::SizeType Opal::Find(const MyString& haystack, const typename 
     {
         return MyString::k_npos;
     }
-    for (typename MyString::SizeType haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
+    for (typename MyString::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
     {
         if (haystack[haystack_pos] == ch)
         {
@@ -2135,7 +2275,7 @@ typename MyString::SizeType Opal::Find(const MyString& haystack, const typename 
 }
 
 template <typename MyString>
-typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const MyString& needle, typename MyString::SizeType start_pos)
+typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const MyString& needle, typename MyString::size_type start_pos)
 {
     if (needle.IsEmpty())
     {
@@ -2149,10 +2289,10 @@ typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const My
     {
         return MyString::k_npos;
     }
-    for (typename MyString::SizeType haystack_pos = start_pos - needle.GetSize(); haystack_pos != MyString::k_npos; --haystack_pos)
+    for (typename MyString::size_type haystack_pos = start_pos - needle.GetSize(); haystack_pos != MyString::k_npos; --haystack_pos)
     {
         bool is_found = true;
-        for (typename MyString::SizeType needle_pos = 0; needle_pos < needle.GetSize(); ++needle_pos)
+        for (typename MyString::size_type needle_pos = 0; needle_pos < needle.GetSize(); ++needle_pos)
         {
             if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
             {
@@ -2169,8 +2309,8 @@ typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const My
 }
 
 template <typename MyString>
-typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const typename MyString::CodeUnitType* needle,
-                                              typename MyString::SizeType start_pos, typename MyString::SizeType needle_count)
+typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const typename MyString::value_type* needle,
+                                               typename MyString::size_type start_pos, typename MyString::size_type needle_count)
 {
     if (needle == nullptr)
     {
@@ -2196,10 +2336,10 @@ typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const ty
     {
         return MyString::k_npos;
     }
-    for (typename MyString::SizeType haystack_pos = start_pos - needle_count; haystack_pos != MyString::k_npos; --haystack_pos)
+    for (typename MyString::size_type haystack_pos = start_pos - needle_count; haystack_pos != MyString::k_npos; --haystack_pos)
     {
         bool is_found = true;
-        for (typename MyString::SizeType needle_pos = 0; needle_pos < needle_count; ++needle_pos)
+        for (typename MyString::size_type needle_pos = 0; needle_pos < needle_count; ++needle_pos)
         {
             if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
             {
@@ -2216,8 +2356,8 @@ typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const ty
 }
 
 template <typename MyString>
-typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const typename MyString::CodeUnitType& ch,
-                                              typename MyString::SizeType start_pos)
+typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const typename MyString::value_type& ch,
+                                               typename MyString::size_type start_pos)
 {
     if (haystack.IsEmpty())
     {
@@ -2227,7 +2367,7 @@ typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const ty
     {
         start_pos = haystack.GetSize() - 1;
     }
-    for (typename MyString::SizeType haystack_pos = start_pos; haystack_pos != MyString::k_npos; --haystack_pos)
+    for (typename MyString::size_type haystack_pos = start_pos; haystack_pos != MyString::k_npos; --haystack_pos)
     {
         if (haystack[haystack_pos] == ch)
         {
@@ -2238,8 +2378,8 @@ typename MyString::SizeType Opal::ReverseFind(const MyString& haystack, const ty
 }
 
 template <typename MyString, typename Allocator>
-Opal::Expected<MyString, Opal::ErrorCode> Opal::GetSubString(const MyString& str, typename MyString::SizeType start_pos,
-                                                             typename MyString::SizeType count, Allocator* allocator)
+Opal::Expected<MyString, Opal::ErrorCode> Opal::GetSubString(const MyString& str, typename MyString::size_type start_pos,
+                                                             typename MyString::size_type count, Allocator* allocator)
 {
     using ReturnType = Expected<MyString, ErrorCode>;
     if (start_pos >= str.GetSize())

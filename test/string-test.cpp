@@ -458,109 +458,328 @@ TEST_CASE("Assign", "[String]")
 {
     SECTION("Short string")
     {
-        SECTION("Count and value smaller then current capacity")
+        SECTION("Count and value")
         {
-            StringUtf8 str("Hello there");
-            str.Assign(5, 'd');
-            REQUIRE(str.GetCapacity() == 12);
-            REQUIRE(str.GetSize() == 5);
-            for (i32 i = 0; i < 5; i++)
+            SECTION("Count is zero")
             {
-                REQUIRE(str.GetData()[i] == 'd');
+                StringUtf8 str("Hello there");
+                const ErrorCode err = str.Assign(0, 'd');
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetSize() == 0);
+            }
+            SECTION("Count is normal and no resize")
+            {
+                StringUtf8 str("Hello there");
+                const ErrorCode err = str.Assign(5, 'd');
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetSize() == 5);
+                for (i32 i = 0; i < 5; i++)
+                {
+                    REQUIRE(str.GetData()[i] == 'd');
+                }
+            }
+            SECTION("Count is normal and triggers resize")
+            {
+                StringUtf8 str;
+                const ErrorCode err = str.Assign(5, 'd');
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetCapacity() == 6);
+                REQUIRE(str.GetSize() == 5);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == 'd');
+                }
+            }
+            SECTION("Resize fails")
+            {
+                NullAllocator null_allocator;
+                StringUtf8 str(&null_allocator);
+                const ErrorCode err = str.Assign(5, 'd');
+                REQUIRE(err == ErrorCode::OutOfMemory);
             }
         }
-        SECTION("Count and value larger then current capacity")
+        SECTION("Other string")
         {
-            StringUtf8 str;
-            str.Assign(5, 'd');
-            REQUIRE(str.GetCapacity() == 6);
-            REQUIRE(str.GetSize() == 5);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            SECTION("Empty string")
             {
-                REQUIRE(str.GetData()[i] == 'd');
+                StringUtf8 str("Hello there");
+                const StringUtf8 other;
+                const ErrorCode err = str.Assign(other);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetSize() == 0);
+            }
+            SECTION("Same string")
+            {
+                StringUtf8 str("Hello there");
+                const ErrorCode err = str.Assign(str);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetSize() == 11);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
+                }
+            }
+            SECTION("Other string smaller then current capacity")
+            {
+                StringUtf8 str("Hello there");
+                const StringUtf8 other("Hello");
+                const ErrorCode err = str.Assign(other);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetSize() == 5);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Hello"[i]);
+                }
+            }
+            SECTION("Other string larger then current capacity")
+            {
+                StringUtf8 str("Hello there");
+                const StringUtf8 other("Hello there and then");
+                const ErrorCode err = str.Assign(other);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetSize() == 20);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Hello there and then some"[i]);
+                }
             }
         }
-        SECTION("String literal and count smaller then current capacity")
+        SECTION("Part of the other string")
         {
-            StringUtf8 str("Goodbye and get lost");
-            str.Assign("Hello there", 5);
-            REQUIRE(str.GetCapacity() == 21);
-            REQUIRE(str.GetSize() == 5);
-            for (i32 i = 0; i < 5; i++)
+            SECTION("Empty string")
             {
-                REQUIRE(str.GetData()[i] == u8"Hello"[i]);
+                StringUtf8 str("Hello there");
+                const StringUtf8 other;
+                const ErrorCode err = str.Assign(other, 0);
+                REQUIRE(err == ErrorCode::OutOfBounds);
             }
-        }
-        SECTION("String literal and count larger then current capacity")
-        {
-            StringUtf8 str("Other");
-            str.Assign("Hello there", 10);
-            REQUIRE(str.GetCapacity() == 11);
-            REQUIRE(str.GetSize() == 10);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            SECTION("Same string")
             {
-                REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
+                StringUtf8 str("Hello there");
+                str.Assign(str, 5, 6);
+                const ErrorCode err = str.Assign(str, 5, 6);
+                REQUIRE(err == ErrorCode::SelfNotAllowed);
             }
-        }
-        SECTION("Only string literal")
-        {
-            StringUtf8 str("Other");
-            str.Assign("Hello there");
-            REQUIRE(str.GetCapacity() == 12);
-            REQUIRE(str.GetSize() == 11);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            SECTION("Bad position")
             {
-                REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
+                StringUtf8 str("Hello there");
+                const StringUtf8 other("Hello");
+                const ErrorCode err = str.Assign(other, 10);
+                REQUIRE(err == ErrorCode::OutOfBounds);
             }
-        }
-        SECTION("Copy other string")
-        {
-            StringUtf8 ref("Hello there");
-            StringUtf8 copy;
-            copy.Assign(ref);
-            REQUIRE(copy.GetSize() == ref.GetSize());
-            REQUIRE(copy.GetCapacity() == ref.GetCapacity());
-            for (i32 i = 0; i < ref.GetSize(); i++)
+            SECTION("Bad count")
             {
-                REQUIRE(copy.GetData()[i] == ref.GetData()[i]);
+                StringUtf8 str("Hello there");
+                const StringUtf8 other("Hello");
+                const ErrorCode err = str.Assign(other, 0, 10);
+                REQUIRE(err == ErrorCode::OutOfBounds);
             }
-        }
-        SECTION("Copy part of the other string")
-        {
-            StringUtf8 ref("Hello there");
-            StringUtf8 copy1;
-            copy1.Assign(ref, 6, 10);
-            REQUIRE(copy1.GetSize() == 5);
-            REQUIRE(copy1.GetCapacity() == 6);
-            for (i32 i = 0; i < copy1.GetSize(); i++)
+            SECTION("Copy rest of the string")
             {
-                REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
+                const StringUtf8 ref("Hello there");
+                StringUtf8 copy;
+                const ErrorCode err = copy.Assign(ref, 6);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(copy.GetSize() == 5);
+                REQUIRE(copy.GetCapacity() == 6);
+                for (i32 i = 0; i < copy.GetSize(); i++)
+                {
+                    REQUIRE(copy.GetData()[i] == u8"there"[i]);
+                }
             }
-            StringUtf8 copy2;
-            copy2.Assign(ref, 6, 3);
-            REQUIRE(copy2.GetSize() == 3);
-            REQUIRE(copy2.GetCapacity() == 4);
-            for (i32 i = 0; i < copy2.GetSize(); i++)
+            SECTION("Copy with specific count")
             {
-                REQUIRE(copy1.GetData()[i] == ref.GetData()[6 + i]);
+                const StringUtf8 ref("Hello there");
+                StringUtf8 copy;
+                const ErrorCode err = copy.Assign(ref, 6, 3);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(copy.GetSize() == 3);
+                REQUIRE(copy.GetCapacity() == 4);
+                for (i32 i = 0; i < copy.GetSize(); i++)
+                {
+                    REQUIRE(copy.GetData()[i] == u8"the"[i]);
+                }
             }
-            StringUtf8 copy3;
-            ErrorCode err = copy3.Assign(ref, 15, 3);
-            REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(copy3.GetSize() == 0);
-            REQUIRE(copy3.GetCapacity() == 0);
+            SECTION("Other string smaller then current capacity")
+            {
+                StringUtf8 str("Hello there");
+                const StringUtf8 other("Hello");
+                const ErrorCode err = str.Assign(other, 0, 5);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetSize() == 5);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Hello"[i]);
+                }
+            }
+            SECTION("Other string larger then current capacity")
+            {
+                StringUtf8 str("Hello there");
+                const StringUtf8 other("Hello there and then");
+                const ErrorCode err = str.Assign(other, 0, 20);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetSize() == 20);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Hello there and then some"[i]);
+                }
+            }
         }
         SECTION("Move string")
         {
-            StringUtf8 ref("Hello there");
-            StringUtf8 copy;
-            copy.Assign(Move(ref));
-            REQUIRE(copy.GetSize() == 11);
-            REQUIRE(copy.GetCapacity() == 12);
-            REQUIRE(copy.GetData() != nullptr);
-            REQUIRE(ref.GetSize() == 0);
-            REQUIRE(ref.GetCapacity() == 0);
-            REQUIRE(ref.GetData() == nullptr);
+            SECTION("Empty string")
+            {
+                StringUtf8 str("Hello there");
+                StringUtf8 other;
+                str.Assign(Move(other));
+                REQUIRE(str.GetCapacity() == 0);
+                REQUIRE(str.GetSize() == 0);
+                REQUIRE(other.GetCapacity() == 0);
+                REQUIRE(other.GetSize() == 0);
+            }
+            SECTION("Self")
+            {
+                StringUtf8 str("Hello there");
+                str.Assign(Move(str));
+                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetSize() == 11);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
+                }
+            }
+            SECTION("Non-empty string")
+            {
+                StringUtf8 str("Hello there");
+                StringUtf8 other("Goodbye");
+                str.Assign(Move(other));
+                REQUIRE(str.GetCapacity() == 8);
+                REQUIRE(str.GetSize() == 7);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Goodbye"[i]);
+                }
+                REQUIRE(other.GetCapacity() == 0);
+                REQUIRE(other.GetSize() == 0);
+            }
+        }
+        SECTION("String literal and count")
+        {
+            SECTION("Null pointer")
+            {
+                StringUtf8 str("Hello there");
+                ErrorCode err = str.Assign(nullptr, 0);
+                REQUIRE(err == ErrorCode::InvalidArgument);
+            }
+            SECTION("Count larger then string literal")
+            {
+                StringUtf8 str("Hello there");
+                const ErrorCode err = str.Assign("Hello there", 15);
+                REQUIRE(err == ErrorCode::OutOfBounds);
+            }
+            SECTION("Empty string literal")
+            {
+                StringUtf8 str("Hello there");
+                const ErrorCode err = str.Assign("");
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetSize() == 0);
+                REQUIRE(str.GetCapacity() == 12);
+            }
+            SECTION("Non-empty string literal")
+            {
+                StringUtf8 str("Hello there");
+                const ErrorCode err = str.Assign("Goodbye");
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetSize() == 7);
+                REQUIRE(str.GetCapacity() == 12);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Goodbye"[i]);
+                }
+            }
+            SECTION("Partial string literal")
+            {
+                StringUtf8 str("Hello there");
+                const ErrorCode err = str.Assign("Goodbye", 4);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetSize() == 4);
+                REQUIRE(str.GetCapacity() == 12);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Good"[i]);
+                }
+            }
+            SECTION("String literal that triggers resize")
+            {
+                StringUtf8 str("Hello there");
+                const ErrorCode err = str.Assign("Goodbye and then some");
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetSize() == 21);
+                REQUIRE(str.GetCapacity() == 22);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == u8"Goodbye and then some"[i]);
+                }
+            }
+            SECTION("Resize failure")
+            {
+                NullAllocator null_allocator;
+                StringUtf8 str(&null_allocator);
+                const ErrorCode err = str.Assign("Goodbye and then some");
+                REQUIRE(err == ErrorCode::OutOfMemory);
+            }
+        }
+        SECTION("Iterators")
+        {
+            SECTION("Invalid iterator")
+            {
+                const char* ref = "Hello there";
+                StringUtf8 str;
+                const ErrorCode err = str.Assign(ref + 5, ref + 3);
+                REQUIRE(err == ErrorCode::InvalidArgument);
+            }
+            SECTION("Assign from self")
+            {
+                StringUtf8 str("Hello there");
+                const ErrorCode err = str.Assign(str.begin(), str.end());
+                REQUIRE(err == ErrorCode::SelfNotAllowed);
+            }
+            SECTION("Empty range")
+            {
+                const char* ref = "Hello there";
+                StringUtf8 str;
+                const ErrorCode err = str.Assign(ref + 5, ref + 5);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetSize() == 0);
+                REQUIRE(str.GetCapacity() == 1);
+            }
+            SECTION("Normal range that triggers resize")
+            {
+                const char* ref = "Hello there";
+                StringUtf8 str;
+                const ErrorCode err = str.Assign(ref + 5, ref + 10);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.GetSize() == 5);
+                REQUIRE(str.GetCapacity() == 6);
+                for (i32 i = 0; i < str.GetSize(); i++)
+                {
+                    REQUIRE(str.GetData()[i] == ref[5 + i]);
+                }
+            }
+            SECTION("Resize fails")
+            {
+                NullAllocator null_allocator;
+                StringUtf8 str(&null_allocator);
+                const char* ref = "Hello there";
+                const ErrorCode err = str.Assign(ref + 5, ref + 10);
+                REQUIRE(err == ErrorCode::OutOfMemory);
+            }
         }
     }
     SECTION("Long string")
@@ -937,7 +1156,7 @@ TEST_CASE("Append", "[String]")
         {
             StringLocale str("Hello");
             ErrorCode err = str.Append(nullptr);
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::InvalidArgument);
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
@@ -973,7 +1192,7 @@ TEST_CASE("Append", "[String]")
         {
             StringLocale str("Hello");
             ErrorCode err = str.Append(nullptr, 5);
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::InvalidArgument);
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
@@ -1081,7 +1300,7 @@ TEST_CASE("Append", "[String]")
         {
             StringLocale str(ref);
             ErrorCode err = str.Append(nullptr);
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::InvalidArgument);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 574);
             REQUIRE(strcmp(str.GetData(), ref) == 0);
@@ -1115,7 +1334,7 @@ TEST_CASE("Append", "[String]")
         {
             StringLocale str(ref);
             ErrorCode err = str.Append(nullptr, 5);
-            REQUIRE(err == ErrorCode::BadInput);
+            REQUIRE(err == ErrorCode::InvalidArgument);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 574);
             REQUIRE(strcmp(str.GetData(), ref) == 0);
@@ -1187,19 +1406,10 @@ TEST_CASE("Append", "[String]")
 
 TEST_CASE("Iterator", "[String]")
 {
-    using StringLocale = StringLocale;
-    using ItType = StringLocale::IteratorType;
-    SECTION("Difference")
-    {
-        StringLocale str("Hello there");
-        ItType it1 = str.Begin();
-        ItType it2 = str.End();
-        REQUIRE(it2 - it1 == 11);
-    }
     SECTION("Increment")
     {
         StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(*it == 'H');
         ++it;
         REQUIRE(*it == 'e');
@@ -1209,19 +1419,19 @@ TEST_CASE("Iterator", "[String]")
     SECTION("Post increment")
     {
         StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(*it == 'H');
         ++it;
         REQUIRE(*it == 'e');
         ++it;
         REQUIRE(*it == 'l');
-        ItType prev = it++;
+        auto prev = it++;
         REQUIRE(it - prev == 1);
     }
     SECTION("Decrement")
     {
         StringLocale str("Hello there");
-        ItType it = str.End();
+        auto it = str.End();
         --it;
         REQUIRE(*it == 'e');
         --it;
@@ -1232,31 +1442,31 @@ TEST_CASE("Iterator", "[String]")
     SECTION("Post decrement")
     {
         StringLocale str("Hello there");
-        ItType it = str.End();
+        auto it = str.End();
         --it;
         REQUIRE(*it == 'e');
         --it;
         REQUIRE(*it == 'r');
         --it;
         REQUIRE(*it == 'e');
-        ItType prev = it--;
+        auto prev = it--;
         REQUIRE(prev - it == 1);
     }
     SECTION("Add")
     {
         StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(*(it + 0) == 'H');
         REQUIRE(*(it + 1) == 'e');
         REQUIRE(*(it + 2) == 'l');
 
-        ItType it2 = str.Begin();
+        auto it2 = str.Begin();
         REQUIRE((11 + it2) == str.End());
     }
     SECTION("Add assignment")
     {
         StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(*(it += 0) == 'H');
         REQUIRE(*(it += 1) == 'e');
         REQUIRE(*(it += 1) == 'l');
@@ -1264,7 +1474,7 @@ TEST_CASE("Iterator", "[String]")
     SECTION("Subtract")
     {
         StringLocale str("Hello there");
-        ItType it = str.End();
+        auto it = str.End();
         REQUIRE((it - 0) == str.End());
         REQUIRE(*(it - 1) == 'e');
         REQUIRE(*(it - 2) == 'r');
@@ -1273,16 +1483,23 @@ TEST_CASE("Iterator", "[String]")
     SECTION("Subtract assignment")
     {
         StringLocale str("Hello there");
-        ItType it = str.End();
+        auto it = str.End();
         REQUIRE((it -= 0) == str.End());
         REQUIRE(*(it -= 1) == 'e');
         REQUIRE(*(it -= 1) == 'r');
         REQUIRE(*(it -= 1) == 'e');
     }
+    SECTION("Difference")
+    {
+        StringLocale str("Hello there");
+        auto it1 = str.Begin();
+        auto it2 = str.End();
+        REQUIRE(it2 - it1 == 11);
+    }
     SECTION("Access")
     {
         StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(it[0] == 'H');
         REQUIRE(it[1] == 'e');
         REQUIRE(it[2] == 'l');
@@ -1290,14 +1507,14 @@ TEST_CASE("Iterator", "[String]")
     SECTION("Dereference")
     {
         StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(*it == 'H');
     }
     SECTION("Compare")
     {
         StringLocale str("Hello there");
-        ItType it1 = str.Begin();
-        ItType it2 = str.Begin();
+        auto it1 = str.Begin();
+        auto it2 = str.Begin();
         REQUIRE(it1 == it2);
         REQUIRE(it1 <= it2);
         REQUIRE(it1 >= it2);
@@ -1317,7 +1534,7 @@ TEST_CASE("Iterator", "[String]")
     {
         StringLocale str("Hello there");
         StringLocale dst;
-        for (ItType it = str.Begin(); it != str.End(); ++it)
+        for (auto it = str.Begin(); it != str.End(); ++it)
         {
             dst.Append(*it);
         }
@@ -1339,19 +1556,17 @@ TEST_CASE("Iterator", "[String]")
 
 TEST_CASE("Const iterator", "[String]")
 {
-    using StringLocale = StringLocale;
-    using ItType = StringLocale::ConstIteratorType;
     SECTION("Difference")
     {
         StringLocale str("Hello there");
-        ItType it1 = str.ConstBegin();
-        ItType it2 = str.ConstEnd();
+        auto it1 = str.ConstBegin();
+        auto it2 = str.ConstEnd();
         REQUIRE(it2 - it1 == 11);
     }
     SECTION("Increment")
     {
         const StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(*it == 'H');
         ++it;
         REQUIRE(*it == 'e');
@@ -1361,19 +1576,19 @@ TEST_CASE("Const iterator", "[String]")
     SECTION("Post increment")
     {
         const StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(*it == 'H');
         ++it;
         REQUIRE(*it == 'e');
         ++it;
         REQUIRE(*it == 'l');
-        ItType prev = it++;
+        auto prev = it++;
         REQUIRE(it - prev == 1);
     }
     SECTION("Decrement")
     {
         StringLocale str("Hello there");
-        ItType it = str.ConstEnd();
+        auto it = str.ConstEnd();
         --it;
         REQUIRE(*it == 'e');
         --it;
@@ -1384,31 +1599,31 @@ TEST_CASE("Const iterator", "[String]")
     SECTION("Post decrement")
     {
         StringLocale str("Hello there");
-        ItType it = str.ConstEnd();
+        auto it = str.ConstEnd();
         --it;
         REQUIRE(*it == 'e');
         --it;
         REQUIRE(*it == 'r');
         --it;
         REQUIRE(*it == 'e');
-        ItType prev = it--;
+        auto prev = it--;
         REQUIRE(prev - it == 1);
     }
     SECTION("Add")
     {
         const StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(*(it + 0) == 'H');
         REQUIRE(*(it + 1) == 'e');
         REQUIRE(*(it + 2) == 'l');
 
-        ItType it2 = str.ConstBegin();
+        auto it2 = str.ConstBegin();
         REQUIRE((11 + it2) == str.End());
     }
     SECTION("Add assignment")
     {
         StringLocale str("Hello there");
-        ItType it = str.ConstBegin();
+        auto it = str.ConstBegin();
         REQUIRE(*(it += 0) == 'H');
         REQUIRE(*(it += 1) == 'e');
         REQUIRE(*(it += 1) == 'l');
@@ -1416,7 +1631,7 @@ TEST_CASE("Const iterator", "[String]")
     SECTION("Subtract")
     {
         const StringLocale str("Hello there");
-        ItType it = str.End();
+        auto it = str.End();
         REQUIRE((it - 0) == str.End());
         REQUIRE(*(it - 1) == 'e');
         REQUIRE(*(it - 2) == 'r');
@@ -1425,7 +1640,7 @@ TEST_CASE("Const iterator", "[String]")
     SECTION("Subtract assignment")
     {
         const StringLocale str("Hello there");
-        ItType it = str.End();
+        auto it = str.End();
         REQUIRE((it -= 0) == str.End());
         REQUIRE(*(it -= 1) == 'e');
         REQUIRE(*(it -= 1) == 'r');
@@ -1434,7 +1649,7 @@ TEST_CASE("Const iterator", "[String]")
     SECTION("Access")
     {
         const StringLocale str("Hello there");
-        ItType it = str.Begin();
+        auto it = str.Begin();
         REQUIRE(it[0] == 'H');
         REQUIRE(it[1] == 'e');
         REQUIRE(it[2] == 'l');
@@ -1442,14 +1657,14 @@ TEST_CASE("Const iterator", "[String]")
     SECTION("Dereference")
     {
         StringLocale str("Hello there");
-        ItType it = str.ConstBegin();
+        auto it = str.ConstBegin();
         REQUIRE(*it == 'H');
     }
     SECTION("Compare")
     {
         StringLocale str("Hello there");
-        ItType it1 = str.ConstBegin();
-        ItType it2 = str.ConstBegin();
+        auto it1 = str.ConstBegin();
+        auto it2 = str.ConstBegin();
         REQUIRE(it1 == it2);
         REQUIRE(it1 <= it2);
         REQUIRE(it1 >= it2);
@@ -1469,7 +1684,7 @@ TEST_CASE("Const iterator", "[String]")
     {
         const StringLocale str("Hello there");
         StringLocale dst;
-        for (ItType it = str.Begin(); it != str.End(); ++it)
+        for (auto it = str.Begin(); it != str.End(); ++it)
         {
             dst.Append(*it);
         }
@@ -2718,7 +2933,7 @@ TEST_CASE("Erase", "[String]")
             StringLocale str("Hello there");
             auto result = str.Erase(str.Begin() + 5, str.Begin() + 3);
             REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::BadInput);
+            REQUIRE(result.GetError() == ErrorCode::InvalidArgument);
         }
         SECTION("Empty range")
         {
@@ -2777,7 +2992,7 @@ TEST_CASE("Erase", "[String]")
             StringLocale str("Hello there");
             auto result = str.Erase(str.ConstBegin() + 5, str.ConstBegin() + 3);
             REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::BadInput);
+            REQUIRE(result.GetError() == ErrorCode::InvalidArgument);
         }
         SECTION("Empty range")
         {
@@ -2868,7 +3083,7 @@ TEST_CASE("Insert", "[String]")
             StringLocale str("Hello there");
             auto result = str.Insert(0, nullptr, 2);
             REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::BadInput);
+            REQUIRE(result.GetError() == ErrorCode::InvalidArgument);
         }
         SECTION("Bad start position")
         {
@@ -3082,7 +3297,7 @@ TEST_CASE("Insert", "[String]")
             StringLocale in("aa");
             auto result = str.Insert(str.Begin(), in.End(), in.Begin());
             REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::BadInput);
+            REQUIRE(result.GetError() == ErrorCode::InvalidArgument);
         }
         SECTION("Memory allocation failed")
         {
@@ -3146,7 +3361,7 @@ TEST_CASE("Insert", "[String]")
             StringLocale in("aa");
             auto result = str.Insert(str.ConstBegin(), in.End(), in.Begin());
             REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::BadInput);
+            REQUIRE(result.GetError() == ErrorCode::InvalidArgument);
         }
         SECTION("Memory allocation failed")
         {

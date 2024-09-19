@@ -16,6 +16,7 @@ enum class ErrorCode : u8
     InsufficientSpace = 6,
     StringNotFound = 7,
     OSFailure = 8,
+    SelfNotAllowed = 9,
 };
 
 }

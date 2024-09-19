@@ -103,7 +103,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::Combine(Allocator
 
     auto append = [&result, &err](const auto& part)
     {
-        constexpr StringUtf8::CodeUnitType k_separator = '\\';
+        constexpr StringUtf8::value_type k_separator = '\\';
         if (result.IsEmpty())
         {
             err = result.Append(part);

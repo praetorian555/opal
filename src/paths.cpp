@@ -13,7 +13,7 @@ Opal::ErrorCode Opal::Paths::GetCurrentWorkingDirectory(Opal::StringUtf8& out_pa
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     const DWORD size_needed = GetCurrentDirectoryW(0, nullptr);
-    StringWide buffer(static_cast<StringWide::SizeType>(size_needed - 1), L'\0', &out_path.GetAllocator());
+    StringWide buffer(static_cast<StringWide::size_type>(size_needed - 1), L'\0', &out_path.GetAllocator());
     if (buffer.GetSize() != size_needed - 1)
     {
         return ErrorCode::OutOfMemory;
@@ -85,9 +85,9 @@ Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path, 
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(const StringUtf8& path, AllocatorBase* allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    constexpr StringUtf8::CodeUnitType k_preferred_separator = '\\';
+    constexpr StringUtf8::value_type k_preferred_separator = '\\';
 #elif defined(OPAL_PLATFORM_LINUX)
-    constexpr StringUtf8::CodeUnitType k_preferred_separator = '/';
+    constexpr StringUtf8::value_type k_preferred_separator = '/';
 #else
 #error "Platform not supported"
 #endif
@@ -129,7 +129,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
     }
 
     bool prev_is_separator = false;
-    StringUtf8::SizeType start = 0;
+    StringUtf8::size_type start = 0;
     StringUtf8 root(allocator);
 
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -174,7 +174,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
 
     StringUtf8 relative(allocator);
     // Remove redundant separators and switch to using preferred separators
-    for (StringUtf8::SizeType i = start; i < original_path.GetSize(); ++i)
+    for (StringUtf8::size_type i = start; i < original_path.GetSize(); ++i)
     {
         if (original_path[i] == '\\' || original_path[i] == '/')
         {
@@ -205,7 +205,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
     pattern.Append(k_preferred_separator);
     pattern.Append('.');
     pattern.Append(k_preferred_separator);
-    const StringUtf8::SizeType pos = Find(relative, pattern);
+    const StringUtf8::size_type pos = Find(relative, pattern);
     if (pos != StringUtf8::k_npos)
     {
         // Remove ./
@@ -234,15 +234,15 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
     }
 
     // Points to either separator, the first element in the relative path or one after last element in the relative path
-    StringUtf8::SizeType end = relative.GetSize();
-    StringUtf8::SizeType erase_end = 0;
+    StringUtf8::size_type end = relative.GetSize();
+    StringUtf8::size_type erase_end = 0;
 
     i32 skip_count = 0;
 
     while (end != 0)
     {
         // component_start either points to the separator or to the first element in the relative path
-        StringUtf8::SizeType component_start = ReverseFind(relative, k_preferred_separator, end - 1);
+        StringUtf8::size_type component_start = ReverseFind(relative, k_preferred_separator, end - 1);
         if (component_start == StringUtf8::k_npos)
         {
             component_start = 0;
@@ -251,8 +251,8 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
 
         // Here we want to compare from the first char after the separator to the end of the component, which is either
         // the last element before next separator or the last element in the relative path
-        const StringUtf8::SizeType compare_start = is_not_first_char ? component_start + 1 : 0;
-        const StringUtf8::SizeType compare_count = is_not_first_char ? end - component_start - 1 : end;
+        const StringUtf8::size_type compare_start = is_not_first_char ? component_start + 1 : 0;
+        const StringUtf8::size_type compare_count = is_not_first_char ? end - component_start - 1 : end;
         auto compare_result = Compare(relative, compare_start, compare_count, "..");
         OPAL_ASSERT(compare_result.HasValue(), "This must always succeed");
         if (compare_result.GetValue() == 0)
@@ -267,7 +267,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
         {
             if (skip_count == 1)
             {
-                const StringUtf8::SizeType erase_count = is_not_first_char ? erase_end - component_start : erase_end + 1;
+                const StringUtf8::size_type erase_count = is_not_first_char ? erase_end - component_start : erase_end + 1;
                 relative.Erase(component_start, erase_count);
             }
             if (skip_count != 0)
@@ -279,7 +279,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
     }
     if (skip_count > 0)
     {
-        const StringUtf8::SizeType erase_count = erase_end + 1;
+        const StringUtf8::size_type erase_count = erase_end + 1;
         relative.Erase(0, erase_count);
     }
     return Expected<StringUtf8, ErrorCode>(root + relative);
@@ -313,8 +313,8 @@ bool Opal::Paths::IsPathAbsolute(const StringUtf8& path)
 }
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetFileName(const StringUtf8& path, AllocatorBase* allocator)
 {
-    StringUtf8::SizeType last_separator = ReverseFind(path, '\\');
-    const StringUtf8::SizeType other_last_separator = ReverseFind(path, '/');
+    StringUtf8::size_type last_separator = ReverseFind(path, '\\');
+    const StringUtf8::size_type other_last_separator = ReverseFind(path, '/');
     if (last_separator == StringUtf8::k_npos)
     {
         last_separator = other_last_separator;
@@ -347,7 +347,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetStem(const Str
     {
         return Expected<StringUtf8, ErrorCode>(file_name.GetError());
     }
-    const StringUtf8::SizeType last_dot = ReverseFind(file_name.GetValue(), '.');
+    const StringUtf8::size_type last_dot = ReverseFind(file_name.GetValue(), '.');
     if (last_dot == StringUtf8::k_npos || last_dot == 0 ||
         (last_dot == 1 && file_name.GetValue()[0] == '.' && file_name.GetValue().GetSize() == 2))
     {
@@ -369,7 +369,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExtension(cons
     {
         return Expected<StringUtf8, ErrorCode>(file_name.GetError());
     }
-    const StringUtf8::SizeType last_dot = ReverseFind(file_name.GetValue(), '.');
+    const StringUtf8::size_type last_dot = ReverseFind(file_name.GetValue(), '.');
     if (last_dot == StringUtf8::k_npos || last_dot == 0 ||
         (last_dot == 1 && file_name.GetValue()[0] == '.' && file_name.GetValue().GetSize() == 2))
     {
@@ -386,8 +386,8 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExtension(cons
 
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(const StringUtf8& path, AllocatorBase* allocator)
 {
-    StringUtf8::SizeType last_separator = ReverseFind(path, '\\');
-    const StringUtf8::SizeType other_last_separator = ReverseFind(path, '/');
+    StringUtf8::size_type last_separator = ReverseFind(path, '\\');
+    const StringUtf8::size_type other_last_separator = ReverseFind(path, '/');
     if (last_separator == StringUtf8::k_npos)
     {
         last_separator = other_last_separator;
