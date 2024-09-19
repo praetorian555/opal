@@ -1368,6 +1368,20 @@ TEST_CASE("Append", "[String]")
 {
     SECTION("Short string")
     {
+        SECTION("Character")
+        {
+            StringLocale str("Hello");
+            str.Append(' ');
+            REQUIRE(str.GetSize() == 6);
+            REQUIRE(strcmp(str.GetData(), "Hello ") == 0);
+        }
+        SECTION("Character but allocation fails")
+        {
+            NullAllocator null_allocator;
+            StringLocale str(&null_allocator);
+            const ErrorCode err = str.Append(' ');
+            REQUIRE(err == ErrorCode::OutOfMemory);
+        }
         SECTION("String literal no change to capacity")
         {
             StringLocale str("Hello");
@@ -1422,14 +1436,12 @@ TEST_CASE("Append", "[String]")
             REQUIRE(str.GetSize() == 10);
             REQUIRE(strcmp(str.GetData(), "Hello ther") == 0);
         }
-        SECTION("Null sub string literal")
+        SECTION("String literal allocation fails")
         {
-            StringLocale str("Hello");
-            ErrorCode err = str.Append(nullptr, 5);
-            REQUIRE(err == ErrorCode::InvalidArgument);
-            REQUIRE(str.GetCapacity() == 6);
-            REQUIRE(str.GetSize() == 5);
-            REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+            NullAllocator null_allocator;
+            StringLocale str(&null_allocator);
+            const ErrorCode err = str.Append(" there");
+            REQUIRE(err == ErrorCode::OutOfMemory);
         }
         SECTION("Count and value")
         {
@@ -1467,6 +1479,14 @@ TEST_CASE("Append", "[String]")
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
         }
+        SECTION("String but allocation fails")
+        {
+            NullAllocator null_allocator;
+            StringLocale str(&null_allocator);
+            StringLocale str2(" there");
+            const ErrorCode err = str.Append(str2);
+            REQUIRE(err == ErrorCode::OutOfMemory);
+        }
         SECTION("Sub string")
         {
             StringLocale str("Hello");
@@ -1494,6 +1514,30 @@ TEST_CASE("Append", "[String]")
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
+        }
+        SECTION("Sub string bad count")
+        {
+            StringLocale str("Hello");
+            StringLocale str2(" there");
+            ErrorCode err = str.Append(str2, 0, 10);
+            REQUIRE(err == ErrorCode::OutOfBounds);
+        }
+        SECTION("Sub string allocation fails")
+        {
+            NullAllocator null_allocator;
+            StringLocale str(&null_allocator);
+            StringLocale str2(" there");
+            const ErrorCode err = str.Append(str2, 0, 5);
+            REQUIRE(err == ErrorCode::OutOfMemory);
+        }
+        SECTION("Sub string with k_npos")
+        {
+            StringLocale str("Hello");
+            StringLocale str2(" there");
+            str.Append(str2, 0, StringLocale::k_npos);
+            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetSize() == 11);
+            REQUIRE(strcmp(str.GetData(), "Hello there") == 0);
         }
     }
     SECTION("Long string")
@@ -3650,16 +3694,16 @@ TEST_CASE("String length", "[String]")
     SECTION("Null string")
     {
         const char* str = nullptr;
-        REQUIRE(Opal::StringLength(str) == 0);
+        REQUIRE(Opal::GetStringLength(str) == 0);
     }
     SECTION("Empty string")
     {
         const char* str = "";
-        REQUIRE(Opal::StringLength(str) == 0);
+        REQUIRE(Opal::GetStringLength(str) == 0);
     }
     SECTION("Non-empty string")
     {
         const char* str = "Hello there";
-        REQUIRE(Opal::StringLength(str) == 11);
+        REQUIRE(Opal::GetStringLength(str) == 11);
     }
 }

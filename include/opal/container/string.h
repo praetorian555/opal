@@ -317,15 +317,63 @@ public:
      */
     void Trim();
 
+    /**
+     * Append a code unit to the end of the string.
+     * @param ch Code unit to append.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
+     * unit.
+     */
     ErrorCode Append(const value_type& ch);
-    ErrorCode Append(const value_type* str);
-    ErrorCode Append(const value_type* str, size_type size);
-    ErrorCode Append(size_type count, CodeUnitType value);
-    ErrorCode Append(const String& other);
-    ErrorCode Append(const String& other, size_type pos, size_type count);
 
+    /**
+     * Append a specific number of code units to the end of the string.
+     * @param str Pointer to the code units to append.
+     * @param size Number of code units to append. If size is equal to k_npos, the entire string starting from str will be appended.
+     * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if str is nullptr. ErrorCode::OutOfMemory if the string
+     * cannot be resized to accommodate the new code units.
+     */
+    ErrorCode Append(const value_type* str, size_type size = k_npos);
+
+    /**
+     * Append a specific number of code units to the end of the string.
+     * @param count Number of code units to append.
+     * @param value Value of the code unit to append.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to
+     * accommodate the new code units.
+     */
+    ErrorCode Append(size_type count, CodeUnitType value);
+
+    /**
+     * Append a string to the end of the string.
+     * @param other String to append.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to
+     * accommodate the new code units.
+     */
+    ErrorCode Append(const String& other);
+
+    /**
+     * Append a substring of another string to the end of the string.
+     * @param other String to append.
+     * @param pos Position in the other string to start appending from.
+     * @param count Number of code units to append. If count is equal to k_npos, the entire string starting from pos
+     * will be appended.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the other
+     * string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units.
+     */
+    ErrorCode Append(const String& other, size_type pos, size_type count = k_npos);
+
+    /**
+     * Append a range specified using random access iterators to the end of the string.
+     * @tparam InputIt Type of the input iterator. Must be a random access iterator.
+     * @param begin Iterator pointing to the first code unit in the string to append.
+     * @param end Iterator pointing to the code unit after the last code unit in the string to append.
+     * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if begin is greater than end.
+     * ErrorCode::SelfNotAllowed if the range is the same as the current string. ErrorCode::OutOfMemory if the string
+     * cannot be resized to accommodate the new code units.
+     */
     template <typename InputIt>
-    ErrorCode AppendIt(InputIt begin, InputIt end);
+        requires RandomAccessIterator<InputIt>
+    ErrorCode Append(InputIt begin_it, InputIt end_it);
 
     /**
      * @brief Insert a code unit at a specific position in the string.
@@ -660,15 +708,7 @@ Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyStrin
  * @return Length of the string. If str is nullptr, returns 0.
  */
 template <typename CodeUnitType>
-u64 StringLength(const CodeUnitType* str);
-
-#define _OPAL_UTF8(text) u8##text
-
-/**
- * @brief Macro to convert a string literal to UTF-8 encoding.
- * @param text String literal to convert.
- */
-#define OPAL_UTF8(text) _OPAL_UTF8(text)
+u64 GetStringLength(const CodeUnitType* str);
 
 /*************************************************************************************************/
 /** Most common String specializations. **********************************************************/
@@ -746,7 +786,7 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(const CodeUnitType* str, AllocatorType* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
-    m_size = StringLength(str);
+    m_size = GetStringLength(str);
     m_capacity = m_size + 1;
     if (m_capacity > 0)
     {
@@ -993,7 +1033,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitType* str, size_type count)
     {
         return ErrorCode::InvalidArgument;
     }
-    u64 str_size = StringLength(str);
+    u64 str_size = GetStringLength(str);
     if (count == k_npos)
     {
         count = str_size;
@@ -1206,7 +1246,7 @@ Opal::ErrorCode CLASS_HEADER::Resize(size_type new_size)
 TEMPLATE_HEADER
 void CLASS_HEADER::Trim()
 {
-    const size_type real_size = StringLength(m_data);
+    const size_type real_size = GetStringLength(m_data);
     if (m_size != 0 && m_size > real_size)
     {
         m_size = real_size;
@@ -1232,28 +1272,15 @@ Opal::ErrorCode CLASS_HEADER::Append(const value_type& ch)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Append(const value_type* str)
-{
-    if (str == nullptr)
-    {
-        return ErrorCode::InvalidArgument;
-    }
-    size_type count = 0;
-    const CodeUnitType* it = str;
-    while (*it != 0)
-    {
-        count++;
-        it++;
-    }
-    return Append(str, count);
-}
-
-TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Append(const value_type* str, size_type size)
 {
     if (str == nullptr)
     {
         return ErrorCode::InvalidArgument;
+    }
+    if (size == k_npos)
+    {
+        size = GetStringLength(str);
     }
     if (m_size + size + 1 > m_capacity)
     {
@@ -1275,9 +1302,9 @@ Opal::ErrorCode CLASS_HEADER::Append(const value_type* str, size_type size)
 TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Append(size_type count, CodeUnitType value)
 {
-    if (count + 1 > m_capacity)
+    if (m_size + count + 1 > m_capacity)
     {
-        ErrorCode error = Reserve(count + 1);
+        ErrorCode error = Reserve(m_size + count + 1);
         if (error != ErrorCode::Success)
         {
             return error;
@@ -1319,7 +1346,14 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, size_type pos, size_ty
     {
         return ErrorCode::OutOfBounds;
     }
-    count = Min(other.GetSize() - pos, count);
+    if (count == k_npos)
+    {
+        count = other.m_size - pos;
+    }
+    if (count > other.m_size - pos)
+    {
+        return ErrorCode::OutOfBounds;
+    }
     if (m_size + count + 1 > m_capacity)
     {
         ErrorCode error = Reserve(m_size + count + 1);
@@ -1331,6 +1365,38 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, size_type pos, size_ty
     if (count > 0)
     {
         std::memcpy(m_data + m_size, other.m_data + pos, count * sizeof(CodeUnitType));
+    }
+    m_size += count;
+    m_data[m_size] = 0;
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+template <typename InputIt>
+    requires Opal::RandomAccessIterator<InputIt>
+Opal::ErrorCode CLASS_HEADER::Append(InputIt begin_it, InputIt end_it)
+{
+    if (begin_it > end_it)
+    {
+        return ErrorCode::InvalidArgument;
+    }
+    if (&(*begin_it) >= m_data && &(*begin_it) < m_data + m_size)
+    {
+        return ErrorCode::SelfNotAllowed;
+    }
+    u64 count = static_cast<u64>(end_it - begin_it);
+    if (m_size + count + 1 > m_capacity)
+    {
+        ErrorCode error = Reserve(m_size + count + 1);
+        if (error != ErrorCode::Success)
+        {
+            return error;
+        }
+    }
+    for (size_type i = 0; i < count; i++)
+    {
+        m_data[m_size + i] = *begin_it;
+        begin_it++;
     }
     m_size += count;
     m_data[m_size] = 0;
@@ -2123,7 +2189,7 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
     {
         return ReturnType(ErrorCode::InvalidArgument);
     }
-    size_type count2 = StringLength(second);
+    size_type count2 = GetStringLength(second);
 
     size_type count = count2 > count1 ? count1 : count2;
     for (size_type i = 0; i < count; i++)
@@ -2172,7 +2238,7 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
     {
         return ReturnType(ErrorCode::InvalidArgument);
     }
-    size_type str_length = StringLength(second);
+    size_type str_length = GetStringLength(second);
     if (count2 == MyString::k_npos)
     {
         count2 = str_length;
@@ -2468,7 +2534,7 @@ Opal::Expected<MyString, Opal::ErrorCode> Opal::GetSubString(const MyString& str
 }
 
 template <typename CodeUnitType>
-Opal::u64 Opal::StringLength(const CodeUnitType* str)
+Opal::u64 Opal::GetStringLength(const CodeUnitType* str)
 {
     if (str == nullptr)
     {
