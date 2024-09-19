@@ -2096,73 +2096,73 @@ TEST_CASE("Lexicographical compare", "[String]")
         {
             const StringLocale a("");
             const StringLocale b("");
-            REQUIRE(Compare(a, b) == 0);
+            REQUIRE(Compare(a, b).GetValue() == 0);
         }
         SECTION("First empty")
         {
             StringLocale a("");
             StringLocale b("aa");
-            REQUIRE(Compare(a, b) == -1);
+            REQUIRE(Compare(a, b).GetValue() == -1);
         }
         SECTION("Second empty")
         {
             StringLocale a("aa");
             StringLocale b("");
-            REQUIRE(Compare(a, b) == 1);
+            REQUIRE(Compare(a, b).GetValue() == 1);
         }
         SECTION("First shorter and equal")
         {
             StringLocale a("aaa");
             StringLocale b("aaabbb");
-            REQUIRE(Compare(a, b) == -1);
+            REQUIRE(Compare(a, b).GetValue() == -1);
         }
         SECTION("Second shorter and equal")
         {
             StringLocale a("aaabbb");
             StringLocale b("aaa");
-            REQUIRE(Compare(a, b) == 1);
+            REQUIRE(Compare(a, b).GetValue() == 1);
         }
         SECTION("First shorter and smaller")
         {
             StringLocale a("aaa");
             StringLocale b("bbbb");
-            REQUIRE(Compare(a, b) == -1);
+            REQUIRE(Compare(a, b).GetValue() == -1);
         }
         SECTION("First shorter and larger")
         {
             StringLocale a("bbb");
             StringLocale b("aaaa");
-            REQUIRE(Compare(a, b) == 1);
+            REQUIRE(Compare(a, b).GetValue() == 1);
         }
         SECTION("Second shorter and smaller")
         {
             StringLocale a("bbbb");
             StringLocale b("aaa");
-            REQUIRE(Compare(a, b) == 1);
+            REQUIRE(Compare(a, b).GetValue() == 1);
         }
         SECTION("Second shorter and larger")
         {
             StringLocale a("aaaa");
             StringLocale b("bbb");
-            REQUIRE(Compare(a, b) == -1);
+            REQUIRE(Compare(a, b).GetValue() == -1);
         }
         SECTION("Equal size and same")
         {
             StringLocale a("aaa");
             StringLocale b("aaa");
-            REQUIRE(Compare(a, b) == 0);
+            REQUIRE(Compare(a, b).GetValue() == 0);
         }
         SECTION("Equal size first smaller")
         {
             StringLocale a("aaa");
             StringLocale b("bbb");
-            REQUIRE(Compare(a, b) == -1);
+            REQUIRE(Compare(a, b).GetValue() == -1);
         }
         SECTION("Equal size second smaller")
         {
             StringLocale a("ccc");
             StringLocale b("bbb");
-            REQUIRE(Compare(a, b) == 1);
+            REQUIRE(Compare(a, b).GetValue() == 1);
         }
     }
     SECTION("First substring second string")
@@ -3642,28 +3642,6 @@ TEST_CASE("Insert", "[String]")
             REQUIRE(str == "Hello thereaa");
             REQUIRE(result.GetValue() == str.End() - 2);
         }
-    }
-}
-
-TEST_CASE("Get data as", "[String]")
-{
-    const StringUtf8 str("Hello there");
-    SECTION("Get data as char")
-    {
-        const char* data = str.GetDataAs<char>();
-        REQUIRE(data != nullptr);
-        REQUIRE(data[0] == 'H');
-        REQUIRE(data[1] == 'e');
-        REQUIRE(data[2] == 'l');
-        REQUIRE(data[3] == 'l');
-        REQUIRE(data[4] == 'o');
-        REQUIRE(data[5] == ' ');
-        REQUIRE(data[6] == 't');
-        REQUIRE(data[7] == 'h');
-        REQUIRE(data[8] == 'e');
-        REQUIRE(data[9] == 'r');
-        REQUIRE(data[10] == 'e');
-        REQUIRE(data[11] == '\0');
     }
 }
 
