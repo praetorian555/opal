@@ -251,31 +251,64 @@ public:
     value_type* GetData() { return m_data; }
     [[nodiscard]] const value_type* GetData() const { return m_data; }
 
-    template <typename NewCodeUnitType>
-    const NewCodeUnitType* GetDataAs() const
-    {
-        return reinterpret_cast<const NewCodeUnitType*>(m_data);
-    }
-
     [[nodiscard]] size_type GetSize() const { return m_size; }
     [[nodiscard]] size_type GetCapacity() const { return m_capacity; }
 
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
 
+    /**
+     * @brief Get the code unit at a specific position in the string.
+     * @param pos Position in the string to get the code unit from.
+     * @return Reference to the code unit in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the string.
+     */
     Expected<CodeUnitType&, ErrorCode> At(size_type pos);
     Expected<const CodeUnitType&, ErrorCode> At(size_type pos) const;
 
+    /**
+     * @brief Get the code unit at a specific position in the string. Bounds checking only in debug mode.
+     * @param pos Position in the string to get the code unit from.
+     * @return Reference to the code unit.
+     */
     CodeUnitType& operator[](size_type pos);
     const CodeUnitType& operator[](size_type pos) const;
 
+    /**
+     * @brief Get the first code unit in the string.
+     * @return Reference to the first code unit in case of a success. ErrorCode::OutOfBounds if the string is empty.
+     */
     Expected<CodeUnitType&, ErrorCode> Front();
     Expected<const CodeUnitType&, ErrorCode> Front() const;
 
+    /**
+     * @brief Get the last code unit in the string.
+     * @return Reference to the last code unit in case of a success. ErrorCode::OutOfBounds if the string is empty.
+     */
     Expected<CodeUnitType&, ErrorCode> Back();
     Expected<const CodeUnitType&, ErrorCode> Back() const;
 
+    /**
+     * Reserve memory for a specific number of code units.
+     * @param new_capacity Number of code units to reserve memory for.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
+     * units. ErrorCode::InvalidArgument if new_capacity is 0.
+     */
     ErrorCode Reserve(size_type new_capacity);
+
+    /**
+     * Resize the string to a specific size. If new code units are added they will be initialized with the default value of the code unit.
+     * @param new_size New size of the string.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
+     * units.
+     */
     ErrorCode Resize(size_type new_size);
+
+    /**
+     * Resize the string to a specific size. If new code units are added they will be initialized with the provided value.
+     * @param new_size New size of the string.
+     * @param value Value of the code unit to initialize the new code units with.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
+     * units.
+     */
     ErrorCode Resize(size_type new_size, CodeUnitType value);
 
     /**
@@ -1050,12 +1083,14 @@ Opal::Expected<const CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::At(size_type 
 TEMPLATE_HEADER
 CodeUnitType& CLASS_HEADER::operator[](size_type pos)
 {
+    OPAL_ASSERT(pos < m_size, "Index out of bounds");
     return m_data[pos];
 }
 
 TEMPLATE_HEADER
 const CodeUnitType& CLASS_HEADER::operator[](size_type pos) const
 {
+    OPAL_ASSERT(pos < m_size, "Index out of bounds");
     return m_data[pos];
 }
 
@@ -1109,6 +1144,10 @@ Opal::ErrorCode CLASS_HEADER::Reserve(size_type new_capacity)
     if (new_capacity <= m_capacity)
     {
         return ErrorCode::Success;
+    }
+    if (new_capacity == 0)
+    {
+        return ErrorCode::InvalidArgument;
     }
     value_type* new_data = Allocate(new_capacity);
     if (new_data == nullptr)

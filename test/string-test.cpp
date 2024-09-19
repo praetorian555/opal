@@ -1236,6 +1236,19 @@ TEST_CASE("Reserve", "[String]")
 {
     SECTION("Short string")
     {
+        SECTION("Reserve zero")
+        {
+            StringUtf8 str("Hello there");
+            const ErrorCode err = str.Reserve(0);
+            REQUIRE(err == ErrorCode::InvalidArgument);
+        }
+        SECTION("Out of memory")
+        {
+            NullAllocator null_allocator;
+            StringUtf8 str(&null_allocator);
+            const ErrorCode err = str.Reserve(10);
+            REQUIRE(err == ErrorCode::OutOfMemory);
+        }
         SECTION("Reserve larger then current capacity")
         {
             StringUtf8 str("Hello there");
@@ -1268,6 +1281,19 @@ TEST_CASE("Reserve", "[String]")
             "It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. "
             "It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with "
             "desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
+        SECTION("Reserve zero")
+        {
+            StringUtf8 str(ref_str);
+            const ErrorCode err = str.Reserve(0);
+            REQUIRE(err == ErrorCode::InvalidArgument);
+        }
+        SECTION("Out of memory")
+        {
+            NullAllocator null_allocator;
+            StringUtf8 str(&null_allocator);
+            const ErrorCode err = str.Reserve(10);
+            REQUIRE(err == ErrorCode::OutOfMemory);
+        }
         SECTION("Reserve larger then current capacity")
         {
 
