@@ -189,7 +189,7 @@ public:
      * elements are default initialized.
      * @param list The initializer list.
      */
-    InPlaceArray(std::initializer_list<T> list);
+    constexpr InPlaceArray(std::initializer_list<T> list);
 
     ~InPlaceArray() = default;
 
@@ -287,7 +287,7 @@ void Swap(InPlaceArray<T, N>& lhs, InPlaceArray<T, N>& rhs);
 }  // namespace Opal
 
 template <typename T, Opal::u64 N>
-Opal::InPlaceArray<T, N>::InPlaceArray(std::initializer_list<T> list)
+constexpr Opal::InPlaceArray<T, N>::InPlaceArray(std::initializer_list<T> list)
 {
     const T* start = list.begin();
     const T* end = list.end();
