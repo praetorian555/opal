@@ -16,7 +16,7 @@ struct Hash
         constexpr u64 fnv_prime = 1099511628211ULL;
 
         u64 hash = fnv_offset_basis;
-        for (typename MyString::CodeUnitType c : str)
+        for (typename MyString::value_type c : str)
         {
             hash = hash ^ static_cast<u64>(c);
             hash = hash * fnv_prime;

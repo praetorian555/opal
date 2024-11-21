@@ -8,6 +8,8 @@ OPAL_END_DISABLE_WARNINGS
 #include <iostream>
 
 #include "opal/container/string.h"
+#include "opal/container/hash-map.h"
+#include "opal/container/string-hash.h"
 
 using namespace Opal;
 
@@ -3706,4 +3708,14 @@ TEST_CASE("String length", "[String]")
         const char* str = "Hello there";
         REQUIRE(Opal::GetStringLength(str) == 11);
     }
+}
+
+TEST_CASE("String key in map", "[String]")
+{
+    Opal::HashMap<Opal::StringUtf8, uint64_t, Opal::Hash<Opal::StringUtf8>> map;
+    map.insert(std::make_pair("Hello", 1));
+    map.insert(std::make_pair("there", 2));
+
+    REQUIRE(map.find("Hello")->second == 1);
+    REQUIRE(map.find("there")->second == 2);
 }
