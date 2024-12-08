@@ -41,6 +41,7 @@ set(OPAL_FILES
         src/time.cpp
         src/string-encoding.cpp
         src/paths.cpp
+        src/bit.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -51,6 +52,7 @@ set(OPAL_FILES
         include/opal/paths.h
         include/opal/common.h
         include/opal/source-location.h
+        include/opal/bit.h
         include/opal/container/iterator.h
         include/opal/container/expected.h
         include/opal/container/deque.h
