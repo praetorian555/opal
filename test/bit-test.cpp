@@ -28,3 +28,31 @@ TEST_CASE("Count trailing zeros", "[bit]")
     const u64 count2 = CountTrailingZeros(value2);
     REQUIRE(count2 == 39);
 }
+
+TEST_CASE("BitMask", "[bit-mask]")
+{
+    SECTION("32 bit")
+    {
+        const BitMask<u32> bit_mask(5);
+        for (const u32 index : bit_mask)
+        {
+            REQUIRE((index == 0 || index == 2));
+        }
+        REQUIRE(0 == bit_mask.GetLowestSetBitIndex());
+        REQUIRE(2 == bit_mask.GetHighestSetBitIndex());
+    }
+    SECTION("64 bit")
+    {
+        const BitMask<u64> bit_mask(5);
+        for (const u32 index : bit_mask)
+        {
+            REQUIRE((index == 0 || index == 2));
+        }
+        REQUIRE(0 == bit_mask.GetLowestSetBitIndex());
+        REQUIRE(2 == bit_mask.GetHighestSetBitIndex());
+    }
+    SECTION("Lowest set bit")
+    {
+
+    }
+}

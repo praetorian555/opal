@@ -49,3 +49,27 @@ Opal::u64 Opal::CountTrailingZeros(u64 value)
 #error "Compiler not supported"
 #endif
 }
+
+template <>
+Opal::u32 Opal::GetBitWidth<Opal::u8>()
+{
+    return 8;
+}
+
+template <>
+Opal::u32 Opal::GetBitWidth<Opal::u16>()
+{
+    return 16;
+}
+
+template <>
+Opal::u32 Opal::GetBitWidth<Opal::u32>()
+{
+    return 32;
+}
+
+template <>
+Opal::u32 Opal::GetBitWidth<Opal::u64>()
+{
+    return 64;
+}
