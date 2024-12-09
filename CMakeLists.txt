@@ -68,10 +68,12 @@ set(OPAL_FILES
         include/opal/container/scope-ptr.h
         include/opal/container/ref.h
         include/opal/sort/key-indexed-counting.h
+        third-party/wyhash/include/wyhash/wyhash.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})
 target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/wyhash/include>)
 target_include_directories(opal PUBLIC $<INSTALL_INTERFACE:include>)
 target_link_libraries(opal PRIVATE opal_warnings)
 target_link_libraries(opal PRIVATE opal_options)
