@@ -26,14 +26,30 @@ u64 CalculateHashFromPointerArray(const u8* data, u64 size, u64 seed = 0);
  */
 // TODO: Implement requirement that T is plain old data from scratch
 template <typename T>
-    requires std::is_trivial_v<T> && std::is_standard_layout_v<T>
+    requires std::is_standard_layout_v<T>
 u64 CalculateHashFromObject(const T& value, u64 seed = 0);
+
+/**
+ * Calculates 64-bit hash using container data.
+ * @tparam Container Type of the container.
+ * @param container Container object to use.
+ * @param seed Specific seed to use. Default is 0.
+ * @return Returns 64-bit hash value.
+ */
+template <typename Container>
+u64 CalculateHashFromContainer(const Container& container, u64 seed = 0);
 
 }  // namespace Opal
 
 template <typename T>
-    requires std::is_trivial_v<T> && std::is_standard_layout_v<T>
+    requires std::is_standard_layout_v<T>
 Opal::u64 Opal::CalculateHashFromObject(const T& value, Opal::u64 seed)
 {
     return CalculateHashFromPointerArray(reinterpret_cast<const u8*>(&value), sizeof(T), seed);
+}
+
+template <typename Container>
+Opal::u64 Opal::CalculateHashFromContainer(const Container& container, Opal::u64 seed)
+{
+    return CalculateHashFromPointerArray(reinterpret_cast<const u8*>(container.GetData()), container.GetSize(), seed);
 }

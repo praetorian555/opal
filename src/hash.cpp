@@ -6,3 +6,4 @@ Opal::u64 Opal::CalculateHashFromPointerArray(const Opal::u8* data, Opal::u64 si
 {
     return wyhash(data, size, seed, _wyp);
 }
+

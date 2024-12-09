@@ -119,6 +119,7 @@ if (OPAL_BUILD_TESTS)
             test/scope-ptr-test.cpp
             test/in-place-array-test.cpp
             test/common-test.cpp
+            test/hash-set-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
