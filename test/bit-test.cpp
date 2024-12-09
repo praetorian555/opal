@@ -51,8 +51,21 @@ TEST_CASE("BitMask", "[bit-mask]")
         REQUIRE(0 == bit_mask.GetLowestSetBitIndex());
         REQUIRE(2 == bit_mask.GetHighestSetBitIndex());
     }
-    SECTION("Lowest set bit")
+    SECTION("Compare masks")
     {
-
+        {
+            BitMask<u32> mask1(5);
+            BitMask<u32> mask2(5);
+            BitMask<u32> mask3(8);
+            REQUIRE(mask1 == mask2);
+            REQUIRE(mask1 != mask3);
+        }
+        {
+            BitMask<u64> mask1(5);
+            BitMask<u64> mask2(5);
+            BitMask<u64> mask3(8);
+            REQUIRE(mask1 == mask2);
+            REQUIRE(mask1 != mask3);
+        }
     }
 }
