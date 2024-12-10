@@ -3,8 +3,9 @@
 #include <unordered_set>
 
 #include "opal/allocator.h"
+#include "opal/bit.h"
 #include "opal/error-codes.h"
-#include "string-hash.h"
+#include "opal/hash.h"
 
 namespace Opal
 {
@@ -102,6 +103,13 @@ public:
     using const_reference = const value_type&;
     using pointer = value_type*;
     using const_pointer = const value_type*;
+    using iterator = HashSetIterator<HashSet<key_type, allocator_type>>;
+    using const_iterator = HashSetConstIterator<HashSet<key_type, allocator_type>>;
+
+    constexpr u64 k_group_width = 16;
+    constexpr i8 k_control_bitmask_empty = -128;   // 0b10000000;
+    constexpr i8 k_control_bitmask_deleted = -2;   // 0b11111110;
+    constexpr i8 k_control_bitmask_sentinel = -1;  // 0b11111111;
 
     explicit HashSet(size_type capacity, allocator_type* allocator = nullptr);
 
@@ -111,12 +119,33 @@ public:
     HashSet& operator=(const HashSet& other);
     HashSet& operator=(HashSet&& other) noexcept;
 
+    ErrorCode Reserve(size_type capacity);
+
     ~HashSet();
+
+    iterator Find(const key_type& key);
+    const_iterator Find(const key_type& key) const;
 
     ErrorCode Insert(const key_type& key, const value_type& value);
     ErrorCode Insert(key_type&& key, value_type&& value);
 
+    iterator begin();
+    const_iterator begin() const;
+    const_iterator cbegin() const;
+    iterator end();
+    const_iterator end() const;
+    const_iterator cend() const;
+
 private:
+    static u64 GetNextPowerOf2MinusOne(u64 value);
+    [[nodiscard]] bool IsControlEmpty(i8 control) const { return control == k_control_bitmask_empty; }
+    [[nodiscard]] bool IsControlDeleted(i8 control) const { return control == k_control_bitmask_deleted; }
+    [[nodiscard]] static bool IsControlFull(i8 control) { return control >= 0; }
+    [[nodiscard]] bool IsControlEmptyOrDeleted(i8 control) const { return control < k_control_bitmask_sentinel; }
+    static u64 CalculateHash(const key_type& key) { return CalculateHashFromObject(key); }
+    [[nodiscard]] u64 GetHash1(u64 hash) const { return (hash >> 7) & (reinterpret_cast<u64>(m_control_bytes) >> 12); }
+    static u64 GetHash2(u64 hash) { return hash & 0x7f; }
+
     allocator_type* m_allocator = nullptr;
     u8* m_control_bytes = nullptr;
     key_type* m_slots = nullptr;
@@ -126,3 +155,54 @@ private:
 };
 
 }  // namespace Opal
+
+template <typename KeyType, typename AllocatorType>
+Opal::HashSet<KeyType, AllocatorType>::HashSet(size_type capacity, allocator_type* allocator)
+    : m_allocator(allocator != nullptr ? allocator : &GetDefaultAllocator())
+{
+    Reserve(capacity < 4 ? 4 : capacity);
+}
+
+template <typename KeyType, typename AllocatorType>
+Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Reserve(size_type capacity)
+{
+    // TODO: Handle move of data
+    m_capacity = GetNextPowerOf2MinusOne(capacity);
+    u64 size_to_allocate = m_capacity + k_group_width + (m_capacity * sizeof(key_type));
+
+    m_control_bytes = static_cast<u8*>(m_allocator->Allocate(size_to_allocate));
+    m_slots = reinterpret_cast<key_type*>(m_control_bytes + m_capacity + k_group_width);
+
+    return ErrorCode::Success;
+}
+template <typename KeyType, typename AllocatorType>
+typename Opal::HashSet<KeyType, AllocatorType>::iterator Opal::HashSet<KeyType, AllocatorType>::Find(const key_type& key)
+{
+    u64 hash = CalculateHash(key);
+    u64 offset = GetHash1(hash) & m_capacity;
+    while (true)
+    {
+        u8* group = m_control_bytes + offset;
+        u64 hash2 = GetHash2(hash);
+        const BitMask<u32> match_mask = GetGroupMatch(group, hash2);
+        for (const u32 i : match_mask)
+        {
+            if (m_slots[offset + i] == key)
+            {
+                return iterator(this, offset + i);
+            }
+        }
+        if (GetGroupMatchEmpty(group))
+        {
+            break;
+        }
+        offset = (offset + k_group_width) & m_capacity;
+    }
+    return end();
+}
+
+template <typename KeyType, typename AllocatorType>
+Opal::u64 Opal::HashSet<KeyType, AllocatorType>::GetNextPowerOf2MinusOne(u64 value)
+{
+    return value != 0 ? ~u64{} >> CountLeadingZeros(value) : 1;
+}
