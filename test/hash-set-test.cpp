@@ -8,6 +8,7 @@ OPAL_END_DISABLE_WARNINGS
 #include "opal/hash.h"
 #include "opal/container/string.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/container/hash-set.h"
 
 using namespace Opal;
 
@@ -34,4 +35,28 @@ TEST_CASE("Hash", "[hash]")
     Pod pod;
     hash = CalculateHashFromObject(pod);
     REQUIRE(hash != 0);
+}
+
+TEST_CASE("Hash Set", "[hash-set]")
+{
+    HashSet<i32> set(100);
+    REQUIRE(set.GetSize() == 0);
+    REQUIRE(set.GetCapacity() == 127);
+    for (int i = 0; i < 100; i++)
+    {
+        set.Insert(i);
+    }
+    for (int i = 0; i < 100; i++)
+    {
+        REQUIRE(i == *set.Find(i));
+    }
+    REQUIRE(set.GetSize() == 100);
+    REQUIRE(set.GetCapacity() == 127);
+
+    i32 sum = 0;
+    for (i32 i : set)
+    {
+        sum += i;
+    }
+    REQUIRE(sum == 4950);
 }
