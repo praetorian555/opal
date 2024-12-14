@@ -4,6 +4,7 @@
 
 #include "opal/defines.h"
 #include "opal/types.h"
+#include "opal/export.h"
 
 namespace Opal
 {
@@ -15,7 +16,7 @@ namespace Opal
  * @param seed Specific seed to use. Default is 0.
  * @return Returns 64-bit hash value.
  */
-u64 CalculateHashFromPointerArray(const u8* data, u64 size, u64 seed = 0);
+OPAL_EXPORT u64 CalculateHashFromPointerArray(const u8* data, u64 size, u64 seed = 0);
 
 /**
  * Calculates 64-bit hash from the POD object.
