@@ -160,6 +160,12 @@ public:
     ErrorCode Insert(const key_type& key);
     ErrorCode Insert(key_type&& key);
 
+    ErrorCode Erase(const key_type& key);
+    ErrorCode Erase(iterator it);
+    ErrorCode Erase(const_iterator it);
+    ErrorCode Erase(iterator first, iterator last);
+    ErrorCode Erase(const_iterator first, const_iterator last);
+
     iterator begin() { return FindFirstIterator(); }
     const_iterator begin() const { return FindFirstIterator(); }
     const_iterator cbegin() const { return FindFirstIterator(); }
