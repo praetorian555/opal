@@ -2,6 +2,12 @@
 
 #include <unordered_set>
 
+#include "opal/defines.h"
+
+#if defined(OPAL_COMPILER_CLANG) || defined(OPAL_COMPILER_GCC)
+#include <emmintrin.h>
+#endif
+
 #include "opal/allocator.h"
 #include "opal/bit.h"
 #include "opal/error-codes.h"
@@ -176,12 +182,13 @@ private:
     [[nodiscard]] static bool IsControlFull(i8 control) { return control >= 0; }
     [[nodiscard]] bool IsControlEmptyOrDeleted(i8 control) const { return control < k_control_bitmask_sentinel; }
     static u64 CalculateHash(const key_type& key) { return CalculateHashFromObject(key); }
-    [[nodiscard]] u64 GetHash1(u64 hash) const { return (hash >> 7) & (reinterpret_cast<u64>(m_control_bytes) >> 12); }
+    [[nodiscard]] u64 GetHash1(u64 hash, void* seed) const { return (hash >> 7) & (reinterpret_cast<u64>(seed) >> 12); }
     static i8 GetHash2(u64 hash) { return hash & 0x7f; }
     static BitMask<u32> GetGroupMatch(const i8* group, i8 pattern);
     static BitMask<u32> GetGroupMatchEmpty(const i8* group);
     static BitMask<u32> GetGroupNotFull(const i8* group);
-    void SetControlByte(u64 index, i8 hash2);
+    void SetControlByte(u64 index, i8 hash2, i8* control_bytes, u64 capacity);
+    static u64 GetGrowthThreshold(u64 capacity) { return (capacity * 7) / 8; }
 
     allocator_type* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
@@ -203,20 +210,53 @@ Opal::HashSet<KeyType, AllocatorType>::HashSet(size_type capacity, allocator_typ
 template <typename KeyType, typename AllocatorType>
 Opal::HashSet<KeyType, AllocatorType>::~HashSet()
 {
-    // TODO: Implement
+    m_allocator->Free(m_control_bytes);
 }
 
 template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Reserve(size_type capacity)
 {
-    // TODO: Handle move of data
-    m_capacity = GetNextPowerOf2MinusOne(capacity);
-    u64 size_to_allocate = m_capacity + k_group_width + (m_capacity * sizeof(key_type));
+    u64 new_capacity = GetNextPowerOf2MinusOne(capacity);
+    u64 new_size = 0;
+    u64 size_to_allocate = new_capacity + k_group_width + (new_capacity * sizeof(key_type));
 
-    m_control_bytes = static_cast<i8*>(m_allocator->Alloc(size_to_allocate, 16u));
-    memset(m_control_bytes, k_control_bitmask_empty, size_to_allocate);
-    m_control_bytes[m_capacity] = k_control_bitmask_sentinel;
-    m_slots = reinterpret_cast<key_type*>(m_control_bytes + m_capacity + k_group_width);
+    i8* new_control_bytes = static_cast<i8*>(m_allocator->Alloc(size_to_allocate, 16u));
+    memset(new_control_bytes, k_control_bitmask_empty, new_capacity + k_group_width);
+    new_control_bytes[new_capacity] = k_control_bitmask_sentinel;
+    key_type* new_slots = reinterpret_cast<key_type*>(new_control_bytes + new_capacity + k_group_width);
+    memset(new_slots, 0, new_capacity * sizeof(key_type));
+
+    if (m_capacity > 0)
+    {
+        for (key_type& key : *this)
+        {
+            u64 hash = CalculateHash(key);
+            u64 offset = GetHash1(hash, new_control_bytes) & new_capacity;
+            while (true)
+            {
+                i8* group = new_control_bytes + offset;
+                BitMask<u32> not_full_mask = GetGroupNotFull(group);
+                if (not_full_mask)
+                {
+                    u64 slot_index = offset + not_full_mask.GetLowestSetBitIndex();
+                    slot_index &= new_capacity;
+                    SetControlByte(slot_index, GetHash2(hash), new_control_bytes, new_capacity);
+                    new_slots[slot_index] = key;
+                    new_size++;
+                    break;
+                }
+                offset = (offset + k_group_width) & new_capacity;
+            }
+        }
+    }
+
+    m_allocator->Free(m_control_bytes);
+
+    m_capacity = new_capacity;
+    m_size = new_size;
+    m_growth_left = m_capacity - m_size;
+    m_control_bytes = new_control_bytes;
+    m_slots = new_slots;
 
     return ErrorCode::Success;
 }
@@ -224,7 +264,7 @@ template <typename KeyType, typename AllocatorType>
 typename Opal::HashSet<KeyType, AllocatorType>::iterator Opal::HashSet<KeyType, AllocatorType>::Find(const key_type& key)
 {
     u64 hash = CalculateHash(key);
-    u64 offset = GetHash1(hash) & m_capacity;
+    u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
     while (true)
     {
         i8* group = m_control_bytes + offset;
@@ -234,9 +274,10 @@ typename Opal::HashSet<KeyType, AllocatorType>::iterator Opal::HashSet<KeyType, 
         // Iterate over matches by index, if the key from one of them matches we found our target
         for (const u32 i : match_mask)
         {
-            if (m_slots[offset + i] == key)
+            const u64 pos = (offset + i) & m_capacity;
+            if (m_slots[pos] == key)
             {
-                return iterator(this, offset + i);
+                return iterator(this, pos);
             }
         }
         // Since we didn't find a match in this group, and it has at least one empty slot, we are done
@@ -254,7 +295,7 @@ template <typename KeyType, typename AllocatorType>
 typename Opal::HashSet<KeyType, AllocatorType>::const_iterator Opal::HashSet<KeyType, AllocatorType>::Find(const key_type& key) const
 {
     u64 hash = CalculateHash(key);
-    u64 offset = GetHash1(hash) & m_capacity;
+    u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
     while (true)
     {
         i8* group = m_control_bytes + offset;
@@ -264,9 +305,10 @@ typename Opal::HashSet<KeyType, AllocatorType>::const_iterator Opal::HashSet<Key
         // Iterate over matches by index, if the key from one of them matches we found our target
         for (const u32 i : match_mask)
         {
-            if (m_slots[offset + i] == key)
+            const u64 pos = (offset + i) & m_capacity;
+            if (m_slots[pos] == key)
             {
-                return const_iterator(this, offset + i);
+                return const_iterator(this, pos);
             }
         }
         // Since we didn't find a match in this group, and it has at least one empty slot, we are done
@@ -289,8 +331,12 @@ bool Opal::HashSet<KeyType, AllocatorType>::Contains(const key_type& key) const
 template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(const key_type& key)
 {
+    if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
+    {
+        Reserve(m_capacity + 1);
+    }
     u64 hash = CalculateHash(key);
-    u64 offset = GetHash1(hash) & m_capacity;
+    u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
     while (true)
     {
         i8* group = m_control_bytes + offset;
@@ -300,7 +346,8 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(const key_type& ke
         // Iterate over matches by index, if the key from one of them matches we found our target
         for (const u32 i : match_mask)
         {
-            if (m_slots[offset + i] == key)
+            const u64 pos = (offset + i) & m_capacity;
+            if (m_slots[pos] == key)
             {
                 return ErrorCode::Success;
             }
@@ -314,18 +361,18 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(const key_type& ke
         offset = (offset + k_group_width) & m_capacity;
     }
     // The key is not in the set, find the first free slot to put it in
-    offset = GetHash1(hash) & m_capacity;
+    offset = GetHash1(hash, m_control_bytes) & m_capacity;
     while (true)
     {
         i8* group = m_control_bytes + offset;
         const BitMask<u32> not_full_mask = GetGroupNotFull(group);
         if (not_full_mask)
         {
-            u64 slot_index = offset + not_full_mask.GetLowestSetBitIndex();
-            slot_index &= m_capacity;
-            SetControlByte(slot_index, GetHash2(hash));
+            const u64 slot_index = (offset + not_full_mask.GetLowestSetBitIndex()) & m_capacity;
+            SetControlByte(slot_index, GetHash2(hash), m_control_bytes, m_capacity);
             m_slots[slot_index] = key;
             m_size++;
+            m_growth_left--;
             return ErrorCode::Success;
         }
         // Move to the next group
@@ -337,8 +384,12 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(const key_type& ke
 template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(key_type&& key)
 {
+    if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
+    {
+        Reserve(GetNextPowerOf2MinusOne(m_capacity + 1));
+    }
     u64 hash = CalculateHash(key);
-    u64 offset = GetHash1(hash) & m_capacity;
+    u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
     while (true)
     {
         i8* group = m_control_bytes + offset;
@@ -348,7 +399,8 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(key_type&& key)
         // Iterate over matches by index, if the key from one of them matches we found our target
         for (const u32 i : match_mask)
         {
-            if (m_slots[offset + i] == key)
+            const u64 pos = (offset + i) & m_capacity;
+            if (m_slots[pos] == key)
             {
                 return ErrorCode::Success;
             }
@@ -362,18 +414,18 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(key_type&& key)
         offset = (offset + k_group_width) & m_capacity;
     }
     // The key is not in the set, find the first free slot to put it in
-    offset = GetHash1(hash) & m_capacity;
+    offset = GetHash1(hash, m_control_bytes) & m_capacity;
     while (true)
     {
         i8* group = m_control_bytes + offset;
         const BitMask<u32> not_full_mask = GetGroupNotFull(group);
         if (not_full_mask)
         {
-            u64 slot_index = offset + not_full_mask.GetLowestSetBitIndex();
-            slot_index &= m_capacity;
+            const u64 slot_index = (offset + not_full_mask.GetLowestSetBitIndex()) & m_capacity;
             SetControlByte(slot_index, GetHash2(hash));
             m_slots[slot_index] = key;
             m_size++;
+            m_growth_left--;
             return ErrorCode::Success;
         }
         // Move to the next group
@@ -392,12 +444,12 @@ template <typename KeyType, typename AllocatorType>
 Opal::BitMask<Opal::u32> Opal::HashSet<KeyType, AllocatorType>::GetGroupMatch(const i8* group, i8 pattern)
 {
     // Converts data pointed by void* pointer to __128i, pointer does not have to be aligned to any particular boundary
-    const __m128i ctrl = _mm_loadu_epi8(group);
+    const __m128i ctrl = _mm_loadu_si128(reinterpret_cast<const __m128i*>(group));
     // Creates __m128i by repeating pattern byte 16 times
     const __m128i match = _mm_set1_epi8(pattern);
     // First compare byte for byte from ctrl and match. If bytes are equal empty 0xFF, if bytes are not equal emit 0x00.
     // After the compare take the highest bit of every byte in the result and pack it into 32 bit value (only using lower 16 bits).
-    return BitMask<u32>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl)));
+    return BitMask<u32>(static_cast<u32>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
 }
 
 template <typename KeyType, typename AllocatorType>
@@ -410,22 +462,22 @@ template <typename KeyType, typename AllocatorType>
 Opal::BitMask<Opal::u32> Opal::HashSet<KeyType, AllocatorType>::GetGroupNotFull(const i8* group)
 {
     // Converts data pointed by void* pointer to __128i, pointer does not have to be aligned to any particular boundary
-    const __m128i ctrl = _mm_loadu_epi8(group);
+    const __m128i ctrl = _mm_loadu_si128(reinterpret_cast<const __m128i*>(group));
     // Creates __m128i by repeating pattern byte 16 times
     const __m128i special = _mm_set1_epi8(k_control_bitmask_sentinel);
     // First compare byte for byte from special and ctrl. If special byte is greater than ctrl byte emit 0xFF, or 0x00 otherwise..
     // After the compare take the highest bit of every byte in the result and pack it into 32 bit value (only using lower 16 bits).
-    return BitMask<u32>(_mm_movemask_epi8(_mm_cmpgt_epi8(special, ctrl)));
+    return BitMask<u32>(static_cast<u32>(_mm_movemask_epi8(_mm_cmpgt_epi8(special, ctrl))));
 }
 
 template <typename KeyType, typename AllocatorType>
-void Opal::HashSet<KeyType, AllocatorType>::SetControlByte(u64 index, i8 hash2)
+void Opal::HashSet<KeyType, AllocatorType>::SetControlByte(u64 index, i8 hash2, i8* control_bytes, u64 capacity)
 {
-    m_control_bytes[index] = hash2;
+    control_bytes[index] = hash2;
     constexpr u64 k_cloned_bytes_count = k_group_width - 1;
     // Here we use underflow of unsigned integers to set cloned bytes at the end of m_control_bytes array. If byte targeted by index
     // is not in first 15 bytes we just set that byte again.
-    m_control_bytes[((index - k_cloned_bytes_count) & m_capacity) + (k_cloned_bytes_count & m_capacity)] = hash2;
+    control_bytes[((index - k_cloned_bytes_count) & capacity) + (k_cloned_bytes_count & capacity)] = hash2;
 }
 
 template <typename KeyType, typename AllocatorType>

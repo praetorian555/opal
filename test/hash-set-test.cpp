@@ -59,4 +59,27 @@ TEST_CASE("Hash Set", "[hash-set]")
         sum += i;
     }
     REQUIRE(sum == 4950);
+
+    set.Reserve(1000);
+    sum = 0;
+    for (i32 i : set)
+    {
+        sum += i;
+    }
+    REQUIRE(sum == 4950);
+}
+
+TEST_CASE("Hash set automatic growth", "[hash-set]")
+{
+    HashSet<i32> set(120);
+    for (int i = 0; i < 120; i++)
+    {
+        set.Insert(i);
+    }
+    REQUIRE(set.GetCapacity() == 255);
+    REQUIRE(set.GetSize() == 120);
+    for (int i = 0; i < 120; i++)
+    {
+        REQUIRE(i == *set.Find(i));
+    }
 }
