@@ -2,7 +2,7 @@ name: Build checks
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "hash-map" ]
   pull_request:
     branches: [ "main" ]
 
