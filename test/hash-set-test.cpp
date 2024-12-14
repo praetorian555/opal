@@ -83,3 +83,28 @@ TEST_CASE("Hash set automatic growth", "[hash-set]")
         REQUIRE(i == *set.Find(i));
     }
 }
+
+TEST_CASE("Hash set contains", "[hash-set]")
+{
+    HashSet<i32> set(120);
+    for (int i = 0; i < 120; i++)
+    {
+        set.Insert(i);
+    }
+    REQUIRE(set.Contains(5));
+    REQUIRE(!set.Contains(250));
+
+    i32 t = 5;
+    REQUIRE(set.Contains(t));
+    t = 250;
+    REQUIRE(!set.Contains(t));
+}
+
+TEST_CASE("Insert from variable", "[hash-set]")
+{
+    HashSet<i32> set(120);
+    i32 val = 10;
+    set.Insert(val);
+    REQUIRE(set.Contains(val));
+}
+

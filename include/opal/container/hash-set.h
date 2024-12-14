@@ -78,7 +78,7 @@ public:
     using pointer = typename hash_set_type::pointer;
 
     HashSetConstIterator() = default;
-    HashSetConstIterator(hash_set_type* hash_set, u64 index) : m_hash_set(hash_set), m_index(index) {}
+    HashSetConstIterator(const hash_set_type* hash_set, u64 index) : m_hash_set(hash_set), m_index(index) {}
 
     bool operator==(const HashSetConstIterator& other) const { return m_hash_set == other.m_hash_set && m_index == other.m_index; }
     bool operator>(const HashSetConstIterator& other) const { return m_hash_set == other.m_hash_set && m_index > other.m_index; }
@@ -113,7 +113,7 @@ public:
     [[nodiscard]] u64 GetIndex() const { return m_index; }
 
 private:
-    HashSetType* m_hash_set = nullptr;
+    const HashSetType* m_hash_set = nullptr;
     u64 m_index = 0;
 };
 
@@ -150,8 +150,8 @@ public:
 
     ~HashSet();
 
-    u64 GetSize() const { return m_size; }
-    u64 GetCapacity() const { return m_capacity; }
+    [[nodiscard]] u64 GetSize() const { return m_size; }
+    [[nodiscard]] u64 GetCapacity() const { return m_capacity; }
 
     iterator Find(const key_type& key);
     const_iterator Find(const key_type& key) const;
@@ -187,6 +187,7 @@ private:
     static BitMask<u32> GetGroupNotFull(const i8* group);
     void SetControlByte(u64 index, i8 hash2, i8* control_bytes, u64 capacity);
     static u64 GetGrowthThreshold(u64 capacity) { return (capacity * 7) / 8; }
+    bool FindIndex(const key_type& key, u64& out_index) const;
 
     allocator_type* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
@@ -219,6 +220,10 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Reserve(size_type capacit
     u64 size_to_allocate = new_capacity + k_group_width + (new_capacity * sizeof(key_type));
 
     i8* new_control_bytes = static_cast<i8*>(m_allocator->Alloc(size_to_allocate, 16u));
+    if (new_control_bytes == nullptr)
+    {
+        return ErrorCode::OutOfMemory;
+    }
     memset(new_control_bytes, k_control_bitmask_empty, new_capacity + k_group_width);
     new_control_bytes[new_capacity] = k_control_bitmask_sentinel;
     key_type* new_slots = reinterpret_cast<key_type*>(new_control_bytes + new_capacity + k_group_width);
@@ -258,8 +263,9 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Reserve(size_type capacit
 
     return ErrorCode::Success;
 }
+
 template <typename KeyType, typename AllocatorType>
-typename Opal::HashSet<KeyType, AllocatorType>::iterator Opal::HashSet<KeyType, AllocatorType>::Find(const key_type& key)
+bool Opal::HashSet<KeyType, AllocatorType>::FindIndex(const key_type& key, u64& out_index) const
 {
     u64 hash = CalculateHash(key);
     u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
@@ -275,16 +281,30 @@ typename Opal::HashSet<KeyType, AllocatorType>::iterator Opal::HashSet<KeyType, 
             const u64 pos = (offset + i) & m_capacity;
             if (m_slots[pos] == key)
             {
-                return iterator(this, pos);
+                out_index = pos;
+                return true;
             }
         }
-        // Since we didn't find a match in this group, and it has at least one empty slot, we are done
-        if (GetGroupMatchEmpty(group))
+        // Key doesn't seem to exist so return first available slot position
+        BitMask<u32> empty_group = GetGroupMatchEmpty(group);
+        if (empty_group)
         {
+            out_index = (offset + empty_group.GetLowestSetBitIndex()) & m_capacity;
             break;
         }
         // Move to the next group
         offset = (offset + k_group_width) & m_capacity;
+    }
+    return false;
+}
+
+template <typename KeyType, typename AllocatorType>
+typename Opal::HashSet<KeyType, AllocatorType>::iterator Opal::HashSet<KeyType, AllocatorType>::Find(const key_type& key)
+{
+    u64 index = 0;
+    if (FindIndex(key, index))
+    {
+        return iterator(this, index);
     }
     return end();
 }
@@ -292,30 +312,10 @@ typename Opal::HashSet<KeyType, AllocatorType>::iterator Opal::HashSet<KeyType, 
 template <typename KeyType, typename AllocatorType>
 typename Opal::HashSet<KeyType, AllocatorType>::const_iterator Opal::HashSet<KeyType, AllocatorType>::Find(const key_type& key) const
 {
-    u64 hash = CalculateHash(key);
-    u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
-    while (true)
+    u64 index = 0;
+    if (FindIndex(key, index))
     {
-        i8* group = m_control_bytes + offset;
-        i8 hash2 = GetHash2(hash);
-        // Get slots in this group that match lower 7-bits of the hash
-        const BitMask<u32> match_mask = GetGroupMatch(group, hash2);
-        // Iterate over matches by index, if the key from one of them matches we found our target
-        for (const u32 i : match_mask)
-        {
-            const u64 pos = (offset + i) & m_capacity;
-            if (m_slots[pos] == key)
-            {
-                return const_iterator(this, pos);
-            }
-        }
-        // Since we didn't find a match in this group, and it has at least one empty slot, we are done
-        if (GetGroupMatchEmpty(group))
-        {
-            break;
-        }
-        // Move to the next group
-        offset = (offset + k_group_width) & m_capacity;
+        return const_iterator(this, index);
     }
     return cend();
 }
@@ -329,107 +329,61 @@ bool Opal::HashSet<KeyType, AllocatorType>::Contains(const key_type& key) const
 template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(const key_type& key)
 {
+    u64 index = 0;
+    const bool has_key = FindIndex(key, index);
+    if (has_key)
+    {
+        m_slots[index] = key;
+        return ErrorCode::Success;
+    }
+
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Reserve(m_capacity + 1);
+        const ErrorCode status = Reserve(m_capacity + 1);
+        if (status != ErrorCode::Success)
+        {
+            return status;
+        }
+        // We have to get the index again since we rehashed the table
+        FindIndex(key, index);
     }
+
     u64 hash = CalculateHash(key);
-    u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
-    while (true)
-    {
-        i8* group = m_control_bytes + offset;
-        i8 hash2 = GetHash2(hash);
-        // Get slots in this group that match lower 7-bits of the hash
-        const BitMask<u32> match_mask = GetGroupMatch(group, hash2);
-        // Iterate over matches by index, if the key from one of them matches we found our target
-        for (const u32 i : match_mask)
-        {
-            const u64 pos = (offset + i) & m_capacity;
-            if (m_slots[pos] == key)
-            {
-                return ErrorCode::Success;
-            }
-        }
-        // Since we didn't find a match in this group, and it has at least one empty slot, we are done
-        if (GetGroupMatchEmpty(group))
-        {
-            break;
-        }
-        // Move to the next group
-        offset = (offset + k_group_width) & m_capacity;
-    }
-    // The key is not in the set, find the first free slot to put it in
-    offset = GetHash1(hash, m_control_bytes) & m_capacity;
-    while (true)
-    {
-        i8* group = m_control_bytes + offset;
-        const BitMask<u32> not_full_mask = GetGroupNotFull(group);
-        if (not_full_mask)
-        {
-            const u64 slot_index = (offset + not_full_mask.GetLowestSetBitIndex()) & m_capacity;
-            SetControlByte(slot_index, GetHash2(hash), m_control_bytes, m_capacity);
-            m_slots[slot_index] = key;
-            m_size++;
-            m_growth_left--;
-            return ErrorCode::Success;
-        }
-        // Move to the next group
-        offset = (offset + k_group_width) & m_capacity;
-    }
-    return ErrorCode::InsufficientSpace;
+    SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
+    m_slots[index] = key;
+    m_size++;
+    m_growth_left--;
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(key_type&& key)
 {
+    u64 index = 0;
+    const bool has_key = FindIndex(key, index);
+    if (has_key)
+    {
+        m_slots[index] = Move(key);
+        return ErrorCode::Success;
+    }
+
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Reserve(GetNextPowerOf2MinusOne(m_capacity + 1));
+        const ErrorCode status = Reserve(m_capacity + 1);
+        if (status != ErrorCode::Success)
+        {
+            return status;
+        }
+        // We have to get the index again since we rehashed the table
+        FindIndex(key, index);
     }
+
     u64 hash = CalculateHash(key);
-    u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
-    while (true)
-    {
-        i8* group = m_control_bytes + offset;
-        i8 hash2 = GetHash2(hash);
-        // Get slots in this group that match lower 7-bits of the hash
-        const BitMask<u32> match_mask = GetGroupMatch(group, hash2);
-        // Iterate over matches by index, if the key from one of them matches we found our target
-        for (const u32 i : match_mask)
-        {
-            const u64 pos = (offset + i) & m_capacity;
-            if (m_slots[pos] == key)
-            {
-                return ErrorCode::Success;
-            }
-        }
-        // Since we didn't find a match in this group, and it has at least one empty slot, we are done
-        if (GetGroupMatchEmpty(group))
-        {
-            break;
-        }
-        // Move to the next group
-        offset = (offset + k_group_width) & m_capacity;
-    }
-    // The key is not in the set, find the first free slot to put it in
-    offset = GetHash1(hash, m_control_bytes) & m_capacity;
-    while (true)
-    {
-        i8* group = m_control_bytes + offset;
-        const BitMask<u32> not_full_mask = GetGroupNotFull(group);
-        if (not_full_mask)
-        {
-            const u64 slot_index = (offset + not_full_mask.GetLowestSetBitIndex()) & m_capacity;
-            SetControlByte(slot_index, GetHash2(hash));
-            m_slots[slot_index] = key;
-            m_size++;
-            m_growth_left--;
-            return ErrorCode::Success;
-        }
-        // Move to the next group
-        offset = (offset + k_group_width) & m_capacity;
-    }
-    return ErrorCode::InsufficientSpace;
+    SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
+    m_slots[index] = Move(key);
+    m_size++;
+    m_growth_left--;
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename AllocatorType>
