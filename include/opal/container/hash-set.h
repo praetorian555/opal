@@ -177,16 +177,16 @@ public:
     const key_type& GetKey(u64 index) const;
 
 private:
-    OPAL_EXPORT static u64 GetNextPowerOf2MinusOne(u64 value);
-    [[nodiscard]] OPAL_EXPORT static bool IsControlFull(i8 control) { return control >= 0; }
-    OPAL_EXPORT static u64 CalculateHash(const key_type& key) { return CalculateHashFromObject(key); }
+    static u64 GetNextPowerOf2MinusOne(u64 value);
+    [[nodiscard]] static bool IsControlFull(i8 control) { return control >= 0; }
+    static u64 CalculateHash(const key_type& key) { return CalculateHashFromObject(key); }
     [[nodiscard]] u64 GetHash1(u64 hash, void* seed) const { return (hash >> 7) & (reinterpret_cast<u64>(seed) >> 12); }
-    OPAL_EXPORT static i8 GetHash2(u64 hash) { return hash & 0x7f; }
-    OPAL_EXPORT static BitMask<u32> GetGroupMatch(const i8* group, i8 pattern);
-    OPAL_EXPORT static BitMask<u32> GetGroupMatchEmpty(const i8* group);
-    OPAL_EXPORT static BitMask<u32> GetGroupNotFull(const i8* group);
+    static i8 GetHash2(u64 hash) { return hash & 0x7f; }
+    static BitMask<u32> GetGroupMatch(const i8* group, i8 pattern);
+    static BitMask<u32> GetGroupMatchEmpty(const i8* group);
+    static BitMask<u32> GetGroupNotFull(const i8* group);
     void SetControlByte(u64 index, i8 hash2, i8* control_bytes, u64 capacity);
-    OPAL_EXPORT static u64 GetGrowthThreshold(u64 capacity) { return (capacity * 7) / 8; }
+    static u64 GetGrowthThreshold(u64 capacity) { return (capacity * 7) / 8; }
 
     allocator_type* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
