@@ -393,6 +393,66 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(key_type&& key)
 }
 
 template <typename KeyType, typename AllocatorType>
+Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(const key_type& key)
+{
+    u64 index = 0;
+    if (FindIndex(key, index))
+    {
+        m_control_bytes[index] = k_control_bitmask_deleted;
+        m_size--;
+        m_slots[index].~key_type();
+        return ErrorCode::Success;
+    }
+    return ErrorCode::InvalidArgument;
+}
+
+template <typename KeyType, typename AllocatorType>
+Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::iterator it)
+{
+    if (it < begin() || it >= end())
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    if (IsControlFull(m_control_bytes[it.GetIndex()]))
+    {
+        m_control_bytes[it.GetIndex()] = k_control_bitmask_deleted;
+        m_size--;
+        m_slots[it.GetIndex()].~key_type();
+        return ErrorCode::Success;
+    }
+    return ErrorCode::InvalidArgument;
+}
+
+template <typename KeyType, typename AllocatorType>
+Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iterator it)
+{
+    if (it < cbegin() || it >= cend())
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    if (IsControlFull(m_control_bytes[it.GetIndex()]))
+    {
+        m_control_bytes[it.GetIndex()] = k_control_bitmask_deleted;
+        m_size--;
+        m_slots[it.GetIndex()].~key_type();
+        return ErrorCode::Success;
+    }
+    return ErrorCode::InvalidArgument;
+}
+
+template <typename KeyType, typename AllocatorType>
+Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::iterator first, HashSet::iterator last)
+{
+    return ErrorCode::NotImplemented;
+}
+
+template <typename KeyType, typename AllocatorType>
+Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iterator first, HashSet::const_iterator last)
+{
+    return ErrorCode::NotImplemented;
+}
+
+template <typename KeyType, typename AllocatorType>
 Opal::u64 Opal::HashSet<KeyType, AllocatorType>::GetNextPowerOf2MinusOne(u64 value)
 {
     return value != 0 ? ~u64{} >> CountLeadingZeros(value) : 1;
@@ -519,3 +579,5 @@ const typename Opal::HashSet<KeyType, AllocatorType>::key_type& Opal::HashSet<Ke
     OPAL_ASSERT(IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index];
 }
+
+

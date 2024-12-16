@@ -108,3 +108,45 @@ TEST_CASE("Insert from variable", "[hash-set]")
     REQUIRE(set.Contains(val));
 }
 
+TEST_CASE("Deletion", "[hash-set]")
+{
+    HashSet<i32> set(100);
+    set.Insert(5);
+    set.Insert(10);
+    ErrorCode err = set.Erase(5);
+    REQUIRE(set.GetSize() == 1);
+    REQUIRE(err == ErrorCode::Success);
+    auto it = set.Find(5);
+    REQUIRE(it == set.end());
+    err = set.Erase(15);
+    REQUIRE(err == ErrorCode::InvalidArgument);
+}
+
+TEST_CASE("Delete by iterator", "hash-set")
+{
+    HashSet<i32> set(100);
+    set.Insert(1);
+    set.Insert(2);
+    set.Insert(3);
+    ErrorCode err = set.Erase(set.begin());
+    REQUIRE(err == ErrorCode::Success);
+    REQUIRE(set.GetSize() == 2);
+    REQUIRE(set.Find(1) == set.end());
+    err = set.Erase(set.end());
+    REQUIRE(err == ErrorCode::OutOfBounds);
+}
+
+TEST_CASE("Delete by const iterator", "hash-set")
+{
+    HashSet<i32> set(100);
+    set.Insert(1);
+    set.Insert(2);
+    set.Insert(3);
+    ErrorCode err = set.Erase(set.cbegin());
+    REQUIRE(err == ErrorCode::Success);
+    REQUIRE(set.GetSize() == 2);
+    REQUIRE(set.Find(1) == set.end());
+    err = set.Erase(set.cend());
+    REQUIRE(err == ErrorCode::OutOfBounds);
+}
+
