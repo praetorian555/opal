@@ -134,8 +134,11 @@ public:
     using const_iterator = HashSetConstIterator<HashSet<key_type, allocator_type>>;
 
     constexpr static u64 k_group_width = 16;
+    // Special value to indicate that the control byte is empty
     constexpr static i8 k_control_bitmask_empty = -128;   // 0b10000000;
+    // Special value to indicate that the control byte was deleted
     constexpr static i8 k_control_bitmask_deleted = -2;   // 0b11111110;
+    // Special value to indicate that we reach the end of the control bytes
     constexpr static i8 k_control_bitmask_sentinel = -1;  // 0b11111111;
 
     explicit HashSet(size_type capacity, allocator_type* allocator = nullptr);
@@ -221,6 +224,7 @@ Opal::HashSet<KeyType, AllocatorType>::~HashSet()
 template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Reserve(size_type capacity)
 {
+    // Capacity is
     u64 new_capacity = GetNextPowerOf2MinusOne(capacity);
     u64 new_size = 0;
     u64 size_to_allocate = new_capacity + k_group_width + (new_capacity * sizeof(key_type));
@@ -443,13 +447,55 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iter
 template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::iterator first, HashSet::iterator last)
 {
-    return ErrorCode::NotImplemented;
+    if (first < begin() || first > end())
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    if (last < first || last > end())
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    for (auto it = first; it != last; ++it)
+    {
+        if (IsControlFull(m_control_bytes[it.GetIndex()]))
+        {
+            m_control_bytes[it.GetIndex()] = k_control_bitmask_deleted;
+            m_size--;
+            m_slots[it.GetIndex()].~key_type();
+        }
+        else
+        {
+            return ErrorCode::InvalidArgument;
+        }
+    }
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iterator first, HashSet::const_iterator last)
 {
-    return ErrorCode::NotImplemented;
+    if (first < cbegin() || first > cend())
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    if (last < first || last > cend())
+    {
+        return ErrorCode::OutOfBounds;
+    }
+    for (auto it = first; it != last; ++it)
+    {
+        if (IsControlFull(m_control_bytes[it.GetIndex()]))
+        {
+            m_control_bytes[it.GetIndex()] = k_control_bitmask_deleted;
+            m_size--;
+            m_slots[it.GetIndex()].~key_type();
+        }
+        else
+        {
+            return ErrorCode::InvalidArgument;
+        }
+    }
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename AllocatorType>
@@ -465,7 +511,7 @@ Opal::BitMask<Opal::u32> Opal::HashSet<KeyType, AllocatorType>::GetGroupMatch(co
     const __m128i ctrl = _mm_loadu_si128(reinterpret_cast<const __m128i*>(group));
     // Creates __m128i by repeating pattern byte 16 times
     const __m128i match = _mm_set1_epi8(pattern);
-    // First compare byte for byte from ctrl and match. If bytes are equal empty 0xFF, if bytes are not equal emit 0x00.
+    // First compare byte for byte from ctrl and match. If bytes are equal emit 0xFF, if bytes are not equal emit 0x00.
     // After the compare take the highest bit of every byte in the result and pack it into 32 bit value (only using lower 16 bits).
     return BitMask<u32>(static_cast<u32>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
 }
@@ -491,10 +537,12 @@ Opal::BitMask<Opal::u32> Opal::HashSet<KeyType, AllocatorType>::GetGroupNotFull(
 template <typename KeyType, typename AllocatorType>
 void Opal::HashSet<KeyType, AllocatorType>::SetControlByte(u64 index, i8 hash2, i8* control_bytes, u64 capacity)
 {
+    // Here we simply set the control byte at the index to hash2.
     control_bytes[index] = hash2;
     constexpr u64 k_cloned_bytes_count = k_group_width - 1;
-    // Here we use underflow of unsigned integers to set cloned bytes at the end of m_control_bytes array. If byte targeted by index
-    // is not in first 15 bytes we just set that byte again.
+    // We need to figure out if we need to clone the byte at the end of the group. If byte is in the first
+    // k_group_width - 1 we use unsigned integer underflow to set the cloned byte at the end of the group.
+    // If byte is not in the first k_group_width - 1 we just set the byte again.
     control_bytes[((index - k_cloned_bytes_count) & capacity) + (k_cloned_bytes_count & capacity)] = hash2;
 }
 

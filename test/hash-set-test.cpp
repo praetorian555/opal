@@ -150,3 +150,45 @@ TEST_CASE("Delete by const iterator", "hash-set")
     REQUIRE(err == ErrorCode::OutOfBounds);
 }
 
+TEST_CASE("Erase range by iterator", "hash-set")
+{
+    HashSet<i32> set(100);
+    set.Insert(1);
+    set.Insert(2);
+    set.Insert(3);
+
+    // Error cases
+    ErrorCode err = set.Erase(set.end(), set.begin());
+    REQUIRE(err == ErrorCode::OutOfBounds);
+
+    err = set.Erase(set.begin(), set.end());
+    REQUIRE(err == ErrorCode::Success);
+    REQUIRE(set.GetSize() == 0);
+    REQUIRE(set.Find(1) == set.end());
+    REQUIRE(set.Find(2) == set.end());
+    REQUIRE(set.Find(3) == set.end());
+    err = set.Erase(set.begin(), set.end());
+    REQUIRE(err == ErrorCode::Success);
+}
+
+TEST_CASE("Erase range by const iterator", "hash-set")
+{
+    HashSet<i32> set(100);
+    set.Insert(1);
+    set.Insert(2);
+    set.Insert(3);
+
+    // Error cases.
+    ErrorCode err = set.Erase(set.cend(), set.cbegin());
+    REQUIRE(err == ErrorCode::OutOfBounds);
+
+    err = set.Erase(set.cbegin(), set.cend());
+    REQUIRE(err == ErrorCode::Success);
+    REQUIRE(set.GetSize() == 0);
+    REQUIRE(set.Find(1) == set.end());
+    REQUIRE(set.Find(2) == set.end());
+    REQUIRE(set.Find(3) == set.end());
+    err = set.Erase(set.cbegin(), set.cend());
+    REQUIRE(err == ErrorCode::Success);
+}
+
