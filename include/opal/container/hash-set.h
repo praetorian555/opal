@@ -361,7 +361,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(const key_type& ke
     }
 
     u64 hash = CalculateHash(key);
-    printf("Insert: key=%d, index=%llu, hash=0x%x\n", key, index, GetHash2(hash));
+    // printf("Insert: key=%d, index=%llu, hash=0x%x\n", key, index, GetHash2(hash));
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
     m_slots[index] = key;
     m_size++;
@@ -392,7 +392,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(key_type&& key)
     }
 
     u64 hash = CalculateHash(key);
-    printf("Insert: key=%d, index=%llu, hash=0x%x\n", key, index, GetHash2(hash));
+    // printf("Insert: key=%d, index=%llu, hash=0x%x\n", key, index, GetHash2(hash));
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
     m_slots[index] = Move(key);
     m_size++;
@@ -406,7 +406,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(const key_type& key
     u64 index = 0;
     if (FindIndex(key, index))
     {
-        printf("Erase: key=%d, index=%llu\n", key, index);
+        // printf("Erase: key=%d, index=%llu\n", key, index);
         m_control_bytes[index] = k_control_bitmask_deleted;
         m_size--;
         m_slots[index].~key_type();
@@ -425,7 +425,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::iterator i
     const u64 index = it.GetIndex();
     if (IsControlFull(m_control_bytes[index]))
     {
-        printf("Erase: index=%llu\n", index);
+        // printf("Erase: index=%llu\n", index);
         m_control_bytes[index] = k_control_bitmask_deleted;
         m_size--;
         m_slots[index].~key_type();
@@ -444,7 +444,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iter
     const u64 index = it.GetIndex();
     if (IsControlFull(m_control_bytes[index]))
     {
-        printf("Erase: index=%llu\n", index);
+        // printf("Erase: index=%llu\n", index);
         m_control_bytes[index] = k_control_bitmask_deleted;
         m_size--;
         m_slots[index].~key_type();

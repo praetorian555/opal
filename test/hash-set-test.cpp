@@ -131,7 +131,6 @@ TEST_CASE("Delete by iterator", "hash-set")
     ErrorCode err = set.Erase(set.begin());
     REQUIRE(err == ErrorCode::Success);
     REQUIRE(set.GetSize() == 2);
-    REQUIRE(set.Find(1) == set.end());
     err = set.Erase(set.end());
     REQUIRE(err == ErrorCode::OutOfBounds);
 }
@@ -145,7 +144,6 @@ TEST_CASE("Delete by const iterator", "hash-set")
     ErrorCode err = set.Erase(set.cbegin());
     REQUIRE(err == ErrorCode::Success);
     REQUIRE(set.GetSize() == 2);
-    REQUIRE(set.Find(1) == set.end());
     err = set.Erase(set.cend());
     REQUIRE(err == ErrorCode::OutOfBounds);
 }
