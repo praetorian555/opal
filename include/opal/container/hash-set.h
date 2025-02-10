@@ -227,16 +227,17 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Reserve(size_type capacit
     // Capacity is
     u64 new_capacity = GetNextPowerOf2MinusOne(capacity);
     u64 new_size = 0;
-    u64 size_to_allocate = new_capacity + k_group_width + (new_capacity * sizeof(key_type));
+    const u64 control_bytes_size = (new_capacity + k_group_width + sizeof(key_type) - 1) / sizeof(key_type);
+    u64 size_to_allocate = control_bytes_size + (new_capacity * sizeof(key_type));
 
     i8* new_control_bytes = static_cast<i8*>(m_allocator->Alloc(size_to_allocate, 16u));
     if (new_control_bytes == nullptr)
     {
         return ErrorCode::OutOfMemory;
     }
-    memset(new_control_bytes, k_control_bitmask_empty, new_capacity + k_group_width);
+    memset(new_control_bytes, k_control_bitmask_empty, control_bytes_size);
     new_control_bytes[new_capacity] = k_control_bitmask_sentinel;
-    key_type* new_slots = reinterpret_cast<key_type*>(new_control_bytes + new_capacity + k_group_width);
+    key_type* new_slots = reinterpret_cast<key_type*>(new_control_bytes + control_bytes_size);
     memset(new_slots, 0, new_capacity * sizeof(key_type));
 
     if (m_capacity > 0)
