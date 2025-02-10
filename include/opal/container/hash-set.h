@@ -75,6 +75,7 @@ public:
     using value_type = typename hash_set_type::value_type;
     using difference_type = typename hash_set_type::difference_type;
     using reference = typename hash_set_type::reference;
+    using const_reference = typename hash_set_type::const_reference;
     using pointer = typename hash_set_type::pointer;
 
     HashSetConstIterator() = default;
@@ -100,7 +101,7 @@ public:
         return rtn_it;
     }
 
-    reference operator*() const { return m_hash_set->GetKey(m_index); }
+    const_reference operator*() const { return m_hash_set->GetKey(m_index); }
 
     pointer operator->() const { return &m_hash_set->GetKey(m_index); }
 

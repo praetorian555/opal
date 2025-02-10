@@ -128,9 +128,11 @@ TEST_CASE("Delete by iterator", "hash-set")
     set.Insert(1);
     set.Insert(2);
     set.Insert(3);
+    const i32 deleted_value = *set.begin();
     ErrorCode err = set.Erase(set.begin());
     REQUIRE(err == ErrorCode::Success);
     REQUIRE(set.GetSize() == 2);
+    REQUIRE(set.Find(deleted_value) == set.end());
     err = set.Erase(set.end());
     REQUIRE(err == ErrorCode::OutOfBounds);
 }
@@ -141,10 +143,12 @@ TEST_CASE("Delete by const iterator", "hash-set")
     set.Insert(1);
     set.Insert(2);
     set.Insert(3);
+    const i32 deleted_value = *set.begin();
     ErrorCode err = set.Erase(set.cbegin());
     REQUIRE(err == ErrorCode::Success);
     REQUIRE(set.GetSize() == 2);
     err = set.Erase(set.cend());
+    REQUIRE(set.Find(deleted_value) == set.end());
     REQUIRE(err == ErrorCode::OutOfBounds);
 }
 
