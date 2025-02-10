@@ -419,11 +419,12 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::iterator i
     {
         return ErrorCode::OutOfBounds;
     }
-    if (IsControlFull(m_control_bytes[it.GetIndex()]))
+    const u64 index = it.GetIndex();
+    if (IsControlFull(m_control_bytes[index]))
     {
-        m_control_bytes[it.GetIndex()] = k_control_bitmask_deleted;
+        m_control_bytes[index] = k_control_bitmask_deleted;
         m_size--;
-        m_slots[it.GetIndex()].~key_type();
+        m_slots[index].~key_type();
         return ErrorCode::Success;
     }
     return ErrorCode::InvalidArgument;
@@ -436,11 +437,12 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iter
     {
         return ErrorCode::OutOfBounds;
     }
-    if (IsControlFull(m_control_bytes[it.GetIndex()]))
+    const u64 index = it.GetIndex();
+    if (IsControlFull(m_control_bytes[index]))
     {
-        m_control_bytes[it.GetIndex()] = k_control_bitmask_deleted;
+        m_control_bytes[index] = k_control_bitmask_deleted;
         m_size--;
-        m_slots[it.GetIndex()].~key_type();
+        m_slots[index].~key_type();
         return ErrorCode::Success;
     }
     return ErrorCode::InvalidArgument;
@@ -459,11 +461,12 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::iterator f
     }
     for (auto it = first; it != last; ++it)
     {
-        if (IsControlFull(m_control_bytes[it.GetIndex()]))
+        const u64 index = it.GetIndex();
+        if (IsControlFull(m_control_bytes[index]))
         {
-            m_control_bytes[it.GetIndex()] = k_control_bitmask_deleted;
+            m_control_bytes[index] = k_control_bitmask_deleted;
             m_size--;
-            m_slots[it.GetIndex()].~key_type();
+            m_slots[index].~key_type();
         }
         else
         {
@@ -486,11 +489,12 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iter
     }
     for (auto it = first; it != last; ++it)
     {
-        if (IsControlFull(m_control_bytes[it.GetIndex()]))
+        const u64 index = it.GetIndex();
+        if (IsControlFull(m_control_bytes[index]))
         {
-            m_control_bytes[it.GetIndex()] = k_control_bitmask_deleted;
+            m_control_bytes[index] = k_control_bitmask_deleted;
             m_size--;
-            m_slots[it.GetIndex()].~key_type();
+            m_slots[index].~key_type();
         }
         else
         {
