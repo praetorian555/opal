@@ -361,7 +361,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(const key_type& ke
     }
 
     u64 hash = CalculateHash(key);
-    printf("key: %d hash: %d\n", key, GetHash2(hash));
+    printf("key=%d, index=%d, hash=0x%x\n", key, index, GetHash2(hash));
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
     m_slots[index] = key;
     m_size++;
@@ -392,7 +392,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(key_type&& key)
     }
 
     u64 hash = CalculateHash(key);
-    printf("key: %d hash: 0x%x\n", key, GetHash2(hash));
+    printf("key=%d, index=%d, hash=0x%x\n", key, index, GetHash2(hash));
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
     m_slots[index] = Move(key);
     m_size++;
