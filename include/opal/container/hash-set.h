@@ -1,6 +1,6 @@
 #pragma once
 
-#include <unordered_set>
+#include <iostream>
 
 #include "opal/defines.h"
 
@@ -8,10 +8,10 @@
 #include <emmintrin.h>
 #endif
 
-#include "opal/export.h"
 #include "opal/allocator.h"
 #include "opal/bit.h"
 #include "opal/error-codes.h"
+#include "opal/export.h"
 #include "opal/hash.h"
 
 namespace Opal
@@ -50,17 +50,17 @@ public:
         return rtn_it;
     }
 
-    reference operator*() const
-    {
-        return m_hash_set->GetKey(m_index);
-    }
+    reference operator*() const { return m_hash_set->GetKey(m_index); }
 
-    pointer operator->() const
-    {
-        return &m_hash_set->GetKey(m_index);
-    }
+    pointer operator->() const { return &m_hash_set->GetKey(m_index); }
 
     [[nodiscard]] u64 GetIndex() const { return m_index; }
+
+    friend std::ostream& operator<<(std::ostream& os, const HashSetIterator& value)
+    {
+        os << "HashSetIterator(pointer=" << value.m_hash_set << ", index=" << value.m_index << ")";
+        return os;
+    }
 
 private:
     HashSetType* m_hash_set = nullptr;
@@ -100,17 +100,17 @@ public:
         return rtn_it;
     }
 
-    reference operator*() const
-    {
-        return m_hash_set->GetKey(m_index);
-    }
+    reference operator*() const { return m_hash_set->GetKey(m_index); }
 
-    pointer operator->() const
-    {
-        return &m_hash_set->GetKey(m_index);
-    }
+    pointer operator->() const { return &m_hash_set->GetKey(m_index); }
 
     [[nodiscard]] u64 GetIndex() const { return m_index; }
+
+    friend std::ostream& operator<<(std::ostream& os, const HashSetConstIterator& value)
+    {
+        os << "HashSetConstIterator(pointer=" << value.m_hash_set << ", index=" << value.m_index << ")";
+        return os;
+    }
 
 private:
     const HashSetType* m_hash_set = nullptr;
@@ -135,9 +135,9 @@ public:
 
     constexpr static u64 k_group_width = 16;
     // Special value to indicate that the control byte is empty
-    constexpr static i8 k_control_bitmask_empty = -128;   // 0b10000000;
+    constexpr static i8 k_control_bitmask_empty = -128;  // 0b10000000;
     // Special value to indicate that the control byte was deleted
-    constexpr static i8 k_control_bitmask_deleted = -2;   // 0b11111110;
+    constexpr static i8 k_control_bitmask_deleted = -2;  // 0b11111110;
     // Special value to indicate that we reach the end of the control bytes
     constexpr static i8 k_control_bitmask_sentinel = -1;  // 0b11111111;
 
@@ -598,7 +598,8 @@ Opal::HashSet<KeyType, AllocatorType>::iterator Opal::HashSet<KeyType, Allocator
 }
 
 template <typename KeyType, typename AllocatorType>
-Opal::HashSet<KeyType, AllocatorType>::const_iterator Opal::HashSet<KeyType, AllocatorType>::FindNextIterator(HashSet::const_iterator pos) const
+Opal::HashSet<KeyType, AllocatorType>::const_iterator Opal::HashSet<KeyType, AllocatorType>::FindNextIterator(
+    HashSet::const_iterator pos) const
 {
     if (pos == cend())
     {
@@ -629,5 +630,3 @@ const typename Opal::HashSet<KeyType, AllocatorType>::key_type& Opal::HashSet<Ke
     OPAL_ASSERT(IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index];
 }
-
-
