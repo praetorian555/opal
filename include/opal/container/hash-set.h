@@ -224,10 +224,11 @@ Opal::HashSet<KeyType, AllocatorType>::~HashSet()
 template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Reserve(size_type capacity)
 {
-    // Capacity is
     u64 new_capacity = GetNextPowerOf2MinusOne(capacity);
     u64 new_size = 0;
-    const u64 control_bytes_size = (new_capacity + k_group_width + sizeof(key_type) - 1) / sizeof(key_type);
+    // Since we are storing control bytes and the keys in the same memory block we need to make sure
+    // that keys start at the address that is aligned with their size.
+    const u64 control_bytes_size = GetNextPowerOf2MinusOne(new_capacity + k_group_width) + 1;
     u64 size_to_allocate = control_bytes_size + (new_capacity * sizeof(key_type));
 
     i8* new_control_bytes = static_cast<i8*>(m_allocator->Alloc(size_to_allocate, 16u));
