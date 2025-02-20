@@ -190,7 +190,7 @@ private:
     static u64 GetNextPowerOf2MinusOne(u64 value);
     [[nodiscard]] static bool IsControlFull(i8 control) { return control >= 0; }
     static u64 CalculateHash(const key_type& key) { return CalculateHashFromObject(key); }
-    [[nodiscard]] u64 GetHash1(u64 hash, void* seed) const { return (hash >> 7) & (reinterpret_cast<u64>(seed) >> 12); }
+    [[nodiscard]] u64 GetHash1(u64 hash, void* seed) const { return (hash >> 7) ^ (reinterpret_cast<u64>(seed) >> 12); }
     static i8 GetHash2(u64 hash) { return hash & 0x7f; }
     static BitMask<u32> GetGroupMatch(const i8* group, i8 pattern);
     static BitMask<u32> GetGroupMatchEmpty(const i8* group);
