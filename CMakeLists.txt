@@ -43,6 +43,7 @@ set(OPAL_FILES
         src/paths.cpp
         src/bit.cpp
         src/hash.cpp
+        src/rng.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -55,6 +56,9 @@ set(OPAL_FILES
         include/opal/source-location.h
         include/opal/bit.h
         include/opal/hash.h
+        include/opal/rng.h
+        include/opal/math-base.h
+        include/opal/math-constants.h
         include/opal/container/iterator.h
         include/opal/container/expected.h
         include/opal/container/deque.h
@@ -121,6 +125,7 @@ if (OPAL_BUILD_TESTS)
             test/common-test.cpp
             test/hash-set-test.cpp
             test/bit-test.cpp
+            test/rng-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
