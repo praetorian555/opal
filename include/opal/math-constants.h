@@ -28,14 +28,10 @@ static constexpr f64 k_pi_over_4_double =
 static constexpr f64 k_sqrt_2_double =
     1.4142135623730950488016887242096980785696718753769480731766797379;
 
-#if defined(OPAL_COMPILER_MSVC)
 static constexpr f32 k_inf_float = static_cast<f32>(1e300 * 1e300);
 static constexpr f32 k_neg_inf_float = -k_inf_float;
 static constexpr f64 k_inf_double = 1e300 * 1e300;
 static constexpr f64 k_neg_inf_double = -k_inf_double;
-#else
-#error No definition for infinity constants!
-#endif
 
 static constexpr f32 k_largest_float = 3.4028234664e38f;
 static constexpr f32 k_smallest_float = -3.4028234664e38f;
