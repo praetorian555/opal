@@ -55,16 +55,15 @@ Opal::i32 Opal::RNG::RandomI32(i32 min, i32 max)
     return min + (i32)((static_cast<u64>(x) * static_cast<u64>(range)) >> 32);
 }
 
-float Opal::RNG::RandomF32()
+Opal::f32 Opal::RNG::RandomF32()
 {
-    constexpr float k_scalar = 0x1p-32f;
-    return Min(k_one_minus_epsilon, static_cast<float>(RandomU32()) * k_scalar);
+    constexpr f32 k_scalar = 0x1p-32f;
+    return Min(k_one_minus_epsilon, static_cast<f32>(RandomU32()) * k_scalar);
 }
 
-float Opal::RNG::RandomF32(float start, float end)
+Opal::f32 Opal::RNG::RandomF32(f32 min, f32 max)
 {
-    OPAL_ASSERT(start <= end, "Invalid range");
-
-    const float value = RandomF32();
-    return start + value * (end - start);
+    OPAL_ASSERT(min <= max, "Invalid range");
+    const f32 value = RandomF32();
+    return min + value * (max - min);
 }

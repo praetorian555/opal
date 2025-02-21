@@ -31,21 +31,32 @@ public:
     void SetSequence(u64 starting_index);
 
     /**
-     * @brief Generate a uniform random number in range [0, UINT32_MAX - 1].
+     * @brief Generate a uniform random number in range [0, UINT32_MAX).
      * @return Random number.
      */
     u32 RandomU32();
 
     /**
-     * @brief Generate a uniform random number in range [min, max).
+     * @brief Generate a unsigned int 32 uniform random number in range [min, max).
      * @param min Lower bound. Inclusive.
      * @param max Upper bound. Exclusive.
      * @return Random number.
      */
     u32 RandomU32(u32 min, u32 max);
 
+    /**
+     * @brief Generate a uniform random number in range [INT32_MIN, INT32_MAX).
+     * @return Random number.
+     */
     i32 RandomI32();
-    i32 RandomI32(i32 start, i32 end);
+
+    /**
+     * @brief Generate a signed int 32 uniform random number in range [min, max).
+     * @param min Lower bound. Inclusive.
+     * @param max Upper bound. Exclusive.
+     * @return Random number.
+     */
+    i32 RandomI32(i32 min, i32 max);
 
     /**
      * @brief Generate a uniform random number in range [0, 1).
@@ -54,9 +65,9 @@ public:
     f32 RandomF32();
 
     /**
-     * @brief Generate a uniform random number in range [start, end).
-     * @param start Lower bound.
-     * @param end Upper bound.
+     * @brief Generate a uniform random number in range [min, max).
+     * @param min Lower bound. Inclusive.
+     * @param max Upper bound. Exclusive.
      * @return Random number.
      */
     f32 RandomF32(f32 min, f32 max);
