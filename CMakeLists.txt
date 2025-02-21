@@ -126,6 +126,7 @@ if (OPAL_BUILD_TESTS)
             test/hash-set-test.cpp
             test/bit-test.cpp
             test/rng-test.cpp
+            test/math-base-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)

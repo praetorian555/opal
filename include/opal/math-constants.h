@@ -47,4 +47,4 @@ static constexpr f32 k_smallest_float = -3.4028234664e38f;
 static constexpr f64 k_largest_double = 1.7976931348623158e308;
 static constexpr f64 k_smallest_double = -1.7976931348623158e308;
 
-}  // namespace Math
+}  // namespace Opal

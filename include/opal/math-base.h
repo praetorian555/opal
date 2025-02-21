@@ -221,7 +221,7 @@ T LogNatural(T value);
 template <FloatingPoint T>
 T Log2(T value);
 
-}  // namespace Math
+}  // namespace Opal
 
 // Implementation //////////////////////////////////////////////////////////////////////////////////
 
