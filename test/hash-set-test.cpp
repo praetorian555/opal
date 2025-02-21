@@ -194,3 +194,12 @@ TEST_CASE("Erase range by const iterator", "hash-set")
     REQUIRE(err == ErrorCode::Success);
 }
 
+TEST_CASE("Insert a lot of elements and remove them")
+{
+    HashSet<i32> set(100);
+    REQUIRE(set.GetGrowthLeft() == set.GetCapacity());
+    set.Insert(5);
+    REQUIRE(set.GetGrowthLeft() == set.GetCapacity() - 1);
+    set.Erase(5);
+    REQUIRE(set.GetGrowthLeft() == set.GetCapacity() - 1);
+}

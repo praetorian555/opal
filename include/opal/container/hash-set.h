@@ -156,6 +156,7 @@ public:
 
     [[nodiscard]] u64 GetSize() const { return m_size; }
     [[nodiscard]] u64 GetCapacity() const { return m_capacity; }
+    [[nodiscard]] u64 GetGrowthLeft() const { return m_growth_left; }
 
     iterator Find(const key_type& key);
     const_iterator Find(const key_type& key) const;
@@ -198,6 +199,8 @@ private:
     void SetControlByte(u64 index, i8 hash2, i8* control_bytes, u64 capacity);
     static u64 GetGrowthThreshold(u64 capacity) { return (capacity * 7) / 8; }
     bool FindIndex(const key_type& key, u64& out_index) const;
+    void OccupySlot(const key_type& key, u64 index);
+    void DeleteSlot(u64 index);
 
     allocator_type* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
@@ -340,6 +343,43 @@ bool Opal::HashSet<KeyType, AllocatorType>::Contains(const key_type& key) const
 }
 
 template <typename KeyType, typename AllocatorType>
+void Opal::HashSet<KeyType, AllocatorType>::OccupySlot(const key_type& key, u64 index)
+{
+    const u64 hash = CalculateHash(key);
+    SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
+    m_slots[index] = key;
+    m_size++;
+    m_growth_left--;
+}
+
+template <typename KeyType, typename AllocatorType>
+void Opal::HashSet<KeyType, AllocatorType>::DeleteSlot(u64 index)
+{
+    m_slots[index].~key_type();
+    m_size--;
+
+    // Lets look at a full group before this element and after. Lets find all empty slots before and after.
+    //const u64 index_before = (index - k_group_width) & m_capacity;
+    //const auto empty_after = GetGroupMatchEmpty(m_control_bytes + index);
+    //const auto empty_before = GetGroupMatchEmpty(m_control_bytes + index_before);
+    //// In group after look how many non empty, consecutive elements there are at the end of the group
+    //const u64 trailing_non_empty_count = empty_after.GetTrailingZeros();
+    //// In group before look how many non-empty, consecutive elements there are at the start of the group.
+    //const u64 leading_non_empty_count = empty_before.GetLeadingZeros() - 16;
+    //const u64 non_empty_count = trailing_non_empty_count + leading_non_empty_count;
+
+    //// Check if we are surrounded by at least k_group_width empty elements
+    //bool was_never_full = empty_before && empty_after;
+    //was_never_full = was_never_full && (non_empty_count < k_group_width);
+
+    //// If we are surrounded by at least k_group_width empty elements we can mark this slot as empty instead of deleted 
+    //SetControlByte(index, was_never_full ? k_control_bitmask_empty : k_control_bitmask_deleted, m_control_bytes, m_capacity);
+    //m_growth_left += (was_never_full ? 1 : 0);
+
+    SetControlByte(index, k_control_bitmask_deleted, m_control_bytes, m_capacity);
+}
+
+template <typename KeyType, typename AllocatorType>
 Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(const key_type& key)
 {
     u64 index = 0;
@@ -361,12 +401,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(const key_type& ke
         FindIndex(key, index);
     }
 
-    u64 hash = CalculateHash(key);
-    // printf("Insert: key=%d, index=%llu, hash=0x%x\n", key, index, GetHash2(hash));
-    SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
-    m_slots[index] = key;
-    m_size++;
-    m_growth_left--;
+    OccupySlot(key, index);
     return ErrorCode::Success;
 }
 
@@ -392,12 +427,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Insert(key_type&& key)
         FindIndex(key, index);
     }
 
-    u64 hash = CalculateHash(key);
-    // printf("Insert: key=%d, index=%llu, hash=0x%x\n", key, index, GetHash2(hash));
-    SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
-    m_slots[index] = Move(key);
-    m_size++;
-    m_growth_left--;
+    OccupySlot(key, index);
     return ErrorCode::Success;
 }
 
@@ -407,10 +437,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(const key_type& key
     u64 index = 0;
     if (FindIndex(key, index))
     {
-        // printf("Erase: key=%d, index=%llu\n", key, index);
-        m_control_bytes[index] = k_control_bitmask_deleted;
-        m_size--;
-        m_slots[index].~key_type();
+        DeleteSlot(index);
         return ErrorCode::Success;
     }
     return ErrorCode::InvalidArgument;
@@ -426,10 +453,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::iterator i
     const u64 index = it.GetIndex();
     if (IsControlFull(m_control_bytes[index]))
     {
-        // printf("Erase: index=%llu\n", index);
-        m_control_bytes[index] = k_control_bitmask_deleted;
-        m_size--;
-        m_slots[index].~key_type();
+        DeleteSlot(index);
         return ErrorCode::Success;
     }
     return ErrorCode::InvalidArgument;
@@ -445,10 +469,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iter
     const u64 index = it.GetIndex();
     if (IsControlFull(m_control_bytes[index]))
     {
-        // printf("Erase: index=%llu\n", index);
-        m_control_bytes[index] = k_control_bitmask_deleted;
-        m_size--;
-        m_slots[index].~key_type();
+        DeleteSlot(index);
         return ErrorCode::Success;
     }
     return ErrorCode::InvalidArgument;
@@ -470,9 +491,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::iterator f
         const u64 index = it.GetIndex();
         if (IsControlFull(m_control_bytes[index]))
         {
-            m_control_bytes[index] = k_control_bitmask_deleted;
-            m_size--;
-            m_slots[index].~key_type();
+            DeleteSlot(index);
         }
         else
         {
@@ -498,9 +517,7 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iter
         const u64 index = it.GetIndex();
         if (IsControlFull(m_control_bytes[index]))
         {
-            m_control_bytes[index] = k_control_bitmask_deleted;
-            m_size--;
-            m_slots[index].~key_type();
+            DeleteSlot(index);
         }
         else
         {
