@@ -1,29 +1,29 @@
 #include "opal/defines.h"
 
 OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
+OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
 #include "catch2/catch2.hpp"
 OPAL_END_DISABLE_WARNINGS
 
-#include "opal/hash.h"
-#include "opal/container/string.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/hash-set.h"
+#include "opal/container/string.h"
+#include "opal/hash.h"
 
 using namespace Opal;
 
 TEST_CASE("Hash", "[hash]")
 {
     u8 data[] = {1, 2, 3};
-    u64 hash = CalculateHashFromPointerArray(data, 3);
+    u64 hash = Hash::CalcRawArray(data, 3);
     REQUIRE(hash != 0);
 
     StringUtf8 str = "Hello there";
-    hash = CalculateHashFromContainer(str);
+    hash = Hash::CalcContainer(str);
     REQUIRE(hash != 0);
 
-    DynamicArray<i32> arr = {1, 2 , 3};
-    hash = CalculateHashFromContainer(arr);
+    DynamicArray<i32> arr = {1, 2, 3};
+    hash = Hash::CalcContainer(arr);
     REQUIRE(hash != 0);
 
     struct Pod
@@ -33,7 +33,7 @@ TEST_CASE("Hash", "[hash]")
     };
 
     Pod pod;
-    hash = CalculateHashFromObject(pod);
+    hash = Hash::CalcPOD(pod);
     REQUIRE(hash != 0);
 }
 
@@ -217,4 +217,49 @@ TEST_CASE("Clear")
     set.Clear();
     REQUIRE(set.GetSize() == 0);
     REQUIRE(set.GetGrowthLeft() == 127);
+}
+
+TEST_CASE("Non-POD type")
+{
+    struct SomeType
+    {
+        i32* a = nullptr;
+        f32 b = 5;
+
+        SomeType() = default;
+        SomeType(int aa, f32 bb)
+        {
+            a = new i32(aa);
+            b = bb;
+        }
+        ~SomeType() { delete a; }
+
+        SomeType(const SomeType& other)
+        {
+            a = new i32();
+            *a = *other.a;
+            b = other.b;
+        }
+
+        bool operator==(const SomeType& other)
+        {
+            if (b != other.b)
+            {
+                return false;
+            }
+            if (a == other.a)
+            {
+                return true;
+            }
+            if (a == nullptr || other.a == nullptr)
+            {
+                return false;
+            }
+            return *a == *other.a;
+        }
+    };
+
+    HashSet<SomeType> set;
+
+    set.Insert(SomeType(5, 10));
 }

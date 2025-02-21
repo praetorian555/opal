@@ -3,12 +3,13 @@
 #include <type_traits>
 
 #include "opal/defines.h"
-#include "opal/types.h"
 #include "opal/export.h"
+#include "opal/types.h"
 
 namespace Opal
 {
-
+namespace Hash
+{
 /**
  * Calculates 64-bit hash from an array of bytes.
  * @param data Pointer to data to use to create a hash.
@@ -16,7 +17,7 @@ namespace Opal
  * @param seed Specific seed to use. Default is 0.
  * @return Returns 64-bit hash value.
  */
-OPAL_EXPORT u64 CalculateHashFromPointerArray(const u8* data, u64 size, u64 seed = 0);
+OPAL_EXPORT u64 CalcRawArray(const u8* data, u64 size, u64 seed = 0);
 
 /**
  * Calculates 64-bit hash from the POD object.
@@ -25,10 +26,8 @@ OPAL_EXPORT u64 CalculateHashFromPointerArray(const u8* data, u64 size, u64 seed
  * @param seed Specific seed to use. Default is 0.
  * @return Returns 64-bit hash value.
  */
-// TODO: Implement requirement that T is plain old data from scratch
 template <typename T>
-    requires std::is_standard_layout_v<T>
-u64 CalculateHashFromObject(const T& value, u64 seed = 0);
+u64 CalcPOD(const T& value, u64 seed = 0);
 
 /**
  * Calculates 64-bit hash using container data.
@@ -38,19 +37,19 @@ u64 CalculateHashFromObject(const T& value, u64 seed = 0);
  * @return Returns 64-bit hash value.
  */
 template <typename Container>
-u64 CalculateHashFromContainer(const Container& container, u64 seed = 0);
+u64 CalcContainer(const Container& container, u64 seed = 0);
 
+}  // namespace Hash
 }  // namespace Opal
 
 template <typename T>
-    requires std::is_standard_layout_v<T>
-Opal::u64 Opal::CalculateHashFromObject(const T& value, Opal::u64 seed)
+Opal::u64 Opal::Hash::CalcPOD(const T& value, Opal::u64 seed)
 {
-    return CalculateHashFromPointerArray(reinterpret_cast<const u8*>(&value), sizeof(T), seed);
+    return CalcRawArray(reinterpret_cast<const u8*>(&value), sizeof(T), seed);
 }
 
 template <typename Container>
-Opal::u64 Opal::CalculateHashFromContainer(const Container& container, Opal::u64 seed)
+Opal::u64 Opal::Hash::CalcContainer(const Container& container, Opal::u64 seed)
 {
-    return CalculateHashFromPointerArray(reinterpret_cast<const u8*>(container.GetData()), container.GetSize(), seed);
+    return CalcRawArray(reinterpret_cast<const u8*>(container.GetData()), container.GetSize(), seed);
 }
