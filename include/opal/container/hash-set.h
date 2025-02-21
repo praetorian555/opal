@@ -142,7 +142,9 @@ public:
     // Special value to indicate that we reach the end of the control bytes
     constexpr static i8 k_control_bitmask_sentinel = -1;  // 0b11111111;
 
-    explicit HashSet(size_type capacity, allocator_type* allocator = nullptr);
+    constexpr static u64 k_default_capacity = 4;
+
+    explicit HashSet(size_type capacity = k_default_capacity, allocator_type* allocator = nullptr);
 
     HashSet(const HashSet& other);
     HashSet(HashSet&& other) noexcept;
@@ -170,6 +172,8 @@ public:
     ErrorCode Erase(const_iterator it);
     ErrorCode Erase(iterator first, iterator last);
     ErrorCode Erase(const_iterator first, const_iterator last);
+
+    void Clear(); 
 
     iterator begin() { return FindFirstIterator(); }
     const_iterator begin() const { return FindFirstIterator(); }
@@ -216,7 +220,7 @@ template <typename KeyType, typename AllocatorType>
 Opal::HashSet<KeyType, AllocatorType>::HashSet(size_type capacity, allocator_type* allocator)
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
-    Reserve(capacity < 4 ? 4 : capacity);
+    Reserve(capacity < k_default_capacity ? k_default_capacity : capacity);
 }
 
 template <typename KeyType, typename AllocatorType>
@@ -506,6 +510,19 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Erase(HashSet::const_iter
         }
     }
     return ErrorCode::Success;
+}
+
+template <typename KeyType, typename AllocatorType>
+void Opal::HashSet<KeyType, AllocatorType>::Clear()
+{
+    for (auto it = begin(); it != end(); ++it)
+    {
+        (*it).~key_type();
+    }
+    memset(m_control_bytes, k_control_bitmask_empty, m_capacity + k_group_width);
+    m_control_bytes[m_capacity] = k_control_bitmask_sentinel;
+    m_growth_left = m_capacity;
+    m_size = 0;
 }
 
 template <typename KeyType, typename AllocatorType>

@@ -194,7 +194,7 @@ TEST_CASE("Erase range by const iterator", "hash-set")
     REQUIRE(err == ErrorCode::Success);
 }
 
-TEST_CASE("Insert a lot of elements and remove them")
+TEST_CASE("Check if growth left changes properly")
 {
     HashSet<i32> set(100);
     REQUIRE(set.GetGrowthLeft() == set.GetCapacity());
@@ -202,4 +202,19 @@ TEST_CASE("Insert a lot of elements and remove them")
     REQUIRE(set.GetGrowthLeft() == set.GetCapacity() - 1);
     set.Erase(5);
     REQUIRE(set.GetGrowthLeft() == set.GetCapacity() - 1);
+}
+
+TEST_CASE("Clear")
+{
+    HashSet<i32> set;
+    for (int i = 0; i < 100; i++)
+    {
+        set.Insert(i);
+    }
+    REQUIRE(set.GetSize() == 100);
+    REQUIRE(set.GetGrowthLeft() == 27);
+
+    set.Clear();
+    REQUIRE(set.GetSize() == 0);
+    REQUIRE(set.GetGrowthLeft() == 127);
 }
