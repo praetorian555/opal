@@ -1,7 +1,7 @@
 ﻿#pragma once
 
-#include "opal/types.h"
 #include "opal/export.h"
+#include "opal/types.h"
 
 namespace Opal
 {
@@ -9,6 +9,7 @@ namespace Opal
 /**
  * Pseudo-random number generator based on the paper PCG: A Family of Simple Fast
  * Space-Efficient Statistically Good Algorithms for Random Number Generation by O'Neill (2014).
+ * Uniformally generates number in a given range.
  */
 class OPAL_EXPORT RNG
 {
@@ -33,20 +34,24 @@ public:
      * @brief Generate a uniform random number in range [0, UINT32_MAX - 1].
      * @return Random number.
      */
-    u32 UniformUInt32();
+    u32 RandomU32();
 
     /**
-     * @brief Generate a uniform random number in range [0, limit - 1].
-     * @param limit Upper bound.
+     * @brief Generate a uniform random number in range [min, max).
+     * @param min Lower bound. Inclusive.
+     * @param max Upper bound. Exclusive.
      * @return Random number.
      */
-    u32 UniformUInt32(u32 limit);
+    u32 RandomU32(u32 min, u32 max);
+
+    i32 RandomI32();
+    i32 RandomI32(i32 start, i32 end);
 
     /**
      * @brief Generate a uniform random number in range [0, 1).
      * @return Random number.
      */
-    float UniformFloat();
+    f32 RandomF32();
 
     /**
      * @brief Generate a uniform random number in range [start, end).
@@ -54,7 +59,7 @@ public:
      * @param end Upper bound.
      * @return Random number.
      */
-    float UniformFloatInRange(float start, float end);
+    f32 RandomF32(f32 min, f32 max);
 
 private:
     u64 m_state = 0;

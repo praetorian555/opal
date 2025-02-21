@@ -7,14 +7,27 @@ OPAL_END_DISABLE_WARNINGS
 
 #include "opal/rng.h"
 
-TEST_CASE("UniformLimit", "[rng]")
+TEST_CASE("UniformRange", "[rng]")
 {
     constexpr int k_case_count = 1'000'000;
     Opal::RNG gen(5);
     for (int i = 0; i < k_case_count; i++)
     {
-        const uint32_t num = gen.UniformUInt32(100);
-        CHECK(num < 100);
+        const uint32_t num = gen.RandomU32(100, 200);
+        CHECK(num >= 100);
+        CHECK(num < 200);
+    }
+}
+
+TEST_CASE("UniformRangeInt", "[rng]")
+{
+    constexpr int k_case_count = 1'000'000;
+    Opal::RNG gen(5);
+    for (int i = 0; i < k_case_count; i++)
+    {
+        const Opal::i32 num = gen.RandomI32(-100, 200);
+        CHECK(num >= -100);
+        CHECK(num < 200);
     }
 }
 
@@ -24,7 +37,7 @@ TEST_CASE("UniformFloat", "[rng]")
     Opal::RNG gen(5);
     for (int i = 0; i < k_case_count; i++)
     {
-        const float num = gen.UniformFloat();
+        const float num = gen.RandomF32();
         CHECK(num < 1);
         CHECK(num >= 0);
     }
@@ -39,7 +52,7 @@ TEST_CASE("UniformFloatInRange", "[rng]")
 
     for (int i = 0; i < k_case_count; i++)
     {
-        const float num = gen.UniformFloatInRange(low, high);
+        const float num = gen.RandomF32(low, high);
         CHECK(num < high);
         CHECK(num >= low);
     }
@@ -53,8 +66,8 @@ TEST_CASE("SameStartIndexSameSequence", "[rng]")
 
     for (int i = 0; i < k_case_count; i++)
     {
-        const float num1 = gen1.UniformFloat();
-        const float num2 = gen2.UniformFloat();
+        const float num1 = gen1.RandomF32();
+        const float num2 = gen2.RandomF32();
         CHECK(num1 == Catch::Approx(num2));
     }
 }

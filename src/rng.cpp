@@ -19,12 +19,12 @@ void Opal::RNG::SetSequence(u64 starting_index)
 {
     m_state = 0u;
     m_inc = (starting_index << 1u) | 1u;
-    UniformUInt32();
+    RandomU32();
     m_state += k_default_state;
-    UniformUInt32();
+    RandomU32();
 }
 
-Opal::u32 Opal::RNG::UniformUInt32()
+Opal::u32 Opal::RNG::RandomU32()
 {
     const u64 old_state = m_state;
     m_state = old_state * k_mul_float + m_inc;
@@ -34,29 +34,37 @@ Opal::u32 Opal::RNG::UniformUInt32()
     return (xor_shifted >> Rot) | (xor_shifted << ((~Rot + 1u) & k_lowest_five_bits));
 }
 
-Opal::u32 Opal::RNG::UniformUInt32(u32 limit)
+Opal::u32 Opal::RNG::RandomU32(u32 min, u32 max)
 {
-    const u32 threshold = (~limit + 1u) % limit;
-    while (true)
-    {
-        const u32 random = UniformUInt32();
-        if (random >= threshold)
-        {
-            return random % limit;
-        }
-    }
+    OPAL_ASSERT(max >= min, "Invalid range!");
+    const u32 range = max - min;
+    const u32 x = RandomU32();
+    return min + (u32)((static_cast<u64>(x) * static_cast<u64>(range)) >> 32);
 }
 
-float Opal::RNG::UniformFloat()
+Opal::i32 Opal::RNG::RandomI32()
+{
+    return static_cast<i32>(RandomU32());
+}
+
+Opal::i32 Opal::RNG::RandomI32(i32 min, i32 max)
+{
+    OPAL_ASSERT(max >= min, "Invalid range!");
+    u32 range = static_cast<u32>(max - min);
+    u32 x = RandomU32();
+    return min + (i32)((static_cast<u64>(x) * static_cast<u64>(range)) >> 32);
+}
+
+float Opal::RNG::RandomF32()
 {
     constexpr float k_scalar = 0x1p-32f;
-    return Min(k_one_minus_epsilon, static_cast<float>(UniformUInt32()) * k_scalar);
+    return Min(k_one_minus_epsilon, static_cast<float>(RandomU32()) * k_scalar);
 }
 
-float Opal::RNG::UniformFloatInRange(float start, float end)
+float Opal::RNG::RandomF32(float start, float end)
 {
     OPAL_ASSERT(start <= end, "Invalid range");
 
-    const float value = UniformFloat();
+    const float value = RandomF32();
     return start + value * (end - start);
 }
