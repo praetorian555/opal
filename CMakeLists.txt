@@ -81,6 +81,9 @@ set(OPAL_FILES
         include/opal/math/point2.h
         include/opal/math/point3.h
         include/opal/math/point4.h
+        include/opal/math/normal3.h
+        include/opal/math/bounds2.h
+        include/opal/math/bounds3.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})
@@ -139,6 +142,9 @@ if (OPAL_BUILD_TESTS)
             test/point2-test.cpp
             test/point3-test.cpp
             test/point4-test.cpp
+            test/normal3-test.cpp
+            test/bounds2-test.cpp
+            test/bounds3-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
