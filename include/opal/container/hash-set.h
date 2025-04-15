@@ -2,13 +2,12 @@
 
 #include <iostream>
 
-#include "opal/defines.h"
-
 #if defined(OPAL_COMPILER_CLANG) || defined(OPAL_COMPILER_GCC)
 #include <emmintrin.h>
 #endif
 
 #include "opal/allocator.h"
+#include "opal/assert.h"
 #include "opal/bit.h"
 #include "opal/error-codes.h"
 #include "opal/export.h"
@@ -173,7 +172,7 @@ public:
     ErrorCode Erase(iterator first, iterator last);
     ErrorCode Erase(const_iterator first, const_iterator last);
 
-    void Clear(); 
+    void Clear();
 
     iterator begin() { return FindFirstIterator(); }
     const_iterator begin() const { return FindFirstIterator(); }
