@@ -46,3 +46,9 @@
 #define OPAL_DISABLE_OPTIMIZATION _Pragma("clang optimize off")
 #define OPAL_ENABLE_OPTIMIZATION _Pragma("clang optimize on")
 #endif
+
+#if defined(_DEBUG)
+#define OPAL_DEBUG
+#else
+#define OPAL_RELEASE
+#endif
