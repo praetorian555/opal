@@ -134,6 +134,8 @@ if (OPAL_BUILD_TESTS)
             test/rng-test.cpp
             test/math-base-test.cpp
             test/vector2-test.cpp
+            test/vector3-test.cpp
+            test/vector4-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
