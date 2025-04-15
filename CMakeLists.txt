@@ -75,6 +75,12 @@ set(OPAL_FILES
         include/opal/container/ref.h
         include/opal/sort/key-indexed-counting.h
         third-party/wyhash/include/wyhash/wyhash.h
+        include/opal/math/vector2.h
+        include/opal/math/vector3.h
+        include/opal/math/vector4.h
+        include/opal/math/point2.h
+        include/opal/math/point3.h
+        include/opal/math/point4.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})
@@ -127,6 +133,7 @@ if (OPAL_BUILD_TESTS)
             test/bit-test.cpp
             test/rng-test.cpp
             test/math-base-test.cpp
+            test/vector2-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
