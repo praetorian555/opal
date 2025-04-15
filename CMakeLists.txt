@@ -136,6 +136,9 @@ if (OPAL_BUILD_TESTS)
             test/vector2-test.cpp
             test/vector3-test.cpp
             test/vector4-test.cpp
+            test/point2-test.cpp
+            test/point3-test.cpp
+            test/point4-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
