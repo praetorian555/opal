@@ -224,6 +224,74 @@ Opal::HashSet<KeyType, AllocatorType>::HashSet(size_type capacity, allocator_typ
 }
 
 template <typename KeyType, typename AllocatorType>
+Opal::HashSet<KeyType, AllocatorType>::HashSet(const HashSet& other) : m_allocator(other.m_allocator)
+{
+    Reserve(other.m_capacity);
+    for (auto& key : other)
+    {
+        Insert(key);
+    }
+}
+
+template <typename KeyType, typename AllocatorType>
+Opal::HashSet<KeyType, AllocatorType>::HashSet(HashSet&& other) noexcept
+    : m_allocator(other.m_allocator),
+      m_control_bytes(other.m_control_bytes),
+      m_slots(other.m_slots),
+      m_capacity(other.m_capacity),
+      m_size(other.m_size),
+      m_growth_left(other.m_growth_left)
+{
+    other.m_control_bytes = nullptr;
+    other.m_slots = nullptr;
+    other.m_capacity = 0;
+    other.m_size = 0;
+    other.m_growth_left = 0;
+    other.Reserve(4);
+}
+
+template <typename KeyType, typename AllocatorType>
+Opal::HashSet<KeyType, AllocatorType>& Opal::HashSet<KeyType, AllocatorType>::operator=(const HashSet& other)
+{
+    m_allocator->Free(m_control_bytes);
+    m_allocator = other.m_allocator;
+    m_control_bytes = nullptr;
+    m_slots = nullptr;
+    m_growth_left = 0;
+    m_size = 0;
+    m_capacity = 0;
+
+    Reserve(other.m_capacity);
+    for (auto& key : other)
+    {
+        Insert(key);
+    }
+
+    return *this;
+}
+
+template <typename KeyType, typename AllocatorType>
+Opal::HashSet<KeyType, AllocatorType>& Opal::HashSet<KeyType, AllocatorType>::operator=(HashSet&& other) noexcept
+{
+    m_allocator->Free(m_control_bytes);
+    m_allocator = other.m_allocator;
+    m_control_bytes = other.m_control_bytes;
+    m_slots = other.m_slots;
+    m_growth_left = other.m_growth_left;
+    m_size = other.m_size;
+    m_capacity = other.m_capacity;
+
+    other.m_control_bytes = nullptr;
+    other.m_slots = nullptr;
+    other.m_growth_left = 0;
+    other.m_size = 0;
+    other.m_capacity = 0;
+    other.Reserve(4);
+
+    return *this;
+}
+
+template <typename KeyType, typename AllocatorType>
 Opal::HashSet<KeyType, AllocatorType>::~HashSet()
 {
     m_allocator->Free(m_control_bytes);
