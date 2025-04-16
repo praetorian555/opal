@@ -84,6 +84,7 @@ set(OPAL_FILES
         include/opal/math/normal3.h
         include/opal/math/bounds2.h
         include/opal/math/bounds3.h
+        include/opal/math/matrix.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})
@@ -145,6 +146,7 @@ if (OPAL_BUILD_TESTS)
             test/normal3-test.cpp
             test/bounds2-test.cpp
             test/bounds3-test.cpp
+            test/matrix-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
@@ -153,6 +155,8 @@ if (OPAL_BUILD_TESTS)
     target_link_libraries(opal_test opal_warnings)
     target_link_libraries(opal_test opal_options)
     target_compile_definitions(opal_test PRIVATE CATCH_AMALGAMATED_CUSTOM_MAIN)
+#    target_compile_definitions(opal_test PRIVATE cxx_std_20)
+    target_compile_options(opal_test PRIVATE /std:c++20)
     enable_testing()
     add_test(NAME opal_test COMMAND opal_test)
     # Install the test executable
