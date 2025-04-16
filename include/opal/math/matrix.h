@@ -126,6 +126,15 @@ template <typename MatrixType>
 template <typename MatrixType>
 [[nodiscard]] MatrixType Inverse(const MatrixType& m);
 
+template <typename T>
+using Matrix4x4 = Matrix<T, 4, 4>;
+
+template <typename T>
+using Matrix3x3 = Matrix<T, 3, 3>;
+
+template <typename T>
+using Matrix4x3 = Matrix<T, 4, 3>;
+
 }  // namespace Opal
 
 // Implementation //////////////////////////////////////////////////////////////////////////////////
