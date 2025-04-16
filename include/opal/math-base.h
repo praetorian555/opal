@@ -2,21 +2,11 @@
 
 #include <cmath>
 
-#include "opal/types.h"
+#include "opal/type-traits.h"
 #include "opal/math-constants.h"
 
 namespace Opal
 {
-
-// Define a concept for floating point types.
-template <typename T>
-inline constexpr bool k_is_floating_point_value = false;
-template <>
-inline constexpr bool k_is_floating_point_value<f32> = true;
-template <>
-inline constexpr bool k_is_floating_point_value<f64> = true;
-template <typename T>
-concept FloatingPoint = k_is_floating_point_value<T>;
 
 /**
  * @brief Returns the absolute value of the given value.

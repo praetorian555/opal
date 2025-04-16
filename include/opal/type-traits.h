@@ -280,4 +280,75 @@ concept Range = requires(T& t) {
     } -> RandomAccessIterator;
 };
 
+
+/**
+ * @brief Compile-time check if a type matches any of the provided candidate types.
+ * @tparam Ref The reference type to check.
+ * @tparam Candidates Pack of candidate types to compare against.
+ * @return constexpr bool True if Ref matches any of the Candidates, false otherwise.
+ */
+template <typename Ref, typename ...Candidates>
+inline constexpr bool k_is_any_value = (k_is_same_value<Ref, Candidates> || ...);
+
+/**
+ * @brief Concept that checks if a type is one of several candidate types.
+ * @tparam Ref The reference type to check.
+ * @tparam Candidates Pack of candidate types to compare against.
+ * @example
+ *   template <typename T>
+ *   requires AnyOf<T, int, float, double>
+ *   void processNumericType(T value) {
+ *       // Implementation
+ *   }
+ *
+ *   template <typename T>
+ *   void processNumericType(T value) requires AnyOf<T, int, float, double> {
+ *       // Implementation
+ *   }
+ *
+ *   void processNumericType(AnyOf<int, float, double> auto value) {
+ *       // Implementation
+ *   }
+ */
+template <typename Ref, typename ...Candidates>
+concept AnyOf = k_is_any_value<Ref, Candidates...>;
+
+/**
+ * @brief Concept that checks if a type is a floating point type.
+ * @tparam T The type to be evaluated.
+ * @example
+ *      static_assert(FloatingPoint<float>);
+ *      static_assert(FloatingPoint<f64>);
+ *      static_assert(!FloatingPoint<int>);
+ */
+template <typename T>
+concept FloatingPoint = AnyOf<T, f32, f64>;
+
+/**
+ * @brief Concept that checks if a type is an integral type.
+ * @tparam T The type to be evaluated.
+ * @example
+ *      static_assert(Integral<int>);
+ *      static_assert(Integral<u32>);
+ *      static_assert(!Integral<double>);
+ */
+template <typename T>
+concept Integral = AnyOf<T, u8, u16, u32, u64, i8, i16, i32, i64, char8, char16, uchar32>;
+
+/**
+ * @brief Concept that checks if a type is either an integral or a floating point type.
+ * @tparam T The type to be evaluated.
+ * @example
+ *      template <IntegralOrFloatingPoint T>
+ *      T add(T a, T b) {
+ *          return a + b;
+ *      }
+ *
+ *      static_assert(IntegralOrFloatingPoint<int>);
+ *      static_assert(IntegralOrFloatingPoint<double>);
+ *      static_assert(!IntegralOrFloatingPoint<bool>);
+ */
+template <typename T>
+concept IntegralOrFloatingPoint = Integral<T> || FloatingPoint<T>;
+
 }  // namespace Opal
