@@ -2062,7 +2062,6 @@ TEST_CASE("From UTF32 to locale", "[String]")
     ErrorCode error = Transcode(utf32, locale_result);
     REQUIRE(error == ErrorCode::Success);
     REQUIRE(locale_result == str_locale);
-    printf("%s\n", str_locale.GetData());
 }
 
 TEST_CASE("From wide to locale", "[String]")
@@ -2079,7 +2078,6 @@ TEST_CASE("From wide to locale", "[String]")
     ErrorCode error = Transcode(wide, locale_result);
     REQUIRE(error == ErrorCode::Success);
     REQUIRE(locale_result == str_locale);
-    printf("%s\n", locale_result.GetData());
 }
 
 TEST_CASE("From const UTF8 to locale", "[String]")
@@ -2092,7 +2090,6 @@ TEST_CASE("From const UTF8 to locale", "[String]")
     ErrorCode error = Transcode(utf8, locale_result);
     REQUIRE(error == ErrorCode::Success);
     REQUIRE(locale_result == str_locale);
-    printf("%s\n", locale_result.GetData());
 }
 
 TEST_CASE("Transcode with empty destination", "[String]")
