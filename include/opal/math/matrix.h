@@ -362,7 +362,7 @@ Opal::Vector3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Vect
     OPAL_ASSERT(k_row_count == 3 || k_row_count == 4, "Matrix must be 3x4 or 4x4.");
     if constexpr (k_row_count == 4)
     {
-        OPAL_ASSERT(elements[0][3] == 0 && elements[1][3] == 0 && elements[2][3] == 0 && elements[3][3] == 1,
+        OPAL_ASSERT(elements[3][0] == 0 && elements[3][1] == 0 && elements[3][2] == 0 && elements[3][3] == 1,
                     "Fourth row of matrix must be [0, 0, 0, 1].");
     }
 

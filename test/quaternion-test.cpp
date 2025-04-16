@@ -1,8 +1,4 @@
-#include <float.h>
-
 #include "opal/defines.h"
-
-#include <limits>
 
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
