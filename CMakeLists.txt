@@ -85,6 +85,8 @@ set(OPAL_FILES
         include/opal/math/bounds2.h
         include/opal/math/bounds3.h
         include/opal/math/matrix.h
+        include/opal/math/rotator.h
+        include/opal/math/quaternion.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})
@@ -147,6 +149,8 @@ if (OPAL_BUILD_TESTS)
             test/bounds2-test.cpp
             test/bounds3-test.cpp
             test/matrix-test.cpp
+            test/rotator-test.cpp
+            test/quaternion-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
