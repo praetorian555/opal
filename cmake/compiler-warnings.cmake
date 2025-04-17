@@ -43,6 +43,8 @@ function(setup_compiler_warnings target)
             -Wdouble-promotion # warn if float is implicit promoted to double
             -Wformat=2 # warn on security issues around functions that format output (ie printf)
             -Wimplicit-fallthrough # warn on statements that fallthrough without an explicit annotation
+            -Wno-gnu-anonymous-struct # don't complain that anonymous structs are GNU extension
+            -Wno-nested-anon-types # don't complain about nested anonymous structs
     )
 
     set(GCC_WARNINGS
