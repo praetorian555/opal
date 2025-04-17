@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "opal/assert.h"
+#include "opal/common.h"
 #include "opal/math-base.h"
 #include "opal/math/normal3.h"
 #include "opal/math/point3.h"
@@ -483,7 +484,7 @@ MatrixType Opal::Inverse(const MatrixType& m)
         {
             for (int column = 0; column < MatrixType::k_col_count_value; column++)
             {
-                std::swap(mat_inv[index_row][column], mat_inv[index_column][column]);
+                Swap(mat_inv[index_row][column], mat_inv[index_column][column]);
             }
         }
         indxr[it] = index_row;
@@ -523,7 +524,7 @@ MatrixType Opal::Inverse(const MatrixType& m)
         {
             for (int row = 0; row < 4; row++)
             {
-                std::swap(mat_inv[row][indxr[column]], mat_inv[row][indxc[column]]);
+                Swap(mat_inv[row][indxr[column]], mat_inv[row][indxc[column]]);
             }
         }
     }
