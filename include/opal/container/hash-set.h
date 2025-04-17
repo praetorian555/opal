@@ -1,10 +1,6 @@
 #pragma once
 
-#include <iostream>
-
-#if defined(OPAL_COMPILER_CLANG) || defined(OPAL_COMPILER_GCC)
 #include <emmintrin.h>
-#endif
 
 #include "opal/allocator.h"
 #include "opal/assert.h"
@@ -55,12 +51,6 @@ public:
 
     [[nodiscard]] u64 GetIndex() const { return m_index; }
 
-    friend std::ostream& operator<<(std::ostream& os, const HashSetIterator& value)
-    {
-        os << "HashSetIterator(pointer=" << value.m_hash_set << ", index=" << value.m_index << ")";
-        return os;
-    }
-
 private:
     HashSetType* m_hash_set = nullptr;
     u64 m_index = 0;
@@ -105,12 +95,6 @@ public:
     pointer operator->() const { return &m_hash_set->GetKey(m_index); }
 
     [[nodiscard]] u64 GetIndex() const { return m_index; }
-
-    friend std::ostream& operator<<(std::ostream& os, const HashSetConstIterator& value)
-    {
-        os << "HashSetConstIterator(pointer=" << value.m_hash_set << ", index=" << value.m_index << ")";
-        return os;
-    }
 
 private:
     const HashSetType* m_hash_set = nullptr;
