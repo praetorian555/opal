@@ -2907,6 +2907,12 @@ TEST_CASE("Find", "[String]")
             auto result = Find(str, "");
             REQUIRE(result == 0);
         }
+        SECTION("Search string is not empty but its not found")
+        {
+            const StringLocale str("Hello there");
+            auto result = Find(str, "ema");
+            REQUIRE(result == StringLocale::k_npos);
+        }
         SECTION("Search string is empty and start position is not valid")
         {
             const StringLocale str("Hello there");

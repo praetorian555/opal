@@ -2324,28 +2324,7 @@ typename MyString::size_type Opal::Find(const MyString& haystack, const MyString
         }
         return start_pos;
     }
-    if (start_pos >= haystack.GetSize() || needle.GetSize() > haystack.GetSize() - start_pos)
-    {
-        return MyString::k_npos;
-    }
-    for (typename MyString::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
-    {
-        bool is_found = true;
-        for (typename MyString::size_type needle_pos = 0; needle_pos < needle.GetSize() && haystack_pos + needle_pos < haystack.GetSize();
-             ++needle_pos)
-        {
-            if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
-            {
-                is_found = false;
-                break;
-            }
-        }
-        if (is_found)
-        {
-            return haystack_pos;
-        }
-    }
-    return MyString::k_npos;
+    return Find(haystack, needle.GetData(), start_pos, needle.GetSize());
 }
 
 template <typename MyString>
@@ -2378,12 +2357,13 @@ typename MyString::size_type Opal::Find(const MyString& haystack, const typename
     }
     for (typename MyString::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
     {
-        bool is_found = true;
+        bool is_found = false;
         for (typename MyString::size_type needle_pos = 0; needle_pos < needle_count; ++needle_pos)
         {
-            if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
+            // We found the symbol only if there is enough of a haystack to find it
+            is_found = haystack_pos + needle_pos < haystack.GetSize() && needle[needle_pos] == haystack[haystack_pos + needle_pos];
+            if (!is_found)
             {
-                is_found = false;
                 break;
             }
         }
