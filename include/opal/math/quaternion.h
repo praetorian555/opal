@@ -229,7 +229,7 @@ Opal::Quaternion<T>::Quaternion()
 }
 
 template <Opal::FloatingPoint T>
-Opal::Quaternion<T>::Quaternion(T w, T x, T y, T z) : w(w), vec(x, y, z)
+Opal::Quaternion<T>::Quaternion(T w, T x, T y, T z) : vec(x, y, z), w(w)
 {
 }
 
@@ -284,8 +284,8 @@ Opal::Quaternion<T>::Quaternion(const Matrix4x4<T>& transform)
 template <Opal::FloatingPoint T>
 template <Opal::FloatingPoint U>
 Opal::Quaternion<T>::Quaternion(const Quaternion<U>& other)
-    : w(static_cast<T>(other.w)),
-      vec(static_cast<T>(other.vec.x), static_cast<T>(other.vec.y), static_cast<T>(other.vec.z))
+    : vec(static_cast<T>(other.vec.x), static_cast<T>(other.vec.y), static_cast<T>(other.vec.z)),
+      w(static_cast<T>(other.w))
 {
 }
 
