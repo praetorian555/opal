@@ -830,7 +830,6 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(String&& other) noexcept
     : m_allocator(other.m_allocator), m_data(other.m_data), m_size(other.m_size), m_capacity(other.m_capacity)
 {
-    other.m_allocator = nullptr;
     other.m_capacity = 0;
     other.m_size = 0;
     other.m_data = nullptr;
@@ -902,7 +901,6 @@ CLASS_HEADER& CLASS_HEADER::operator=(String&& other) noexcept
     m_data = other.m_data;
     m_capacity = other.m_capacity;
     m_size = other.m_size;
-    other.m_allocator = nullptr;
     other.m_data = nullptr;
     other.m_capacity = 0;
     other.m_size = 0;
