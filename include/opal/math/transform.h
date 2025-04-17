@@ -159,7 +159,7 @@ Matrix4x4<T> LookAt_LH(const Point3<T>& eye, const Point3<T>& target, const Vect
 template <typename T>
 Opal::Matrix4x4<T> Opal::Identity()
 {
-    return Matrix4x4<T>(1.0f);
+    return Matrix4x4<T>(static_cast<T>(1.0f));
 }
 
 template <typename T>
