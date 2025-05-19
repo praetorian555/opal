@@ -2,7 +2,7 @@
 
 #include <span>
 
-#include "helpers.h"
+#include "opal/helpers.h"
 
 namespace PrivateQuickSort
 {

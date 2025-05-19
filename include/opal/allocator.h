@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "opal/export.h"
 #include "opal/types.h"
 
@@ -91,5 +93,46 @@ OPAL_EXPORT AllocatorBase* GetDefaultAllocator();
  * @param allocator Pointer to the allocator. If its nullptr library's default allocator will be used.
  */
 OPAL_EXPORT void SetDefaultAllocator(AllocatorBase* allocator);
+
+template <typename T, class... Args>
+T* New(AllocatorBase* allocator, Args&&... args)
+{
+    if (allocator == nullptr)
+    {
+        allocator = GetDefaultAllocator();
+    }
+    void* memory = allocator->Alloc(sizeof(T), alignof(T));
+    if (memory == nullptr) [[unlikely]]
+    {
+        return nullptr;
+    }
+    return new (memory) T(std::forward<Args>(args)...);
+}
+
+template <typename T, class... Args>
+T* New(u32 alignment, AllocatorBase* allocator, Args&&... args)
+{
+    if (allocator == nullptr)
+    {
+        allocator = GetDefaultAllocator();
+    }
+    void* memory = allocator->Alloc(sizeof(T), alignment);
+    if (memory == nullptr) [[unlikely]]
+    {
+        return nullptr;
+    }
+    return new (memory) T(std::forward<Args>(args)...);
+}
+
+template <typename T, class... Args>
+void Delete(AllocatorBase* allocator, T* ptr)
+{
+    if (allocator == nullptr)
+    {
+        allocator = GetDefaultAllocator();
+    }
+    ptr->~T();
+    allocator->Free(ptr);
+}
 
 }  // namespace Opal
