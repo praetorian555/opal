@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "container/ref.h"
 #include "opal/export.h"
 #include "opal/types.h"
 
@@ -125,6 +126,18 @@ T* New(u32 alignment, AllocatorBase* allocator, Args&&... args)
 }
 
 template <typename T, class... Args>
+T* New(const Ref<AllocatorBase>& allocator, Args&&... args)
+{
+    return New<T>(allocator.GetPtr(), std::forward<Args>(args)...);
+}
+
+template <typename T, class... Args>
+T* New(u32 alignment, const Ref<AllocatorBase>& allocator, Args&&... args)
+{
+    return New<T>(alignment, allocator, std::forward<Args>(args)...);
+}
+
+template <typename T, class... Args>
 void Delete(AllocatorBase* allocator, T* ptr)
 {
     if (allocator == nullptr)
@@ -134,5 +147,12 @@ void Delete(AllocatorBase* allocator, T* ptr)
     ptr->~T();
     allocator->Free(ptr);
 }
+
+template <typename T, class... Args>
+void Delete(const Ref<AllocatorBase>& allocator, T* ptr)
+{
+    return Delete<T>(allocator.GetPtr(), ptr);
+}
+
 
 }  // namespace Opal
