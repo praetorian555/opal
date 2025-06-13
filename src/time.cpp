@@ -19,7 +19,7 @@ namespace PrivateTime
 #if defined(OPAL_PLATFORM_WINDOWS)
 LARGE_INTEGER g_frequency{.QuadPart = 0};
 #endif
-}
+}  // namespace PrivateTime
 
 f64 GetSeconds()
 {
@@ -48,6 +48,40 @@ f64 GetMilliSeconds()
 f64 GetMicroSeconds()
 {
     return GetSeconds() * 1'000'000;
+}
+
+f64 GetLastFileModifiedTimeInSeconds(const StringUtf8& file_path)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringWide wide_file_path(file_path.GetSize() + 1, 0);
+    const ErrorCode err = Transcode(file_path, wide_file_path);
+    if (err != ErrorCode::Success)
+    {
+        return -1;
+    }
+    HANDLE file_handle = CreateFile(wide_file_path.GetData(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                                          nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file_handle == INVALID_HANDLE_VALUE)
+    {
+        return -1;
+    }
+    FILETIME last_write_time;
+    FILETIME creation_time;
+    FILETIME access_time;
+    if (GetFileTime(file_handle, &creation_time, &access_time, &last_write_time) == 0)
+    {
+        return -1;
+    }
+    CloseHandle(file_handle);
+
+    ULARGE_INTEGER uli;
+    uli.LowPart = last_write_time.dwLowDateTime;
+    uli.HighPart = last_write_time.dwHighDateTime;
+    return static_cast<f64>(uli.QuadPart / 10'000'000);
+
+#elif defined(OPAL_PLATFORM_LINUX)
+    return -1;
+#endif
 }
 
 }  // namespace Opal
