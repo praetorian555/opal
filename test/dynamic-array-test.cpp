@@ -2416,4 +2416,84 @@ TEST_CASE("Erase", "[Array]")
     }
 }
 
+TEST_CASE("Remove", "[Array]")
+{
+    Opal::DynamicArray<i32> arr;
+    arr.PushBack(5);
+    arr.PushBack(10);
+    arr.PushBack(20);
+    SECTION("With swap")
+    {
+        SECTION("From start")
+        {
+            const ErrorCode err = arr.Remove(5);
+            REQUIRE(ErrorCode::Success == err);
+            REQUIRE(arr.GetSize() == 2);
+            REQUIRE(arr[0] == 10);
+            REQUIRE(arr[1] == 20);
+        }
+        SECTION("From end")
+        {
+            const ErrorCode err = arr.Remove(20);
+            REQUIRE(ErrorCode::Success == err);
+            REQUIRE(arr.GetSize() == 2);
+            REQUIRE(arr[0] == 5);
+            REQUIRE(arr[1] == 10);
+        }
+        SECTION("From middle")
+        {
+            const ErrorCode err = arr.Remove(10);
+            REQUIRE(ErrorCode::Success == err);
+            REQUIRE(arr.GetSize() == 2);
+            REQUIRE(arr[0] == 5);
+            REQUIRE(arr[1] == 20);
+        }
+        SECTION("Element not in the array")
+        {
+            const ErrorCode err = arr.Remove(15);
+            REQUIRE(ErrorCode::InvalidArgument == err);
+            REQUIRE(arr.GetSize() == 3);
+            REQUIRE(arr[0] == 5);
+            REQUIRE(arr[1] == 10);
+            REQUIRE(arr[2] == 20);
+        }
+    }
+    SECTION("Without swap")
+    {
+        SECTION("From start")
+        {
+            const ErrorCode err = arr.RemoveWithSwap(5);
+            REQUIRE(ErrorCode::Success == err);
+            REQUIRE(arr.GetSize() == 2);
+            REQUIRE(arr[0] == 20);
+            REQUIRE(arr[1] == 10);
+        }
+        SECTION("From end")
+        {
+            const ErrorCode err = arr.RemoveWithSwap(20);
+            REQUIRE(ErrorCode::Success == err);
+            REQUIRE(arr.GetSize() == 2);
+            REQUIRE(arr[0] == 5);
+            REQUIRE(arr[1] == 10);
+        }
+        SECTION("From middle")
+        {
+            const ErrorCode err = arr.RemoveWithSwap(10);
+            REQUIRE(ErrorCode::Success == err);
+            REQUIRE(arr.GetSize() == 2);
+            REQUIRE(arr[0] == 5);
+            REQUIRE(arr[1] == 20);
+        }
+        SECTION("Element not in the array")
+        {
+            const ErrorCode err = arr.Remove(15);
+            REQUIRE(ErrorCode::InvalidArgument == err);
+            REQUIRE(arr.GetSize() == 3);
+            REQUIRE(arr[0] == 5);
+            REQUIRE(arr[1] == 10);
+            REQUIRE(arr[2] == 20);
+        }
+    }
+}
+
 OPAL_END_DISABLE_WARNINGS

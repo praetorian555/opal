@@ -348,6 +348,22 @@ public:
     Expected<iterator, ErrorCode> Erase(const_iterator start_it, const_iterator end_it);
     Expected<iterator, ErrorCode> Erase(iterator start_it, iterator end_it);
 
+    /**
+     * Remove an element in the array matching the value argument. The order of the elements stays the same.
+     * @param value Value to find. Uses equality operator of the type T.
+     * @return Returns ErrorCode::Success if the element is successfully removed. Returns ErrorCode::InvalidArgument if element was not
+     * found in the array.
+     */
+    ErrorCode Remove(const T& value);
+
+    /**
+     * Remove an element in the array matching the value argument. The order of the elements does not stay the same.
+     * @param value Value to find. Uses equality operator of the type T.
+     * @return Returns ErrorCode::Success if the element is successfully removed. Returns ErrorCode::InvalidArgument if the element was not
+     * found in the array.
+     */
+    ErrorCode RemoveWithSwap(const T& value);
+
     /** Iterator API - Compatible with standard library. */
 
     /**
@@ -1193,6 +1209,38 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     m_size += start_offset - end_offset;
     using ReturnType = Expected<iterator, ErrorCode>;
     return ReturnType{begin() + start_offset};
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Remove(const T& value)
+{
+    iterator it = begin();
+    while (it != end())
+    {
+        if (*it == value)
+        {
+            auto result = Erase(it);
+            return result.HasValue() ? ErrorCode::Success : ErrorCode::InvalidArgument;
+        }
+        ++it;
+    }
+    return ErrorCode::InvalidArgument;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::RemoveWithSwap(const T& value)
+{
+    iterator it = begin();
+    while (it != end())
+    {
+        if (*it == value)
+        {
+            auto result = EraseWithSwap(it);
+            return result.HasValue() ? ErrorCode::Success : ErrorCode::InvalidArgument;
+        }
+        ++it;
+    }
+    return ErrorCode::InvalidArgument;
 }
 
 TEMPLATE_HEADER
