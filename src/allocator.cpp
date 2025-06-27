@@ -17,7 +17,7 @@ Opal::u64 AlignForward(Opal::u64 address, Opal::u64 alignment)
 
 void* Opal::MallocAllocator::Alloc(size_t size, size_t alignment)
 {
-#if defined(OPAL_WINDOWS)
+#if defined(OPAL_PLATFORM_WINDOWS)
     return _aligned_malloc(size, alignment);
 #else
     (void)alignment;
@@ -27,7 +27,7 @@ void* Opal::MallocAllocator::Alloc(size_t size, size_t alignment)
 
 void Opal::MallocAllocator::Free(void* ptr)
 {
-#if defined(OPAL_WINDOWS)
+#if defined(OPAL_PLATFORM_WINDOWS)
     _aligned_free(ptr);
 #else
     free(ptr);
@@ -36,7 +36,7 @@ void Opal::MallocAllocator::Free(void* ptr)
 
 Opal::LinearAllocator::LinearAllocator(u64 size)
 {
-#if defined(OPAL_WINDOWS)
+#if defined(OPAL_PLATFORM_WINDOWS)
     m_memory = _aligned_malloc(size, 16);
 #else
     m_memory = malloc(size);
@@ -47,7 +47,7 @@ Opal::LinearAllocator::LinearAllocator(u64 size)
 
 Opal::LinearAllocator::~LinearAllocator()
 {
-#if defined(OPAL_WINDOWS)
+#if defined(OPAL_PLATFORM_WINDOWS)
     _aligned_free(m_memory);
 #else
     free(m_memory);
