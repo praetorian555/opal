@@ -153,7 +153,7 @@ public:
      * @param count Number of elements to copy.
      * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
      */
-    DynamicArray(T* data, size_type count, Allocator* allocator = nullptr);
+    DynamicArray(const T* data, size_type count, Allocator* allocator = nullptr);
 
     /**
      * Copy constructor.
@@ -471,7 +471,7 @@ CLASS_HEADER::DynamicArray(size_type count, const T& default_value, Allocator* a
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(T* data, size_type count, Allocator* allocator)
+CLASS_HEADER::DynamicArray(const T* data, size_type count, Allocator* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(count), m_size(count)
 {
     if (m_capacity == 0)
