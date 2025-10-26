@@ -1247,7 +1247,7 @@ TEMPLATE_HEADER
 T* CLASS_HEADER::Allocate(size_type count)
 {
     OPAL_ASSERT(m_allocator, "Allocator should never be null!");
-    constexpr u64 k_alignment = 8;
+    constexpr u64 k_alignment = alignof(T);
     const size_type bytes_to_allocate = count * sizeof(T);
     return static_cast<T*>(m_allocator->Alloc(bytes_to_allocate, k_alignment));
 }

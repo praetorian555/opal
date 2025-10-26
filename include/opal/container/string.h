@@ -1819,7 +1819,7 @@ TEMPLATE_HEADER
 CodeUnitType* CLASS_HEADER::Allocate(size_type size)
 {
     OPAL_ASSERT(m_allocator != nullptr, "Allocator should never be null!");
-    constexpr u64 k_alignment = 8;
+    constexpr u64 k_alignment = alignof(CodeUnitType);
     const u64 size_bytes = size * sizeof(value_type);
     return reinterpret_cast<value_type*>(m_allocator->Alloc(size_bytes, k_alignment));
 }
