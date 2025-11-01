@@ -212,7 +212,7 @@ TEST_CASE("As bytes", "[Span]")
     }
     SECTION("From STD container")
     {
-        std::array<i32, 5> array = {1, 2, 3, 4, 5};
+        std::vector<i32> array = {1, 2, 3, 4, 5};
         ArrayView<const u8> bytes = AsBytes(array);
         REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
         REQUIRE(bytes.GetData() == reinterpret_cast<const u8*>(array.data()));
@@ -252,7 +252,7 @@ TEST_CASE("As writable bytes", "[Span]")
     }
     SECTION("From STD container")
     {
-        std::array<i32, 5> array = {1, 2, 3, 4, 5};
+        std::vector<i32> array = {1, 2, 3, 4, 5};
         ArrayView<u8> bytes = AsWritableBytes(array);
         REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
         REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(array.data()));
