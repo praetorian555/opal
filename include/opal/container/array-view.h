@@ -429,6 +429,10 @@ template <typename Container>
     requires Opal::Range<Container>
 Opal::ArrayView<const Opal::u8> Opal::AsBytes(Container& container)
 {
+    if (container.empty())
+    {
+        return {};
+    }
     auto data = &(*container.begin());
     Opal::u64 size = sizeof(typename Container::value_type) * (container.end() - container.begin());
     return {reinterpret_cast<const u8*>(data), size};
@@ -438,6 +442,10 @@ template <typename Container>
     requires Opal::Range<Container>
 Opal::ArrayView<Opal::u8> Opal::AsWritableBytes(Container& container)
 {
+    if (container.empty())
+    {
+        return {};
+    }
     auto data = &(*container.begin());
     Opal::u64 size = sizeof(typename Container::value_type) * (container.end() - container.begin());
     return {reinterpret_cast<u8*>(data), size};

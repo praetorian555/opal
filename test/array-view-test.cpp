@@ -217,6 +217,13 @@ TEST_CASE("As bytes", "[Span]")
         REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
         REQUIRE(bytes.GetData() == reinterpret_cast<const u8*>(array.data()));
     }
+    SECTION("From empty container")
+    {
+        DynamicArray<i32> arr;
+        ArrayView<const u8> bytes = AsBytes(arr);
+        REQUIRE(bytes.GetSize() == 0);
+        REQUIRE(bytes.GetData() == nullptr);
+    }
 }
 
 TEST_CASE("As writable bytes", "[Span]")
@@ -256,6 +263,13 @@ TEST_CASE("As writable bytes", "[Span]")
         ArrayView<u8> bytes = AsWritableBytes(array);
         REQUIRE(bytes.GetSize() == 5 * sizeof(i32));
         REQUIRE(bytes.GetData() == reinterpret_cast<u8*>(array.data()));
+    }
+    SECTION("From empty container")
+    {
+        DynamicArray<i32> arr;
+        ArrayView<u8> bytes = AsWritableBytes(arr);
+        REQUIRE(bytes.GetSize() == 0);
+        REQUIRE(bytes.GetData() == nullptr);
     }
 }
 
