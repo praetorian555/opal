@@ -477,7 +477,6 @@ CLASS_HEADER::DynamicArray(const T* data, size_type count, Allocator* allocator)
     if (m_capacity == 0)
     {
         m_data = nullptr;
-        OPAL_ASSERT(false, "Invalid size for Array");
         return;
     }
     m_data = Allocate(m_capacity);
