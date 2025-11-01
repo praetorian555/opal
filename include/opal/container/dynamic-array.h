@@ -245,6 +245,7 @@ public:
      * @return True if the array is empty, false otherwise.
      */
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
+    [[nodiscard]] bool empty() const { return m_size == 0; }
 
     /**
      * Increase the capacity of the array to a value `new_capacity` if its greater then current capacity, otherwise do nothing.

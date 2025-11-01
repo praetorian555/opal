@@ -184,6 +184,7 @@ public:
      * @return True if the span is empty, false otherwise.
      */
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
+    [[nodiscard]] bool empty() const { return m_size == 0; }
 
     /**
      * Get a reference to the element at the specified index.

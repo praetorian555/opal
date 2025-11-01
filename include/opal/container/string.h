@@ -196,6 +196,7 @@ public:
     [[nodiscard]] size_type GetCapacity() const { return m_capacity; }
 
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
+    [[nodiscard]] bool empty() const { return m_size == 0; }
 
     /**
      * @brief Override a string with a specific number of code units.

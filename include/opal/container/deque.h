@@ -196,6 +196,7 @@ public:
     Expected<const T&, ErrorCode> Back() const;
 
     [[nodiscard]] bool IsEmpty() const;
+    [[nodiscard]] bool empty() const { return m_size == 0; }
     [[nodiscard]] SizeType GetSize() const;
     [[nodiscard]] SizeType GetCapacity() const;
 

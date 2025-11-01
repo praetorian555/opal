@@ -278,6 +278,9 @@ concept Range = requires(T& t) {
     {
         end(t)
     } -> RandomAccessIterator;
+    {
+        t.empty()
+    } -> SameAs<bool>;
 };
 
 
