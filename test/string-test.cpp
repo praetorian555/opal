@@ -3736,3 +3736,60 @@ TEST_CASE("String key in map", "[String]")
     REQUIRE(map.find("Hello")->second == 1);
     REQUIRE(map.find("there")->second == 2);
 }
+
+TEST_CASE("StartsWith", "[String]")
+{
+    const StringUtf8 str("Hello there");
+    const StringUtf8 prefix("Hello");
+    const StringUtf8 prefix_empty;
+    REQUIRE(Opal::StartsWith(str, prefix));
+    REQUIRE(Opal::StartsWith(str, prefix_empty));
+    REQUIRE(Opal::StartsWith<StringUtf8>(str, "Hell"));
+    REQUIRE(Opal::StartsWith<StringUtf8>(str, ""));
+    REQUIRE(!Opal::StartsWith<StringUtf8>(str, "Hello there friends"));
+}
+
+TEST_CASE("EndsWith", "[String]")
+{
+    const StringUtf8 str("Hello there");
+    const StringUtf8 suffix("there");
+    const StringUtf8 suffix_empty;
+    REQUIRE(Opal::EndsWith(str, suffix));
+    REQUIRE(Opal::EndsWith(str, suffix_empty));
+    REQUIRE(Opal::EndsWith<StringUtf8>(str, "re"));
+    REQUIRE(Opal::EndsWith<StringUtf8>(str, ""));
+    REQUIRE(!Opal::EndsWith<StringUtf8>(str, "Hello there friends"));
+}
+
+TEST_CASE("Split", "[String]")
+{
+    const StringUtf8 str("Hello there");
+    const StringUtf8 delimiter(" ");
+    StringUtf8 first;
+    StringUtf8 second;
+    REQUIRE(Opal::Split(str, delimiter, first, second));
+    REQUIRE(first == "Hello");
+    REQUIRE(second == "there");
+    first = "";
+    second = "";
+    REQUIRE(Opal::Split<StringUtf8>(str, " ", first, second));
+    REQUIRE(first == "Hello");
+    REQUIRE(second == "there");
+    first = "";
+    second = "";
+    REQUIRE(!Opal::Split<StringUtf8>(str, "m", first, second));
+    REQUIRE(first == "Hello there");
+    REQUIRE(second == "");
+    first = "";
+    second = "";
+    REQUIRE(!Opal::Split<StringUtf8>("", "m", first, second));
+    REQUIRE(first == "");
+    REQUIRE(second == "");
+    first = "";
+    second = "";
+    REQUIRE(!Opal::Split<StringUtf8>("", "", first, second));
+    REQUIRE(first == "");
+    REQUIRE(second == "");
+    first = "";
+    second = "";
+}

@@ -2,6 +2,7 @@
 
 #include <cstring>
 
+#include "dynamic-array.h"
 #include "opal/allocator.h"
 #include "opal/container/array-view.h"
 #include "opal/container/string-encoding.h"
@@ -712,6 +713,52 @@ Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyStrin
  */
 template <typename CodeUnitType>
 u64 GetStringLength(const CodeUnitType* str);
+
+/**
+ * @brief Check if a given string starts with a specified prefix.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
+ * @param str String which to check.
+ * @param prefix Prefix which to use.
+ * @return Returns true if str starts with prefix, false otherwise.
+ */
+template <typename StringClass>
+bool StartsWith(const StringClass& str, const StringClass& prefix);
+
+/**
+ * @brief Check if a given string ends with a specified suffix.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
+ * @param str String which to check.
+ * @param suffix Suffix which to use.
+ * @return Returns true if str ends with suffix, false otherwise.
+ */
+template <typename StringClass>
+bool EndsWith(const StringClass& str, const StringClass& suffix);
+
+/**
+ * @brief Split string into two parts around the specified delimiter.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
+ * @param str String to split.
+ * @param delimiter Pattern to find for the split.
+ * @param first String contents before the delimiter.
+ * @param second String contents after the delimiter.
+ * @return Returns true if delimiter is found and there are no errors extracting two parts of the string,
+ * false otherwise.
+ */
+template <typename StringClass>
+bool Split(const StringClass& str, const StringClass& delimiter, StringClass& first, StringClass& second);
+
+/**
+ * @brief Split string into multiple parts around the delimiter. Useful when delimiter occurs multiple times in the
+ * input string.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
+ * @param str String to split.
+ * @param delimiter Pattern to find for the split.
+ * @param result Array of string parts after the splitting.
+ * @return Returns true if delimiter is found at least once and there are no errors extracting two parts
+ * of the string, false otherwise.
+ */
+template <typename StringClass>
+bool SplitToArray(const StringClass& str, const StringClass& delimiter, DynamicArray<StringClass>& result);
 
 /*************************************************************************************************/
 /** Most common String specializations. **********************************************************/
@@ -2528,4 +2575,89 @@ Opal::u64 Opal::GetStringLength(const CodeUnitType* str)
         ++length;
     }
     return length;
+}
+
+template <typename StringClass>
+bool Opal::StartsWith(const StringClass& str, const StringClass& prefix)
+{
+    if (prefix.GetSize() > str.GetSize())
+    {
+        return false;
+    }
+    for (i32 i = 0; i < prefix.GetSize(); i++)
+    {
+        if (prefix[i] != str[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename StringClass>
+bool Opal::EndsWith(const StringClass& str, const StringClass& suffix)
+{
+    if (suffix.GetSize() > str.GetSize())
+    {
+        return false;
+    }
+    for (i32 i = 0; i < suffix.GetSize(); i++)
+    {
+        if (suffix[i] != str[str.GetSize() - suffix.GetSize() + i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <typename StringClass>
+bool Opal::Split(const StringClass& str, const StringClass& delimiter, StringClass& first, StringClass& second)
+{
+    typename StringClass::size_type pos = Opal::Find(str, delimiter);
+    if (pos == StringClass::k_npos)
+    {
+        first = str;
+        return false;
+    }
+    auto first_it = Opal::GetSubString(str, 0, pos);
+    if (!first_it.HasValue())
+    {
+        return false;
+    }
+    first = first_it.GetValue();
+    auto second_it = Opal::GetSubString(str, pos + 1, Opal::StringUtf8::k_npos);
+    if (!second_it.HasValue())
+    {
+        return false;
+    }
+    second = second_it.GetValue();
+    return true;
+}
+
+template <typename StringClass>
+bool Opal::SplitToArray(const StringClass& str, const StringClass& delimiter, DynamicArray<StringClass>& result)
+{
+    typename StringClass::size_type start_pos = 0;
+    while (true)
+    {
+        typename StringClass::size_type pos = Find(str, delimiter, start_pos);
+        if (pos == StringClass::k_npos)
+        {
+            auto it = GetSubString(str, start_pos, Opal::StringUtf8::k_npos);
+            if (!it.HasValue())
+            {
+                return false;
+            }
+            result.PushBack(it.GetValue());
+            return start_pos != 0;
+        }
+        auto it = GetSubString(str, start_pos, pos - start_pos);
+        if (!it.HasValue())
+        {
+            return false;
+        }
+        result.PushBack(it.GetValue());
+        start_pos = pos + 1;
+    }
 }
