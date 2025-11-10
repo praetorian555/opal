@@ -157,7 +157,7 @@ public:
     template <typename Container>
         requires Range<Container> && (Opal::SameAs<T, typename Opal::ValueTypeGetter<Container>::Type> ||
                                       Opal::SameAs<typename Opal::RemoveConst<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
-    explicit ArrayView(Container& container);
+    ArrayView(Container& container);
 
     ArrayView(const ArrayView& other) = default;
     ArrayView(ArrayView&& other) noexcept = default;
