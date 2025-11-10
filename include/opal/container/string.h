@@ -191,6 +191,8 @@ public:
 
     value_type* GetData() { return m_data; }
     [[nodiscard]] const value_type* GetData() const { return m_data; }
+    value_type* operator*() { return m_data; }
+    const value_type* operator*() const { return m_data; }
 
     [[nodiscard]] size_type GetSize() const { return m_size; }
     [[nodiscard]] size_type GetCapacity() const { return m_capacity; }

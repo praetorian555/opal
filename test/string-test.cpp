@@ -456,6 +456,20 @@ TEST_CASE("Comparison", "[String]")
     }
 }
 
+TEST_CASE("Accessor", "[String]")
+{
+    SECTION("Const")
+    {
+        const StringUtf8 str("Hello there");
+        REQUIRE(strcmp(*str, "Hello world!"));
+    }
+    SECTION("Non-const")
+    {
+        StringUtf8 str("Hello there");
+        REQUIRE(strcmp(*str, "Hello world!"));
+    }
+}
+
 TEST_CASE("Assign", "[String]")
 {
     SECTION("Short string")
