@@ -74,48 +74,6 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetExtension(const StringUtf8& path,
 Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetParentPath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
- * @brief Check if the path exists.
- * @param path Path to check.
- * @param allocator Allocator to use for allocating the temporary function data. If nullptr, the default allocator will be used.
- * @return True if the path exists, otherwise false, including the errors.
- */
-bool OPAL_EXPORT Exists(const StringUtf8& path, AllocatorBase* allocator = nullptr);
-
-/**
- * @brief Check if specified path is a directory.
- * @param path Path to check.
- * @param allocator Allocator to use for internal allocations if needed.
- * @return Returns true if path is a directory, false if path does not exist or its not a directory.
- */
-bool OPAL_EXPORT IsDirectory(const StringUtf8& path, AllocatorBase* allocator = nullptr);
-
-/**
- * @brief Check if specified path is a file.
- * @param path Path to check.
- * @param allocator Allocator to use for internal allocations if needed.
- * @return Returns true if path is a file, false if path does not exist or its not a directory.
- */
-bool OPAL_EXPORT IsFile(const StringUtf8& path, AllocatorBase* allocator = nullptr);
-
-struct DirectoryContentsDesc
-{
-    bool include_directories = true;
-    bool recursive = false;
-};
-
-/**
- * @brief Collect paths to directories or files that are inside the specified directory.
- * @param path Path to the directory.
- * @param out_contents Output array that will store found contents.
- * @param desc Descriptor used to configure the search.
- * @param allocator Used for internal allocations.
- * @return Returns true if there were no problems. Returns false if the path is not to the directory or
- * if directory does not exist.
- */
-bool OPAL_EXPORT CollectDirectoryContents(const StringUtf8& path, DynamicArray<StringUtf8>& out_contents,
-                                          const DirectoryContentsDesc& desc = {}, AllocatorBase* allocator = nullptr);
-
-/**
  * @brief Combine paths.
  * @tparam Args Types of path components. It needs to be types compatible with StringUtf8.
  * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.

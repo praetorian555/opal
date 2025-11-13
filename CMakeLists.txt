@@ -44,6 +44,7 @@ set(OPAL_FILES
         src/bit.cpp
         src/hash.cpp
         src/rng.cpp
+        src/file-system.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -52,6 +53,7 @@ set(OPAL_FILES
         include/opal/error-codes.h
         include/opal/time.h
         include/opal/paths.h
+        include/opal/file-system.h
         include/opal/common.h
         include/opal/source-location.h
         include/opal/bit.h
@@ -155,6 +157,7 @@ if (OPAL_BUILD_TESTS)
             test/quaternion-test.cpp
             test/dual-quaternion-test.cpp
             test/transform-test.cpp
+            test/file-system-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
