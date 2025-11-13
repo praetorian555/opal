@@ -93,3 +93,37 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
 #endif
     }
 }
+
+TEST_CASE("Creating and destroying directory", "FileSystem")
+{
+    StringUtf8 path;
+    ErrorCode err = Paths::GetCurrentWorkingDirectory(path);
+    REQUIRE(err == Opal::ErrorCode::Success);
+    SECTION("Create a directory")
+    {
+        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        REQUIRE(!Opal::Exists(path));
+        err = CreateDirectory(path);
+        REQUIRE(err == Opal::ErrorCode::Success);
+        REQUIRE(Opal::Exists(path));
+        err = DeleteDirectory(path);
+        REQUIRE(err == Opal::ErrorCode::Success);
+        REQUIRE(!Opal::Exists(path));
+    }
+    SECTION("Delete folder with contents")
+    {
+        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        REQUIRE(!Opal::Exists(path));
+        err = CreateDirectory(path);
+        REQUIRE(err == Opal::ErrorCode::Success);
+        REQUIRE(Opal::Exists(path));
+        const StringUtf8 file_path = Paths::Combine(nullptr, path, "file.txt").GetValue();
+        err = CreateFile(file_path);
+        REQUIRE(err == Opal::ErrorCode::Success);
+        REQUIRE(Opal::Exists(path));
+        err = DeleteDirectory(path);
+        REQUIRE(err == Opal::ErrorCode::OSFailure);
+        err = DeleteDirectory(path, false);
+        REQUIRE(err == Opal::ErrorCode::Success);
+    }
+}

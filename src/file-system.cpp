@@ -8,28 +8,29 @@
 #include <Windows.h>
 #undef CreateFile
 #undef DeleteFile
+#undef CreateDirectory
 #elif defined(OPAL_PLATFORM_LINUX)
-#include <unistd.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <climits>
 #endif
 
-Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool override, AllocatorBase* allocator)
+Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool override, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    Opal::StringWide path_wide(path.GetSize() * 2, L'\0', allocator);
+    Opal::StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
         return err;
     }
 
-    constexpr DWORD access = GENERIC_READ | GENERIC_WRITE;
-    constexpr DWORD shared_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
+    constexpr DWORD k_access = GENERIC_READ | GENERIC_WRITE;
+    constexpr DWORD k_shared_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
     const DWORD creation_flags = override ? CREATE_ALWAYS : CREATE_NEW;
 
-    HANDLE file_handle = CreateFileW(path_wide.GetData(), access, shared_mode, nullptr, creation_flags, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE file_handle = CreateFileW(path_wide.GetData(), k_access, k_shared_mode, nullptr, creation_flags, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file_handle == INVALID_HANDLE_VALUE)
     {
         return ErrorCode::OSFailure;
@@ -56,10 +57,10 @@ Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool override, Allocato
 #endif
 }
 
-Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path, AllocatorBase* allocator)
+Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0', allocator);
+    StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
@@ -77,20 +78,62 @@ Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path, AllocatorBase* allocato
 #endif
 }
 
-bool Opal::Exists(const StringUtf8& path, AllocatorBase* allocator)
+Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
+    const ErrorCode err = Transcode(path, path_wide);
+    if (err != ErrorCode::Success)
+    {
+        return err;
+    }
+    const BOOL result = CreateDirectoryW(path_wide.GetData(), nullptr);
+    return result != 0 ? ErrorCode::Success : ErrorCode::OSFailure;
+#elif defined(OPAL_PLATFORM_LINUX)
+#else
+    return ErrorCode::NotImplemented;
+#endif
+}
+
+Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path, bool delete_only_if_empty, AllocatorBase* scratch_allocator)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
+    const ErrorCode err = Transcode(path, path_wide);
+    if (err != ErrorCode::Success)
+    {
+        return err;
+    }
+    if (delete_only_if_empty)
+    {
+        return RemoveDirectoryW(path_wide.GetData()) != 0 ? ErrorCode::Success : ErrorCode::OSFailure;
+    }
+    SHFILEOPSTRUCTW file_op_info;
+    file_op_info.wFunc = FO_DELETE;
+    file_op_info.pFrom = path_wide.GetData();
+    file_op_info.fFlags = FOF_NO_UI | FOF_NOCONFIRMATION | FOF_SILENT;
+    i32 result = SHFileOperationW(&file_op_info);
+    return result == 0 ? ErrorCode::Success : ErrorCode::OSFailure;
+#elif defined(OPAL_PLATFORM_LINUX)
+#else
+    return ErrorCode::NotImplemented;
+#endif
+}
+
+bool Opal::Exists(const StringUtf8& path, AllocatorBase* scratch_allocator)
 {
     if (path.IsEmpty())
     {
         return false;
     }
-    Expected<StringUtf8, ErrorCode> result = Paths::NormalizePath(path, allocator);
+    Expected<StringUtf8, ErrorCode> result = Paths::NormalizePath(path, scratch_allocator);
     if (!result.HasValue())
     {
         return false;
     }
 
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(result.GetValue().GetSize() * 2, L'\0', allocator);
+    StringWide path_wide(result.GetValue().GetSize() * 2, L'\0', scratch_allocator);
     const ErrorCode err = Transcode(result.GetValue(), path_wide);
     if (err != ErrorCode::Success)
     {
@@ -110,10 +153,10 @@ bool Opal::Exists(const StringUtf8& path, AllocatorBase* allocator)
 #endif
 }
 
-bool Opal::IsDirectory(const StringUtf8& path, AllocatorBase* allocator)
+bool Opal::IsDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0', allocator);
+    StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
@@ -131,10 +174,10 @@ bool Opal::IsDirectory(const StringUtf8& path, AllocatorBase* allocator)
 #endif
 }
 
-bool Opal::IsFile(const StringUtf8& path, AllocatorBase* allocator)
+bool Opal::IsFile(const StringUtf8& path, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0', allocator);
+    StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
@@ -153,10 +196,10 @@ bool Opal::IsFile(const StringUtf8& path, AllocatorBase* allocator)
 }
 
 bool Opal::CollectDirectoryContents(const StringUtf8& path, DynamicArray<StringUtf8>& out_contents, const DirectoryContentsDesc& desc,
-                                    AllocatorBase* allocator)
+                                    AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0', allocator);
+    StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
     ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
@@ -172,7 +215,7 @@ bool Opal::CollectDirectoryContents(const StringUtf8& path, DynamicArray<StringU
         return false;
     }
 
-    DynamicArray<StringWide> directories(allocator);
+    DynamicArray<StringWide> directories;
     path_wide += L"\\*";
     directories.PushBack(Move(path_wide));
     while (!directories.IsEmpty())
@@ -193,7 +236,7 @@ bool Opal::CollectDirectoryContents(const StringUtf8& path, DynamicArray<StringU
             {
                 continue;
             }
-            StringUtf8 child_path(child_path_wide.GetSize(), '\0', allocator);
+            StringUtf8 child_path(child_path_wide.GetSize(), '\0');
             err = Transcode(child_path_wide, child_path);
             if (err != ErrorCode::Success)
             {
