@@ -42,7 +42,7 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     REQUIRE(err == Opal::ErrorCode::Success);
     SECTION("Create a file")
     {
-        path += "\\example.txt";
+        path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
         REQUIRE(!Opal::Exists(path));
         err = CreateFile(path);
         REQUIRE(err == Opal::ErrorCode::Success);
@@ -53,7 +53,7 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     }
     SECTION("Try to override default")
     {
-        path += "\\example.txt";
+        path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
         REQUIRE(!Opal::Exists(path));
         err = CreateFile(path);
         REQUIRE(err == Opal::ErrorCode::Success);
@@ -66,7 +66,7 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     }
     SECTION("Try to force override")
     {
-        path += "\\example.txt";
+        path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
         REQUIRE(!Opal::Exists(path));
         err = CreateFile(path);
         REQUIRE(err == Opal::ErrorCode::Success);
@@ -79,10 +79,17 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     }
     SECTION("No scratch memory")
     {
-        path += "\\example.txt";
+        path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
         REQUIRE(!Opal::Exists(path));
         NullAllocator allocator;
         err = CreateFile(path, false, &allocator);
+#if defined(OPAL_PLATFORM_WINDOWS)
         REQUIRE(err != ErrorCode::Success);
+#else
+        REQUIRE(err == ErrorCode::Success);
+        err = DeleteFile(path);
+        REQUIRE(err == Opal::ErrorCode::Success);
+        REQUIRE(!Opal::Exists(path));
+#endif
     }
 }

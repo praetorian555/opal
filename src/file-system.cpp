@@ -10,6 +10,8 @@
 #undef DeleteFile
 #elif defined(OPAL_PLATFORM_LINUX)
 #include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <climits>
 #endif
 
@@ -34,8 +36,23 @@ Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool override, Allocato
     }
     return ErrorCode::Success;
 #else
-    // TODO: Implement
-    return ErrorCode::NotImplemented;
+    i32 flags = O_CREAT;
+    if (override)
+    {
+        flags |= O_TRUNC;
+    }
+    else
+    {
+        flags |= O_EXCL;
+    }
+
+    i32 fd = open(path.GetData(), flags, 0644);
+    if (fd == -1)
+    {
+        return ErrorCode::OSFailure;
+    }
+    close(fd);
+    return ErrorCode::Success;
 #endif
 }
 
@@ -55,7 +72,8 @@ Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path, AllocatorBase* allocato
     const DWORD win32_error = GetLastError();
     return win32_error == ERROR_FILE_NOT_FOUND ? ErrorCode::Success : ErrorCode::OSFailure;
 #else
-    return ErrorCode::NotImplemented;
+    i32 err = remove(path.GetData());
+    return err == 0 ? ErrorCode::Success : ErrorCode::OSFailure;
 #endif
 }
 

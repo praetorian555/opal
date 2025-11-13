@@ -454,11 +454,19 @@ TEST_CASE("Combining paths", "[Paths]")
 {
     auto result = Paths::Combine(nullptr, "a", "b", "c");
     REQUIRE(result.HasValue());
+#if defined(OPAL_PLATFORM_WINDOWS)
     REQUIRE(result.GetValue() == "a\\b\\c");
+#else
+    REQUIRE(result.GetValue() == "a/b/c");
+#endif
 
     result = Paths::Combine(nullptr, "a", "b", "c", "");
     REQUIRE(result.HasValue());
+#if defined(OPAL_PLATFORM_WINDOWS)
     REQUIRE(result.GetValue() == "a\\b\\c\\");
+#else
+    REQUIRE(result.GetValue() == "a/b/c/");
+#endif
 
     result = Paths::Combine(nullptr);
     REQUIRE(result.HasValue());
