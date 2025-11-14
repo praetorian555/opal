@@ -99,7 +99,7 @@ TEST_CASE("Creating and destroying directory", "FileSystem")
     StringUtf8 path;
     ErrorCode err = Paths::GetCurrentWorkingDirectory(path);
     REQUIRE(err == Opal::ErrorCode::Success);
-    SECTION("Create a directory")
+    SECTION("Create and delete a directory")
     {
         path = Paths::Combine(nullptr, path, "test-dir").GetValue();
         REQUIRE(!Opal::Exists(path));
@@ -110,20 +110,53 @@ TEST_CASE("Creating and destroying directory", "FileSystem")
         REQUIRE(err == Opal::ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
     }
-    SECTION("Delete folder with contents")
+    SECTION("Try to create a directory if part of the path does not exist")
+    {
+        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        REQUIRE(!Opal::Exists(path));
+        path = Paths::Combine(nullptr, path, "test-dir-2").GetValue();
+        REQUIRE(!Opal::Exists(path));
+        err = CreateDirectory(path);
+        REQUIRE(err == ErrorCode::PathNotFound);
+        REQUIRE(!Opal::Exists(path));
+    }
+    SECTION("Try to create a directory that already exist")
     {
         path = Paths::Combine(nullptr, path, "test-dir").GetValue();
         REQUIRE(!Opal::Exists(path));
         err = CreateDirectory(path);
-        REQUIRE(err == Opal::ErrorCode::Success);
+        REQUIRE(err == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        const StringUtf8 file_path = Paths::Combine(nullptr, path, "file.txt").GetValue();
-        err = CreateFile(file_path);
-        REQUIRE(err == Opal::ErrorCode::Success);
+        err = CreateDirectory(path);
+        REQUIRE(err == ErrorCode::AlreadyExists);
         REQUIRE(Opal::Exists(path));
         err = DeleteDirectory(path);
-        REQUIRE(err == Opal::ErrorCode::OSFailure);
-        err = DeleteDirectory(path, false);
         REQUIRE(err == Opal::ErrorCode::Success);
+        REQUIRE(!Opal::Exists(path));
+    }
+    SECTION("Try to delete non-existent directory")
+    {
+        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        REQUIRE(!Opal::Exists(path));
+        err = DeleteDirectory(path);
+        REQUIRE(err == ErrorCode::PathNotFound);
+        REQUIRE(!Opal::Exists(path));
+    }
+    SECTION("Try to delete non-empty directory")
+    {
+        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        REQUIRE(!Opal::Exists(path));
+        err = CreateDirectory(path);
+        REQUIRE(Opal::Exists(path));
+        const StringUtf8 file_path = Paths::Combine(nullptr, path, "test-file").GetValue();
+        REQUIRE(!Opal::Exists(file_path));
+        err = CreateFile(file_path);
+        REQUIRE(Opal::Exists(file_path));
+        err = DeleteDirectory(path);
+        REQUIRE(err == ErrorCode::NotEmpty);
+        err = DeleteFile(file_path);
+        REQUIRE(err == ErrorCode::Success);
+        err = DeleteDirectory(path);
+        REQUIRE(err == ErrorCode::Success);
     }
 }

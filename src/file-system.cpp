@@ -10,10 +10,11 @@
 #undef DeleteFile
 #undef CreateDirectory
 #elif defined(OPAL_PLATFORM_LINUX)
+#include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
-#include <climits>
 #endif
 
 Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool override, AllocatorBase* scratch_allocator)
@@ -87,15 +88,42 @@ Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, AllocatorBase* scr
     {
         return err;
     }
-    const BOOL result = CreateDirectoryW(path_wide.GetData(), nullptr);
-    return result != 0 ? ErrorCode::Success : ErrorCode::OSFailure;
+    const BOOL result = CreateDirectoryW(*path_wide, nullptr);
+    if (result != 0)
+    {
+        return ErrorCode::Success;
+    }
+    const DWORD error = GetLastError();
+    if (error == ERROR_ALREADY_EXISTS)
+    {
+        return ErrorCode::AlreadyExists;
+    }
+    if (error == ERROR_PATH_NOT_FOUND)
+    {
+        return ErrorCode::PathNotFound;
+    }
+    return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
+    if (mkdir(*path, 0777) == 0)
+    {
+        return ErrorCode::Success;
+    }
+    // Path already exists
+    if (errno == EEXIST)
+    {
+        return ErrorCode::AlreadyExists;
+    }
+    if (errno == ENOENT)
+    {
+        return ErrorCode::PathNotFound;
+    }
+    return ErrorCode::OSFailure;
 #else
     return ErrorCode::NotImplemented;
 #endif
 }
 
-Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path, bool delete_only_if_empty, AllocatorBase* scratch_allocator)
+Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
@@ -104,17 +132,35 @@ Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path, bool delete_only_i
     {
         return err;
     }
-    if (delete_only_if_empty)
+    const BOOL status = RemoveDirectoryW(*path_wide);
+    if (status != 0)
     {
-        return RemoveDirectoryW(path_wide.GetData()) != 0 ? ErrorCode::Success : ErrorCode::OSFailure;
+        return ErrorCode::Success;
     }
-    SHFILEOPSTRUCTW file_op_info;
-    file_op_info.wFunc = FO_DELETE;
-    file_op_info.pFrom = path_wide.GetData();
-    file_op_info.fFlags = FOF_NO_UI | FOF_NOCONFIRMATION | FOF_SILENT;
-    i32 result = SHFileOperationW(&file_op_info);
-    return result == 0 ? ErrorCode::Success : ErrorCode::OSFailure;
+    const DWORD win32_err = GetLastError();
+    if (win32_err == ERROR_FILE_NOT_FOUND)
+    {
+        return ErrorCode::PathNotFound;
+    }
+    if (win32_err == ERROR_DIR_NOT_EMPTY)
+    {
+        return ErrorCode::NotEmpty;
+    }
+    return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
+    if (rmdir(*path) == 0)
+    {
+        return ErrorCode::Success;
+    }
+    if (errno == ENOENT)
+    {
+        return ErrorCode::PathNotFound;
+    }
+    if (errno == ENOTEMPTY)
+    {
+        return ErrorCode::NotEmpty;
+    }
+    return ErrorCode::OSFailure;
 #else
     return ErrorCode::NotImplemented;
 #endif

@@ -17,7 +17,10 @@ enum class ErrorCode : u8
     StringNotFound = 7,
     OSFailure = 8,
     SelfNotAllowed = 9,
-    NotImplemented = 10
+    NotImplemented = 10,
+    AlreadyExists = 11,
+    PathNotFound = 12,
+    NotEmpty
 };
 
 }
