@@ -17,7 +17,7 @@
 #include <unistd.h>
 #endif
 
-Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool override, AllocatorBase* scratch_allocator)
+Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     Opal::StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
@@ -29,32 +29,42 @@ Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool override, Allocato
 
     constexpr DWORD k_access = GENERIC_READ | GENERIC_WRITE;
     constexpr DWORD k_shared_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
-    const DWORD creation_flags = override ? CREATE_ALWAYS : CREATE_NEW;
+    const DWORD creation_flags = CREATE_NEW;
 
     HANDLE file_handle = CreateFileW(path_wide.GetData(), k_access, k_shared_mode, nullptr, creation_flags, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file_handle == INVALID_HANDLE_VALUE)
+    if (file_handle != INVALID_HANDLE_VALUE)
     {
-        return ErrorCode::OSFailure;
+        return ErrorCode::Success;
     }
-    return ErrorCode::Success;
-#else
-    i32 flags = O_CREAT;
-    if (override)
+    const DWORD win32_err = GetLastError();
+    if (win32_err == ERROR_PATH_NOT_FOUND)
     {
-        flags |= O_TRUNC;
+        return ErrorCode::PathNotFound;
     }
-    else
+    if (win32_err == ERROR_FILE_EXISTS)
     {
-        flags |= O_EXCL;
+        return ErrorCode::AlreadyExists;
     }
-
+    return ErrorCode::OSFailure;
+#elif defined(OPAL_PLATFORM_LINUX)
+    i32 flags = O_CREAT | O_EXCL;
     i32 fd = open(path.GetData(), flags, 0644);
-    if (fd == -1)
+    if (fd != -1)
     {
-        return ErrorCode::OSFailure;
+        close(fd);
+        return ErrorCode::Success;
     }
-    close(fd);
-    return ErrorCode::Success;
+    if (errno == EEXIST)
+    {
+        return ErrorCode::AlreadyExists;
+    }
+    if (errno == ENOENT)
+    {
+        return ErrorCode::PathNotFound;
+    }
+    return ErrorCode::OSFailure;
+#else
+    return ErrorCode::NotImplemented;
 #endif
 }
 
@@ -72,10 +82,24 @@ Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path, AllocatorBase* scratch_
         return ErrorCode::Success;
     }
     const DWORD win32_error = GetLastError();
-    return win32_error == ERROR_FILE_NOT_FOUND ? ErrorCode::Success : ErrorCode::OSFailure;
+    if (win32_error == ERROR_FILE_NOT_FOUND)
+    {
+        return ErrorCode::PathNotFound;
+    }
+    return ErrorCode::OSFailure;
+#elif defined(OPAL_PLATFORM_LINUX)
+    i32 result = remove(path.GetData());
+    if (result == 0)
+    {
+        return ErrorCode::Success;
+    }
+    if (errno == ENOENT)
+    {
+        return ErrorCode::PathNotFound;
+    }
+    return ErrorCode::OSFailure;
 #else
-    i32 err = remove(path.GetData());
-    return err == 0 ? ErrorCode::Success : ErrorCode::OSFailure;
+    return ErrorCode::NotImplemented;
 #endif
 }
 

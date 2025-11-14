@@ -40,7 +40,7 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     StringUtf8 path;
     ErrorCode err = Paths::GetCurrentWorkingDirectory(path);
     REQUIRE(err == Opal::ErrorCode::Success);
-    SECTION("Create a file")
+    SECTION("Create and delete a file")
     {
         path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
         REQUIRE(!Opal::Exists(path));
@@ -51,46 +51,32 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
         REQUIRE(err == Opal::ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
     }
-    SECTION("Try to override default")
+    SECTION("Try to create a file if part of the path does not exist")
     {
-        path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
-        REQUIRE(!Opal::Exists(path));
+        path = Paths::Combine(nullptr, path, "test-dir", "example.txt").GetValue();
+        REQUIRE(!Exists(path));
         err = CreateFile(path);
-        REQUIRE(err == Opal::ErrorCode::Success);
-        REQUIRE(Opal::Exists(path));
-        err = CreateFile(path);
-        REQUIRE(err == Opal::ErrorCode::OSFailure);
-        err = DeleteFile(path);
-        REQUIRE(err == Opal::ErrorCode::Success);
-        REQUIRE(!Opal::Exists(path));
+        REQUIRE(err == ErrorCode::PathNotFound);
     }
-    SECTION("Try to force override")
+    SECTION("Try to create a file that already exists")
     {
-        path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
-        REQUIRE(!Opal::Exists(path));
+        path = Paths::Combine(nullptr, path, "example.txt").GetValue();
+        REQUIRE(!Exists(path));
         err = CreateFile(path);
-        REQUIRE(err == Opal::ErrorCode::Success);
-        REQUIRE(Opal::Exists(path));
-        err = CreateFile(path, true);
-        REQUIRE(err == Opal::ErrorCode::Success);
-        err = DeleteFile(path);
-        REQUIRE(err == Opal::ErrorCode::Success);
-        REQUIRE(!Opal::Exists(path));
-    }
-    SECTION("No scratch memory")
-    {
-        path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
-        REQUIRE(!Opal::Exists(path));
-        NullAllocator allocator;
-        err = CreateFile(path, false, &allocator);
-#if defined(OPAL_PLATFORM_WINDOWS)
-        REQUIRE(err != ErrorCode::Success);
-#else
         REQUIRE(err == ErrorCode::Success);
+        REQUIRE(Exists(path));
+        err = CreateFile(path);
+        REQUIRE(err == ErrorCode::AlreadyExists);
         err = DeleteFile(path);
         REQUIRE(err == Opal::ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
-#endif
+    }
+    SECTION("Try to delete non-existant file")
+    {
+        path = Paths::Combine(nullptr, path, "example.txt").GetValue();
+        REQUIRE(!Exists(path));
+        err = DeleteFile(path);
+        REQUIRE(err == Opal::ErrorCode::PathNotFound);
     }
 }
 
