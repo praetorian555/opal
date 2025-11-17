@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 #include "opal/paths.h"
+#include "opal/exceptions.h"
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
@@ -17,116 +18,130 @@
 #include <unistd.h>
 #endif
 
-Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, AllocatorBase* scratch_allocator)
+void Opal::CreateFile(const StringUtf8& path, bool fail_if_already_exists, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     Opal::StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
-    const ErrorCode err = Transcode(path, path_wide);
-    if (err != ErrorCode::Success)
+    if (Transcode(path, path_wide) != ErrorCode::Success)
     {
-        return err;
+        // TODO: Remove this once the Transcode starts throwing
+        throw Exception("Failed to transcode path!");
     }
 
     constexpr DWORD k_access = GENERIC_READ | GENERIC_WRITE;
     constexpr DWORD k_shared_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
-    const DWORD creation_flags = CREATE_NEW;
+    constexpr DWORD k_creation_flags = CREATE_NEW;
 
-    HANDLE file_handle = CreateFileW(path_wide.GetData(), k_access, k_shared_mode, nullptr, creation_flags, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE file_handle = CreateFileW(path_wide.GetData(), k_access, k_shared_mode, nullptr, k_creation_flags, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file_handle != INVALID_HANDLE_VALUE)
     {
-        return ErrorCode::Success;
+        return;
     }
     const DWORD win32_err = GetLastError();
     if (win32_err == ERROR_PATH_NOT_FOUND)
     {
-        return ErrorCode::PathNotFound;
+        throw PathNotFoundException(*path);
     }
     if (win32_err == ERROR_FILE_EXISTS)
     {
-        return ErrorCode::AlreadyExists;
+        if (!fail_if_already_exists)
+        {
+            return;
+        }
+        throw PathAlreadyExistsException(*path);
     }
-    return ErrorCode::OSFailure;
+    throw Exception("Failed to create a file!");
 #elif defined(OPAL_PLATFORM_LINUX)
-    i32 flags = O_CREAT | O_EXCL;
+    const i32 flags = O_CREAT | O_EXCL;
     i32 fd = open(path.GetData(), flags, 0644);
     if (fd != -1)
     {
         close(fd);
-        return ErrorCode::Success;
+        return;
     }
     if (errno == EEXIST)
     {
-        return ErrorCode::AlreadyExists;
+        if (!fail_if_already_exists)
+        {
+            return;
+        }
+        throw PathAlreadyExistsException(*path);
     }
     if (errno == ENOENT)
     {
-        return ErrorCode::PathNotFound;
+        throw PathNotFoundException(*path);
     }
-    return ErrorCode::OSFailure;
+    throw Exception("Failed to create a file!");
 #else
-    return ErrorCode::NotImplemented;
+    throw NotImplementedException(__FUNCTION__);
 #endif
 }
 
-Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path, AllocatorBase* scratch_allocator)
+void Opal::DeleteFile(const StringUtf8& path, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
-        return err;
+        // TODO: Remove this once the Transcode starts throwing
+        throw Exception("Failed to transcode path!");
     }
     if (DeleteFileW(path_wide.GetData()) != 0)
     {
-        return ErrorCode::Success;
+        return;
     }
     const DWORD win32_error = GetLastError();
     if (win32_error == ERROR_FILE_NOT_FOUND)
     {
-        return ErrorCode::PathNotFound;
+        throw PathNotFoundException(*path);
     }
-    return ErrorCode::OSFailure;
+    throw Exception("Failed to delete a file!");
 #elif defined(OPAL_PLATFORM_LINUX)
     i32 result = remove(path.GetData());
     if (result == 0)
     {
-        return ErrorCode::Success;
+        return;
     }
     if (errno == ENOENT)
     {
-        return ErrorCode::PathNotFound;
+        throw PathNotFoundException(*path);
     }
-    return ErrorCode::OSFailure;
+    throw Exception("Failed to delete a file!");
 #else
-    return ErrorCode::NotImplemented;
+    throw NotImplementedException(__FUNCTION__);
 #endif
 }
 
-Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator)
+void Opal::CreateDirectory(const StringUtf8& path, bool throw_if_exists, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
-        return err;
+        // TODO: Remove this once the Transcode starts throwing
+        throw Exception("Failed to transcode path!");
     }
     const BOOL result = CreateDirectoryW(*path_wide, nullptr);
     if (result != 0)
     {
-        return ErrorCode::Success;
+        return;
     }
     const DWORD error = GetLastError();
     if (error == ERROR_ALREADY_EXISTS)
     {
-        return ErrorCode::AlreadyExists;
+        if (!throw_if_exists)
+        {
+            return;
+        }
+        throw PathAlreadyExistsException(*path);
     }
     if (error == ERROR_PATH_NOT_FOUND)
     {
-        return ErrorCode::PathNotFound;
+        throw PathNotFoundException(*path);
     }
-    return ErrorCode::OSFailure;
+    throw Exception("Failed to create a directory!");
 #elif defined(OPAL_PLATFORM_LINUX)
     if (mkdir(*path, 0777) == 0)
     {
@@ -141,52 +156,53 @@ Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, AllocatorBase* scr
     {
         return ErrorCode::PathNotFound;
     }
-    return ErrorCode::OSFailure;
+    throw Exception("Failed to create a directory!");
 #else
-    return ErrorCode::NotImplemented;
+    throw NotImplementedException(__FUNCTION__);
 #endif
 }
 
-Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator)
+void Opal::DeleteDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
-        return err;
+        // TODO: Remove this once the Transcode starts throwing
+        throw Exception("Failed to transcode path!");
     }
     const BOOL status = RemoveDirectoryW(*path_wide);
     if (status != 0)
     {
-        return ErrorCode::Success;
+        return;
     }
     const DWORD win32_err = GetLastError();
     if (win32_err == ERROR_FILE_NOT_FOUND)
     {
-        return ErrorCode::PathNotFound;
+        throw PathNotFoundException(*path);
     }
     if (win32_err == ERROR_DIR_NOT_EMPTY)
     {
-        return ErrorCode::NotEmpty;
+        throw DirectoryNotEmptyException(*path);
     }
-    return ErrorCode::OSFailure;
+    throw Exception("Failed to delete a directory!");
 #elif defined(OPAL_PLATFORM_LINUX)
     if (rmdir(*path) == 0)
     {
-        return ErrorCode::Success;
+        return;
     }
     if (errno == ENOENT)
     {
-        return ErrorCode::PathNotFound;
+        throw PathNotFoundException(*path);
     }
     if (errno == ENOTEMPTY)
     {
-        return ErrorCode::NotEmpty;
+        throw DirectoryNotEmptyException(*path);
     }
-    return ErrorCode::OSFailure;
+    throw Exception("Failed to delete a directory!");
 #else
-    return ErrorCode::NotImplemented;
+    throw NotImplementedException(__FUNCTION__);
 #endif
 }
 

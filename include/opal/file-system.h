@@ -9,41 +9,43 @@ namespace Opal
 /**
  * @brief Creates a file.
  * @param path Path to file to create.
+ * @param fail_if_already_exists If true when something already exists at the path don't throw an exception. Default value is false.
  * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
- * @return Returns ErrorCode::Success in case that file was created successfully. Returns ErrorCode::PathNotFound if any part of the
- * path does not exist. Returns ErrorCode::AlreadyExists if something exists already at the given path. Returns ErrorCode::OSFailure
- * for everything else.
+ * @throw PathNotFoundException when path does not exist.
+ * @throw PathAlreadyExistsException when something already exists on the given path.
+ * @throw Exception when any other error occurs.
  */
-ErrorCode OPAL_EXPORT CreateFile(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
+void OPAL_EXPORT CreateFile(const StringUtf8& path, bool fail_if_already_exists = false, AllocatorBase* scratch_allocator = nullptr);
 
 /**
  * @brief Deletes a file.
  * @param path Path to the file to delete.
  * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
- * @return Returns ErrorCode::Success in case that file was deleted successfully. Returns ErrorCode::PathNotFound if any part of the path
- * does not exist. Returns ErrorCode::OSFailure in all other cases.
+ * @throw PathNotFoundException when path does not exist.
+ * @throw Exception when any other error occurs.
  */
-ErrorCode OPAL_EXPORT DeleteFile(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
+void OPAL_EXPORT DeleteFile(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
 
 /**
  * @brief Creates a directory at a specified path.
  * @param path Path on which to create a directory.
+ * @param throw_if_exists If true throw exception if something already exists. Default is false.
  * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
- * @return Returns ErrorCode::Success if the directory is created. Returns ErrorCode::AlreadyExists if the directory already exists on this
- * path. Returns ErrorCode::PathNotFound if some parts of the specified path do not exist. Returns ErrorCode::OSFailure if any other error
- * occurs.
+ * @throw PathNotFoundException when path does not exist.
+ * @throw PathAlreadyExistsException when something already exists on the given path.
+ * @throw Exception when any other error occurs.
  */
-ErrorCode OPAL_EXPORT CreateDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
+void OPAL_EXPORT CreateDirectory(const StringUtf8& path, bool throw_if_exists = false, AllocatorBase* scratch_allocator = nullptr);
 
 /**
  * @brief Deletes a directory.
  * @param path Path to the directory.
  * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
- * @return Returns ErrorCode::Success if the directory is successfully deleted. Returns ErrorCode::PathNotFound if some parts of the path
- * do not exist. Returns ErrorCode::NotEmpty if the directory is not empty, and it can't be deleted. Returns ErrorCode::OSFailure if any
- * other error occurs.
+ * @throw PathNotFoundException when path does not exist.
+ * @throw DirectoryNotEmptyException when directory is not empty.
+ * @throw Exception when any other error occurs.
  */
-ErrorCode OPAL_EXPORT DeleteDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
+void OPAL_EXPORT DeleteDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
 
 /**
  * @brief Check if the path exists.
