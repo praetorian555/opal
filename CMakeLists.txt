@@ -50,6 +50,7 @@ set(OPAL_FILES
         include/opal/type-traits.h
         include/opal/allocator.h
         include/opal/types.h
+        include/opal/exceptions.h
         include/opal/error-codes.h
         include/opal/time.h
         include/opal/paths.h
