@@ -145,16 +145,20 @@ void Opal::CreateDirectory(const StringUtf8& path, bool throw_if_exists, Allocat
 #elif defined(OPAL_PLATFORM_LINUX)
     if (mkdir(*path, 0777) == 0)
     {
-        return ErrorCode::Success;
+        return;
     }
     // Path already exists
     if (errno == EEXIST)
     {
-        return ErrorCode::AlreadyExists;
+        if (!throw_if_exists)
+        {
+            return;
+        }
+        throw PathAlreadyExistsException(*path);
     }
     if (errno == ENOENT)
     {
-        return ErrorCode::PathNotFound;
+        throw PathNotFoundException(*path);
     }
     throw Exception("Failed to create a directory!");
 #else
