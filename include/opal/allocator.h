@@ -11,10 +11,39 @@ namespace Opal
 
 struct OPAL_EXPORT AllocatorBase
 {
+    AllocatorBase(const char* debug_name) : m_debug_name(debug_name) {}
     virtual ~AllocatorBase() = default;
     virtual void* Alloc(u64 size, u64 alignment) = 0;
     virtual void Free(void* ptr) = 0;
-    [[nodiscard]] virtual const char* GetName() const = 0;
+    [[nodiscard]] virtual const char* GetName() const { return m_debug_name; }
+
+protected:
+    const char* m_debug_name = nullptr;
+};
+
+/**
+ * Allocator that has access to the system memory and is mostly used as a part of other allocators.
+ */
+struct SystemMemoryAllocator : public AllocatorBase
+{
+    SystemMemoryAllocator(i64 bytes_to_reserve, i64 bytes_to_initially_alloc, const char* debug_name);
+    ~SystemMemoryAllocator() override;
+
+    void* Alloc(u64 size, u64 alignment) override;
+    void Free(void* ptr) override;
+
+    void Commit(u64 size);
+
+    u64 GetCommitedSize() const { return m_commited_size; }
+    u64 GetPageSize() const { return m_page_size; }
+
+protected:
+    void* m_memory = nullptr;
+    u64 m_reserved_size = 0;
+    u64 m_commited_size = 0;
+    u64 m_offset = 0;
+    u64 m_allocation_granularity = 0;
+    u64 m_page_size = 0;
 };
 
 /**
@@ -22,7 +51,7 @@ struct OPAL_EXPORT AllocatorBase
  */
 struct OPAL_EXPORT MallocAllocator final : public AllocatorBase
 {
-    MallocAllocator() = default;
+    MallocAllocator() : AllocatorBase("MallocAllocator") {}
     MallocAllocator(const MallocAllocator& other) = default;
     MallocAllocator(MallocAllocator&& other) = default;
 
@@ -41,7 +70,7 @@ struct OPAL_EXPORT MallocAllocator final : public AllocatorBase
 
 struct OPAL_EXPORT NullAllocator final : public AllocatorBase
 {
-    NullAllocator() = default;
+    NullAllocator() : AllocatorBase("NullAllocator") {}
     NullAllocator(const NullAllocator& other) = default;
     NullAllocator(NullAllocator&& other) = default;
 
