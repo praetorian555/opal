@@ -33,7 +33,7 @@ struct OPAL_EXPORT SystemMemoryAllocatorDesc
 /**
  * Allocator that has access to the system memory and is mostly used as a part of other allocators.
  */
-struct SystemMemoryAllocator : public AllocatorBase
+struct OPAL_EXPORT SystemMemoryAllocator : public AllocatorBase
 {
     SystemMemoryAllocator(const char* debug_name, const SystemMemoryAllocatorDesc& desc = {});
     ~SystemMemoryAllocator() override;
@@ -101,7 +101,7 @@ struct OPAL_EXPORT NullAllocator final : public AllocatorBase
 
 struct OPAL_EXPORT LinearAllocator final : public AllocatorBase
 {
-    explicit LinearAllocator(u64 size);
+    explicit LinearAllocator(const char* debug_name, const SystemMemoryAllocatorDesc& desc = {});
     LinearAllocator(const LinearAllocator& other) = delete;
     LinearAllocator(LinearAllocator&& other) = delete;
 
@@ -116,10 +116,10 @@ struct OPAL_EXPORT LinearAllocator final : public AllocatorBase
     void Free(void* ptr) override;
     void Reset();
 
-    [[nodiscard]] const char* GetName() const override { return "LinearAllocator"; }
-
 private:
+    SystemMemoryAllocator m_system_allocator;
     void* m_memory;
+    u64 m_commit_step_size = 0;
     u64 m_offset = 0;
     u64 m_size = 0;
 };

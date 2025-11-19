@@ -86,12 +86,15 @@ TEST_CASE("System memory allocator", "[Allocator]")
 
 TEST_CASE("Linear allocator", "[Allocator]")
 {
-    Opal::LinearAllocator allocator(1024);
-    void* memory = allocator.Alloc(16, 8);
+    const Opal::SystemMemoryAllocatorDesc desc{
+        .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(100), .commit_step_size = OPAL_MB(100)};
+    Opal::LinearAllocator* allocator = nullptr;
+    REQUIRE_NOTHROW(allocator = new Opal::LinearAllocator("Linear Allocator", desc));
+    void* memory = allocator->Alloc(16, 8);
     REQUIRE(memory != nullptr);
-    allocator.Free(memory);
-    allocator.Reset();
-    void* memory2 = allocator.Alloc(1024, 8);
+    allocator->Free(memory);
+    allocator->Reset();
+    void* memory2 = allocator->Alloc(1024, 8);
     REQUIRE(memory2 != nullptr);
     REQUIRE(memory == memory2);
 }
@@ -112,10 +115,13 @@ TEST_CASE("Default allocator", "[Allocator]")
     REQUIRE(memory != nullptr);
     allocator->Free(memory);
 
-    Opal::LinearAllocator linear_allocator(1024);
-    Opal::SetDefaultAllocator(&linear_allocator);
+    const Opal::SystemMemoryAllocatorDesc desc{
+        .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(100), .commit_step_size = OPAL_MB(100)};
+    Opal::LinearAllocator* linear_allocator = nullptr;
+    REQUIRE_NOTHROW(linear_allocator = new Opal::LinearAllocator("Linear Allocator", desc));
+    Opal::SetDefaultAllocator(linear_allocator);
     allocator = Opal::GetDefaultAllocator();
-    REQUIRE(std::strcmp(allocator->GetName(), "LinearAllocator") == 0);
+    REQUIRE(std::strcmp(allocator->GetName(), "Linear Allocator") == 0);
     void* memory2 = allocator->Alloc(16, 16);
     REQUIRE(memory2 != nullptr);
     REQUIRE(memory != memory2);
@@ -130,16 +136,18 @@ TEST_CASE("Default allocator", "[Allocator]")
 
 TEST_CASE("New and delete", "[Allocator]")
 {
-    Opal::LinearAllocator allocator(1024);
-    Opal::AllocatorBase* allocator_ptr = &allocator;
-    int* a = Opal::New<int>(allocator_ptr, 5);
+    Opal::SystemMemoryAllocator* allocator = nullptr;
+    const Opal::SystemMemoryAllocatorDesc desc{
+        .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(100), .commit_step_size = OPAL_MB(100)};
+    REQUIRE_NOTHROW(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc));
+    int* a = Opal::New<int>(allocator, 5);
     REQUIRE(a != nullptr);
     REQUIRE(*a == 5);
-    Opal::Delete(allocator_ptr, a);
+    Opal::Delete(allocator, a);
 
-    int* b = Opal::New<int>(32, allocator_ptr, 10);
+    int* b = Opal::New<int>(32, allocator, 10);
     REQUIRE(b != nullptr);
     REQUIRE(*b == 10);
     REQUIRE(reinterpret_cast<Opal::u64>(b) % 32 == 0);
-    Opal::Delete(allocator_ptr, b);
+    Opal::Delete(allocator, b);
 }

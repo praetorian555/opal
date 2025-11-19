@@ -151,25 +151,16 @@ void Opal::MallocAllocator::Free(void* ptr)
 #endif
 }
 
-Opal::LinearAllocator::LinearAllocator(u64 size) : AllocatorBase("LinearAllocator")
+Opal::LinearAllocator::LinearAllocator(const char* debug_name, const SystemMemoryAllocatorDesc& desc)
+    : AllocatorBase(debug_name), m_system_allocator("LinearAllocator - SystemMemoryAllocator", desc)
 {
-#if defined(OPAL_PLATFORM_WINDOWS)
-    m_memory = _aligned_malloc(size, 16);
-#else
-    m_memory = malloc(size);
-#endif
+    m_memory = m_system_allocator.Alloc(desc.bytes_to_initially_alloc, 1);
     m_offset = 0;
-    m_size = size;
+    m_size = desc.bytes_to_initially_alloc;
+    m_commit_step_size = desc.commit_step_size;
 }
 
-Opal::LinearAllocator::~LinearAllocator()
-{
-#if defined(OPAL_PLATFORM_WINDOWS)
-    _aligned_free(m_memory);
-#else
-    free(m_memory);
-#endif
-}
+Opal::LinearAllocator::~LinearAllocator() {}
 
 bool Opal::LinearAllocator::operator==(const Opal::LinearAllocator& other) const
 {
@@ -182,12 +173,14 @@ void* Opal::LinearAllocator::Alloc(size_t size, size_t alignment)
     u64 current_address = reinterpret_cast<u64>(m_memory) + m_offset;
     u64 new_address = AlignForward(current_address, alignment);
     u64 next_address = new_address + size;
-    if (next_address <= reinterpret_cast<u64>(m_memory) + m_size)
+    if (next_address > reinterpret_cast<u64>(m_memory) + m_size)
     {
-        m_offset = next_address - reinterpret_cast<u64>(m_memory);
-        return reinterpret_cast<void*>(new_address);
+        // Commit more memory
+        m_system_allocator.Alloc(size, 1);
+        m_size = m_system_allocator.GetCommitedSize();
     }
-    return nullptr;
+    m_offset = next_address - reinterpret_cast<u64>(m_memory);
+    return reinterpret_cast<void*>(new_address);
 }
 
 void Opal::LinearAllocator::Free(void* ptr)

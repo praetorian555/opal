@@ -335,7 +335,7 @@ TEST_CASE("Assignment", "[String]")
             {
                 const char ref[] = "Hello there";
                 MallocAllocator da1;
-                LinearAllocator da2(4096);
+                LinearAllocator da2("Linalloc");
                 StringLocale str1(ref, &da1);
                 StringLocale str2(20, 'd', static_cast<AllocatorBase*>(&da2));
                 str2 = str1;
@@ -403,7 +403,7 @@ TEST_CASE("Assignment", "[String]")
             SECTION("Destination string not empty, different allocators, enough space in destination")
             {
                 MallocAllocator da1;
-                LinearAllocator da2(4096);
+                LinearAllocator da2("linalloc");
                 StringLocale str1(ref, &da1);
                 StringLocale str2(600, 'd', static_cast<AllocatorBase*>(&da2));
                 str2 = str1;

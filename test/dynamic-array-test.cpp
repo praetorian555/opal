@@ -431,7 +431,7 @@ TEST_CASE("Copy assignment", "[Array]")
         SECTION("Different allocators")
         {
             MallocAllocator allocator1;
-            LinearAllocator allocator2(1024);
+            LinearAllocator allocator2("Linear allocator");
             DynamicArray<i32> int_arr(3, 42, &allocator1);
             DynamicArray<i32> int_arr_copy(5, 25, &allocator2);
             int_arr_copy = int_arr;
