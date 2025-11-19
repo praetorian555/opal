@@ -2,7 +2,7 @@
 #include "opal/exceptions.h"
 
 OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
+OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
 #include "catch2/catch2.hpp"
 OPAL_END_DISABLE_WARNINGS
 
@@ -21,7 +21,9 @@ TEST_CASE("System memory allocator", "[Allocator]")
     SECTION("Working allocator")
     {
         Opal::SystemMemoryAllocator* allocator = nullptr;
-        REQUIRE_NOTHROW(allocator = new Opal::SystemMemoryAllocator(OPAL_GB(1), OPAL_MB(100), "System Memory Allocator"));
+        const Opal::SystemMemoryAllocatorDesc desc{
+            .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(100), .commit_step_size = OPAL_MB(100)};
+        REQUIRE_NOTHROW(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc));
         REQUIRE(allocator != nullptr);
         REQUIRE(strcmp(allocator->GetName(), "System Memory Allocator") == 0);
         REQUIRE(allocator->GetCommitedSize() == OPAL_MB(100));
@@ -42,28 +44,36 @@ TEST_CASE("System memory allocator", "[Allocator]")
         first_alloc = nullptr;
         REQUIRE_NOTHROW(first_alloc = allocator->Alloc(OPAL_MB(150), 16));
         REQUIRE(first_alloc != nullptr);
-        REQUIRE(allocator->GetCommitedSize() == OPAL_MB(150));
-        allocator->Commit(OPAL_MB(50));
         REQUIRE(allocator->GetCommitedSize() == OPAL_MB(200));
+        allocator->Commit(OPAL_MB(50));
+        REQUIRE(allocator->GetCommitedSize() == OPAL_MB(250));
 
         delete allocator;
     }
     SECTION("Invalid reserved size")
     {
+        Opal::SystemMemoryAllocatorDesc desc{
+            .bytes_to_reserve = 0, .bytes_to_initially_alloc = OPAL_MB(100), .commit_step_size = OPAL_MB(100)};
         Opal::SystemMemoryAllocator* allocator = nullptr;
-        REQUIRE_THROWS_AS(allocator = new Opal::SystemMemoryAllocator(0, OPAL_MB(100), "System Memory Allocator"), Opal::InvalidArgumentException);
+        REQUIRE_THROWS_AS(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc),
+                          Opal::InvalidArgumentException);
         delete allocator;
     }
     SECTION("Initial commit size larger than reserved size")
     {
+        Opal::SystemMemoryAllocatorDesc desc{
+            .bytes_to_reserve = OPAL_MB(100), .bytes_to_initially_alloc = OPAL_MB(150), .commit_step_size = OPAL_MB(100)};
         Opal::SystemMemoryAllocator* allocator = nullptr;
-        REQUIRE_THROWS_AS(allocator = new Opal::SystemMemoryAllocator(OPAL_MB(100), OPAL_MB(150), "System Memory Allocator"), Opal::InvalidArgumentException);
+        REQUIRE_THROWS_AS(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc),
+                          Opal::InvalidArgumentException);
         delete allocator;
     }
     SECTION("Not enough reserved memory")
     {
+        Opal::SystemMemoryAllocatorDesc desc{
+            .bytes_to_reserve = OPAL_MB(10), .bytes_to_initially_alloc = OPAL_MB(1), .commit_step_size = OPAL_MB(1)};
         Opal::SystemMemoryAllocator* allocator = nullptr;
-        REQUIRE_NOTHROW(allocator = new Opal::SystemMemoryAllocator(OPAL_MB(10), OPAL_MB(1), "System Memory Allocator"));
+        REQUIRE_NOTHROW(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc));
         REQUIRE(allocator != nullptr);
 
         void* first_alloc = nullptr;

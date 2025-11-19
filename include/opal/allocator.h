@@ -21,12 +21,21 @@ protected:
     const char* m_debug_name = nullptr;
 };
 
+struct OPAL_EXPORT SystemMemoryAllocatorDesc
+{
+    u64 bytes_to_reserve = OPAL_MB(1);
+    u64 bytes_to_initially_alloc = OPAL_KB(100);
+    // Whenever more memory needs to be commited this amount will be commited unless required
+    // size is larger then that size will be commited.
+    u64 commit_step_size = OPAL_KB(100);
+};
+
 /**
  * Allocator that has access to the system memory and is mostly used as a part of other allocators.
  */
-struct OPAL_EXPORT SystemMemoryAllocator : public AllocatorBase
+struct SystemMemoryAllocator : public AllocatorBase
 {
-    SystemMemoryAllocator(i64 bytes_to_reserve, i64 bytes_to_initially_alloc, const char* debug_name);
+    SystemMemoryAllocator(const char* debug_name, const SystemMemoryAllocatorDesc& desc = {});
     ~SystemMemoryAllocator() override;
 
     void* Alloc(u64 size, u64 alignment) override;
@@ -36,13 +45,14 @@ struct OPAL_EXPORT SystemMemoryAllocator : public AllocatorBase
 
     void Reset();
 
-    [[nodiscard]] u64 GetCommitedSize() const { return m_commited_size; }
-    [[nodiscard]] u64 GetPageSize() const { return m_page_size; }
+    u64 GetCommitedSize() const { return m_commited_size; }
+    u64 GetPageSize() const { return m_page_size; }
 
 protected:
     void* m_memory = nullptr;
     u64 m_reserved_size = 0;
     u64 m_commited_size = 0;
+    u64 m_commit_step_size = 0;
     u64 m_offset = 0;
     u64 m_allocation_granularity = 0;
     u64 m_page_size = 0;

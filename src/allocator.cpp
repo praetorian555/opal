@@ -2,6 +2,8 @@
 
 #include <malloc.h>
 
+#include "opal/math-base.h"
+
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
 #elif defined(OPAL_PLATFORM_LINUX)
@@ -24,19 +26,19 @@ Opal::u64 AlignForward(Opal::u64 address, Opal::u64 alignment)
 }
 }  // namespace
 
-Opal::SystemMemoryAllocator::SystemMemoryAllocator(i64 bytes_to_reserve, i64 bytes_to_initially_alloc, const char* debug_name)
+Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const SystemMemoryAllocatorDesc& desc)
     : AllocatorBase(debug_name)
 {
-    if (bytes_to_reserve == 0)
+    if (desc.bytes_to_reserve == 0)
     {
-        throw InvalidArgumentException(__FUNCTION__, "bytes_to_reserve", bytes_to_reserve);
+        throw InvalidArgumentException(__FUNCTION__, "bytes_to_reserve", desc.bytes_to_reserve);
     }
-    if (bytes_to_initially_alloc > bytes_to_reserve)
+    if (desc.bytes_to_initially_alloc > desc.bytes_to_reserve)
     {
-        throw InvalidArgumentException(__FUNCTION__, "bytes_to_initially_alloc", bytes_to_initially_alloc);
+        throw InvalidArgumentException(__FUNCTION__, "bytes_to_initially_alloc", desc.bytes_to_initially_alloc);
     }
-    m_reserved_size = bytes_to_reserve;
-    m_commited_size = bytes_to_initially_alloc;
+    m_reserved_size = desc.bytes_to_reserve;
+    m_commit_step_size = desc.commit_step_size;
 
 #if defined(OPAL_PLATFORM_WINDOWS)
     SYSTEM_INFO sys_info;
@@ -53,14 +55,6 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(i64 bytes_to_reserve, i64 byt
     {
         throw OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!");
     }
-    if (m_commited_size > 0)
-    {
-        void* commited_memory = VirtualAlloc(m_memory, m_commited_size, MEM_COMMIT, PAGE_READWRITE);
-        if (commited_memory == nullptr)
-        {
-            throw OutOfMemoryException("Failed to commit initial memory for the page allocator!");
-        }
-    }
 #elif defined(OPAL_PLATFORM_LINUX)
     const i64 page_size = sysconf(_SC_PAGESIZE);
     m_page_size = page_size;
@@ -74,16 +68,13 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(i64 bytes_to_reserve, i64 byt
     {
         throw OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!");
     }
-    if (m_commited_size > 0)
-    {
-        if (mprotect(m_memory, m_commited_size, PROT_READ | PROT_WRITE) != 0)
-        {
-            throw OutOfMemoryException("Failed to commit initial memory for the page allocator!");
-        }
-    }
 #else
     throw NotImplementedException(__FUNCTION__);
 #endif
+    if (desc.bytes_to_initially_alloc > 0)
+    {
+        Commit(desc.bytes_to_initially_alloc);
+    }
 }
 
 Opal::SystemMemoryAllocator::~SystemMemoryAllocator()
@@ -105,7 +96,10 @@ void* Opal::SystemMemoryAllocator::Alloc(u64 size, u64)
     }
     if (m_offset + size > m_commited_size)
     {
-        Commit(m_offset + size - m_commited_size);
+        u64 step_size = Min(m_commit_step_size, m_reserved_size - m_commited_size);
+        u64 commit_size = m_offset + size - m_commited_size;
+        commit_size = Opal::Max(commit_size, step_size);
+        Commit(commit_size);
     }
     void* allocation = reinterpret_cast<void*>(reinterpret_cast<u64>(m_memory) + m_offset);
     m_offset += size;
