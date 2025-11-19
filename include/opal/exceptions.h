@@ -1,6 +1,6 @@
 #pragma once
 
-#include <stdlib.h>
+#include <stdio.h>
 
 #include "opal/type-traits.h"
 #include "opal/types.h"
@@ -31,8 +31,8 @@ public:
     StringEx& operator+(i64 nb)
     {
         constexpr i64 k_buffer_size = 64;
-        char buffer[k_buffer_size];
-        _itoa_s(static_cast<i32>(nb), buffer, k_buffer_size, 10);
+        char buffer[k_buffer_size] = {};
+        snprintf(buffer, k_buffer_size - 1, "%d", static_cast<i32>(nb));
         return *this + buffer;
     }
 
@@ -84,7 +84,10 @@ struct InvalidArgumentException : Exception
 
 struct OutOfMemoryException : Exception
 {
-    OutOfMemoryException(const char* allocator_name, i64 size) : Exception(StringEx("Out of memory in allocator ") + allocator_name + " trying to allocate " + size + " bytes.") {}
+    OutOfMemoryException(const char* allocator_name, i64 size)
+        : Exception(StringEx("Out of memory in allocator ") + allocator_name + " trying to allocate " + size + " bytes.")
+    {
+    }
     OutOfMemoryException(const char* custom_message) : Exception(StringEx("Out of memory: ") + custom_message) {}
 };
 
