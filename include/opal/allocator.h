@@ -24,7 +24,7 @@ protected:
 /**
  * Allocator that has access to the system memory and is mostly used as a part of other allocators.
  */
-struct SystemMemoryAllocator : public AllocatorBase
+struct OPAL_EXPORT SystemMemoryAllocator : public AllocatorBase
 {
     SystemMemoryAllocator(i64 bytes_to_reserve, i64 bytes_to_initially_alloc, const char* debug_name);
     ~SystemMemoryAllocator() override;
