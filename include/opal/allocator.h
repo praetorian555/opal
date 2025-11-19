@@ -34,8 +34,10 @@ struct SystemMemoryAllocator : public AllocatorBase
 
     void Commit(u64 size);
 
-    u64 GetCommitedSize() const { return m_commited_size; }
-    u64 GetPageSize() const { return m_page_size; }
+    void Reset();
+
+    [[nodiscard]] u64 GetCommitedSize() const { return m_commited_size; }
+    [[nodiscard]] u64 GetPageSize() const { return m_page_size; }
 
 protected:
     void* m_memory = nullptr;

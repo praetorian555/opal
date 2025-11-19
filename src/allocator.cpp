@@ -98,6 +98,10 @@ void Opal::SystemMemoryAllocator::Commit(u64 size)
     }
     m_commited_size += size;
 }
+void Opal::SystemMemoryAllocator::Reset()
+{
+    m_offset = 0;
+}
 
 void* Opal::MallocAllocator::Alloc(size_t size, size_t alignment)
 {
