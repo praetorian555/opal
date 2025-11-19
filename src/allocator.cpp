@@ -4,6 +4,9 @@
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
+#elif defined(OPAL_PLATFORM_LINUX)
+#include <sys/mman.h>
+#include <unistd.h>
 #endif
 
 #include "opal/exceptions.h"
@@ -58,6 +61,28 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(i64 bytes_to_reserve, i64 byt
             throw OutOfMemoryException("Failed to commit initial memory for the page allocator!");
         }
     }
+#elif defined(OPAL_PLATFORM_LINUX)
+    const i64 page_size = sysconf(_SC_PAGESIZE);
+    m_page_size = page_size;
+    m_allocation_granularity = page_size;
+    if (m_reserved_size % m_allocation_granularity != 0)
+    {
+        m_reserved_size += m_allocation_granularity - (m_reserved_size % m_allocation_granularity);
+    }
+    m_memory = mmap(nullptr, m_reserved_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
+    if (m_memory == nullptr)
+    {
+        throw OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!");
+    }
+    if (m_commited_size > 0)
+    {
+        if (mprotect(m_memory, m_commited_size, PROT_READ | PROT_WRITE) != 0)
+        {
+            throw OutOfMemoryException("Failed to commit initial memory for the page allocator!");
+        }
+    }
+#else
+    throw NotImplementedException(__FUNCTION__);
 #endif
 }
 
@@ -65,6 +90,10 @@ Opal::SystemMemoryAllocator::~SystemMemoryAllocator()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     VirtualFree(m_memory, 0, MEM_RELEASE);
+#elif defined(OPAL_PLATFORM_LINUX)
+    munmap(m_memory, m_reserved_size);
+#else
+    throw NotImplementedException(__FUNCTION__);
 #endif
 }
 
@@ -91,8 +120,14 @@ void Opal::SystemMemoryAllocator::Commit(u64 size)
     {
         throw OutOfMemoryException("No more reserved memory!");
     }
+#if defined(OPAL_PLATFORM_WINDOWS)
     void* commited_memory = VirtualAlloc(m_memory, size, MEM_COMMIT, PAGE_READWRITE);
     if (commited_memory == nullptr)
+#elif defined(OPAL_PLATFORM_LINUX)
+    if (mprotect(m_memory, size, PROT_READ | PROT_WRITE) != 0)
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
     {
         throw OutOfMemoryException("Failed to commit memory for the page allocator!");
     }
