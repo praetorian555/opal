@@ -1,5 +1,6 @@
 #pragma once
 
+#include <new>
 #include <initializer_list>
 
 #include "opal/allocator.h"
