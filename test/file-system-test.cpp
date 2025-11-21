@@ -3,6 +3,8 @@
 #include "opal/defines.h"
 #include "opal/exceptions.h"
 #include "opal/paths.h"
+#include "opal/container/hash-set.h"
+#include "opal/container/hash-map.h"
 
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
@@ -138,6 +140,12 @@ TEST_CASE("Creating and destroying directory", "[FileSystem]")
     }
 }
 
+template<> struct std::hash<Opal::StringUtf8> {
+    std::size_t operator()(const Opal::StringUtf8& s) const noexcept {
+        return Opal::Hash::CalcRawArray(reinterpret_cast<const Opal::u8*>(s.GetData()), s.GetSize());
+    }
+};
+
 TEST_CASE("Iterate over directory contents", "[FileSystem]")
 {
     StringUtf8 path;
@@ -162,26 +170,37 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     }
     SECTION("Collect child contents, no recursive search")
     {
+        HashSet<StringUtf8> dir_paths;
+        HashMap<StringUtf8, bool> path_types;
         path = Paths::Combine(nullptr, path, "test-dir").GetValue();
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
         StringUtf8 first_file = Paths::Combine(nullptr, path, "test-file").GetValue();
+        dir_paths.Insert(first_file);
+        path_types.insert(std::make_pair(first_file, false));
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE_NOTHROW(CreateFile(first_file));
         StringUtf8 another_dir = Paths::Combine(nullptr, path, "another-dir").GetValue();
+        dir_paths.Insert(another_dir);
+        path_types.insert(std::make_pair(another_dir, true));
         REQUIRE_NOTHROW(CreateDirectory(another_dir));
         REQUIRE(Opal::Exists(another_dir));
         const StringUtf8 another_file = Paths::Combine(nullptr, another_dir, "another-file").GetValue();
+        dir_paths.Insert(another_file);
+        path_types.insert(std::make_pair(another_file, false));
         REQUIRE_NOTHROW(CreateFile(another_file));
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
         REQUIRE_NOTHROW(children = Opal::CollectDirectoryContents(path));
         REQUIRE(children.GetSize() == 2);
-        REQUIRE(children[0].path == another_dir);
-        REQUIRE(children[0].is_directory == true);
-        REQUIRE(children[1].path == first_file);
-        REQUIRE(children[1].is_directory == false);
+        for (const DirectoryEntry& e : children)
+        {
+            REQUIRE(dir_paths.Contains(e.path));
+            REQUIRE(path_types[e.path] == e.is_directory);
+            dir_paths.Erase(e.path);
+            path_types.erase(e.path);
+        }
         REQUIRE_NOTHROW(DeleteFile(first_file));
         REQUIRE_NOTHROW(DeleteFile(another_file));
         REQUIRE_NOTHROW(DeleteDirectory(another_dir));
@@ -190,28 +209,37 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     }
     SECTION("Collect child contents, do recursive search")
     {
+        HashSet<StringUtf8> dir_paths;
+        HashMap<StringUtf8, bool> path_types;
         path = Paths::Combine(nullptr, path, "test-dir").GetValue();
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
         StringUtf8 first_file = Paths::Combine(nullptr, path, "test-file").GetValue();
+        dir_paths.Insert(first_file);
+        path_types.insert(std::make_pair(first_file, false));
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE_NOTHROW(CreateFile(first_file));
         StringUtf8 another_dir = Paths::Combine(nullptr, path, "another-dir").GetValue();
+        dir_paths.Insert(another_dir);
+        path_types.insert(std::make_pair(another_dir, true));
         REQUIRE_NOTHROW(CreateDirectory(another_dir));
         REQUIRE(Opal::Exists(another_dir));
         const StringUtf8 another_file = Paths::Combine(nullptr, another_dir, "another-file").GetValue();
+        dir_paths.Insert(another_file);
+        path_types.insert(std::make_pair(another_file, false));
         REQUIRE_NOTHROW(CreateFile(another_file));
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
         REQUIRE_NOTHROW(children = Opal::CollectDirectoryContents(path, {.recursive = true}));
         REQUIRE(children.GetSize() == 3);
-        REQUIRE(children[0].path == another_dir);
-        REQUIRE(children[0].is_directory == true);
-        REQUIRE(children[1].path == first_file);
-        REQUIRE(children[1].is_directory == false);
-        REQUIRE(children[2].path == another_file);
-        REQUIRE(children[2].is_directory == false);
+        for (const DirectoryEntry& e : children)
+        {
+            REQUIRE(dir_paths.Contains(e.path));
+            REQUIRE(path_types[e.path] == e.is_directory);
+            dir_paths.Erase(e.path);
+            path_types.erase(e.path);
+        }
         REQUIRE_NOTHROW(DeleteFile(first_file));
         REQUIRE_NOTHROW(DeleteFile(another_file));
         REQUIRE_NOTHROW(DeleteDirectory(another_dir));
@@ -220,26 +248,37 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     }
     SECTION("Collect child contents, do recursive search, ignore directories")
     {
+        HashSet<StringUtf8> dir_paths;
+        HashMap<StringUtf8, bool> path_types;
         path = Paths::Combine(nullptr, path, "test-dir").GetValue();
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
         StringUtf8 first_file = Paths::Combine(nullptr, path, "test-file").GetValue();
+        dir_paths.Insert(first_file);
+        path_types.insert(std::make_pair(first_file, false));
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE_NOTHROW(CreateFile(first_file));
         StringUtf8 another_dir = Paths::Combine(nullptr, path, "another-dir").GetValue();
+        dir_paths.Insert(another_dir);
+        path_types.insert(std::make_pair(another_dir, true));
         REQUIRE_NOTHROW(CreateDirectory(another_dir));
         REQUIRE(Opal::Exists(another_dir));
         const StringUtf8 another_file = Paths::Combine(nullptr, another_dir, "another-file").GetValue();
+        dir_paths.Insert(another_file);
+        path_types.insert(std::make_pair(another_file, false));
         REQUIRE_NOTHROW(CreateFile(another_file));
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
         REQUIRE_NOTHROW(children = Opal::CollectDirectoryContents(path, {.include_directories = false, .recursive = true}));
         REQUIRE(children.GetSize() == 2);
-        REQUIRE(children[0].path == first_file);
-        REQUIRE(children[0].is_directory == false);
-        REQUIRE(children[1].path == another_file);
-        REQUIRE(children[1].is_directory == false);
+        for (const DirectoryEntry& e : children)
+        {
+            REQUIRE(dir_paths.Contains(e.path));
+            REQUIRE(path_types[e.path] == e.is_directory);
+            dir_paths.Erase(e.path);
+            path_types.erase(e.path);
+        }
         REQUIRE_NOTHROW(DeleteFile(first_file));
         REQUIRE_NOTHROW(DeleteFile(another_file));
         REQUIRE_NOTHROW(DeleteDirectory(another_dir));
