@@ -915,7 +915,10 @@ CLASS_HEADER& CLASS_HEADER::operator=(const String& other)
 
     if (m_allocator != other.m_allocator)
     {
-        Deallocate(m_data);
+        if (m_allocator != nullptr)
+        {
+            Deallocate(m_data);
+        }
         m_data = nullptr;
         m_capacity = 0;
         m_size = 0;
