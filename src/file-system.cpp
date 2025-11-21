@@ -2,8 +2,8 @@
 
 #include <stdio.h>
 
-#include "opal/paths.h"
 #include "opal/exceptions.h"
+#include "opal/paths.h"
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
@@ -32,7 +32,8 @@ void Opal::CreateFile(const StringUtf8& path, bool fail_if_already_exists, Alloc
     constexpr DWORD k_shared_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
     constexpr DWORD k_creation_flags = CREATE_NEW;
 
-    HANDLE file_handle = CreateFileW(path_wide.GetData(), k_access, k_shared_mode, nullptr, k_creation_flags, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE file_handle =
+        CreateFileW(path_wide.GetData(), k_access, k_shared_mode, nullptr, k_creation_flags, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file_handle != INVALID_HANDLE_VALUE)
     {
         return;
@@ -285,72 +286,76 @@ bool Opal::IsFile(const StringUtf8& path, AllocatorBase* scratch_allocator)
 #endif
 }
 
-bool Opal::CollectDirectoryContents(const StringUtf8& path, DynamicArray<StringUtf8>& out_contents, const DirectoryContentsDesc& desc,
-                                    AllocatorBase* scratch_allocator)
+Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const StringUtf8& path, const DirectoryContentsDesc& desc,
+                                                                        AllocatorBase* output_allocator, AllocatorBase* scratch_allocator)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0', scratch_allocator);
     ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
-        return false;
+        throw Exception("Failed to transcode path!");
     }
     const DWORD attributes = GetFileAttributesW(path_wide.GetData());
     if (attributes == INVALID_FILE_ATTRIBUTES)
     {
-        return false;
+        throw PathNotFoundException(*path);
     }
     if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
     {
-        return false;
+        throw NotDirectoryException(*path);
     }
 
-    DynamicArray<StringWide> directories;
-    path_wide += L"\\*";
+    DynamicArray<StringWide> directories(scratch_allocator);
     directories.PushBack(Move(path_wide));
+
+    DynamicArray<DirectoryEntry> out_contents(output_allocator);
     while (!directories.IsEmpty())
     {
-        StringWide dir_wide = Move(directories.Back().GetValue());
+        const StringWide dir_wide = Move(directories.Back().GetValue());
         directories.PopBack();
 
         WIN32_FIND_DATAW find_data;
-        HANDLE find_handle = FindFirstFileW(*dir_wide, &find_data);
+        HANDLE find_handle = FindFirstFileW(*(dir_wide + L"\\*"), &find_data);
         if (find_handle == INVALID_HANDLE_VALUE)
         {
-            return false;
+            throw NotDirectoryException("");
         }
         do
         {
-            StringWide child_path_wide = find_data.cFileName;
+            const StringWide child_name_wide(find_data.cFileName, scratch_allocator);
+            if (child_name_wide == L"." || child_name_wide == L"..")
+            {
+                continue;
+            }
+            StringWide child_path_wide(dir_wide + L"\\" + find_data.cFileName, scratch_allocator);
             if (child_path_wide == L"." || child_path_wide == L"..")
             {
                 continue;
             }
-            StringUtf8 child_path(child_path_wide.GetSize(), '\0');
+            StringUtf8 child_path(child_path_wide.GetSize(), '\0', output_allocator);
             err = Transcode(child_path_wide, child_path);
             if (err != ErrorCode::Success)
             {
-                return false;
+                throw Exception("Failed to transcode path!");
             }
             const bool is_directory = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
             if (is_directory && desc.include_directories)
             {
-                out_contents.PushBack(child_path);
+                out_contents.PushBack({.path = child_path, .is_directory = true});
             }
             if (!is_directory)
             {
-                out_contents.PushBack(child_path);
+                out_contents.PushBack({.path = child_path, .is_directory = false});
             }
             if (desc.recursive && is_directory)
             {
-                child_path_wide += L"\\*";
                 directories.PushBack(Move(child_path_wide));
             }
         } while (FindNextFileW(find_handle, &find_data) != 0);
     }
-    return true;
+    return out_contents;
 #else
-    // TODO: Implement
-    return false;
+    throw NotImplementedException(__FUNCTION__);
 #endif
 }

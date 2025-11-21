@@ -1,7 +1,7 @@
 #pragma once
 
-#include "opal/export.h"
 #include "opal/container/string.h"
+#include "opal/export.h"
 
 namespace Opal
 {
@@ -77,16 +77,23 @@ struct DirectoryContentsDesc
     bool recursive = false;
 };
 
+struct DirectoryEntry
+{
+    StringUtf8 path;
+    bool is_directory = false;
+};
+
 /**
  * @brief Collect paths to directories or files that are inside the specified directory.
  * @param path Path to the directory.
- * @param out_contents Output array that will store found contents.
  * @param desc Descriptor used to configure the search.
+ * @param output_allocator Allocator used to allocate output array.
  * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
- * @return Returns true if there were no problems. Returns false if the path is not to the directory or
- * if directory does not exist.
+ * @return Returns array of DirectoryEntry objects.
+ * @throw PathNotFoundException when path does not exist.
+ * @throw NotDirectoryException if a given path is not to a directory.
  */
-bool OPAL_EXPORT CollectDirectoryContents(const StringUtf8& path, DynamicArray<StringUtf8>& out_contents,
-                                          const DirectoryContentsDesc& desc = {}, AllocatorBase* scratch_allocator = nullptr);
+DynamicArray<DirectoryEntry> OPAL_EXPORT CollectDirectoryContents(const StringUtf8& path, const DirectoryContentsDesc& desc = {},
+                                                                  AllocatorBase* output_allocator = nullptr, AllocatorBase* scratch_allocator = nullptr);
 
 }  // namespace Opal
