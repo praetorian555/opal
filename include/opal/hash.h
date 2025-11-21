@@ -5,6 +5,7 @@
 #include "opal/defines.h"
 #include "opal/export.h"
 #include "opal/types.h"
+#include "type-traits.h"
 
 namespace Opal
 {
@@ -38,6 +39,25 @@ u64 CalcPOD(const T& value, u64 seed = 0);
  */
 template <typename Container>
 u64 CalcContainer(const Container& container, u64 seed = 0);
+
+template <typename T>
+struct Hasher
+{
+    u64 operator()(const T& value) const
+    {
+        return CalcPOD(value);
+    }
+};
+
+template <typename T>
+    requires Range<T>
+struct Hasher<T>
+{
+    u64 operator()(const T& value) const
+    {
+        return CalcContainer(value);
+    }
+};
 
 }  // namespace Hash
 }  // namespace Opal
