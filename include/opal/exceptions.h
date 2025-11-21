@@ -69,6 +69,11 @@ struct DirectoryNotEmptyException : Exception
     DirectoryNotEmptyException(const char* path) : Exception(StringEx("Directory not empty: ") + path) {}
 };
 
+struct NotDirectoryException : Exception
+{
+    NotDirectoryException(const char* path) : Exception(StringEx("Path ") + path + " does not point to a directory") {}
+};
+
 struct NotImplementedException : Exception
 {
     NotImplementedException(const char* function) : Exception(StringEx("Function not implemented: ") + function) {}
