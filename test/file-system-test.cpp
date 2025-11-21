@@ -11,6 +11,11 @@ OPAL_END_DISABLE_WARNINGS
 
 using namespace Opal;
 
+CATCH_TRANSLATE_EXCEPTION(const Opal::Exception& ex)
+{
+    return *ex.What();
+}
+
 TEST_CASE("Exists", "[FileSystem]")
 {
     SECTION("No memory")

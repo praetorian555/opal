@@ -16,7 +16,10 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <dirent.h>
 #endif
+
+#include "opal/container/dynamic-array.h"
 
 void Opal::CreateFile(const StringUtf8& path, bool fail_if_already_exists, AllocatorBase* scratch_allocator)
 {
@@ -353,6 +356,65 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const St
                 directories.PushBack(Move(child_path_wide));
             }
         } while (FindNextFileW(find_handle, &find_data) != 0);
+    }
+    return out_contents;
+#elif defined(OPAL_PLATFORM_LINUX)
+    DynamicArray<StringUtf8> directories(scratch_allocator);
+    directories.PushBack(path);
+
+    DynamicArray<DirectoryEntry> out_contents(output_allocator);
+
+    while (!directories.IsEmpty())
+    {
+        StringUtf8 dir_path = directories.Back().GetValue();
+        directories.PopBack();
+        DIR* dir = opendir(*dir_path);
+        if (dir == nullptr)
+        {
+            if (errno == ENOENT)
+            {
+                throw PathNotFoundException(*dir_path);
+            }
+            if (errno == ENOTDIR)
+            {
+                throw NotDirectoryException(*dir_path);
+            }
+            else
+            {
+                throw Exception("Failed to open directory!");
+            }
+        }
+
+        struct dirent* entry;
+        while ((entry = readdir(dir)) != nullptr)
+        {
+            StringUtf8 entry_name(entry->d_name, scratch_allocator);
+            if (entry_name == "." || entry_name == "..")
+            {
+                continue;
+            }
+
+            StringUtf8 entry_path = Paths::Combine(output_allocator, dir_path, entry_name).GetValue();
+            struct stat statbuf;
+            if (stat(*entry_path, &statbuf) == 0)
+            {
+                if (S_ISREG(statbuf.st_mode))
+                {
+                    out_contents.PushBack({.path = entry_path, .is_directory = false});
+                }
+                else if (S_ISDIR(statbuf.st_mode))
+                {
+                    if (desc.include_directories)
+                    {
+                        out_contents.PushBack({.path = entry_path, .is_directory = true});
+                    }
+                    if (desc.recursive)
+                    {
+                        directories.PushBack(Move(entry_path));
+                    }
+                }
+            }
+        }
     }
     return out_contents;
 #else

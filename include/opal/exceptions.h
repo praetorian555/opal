@@ -36,6 +36,8 @@ public:
         return *this + buffer;
     }
 
+    const char* operator*() const { return m_data; }
+
 private:
     static constexpr i64 k_capacity = 1024;
     char m_data[k_capacity] = {};
