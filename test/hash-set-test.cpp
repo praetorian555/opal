@@ -19,11 +19,11 @@ TEST_CASE("Hash", "[hash]")
     REQUIRE(hash != 0);
 
     StringUtf8 str = "Hello there";
-    hash = Hash::CalcContainer(str);
+    hash = Hash::CalcRange(str);
     REQUIRE(hash != 0);
 
     DynamicArray<i32> arr = {1, 2, 3};
-    hash = Hash::CalcContainer(arr);
+    hash = Hash::CalcRange(arr);
     REQUIRE(hash != 0);
 
     struct Pod
@@ -291,45 +291,56 @@ TEST_CASE("Clear")
     REQUIRE(set.GetGrowthLeft() == 127);
 }
 
+struct SomeType
+{
+    i32* a = nullptr;
+    f32 b = 5;
+
+    SomeType() = default;
+    SomeType(int aa, f32 bb)
+    {
+        a = new i32(aa);
+        b = bb;
+    }
+    ~SomeType() { delete a; }
+
+    SomeType(const SomeType& other)
+    {
+        a = new i32();
+        *a = *other.a;
+        b = other.b;
+    }
+
+    bool operator==(const SomeType& other)
+    {
+        if (b != other.b)
+        {
+            return false;
+        }
+        if (a == other.a)
+        {
+            return true;
+        }
+        if (a == nullptr || other.a == nullptr)
+        {
+            return false;
+        }
+        return *a == *other.a;
+    }
+};
+
+template <>
+struct Opal::Hasher<SomeType>
+{
+    u64 operator()(const SomeType& value)
+    {
+        return static_cast<u64>(*value.a) + static_cast<u64>(12341 * value.b);
+    }
+};
+
 TEST_CASE("Non-POD type")
 {
-    struct SomeType
-    {
-        i32* a = nullptr;
-        f32 b = 5;
 
-        SomeType() = default;
-        SomeType(int aa, f32 bb)
-        {
-            a = new i32(aa);
-            b = bb;
-        }
-        ~SomeType() { delete a; }
-
-        SomeType(const SomeType& other)
-        {
-            a = new i32();
-            *a = *other.a;
-            b = other.b;
-        }
-
-        bool operator==(const SomeType& other)
-        {
-            if (b != other.b)
-            {
-                return false;
-            }
-            if (a == other.a)
-            {
-                return true;
-            }
-            if (a == nullptr || other.a == nullptr)
-            {
-                return false;
-            }
-            return *a == *other.a;
-        }
-    };
 
     HashSet<SomeType> set;
 

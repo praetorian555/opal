@@ -2,6 +2,7 @@
 
 #include <type_traits>
 
+#include "exceptions.h"
 #include "opal/defines.h"
 #include "opal/export.h"
 #include "opal/types.h"
@@ -37,29 +38,53 @@ u64 CalcPOD(const T& value, u64 seed = 0);
  * @param seed Specific seed to use. Default is 0.
  * @return Returns 64-bit hash value.
  */
-template <typename Container>
-u64 CalcContainer(const Container& container, u64 seed = 0);
+template <typename T>
+    requires Range<T>
+u64 CalcRange(const T& range, u64 seed = 0);
 
+}  // namespace Hash
+
+/**
+ * @brief Class used to generate 64-bit hash value for a given type.
+ * @tparam T Type of value for which to generate hash.
+ */
 template <typename T>
 struct Hasher
 {
-    u64 operator()(const T& value) const
+    u64 operator()(const T&) const
     {
-        return CalcPOD(value);
+        throw NotImplementedException(__FUNCTION__);
     }
 };
 
+/**
+ * Specialization for plain old data types.
+ * @tparam T Plain old data type.
+ */
+template <typename T>
+    requires IsPOD<T>
+struct Hasher<T>
+{
+    u64 operator()(const T& value) const
+    {
+        return Hash::CalcPOD(value);
+    }
+};
+
+/**
+ * Specialization for ranges.
+ * @tparam T Range type.
+ */
 template <typename T>
     requires Range<T>
 struct Hasher<T>
 {
     u64 operator()(const T& value) const
     {
-        return CalcContainer(value);
+        return Hash::CalcRange(value);
     }
 };
 
-}  // namespace Hash
 }  // namespace Opal
 
 template <typename T>
@@ -68,8 +93,14 @@ Opal::u64 Opal::Hash::CalcPOD(const T& value, Opal::u64 seed)
     return CalcRawArray(reinterpret_cast<const u8*>(&value), sizeof(T), seed);
 }
 
-template <typename Container>
-Opal::u64 Opal::Hash::CalcContainer(const Container& container, Opal::u64 seed)
+template <typename T>
+    requires Opal::Range<T>
+Opal::u64 Opal::Hash::CalcRange(const T& range, Opal::u64 seed)
 {
-    return CalcRawArray(reinterpret_cast<const u8*>(container.GetData()), container.GetSize(), seed);
+    size_t size = end(range) - begin(range);
+    if (range.empty())
+    {
+        return CalcPOD<T>(range);
+    }
+    return CalcRawArray(reinterpret_cast<const u8*>(&(*begin(range))), size, seed);
 }
