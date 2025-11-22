@@ -354,4 +354,13 @@ concept Integral = AnyOf<T, u8, u16, u32, u64, i8, i16, i32, i64, char8, char16,
 template <typename T>
 concept IntegralOrFloatingPoint = Integral<T> || FloatingPoint<T>;
 
+template <typename T>
+concept IsTrivial = __is_trivial(T);
+
+template <typename T>
+concept IsStandardLayout = __is_standard_layout(T);
+
+template <typename T>
+concept IsPOD = IsTrivial<T> && IsStandardLayout<T>;
+
 }  // namespace Opal
