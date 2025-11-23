@@ -45,6 +45,7 @@ function(setup_compiler_warnings target)
             -Wimplicit-fallthrough # warn on statements that fallthrough without an explicit annotation
             -Wno-gnu-anonymous-struct # don't complain that anonymous structs are GNU extension
             -Wno-nested-anon-types # don't complain about nested anonymous structs
+            -Wno-dtor-name # Don't complain about template class destructors not having types in the name
     )
 
     set(GCC_WARNINGS

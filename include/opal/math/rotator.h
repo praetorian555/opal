@@ -37,7 +37,7 @@ struct Rotator
     /**
      * Constructor. Angles are in degrees.
      */
-    constexpr Rotator(T pitch, T yaw, T roll);
+    constexpr Rotator(T in_pitch, T in_yaw, T in_roll);
 
     /**
      * Returns rotator with zero rotation.
@@ -92,8 +92,8 @@ constexpr Opal::Rotator<T>::Rotator()
 }
 
 template <Opal::FloatingPoint T>
-constexpr Opal::Rotator<T>::Rotator(T pitch, T yaw, T roll)
-    : pitch(pitch), yaw(yaw), roll(roll)
+constexpr Opal::Rotator<T>::Rotator(T in_pitch, T in_yaw, T in_roll)
+    : pitch(in_pitch), yaw(in_yaw), roll(in_roll)
 {
 }
 

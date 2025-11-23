@@ -21,12 +21,12 @@ public:
 
     /**
      * @brief Construct a Quaternion using four T values.
-     * @param w - The T part of the Quaternion.
+     * @param ww - The T part of the Quaternion.
      * @param x - The i part of the Quaternion.
      * @param y - The j part of the Quaternion.
      * @param z - The k part of the Quaternion.
      */
-    Quaternion(T w, T x, T y, T z);
+    Quaternion(T ww, T x, T y, T z);
 
     /**
      * @brief Construct a Quaternion from a matrix. This uses only the upper left 3x3 part of the
@@ -229,7 +229,7 @@ Opal::Quaternion<T>::Quaternion()
 }
 
 template <Opal::FloatingPoint T>
-Opal::Quaternion<T>::Quaternion(T w, T x, T y, T z) : vec(x, y, z), w(w)
+Opal::Quaternion<T>::Quaternion(T ww, T x, T y, T z) : vec(x, y, z), w(ww)
 {
 }
 

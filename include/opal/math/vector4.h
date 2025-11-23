@@ -9,6 +9,8 @@ namespace Opal
 template <typename T>
 struct Vector4
 {
+    OPAL_START_DISABLE_WARNINGS
+    OPAL_DISABLE_WARNING(-Wpedantic)
     union
     {
         struct
@@ -25,6 +27,7 @@ struct Vector4
         };
         T data[4];
     };
+    OPAL_END_DISABLE_WARNINGS
 
     /**
      * Default constructor. No initialization is performed.

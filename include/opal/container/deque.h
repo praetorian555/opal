@@ -1,6 +1,7 @@
 #pragma once
 
 #include "opal/allocator.h"
+#include "opal/casts.h"
 #include "opal/container/expected.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
@@ -604,7 +605,7 @@ Opal::ErrorCode CLASS_HEADER::AssignIt(InputIt first, InputIt last)
     {
         return ErrorCode::Success;
     }
-    const SizeType count = last - first;
+    const SizeType count = Narrow<SizeType>(last - first);
     for (SizeType i = m_first, iter_count = 0; iter_count < m_size; iter_count++)
     {
         m_data[i].~T();
@@ -869,7 +870,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return Expected<IteratorType, ErrorCode>(err);
         }
     }
-    const SizeType index = pos - ConstBegin();
+    const SizeType index = Narrow<SizeType>(pos - ConstBegin());
     const SizeType final_index = (m_first + index) & (m_capacity - 1);
     const SizeType last = (m_first + m_size) & (m_capacity - 1);
     for (SizeType i = last, count = 0; count < m_size - index; count++)
@@ -899,7 +900,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return Expected<IteratorType, ErrorCode>(err);
         }
     }
-    const SizeType index = pos - ConstBegin();
+    const SizeType index = Narrow<SizeType>(pos - ConstBegin());
     const SizeType final_index = (m_first + index) & (m_capacity - 1);
     const SizeType last = (m_first + m_size) & (m_capacity - 1);
     for (SizeType i = last, count = 0; count < m_size - index; count++)
@@ -916,7 +917,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 
 TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Insert(ConstIteratorType pos, SizeType count,
-                                                                                                      const T& value)
+                                                                                          const T& value)
 {
     if (pos < ConstBegin() || pos > ConstEnd())
     {
@@ -924,7 +925,8 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     }
     if (count == 0)
     {
-        return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, pos - ConstBegin()));
+        const SizeType index = Narrow<SizeType>(pos - ConstBegin());
+        return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, index));
     }
     if (m_size + count > m_capacity)
     {
@@ -934,9 +936,10 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return Expected<IteratorType, ErrorCode>(err);
         }
     }
-    const SizeType insert_index = (m_first + (pos - ConstBegin())) & (m_capacity - 1);
+    const SizeType index = Narrow<SizeType>(pos - ConstBegin());
+    const SizeType insert_index = (m_first + index) & (m_capacity - 1);
     const SizeType last = (m_first + m_size - 1) & (m_capacity - 1);
-    const SizeType count_to_move = m_size - (pos - ConstBegin());
+    const SizeType count_to_move = m_size - index;
     for (SizeType i = last, iter_count = 0; iter_count < count_to_move; iter_count++)
     {
         const SizeType next = (i + count) & (m_capacity - 1);
@@ -951,13 +954,13 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
         i &= (m_capacity - 1);
     }
     m_size += count;
-    return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, pos - ConstBegin()));
+    return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, index));
 }
 
 TEMPLATE_HEADER
 template <typename InputIt>
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::InsertIt(ConstIteratorType pos,
-                                                                                                        InputIt first, InputIt last)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::InsertIt(ConstIteratorType pos, InputIt first,
+                                                                                            InputIt last)
 {
     if (pos < ConstBegin() || pos > ConstEnd())
     {
@@ -967,10 +970,11 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     {
         return Expected<IteratorType, ErrorCode>(ErrorCode::InvalidArgument);
     }
-    const SizeType count = last - first;
+    const SizeType count = Narrow<SizeType>(last - first);
+    const SizeType index = Narrow<SizeType>(pos - ConstBegin());
     if (count == 0)
     {
-        return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, pos - ConstBegin()));
+        return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, index));
     }
     if (m_size + count > m_capacity)
     {
@@ -980,9 +984,9 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
             return Expected<IteratorType, ErrorCode>(err);
         }
     }
-    const SizeType insert_index = (m_first + (pos - ConstBegin())) & (m_capacity - 1);
+    const SizeType insert_index = (m_first + index) & (m_capacity - 1);
     const SizeType move_start_index = (m_first + m_size - 1) & (m_capacity - 1);
-    const SizeType count_to_move = m_size - (pos - ConstBegin());
+    const SizeType count_to_move = m_size - index;
     for (SizeType i = move_start_index, iter_count = 0; iter_count < count_to_move; iter_count++)
     {
         const SizeType next = (i + count) & (m_capacity - 1);
@@ -998,7 +1002,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
         i &= (m_capacity - 1);
     }
     m_size += count;
-    return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, pos - ConstBegin()));
+    return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, index));
 }
 
 TEMPLATE_HEADER
@@ -1047,7 +1051,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     {
         return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
     }
-    const SizeType index = pos - ConstBegin();
+    const SizeType index = Narrow<SizeType>(pos - ConstBegin());
     const SizeType final_index = (m_first + index) & (m_capacity - 1);
     m_data[final_index].~T();
     for (SizeType i = final_index, count = 0; count < m_size - index; count++)
@@ -1068,7 +1072,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     {
         return Expected<IteratorType, ErrorCode>(ErrorCode::OutOfBounds);
     }
-    const SizeType index = pos - Begin();
+    const SizeType index = Narrow<SizeType>(pos - Begin());
     const SizeType final_index = (m_first + index) & (m_capacity - 1);
     m_data[final_index].~T();
     for (SizeType i = final_index, count = 0; count < m_size - index; count++)
@@ -1083,8 +1087,7 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(ConstIteratorType first,
-                                                                                                     ConstIteratorType last)
+Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADER::Erase(ConstIteratorType first, ConstIteratorType last)
 {
     if (first < ConstBegin() || first > ConstEnd() || last < ConstBegin() || last > ConstEnd())
     {
@@ -1094,13 +1097,13 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
     {
         return Expected<IteratorType, ErrorCode>(ErrorCode::InvalidArgument);
     }
+    const SizeType first_index = Narrow<SizeType>(first - ConstBegin());
     if (first == last)
     {
-        return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, first - ConstBegin()));
+        return Expected<IteratorType, ErrorCode>(IteratorType(m_data, m_capacity, m_first, first_index));
     }
-    const SizeType first_index = first - ConstBegin();
-    const SizeType last_index = last - ConstBegin();
-    const SizeType count = last_index - first_index;
+    const SizeType last_index = Narrow<SizeType>(last - ConstBegin());
+    const SizeType count = Narrow<SizeType>(last_index - first_index);
     const SizeType first_final_index = (m_first + first_index) & (m_capacity - 1);
     for (SizeType i = first_final_index, iter_count = 0; iter_count < count; iter_count++)
     {
@@ -1262,26 +1265,30 @@ CLASS_HEADER CLASS_HEADER::operator--(int)
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
 {
-    return DequeIterator(m_data, m_capacity, m_first, m_index + n);
+    const SizeType offset = Narrow<SizeType>(Narrow<DifferenceType>(m_index) + n);
+    return DequeIterator(m_data, m_capacity, m_first, offset);
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
 {
-    return DequeIterator(m_data, m_capacity, m_first, m_index - n);
+    const SizeType offset = Narrow<SizeType>(Narrow<DifferenceType>(m_index) - n);
+    return DequeIterator(m_data, m_capacity, m_first, offset);
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
 {
-    m_index += n;
+    const SizeType new_index = Narrow<SizeType>(Narrow<DifferenceType>(m_index) + n);
+    m_index = new_index;
     return *this;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
 {
-    m_index -= n;
+    const SizeType new_index = Narrow<SizeType>(Narrow<DifferenceType>(m_index) - n);
+    m_index = new_index;
     return *this;
 }
 
@@ -1289,13 +1296,14 @@ TEMPLATE_HEADER
 typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const DequeIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
-    return m_index - other.m_index;
+    return Narrow<DifferenceType>(m_index - other.m_index);
 }
 
 TEMPLATE_HEADER
 typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
 {
-    return m_data[(m_first + m_index + n) & (m_capacity - 1)];
+    const SizeType position = Narrow<SizeType>(Narrow<DifferenceType>(m_first + m_index) + n);
+    return m_data[position & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
@@ -1395,26 +1403,30 @@ CLASS_HEADER CLASS_HEADER::operator--(int)
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator+(DifferenceType n) const
 {
-    return DequeConstIterator(m_data, m_capacity, m_first, m_index + n);
+    const SizeType offset = Narrow<SizeType>(Narrow<DifferenceType>(m_index) + n);
+    return DequeConstIterator(m_data, m_capacity, m_first, offset);
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator-(DifferenceType n) const
 {
-    return DequeConstIterator(m_data, m_capacity, m_first, m_index - n);
+    const SizeType offset = Narrow<SizeType>(Narrow<DifferenceType>(m_index) - n);
+    return DequeConstIterator(m_data, m_capacity, m_first, offset);
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator+=(DifferenceType n)
 {
-    m_index += n;
+    const SizeType new_index = Narrow<SizeType>(Narrow<DifferenceType>(m_index) + n);
+    m_index = new_index;
     return *this;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator-=(DifferenceType n)
 {
-    m_index -= n;
+    const SizeType new_index = Narrow<SizeType>(Narrow<DifferenceType>(m_index) - n);
+    m_index = new_index;
     return *this;
 }
 
@@ -1422,13 +1434,14 @@ TEMPLATE_HEADER
 typename CLASS_HEADER::DifferenceType CLASS_HEADER::operator-(const DequeConstIterator& other) const
 {
     OPAL_ASSERT(m_data == other.m_data, "Iterators are not comparable");
-    return m_index - other.m_index;
+    return Narrow<DifferenceType>(m_index) - Narrow<DifferenceType>(other.m_index);
 }
 
 TEMPLATE_HEADER
 typename CLASS_HEADER::ReferenceType CLASS_HEADER::operator[](DifferenceType n) const
 {
-    return m_data[(m_first + m_index + n) & (m_capacity - 1)];
+    const SizeType position = Narrow<SizeType>(Narrow<DifferenceType>(m_first + m_index) + n);
+    return m_data[position & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER

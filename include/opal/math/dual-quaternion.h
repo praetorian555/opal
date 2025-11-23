@@ -16,7 +16,7 @@ struct DualQuaternion
     ~DualQuaternion() = default;
 
     DualQuaternion();
-    DualQuaternion(const Quaternion<T>& real, const Quaternion<T>& dual);
+    DualQuaternion(const Quaternion<T>& in_real, const Quaternion<T>& in_dual);
     explicit DualQuaternion(const Quaternion<T>& orientation);
     explicit DualQuaternion(const Vector3<T>& translation);
     DualQuaternion(const Quaternion<T>& orientation, const Vector3<T>& translation);
@@ -90,7 +90,7 @@ Opal::DualQuaternion<T>::DualQuaternion()
 }
 
 template <Opal::FloatingPoint T>
-Opal::DualQuaternion<T>::DualQuaternion(const Quaternion<T>& real, const Quaternion<T>& dual) : real(real), dual(dual)
+Opal::DualQuaternion<T>::DualQuaternion(const Quaternion<T>& in_real, const Quaternion<T>& in_dual) : real(in_real), dual(in_dual)
 {
 }
 

@@ -14,7 +14,7 @@ using Point3f = Point3<float>;
 using Vec3d = Vector3<double>;
 using Point3d = Point3<double>;
 
-TEST_CASE("Dual quaternion construct indentity", "[math][dual-quaternion]")
+TEST_CASE("Dual quaternion construct identity", "[math][dual-quaternion]")
 {
     const DualQuatf dq = DualQuatf::Identity();
     CHECK(dq.real == Quatf(1, 0, 0, 0));
