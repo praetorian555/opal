@@ -1,7 +1,7 @@
 #include "opal/defines.h"
 
 OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
+OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
 #include "catch2/catch2.hpp"
 OPAL_END_DISABLE_WARNINGS
 
@@ -311,6 +311,15 @@ struct SomeType
         b = other.b;
     }
 
+    SomeType& operator=(const SomeType& other)
+    {
+        delete a;
+        a = new i32();
+        *a = *other.a;
+        b = other.b;
+        return *this;
+    }
+
     bool operator==(const SomeType& other)
     {
         if (b != other.b)
@@ -340,9 +349,6 @@ struct Opal::Hasher<SomeType>
 
 TEST_CASE("Non-POD type")
 {
-
-
     HashSet<SomeType> set;
-
     set.Insert(SomeType(5, 10));
 }

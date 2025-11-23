@@ -11,7 +11,7 @@
 
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_WARNING(-Wsign-conversion)
-OPAL_DISABLE_WARNING(-Wimplicit-int-float-conversion)
+// OPAL_DISABLE_WARNING(-Wimplicit-int-float-conversion)
 
 namespace Opal
 {

@@ -275,7 +275,7 @@ Opal::HashSet<KeyType, AllocatorType>& Opal::HashSet<KeyType, AllocatorType>::op
 }
 
 template <typename KeyType, typename AllocatorType>
-Opal::HashSet<KeyType, AllocatorType>::~HashSet()
+Opal::HashSet<KeyType, AllocatorType>::~HashSet<KeyType, AllocatorType>()
 {
     m_allocator->Free(m_control_bytes);
 }
@@ -298,7 +298,17 @@ Opal::ErrorCode Opal::HashSet<KeyType, AllocatorType>::Reserve(size_type capacit
     memset(new_control_bytes, k_control_bitmask_empty, control_bytes_size);
     new_control_bytes[new_capacity] = k_control_bitmask_sentinel;
     key_type* new_slots = reinterpret_cast<key_type*>(new_control_bytes + control_bytes_size);
+
+    // We have just allocated this memory, no need to trigger expansive constructors since
+    // new objects will be moved into this memory before use
+#if OPAL_COMPILER_GCC
+    OPAL_START_DISABLE_WARNINGS
+    OPAL_DISABLE_WARNING(-Wclass-memaccess)
+#endif // OPAL_COMPILER_GCC
     memset(new_slots, 0, new_capacity * sizeof(key_type));
+#if OPAL_COMPILER_GCC
+    OPAL_END_DISABLE_WARNINGS
+#endif // OPAL_COMPILER_GCC
 
     if (m_capacity > 0)
     {
