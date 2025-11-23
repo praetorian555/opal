@@ -8,6 +8,8 @@ namespace Opal
 template <typename T>
 struct Point3
 {
+    OPAL_START_DISABLE_WARNINGS
+    OPAL_DISABLE_WARNING(-Wpedantic)
     union
     {
         struct
@@ -24,6 +26,7 @@ struct Point3
         };
         T data[3];
     };
+    OPAL_END_DISABLE_WARNINGS
 
     /**
      * Default constructor. No initialization is performed.

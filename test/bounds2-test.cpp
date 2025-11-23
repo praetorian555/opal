@@ -258,8 +258,8 @@ TEST_CASE("Bounds2 lerp", "[math][bounds2]")
         const Point2d p1(2, 3);
         const Point2d p2(5, 5);
         const Bounds2d b1(p1, p2);
-        const Point2d p = Lerp(b1, Point2d(0.5f, 0.5f));
-        CHECK(Point2d(3.5f, 4.0f) == p);
+        const Point2d p = Lerp(b1, Point2d(0.5, 0.5));
+        CHECK(Point2d(3.5, 4.0) == p);
     }
 }
 
@@ -316,8 +316,8 @@ TEST_CASE("Bounds2 extent", "[math][bounds2]")
         const Point2f p2(5, 5);
         const Bounds2f b(p1, p2);
         const Vector2f e = Extent(b);
-        CHECK(e.x == 3);
-        CHECK(e.y == 3);
+        CHECK(e.x == 3.0f);
+        CHECK(e.y == 3.0f);
     }
     {
         const Point2d p1(2, 2);

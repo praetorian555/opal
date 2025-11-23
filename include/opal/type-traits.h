@@ -336,7 +336,7 @@ concept FloatingPoint = AnyOf<T, f32, f64>;
  *      static_assert(!Integral<double>);
  */
 template <typename T>
-concept Integral = AnyOf<T, u8, u16, u32, u64, i8, i16, i32, i64, char8, char16, uchar32>;
+concept Integral = AnyOf<T, u8, u16, u32, u64, i8, i16, i32, i64, long, char8, char16, uchar32>;
 
 /**
  * @brief Concept that checks if a type is either an integral or a floating point type.

@@ -280,8 +280,8 @@ TEST_CASE("Bounds3 lerp", "[math][bounds3]")
         const Point3d p1(2, 3, 10);
         const Point3d p2(5, 5, 11);
         const Bounds3d b1(p1, p2);
-        const Point3d p = Lerp(b1, Point3d(0.5f, 0.5f, 0.5f));
-        CHECK(Point3d(3.5f, 4.0f, 10.5f) == p);
+        const Point3d p = Lerp(b1, Point3d(0.5, 0.5, 0.5));
+        CHECK(Point3d(3.5, 4.0, 10.5) == p);
     }
 }
 
@@ -338,9 +338,9 @@ TEST_CASE("Bounds3 extent", "[math][bounds3]")
         const Point3f p2(5, 5, 4);
         const Bounds3f b(p1, p2);
         const Vector3f e = Extent(b);
-        CHECK(e.x == 3);
-        CHECK(e.y == 3);
-        CHECK(e.z == 1);
+        CHECK(e.x == 3.0f);
+        CHECK(e.y == 3.0f);
+        CHECK(e.z == 1.0f);
     }
     {
         const Point3d p1(2, 2, 3);
