@@ -48,6 +48,7 @@ set(OPAL_FILES
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
+        include/opal/casts.h
         include/opal/allocator.h
         include/opal/types.h
         include/opal/exceptions.h
