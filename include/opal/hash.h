@@ -1,12 +1,9 @@
 #pragma once
 
-#include <type_traits>
-
-#include "exceptions.h"
-#include "opal/defines.h"
+#include "opal/exceptions.h"
 #include "opal/export.h"
 #include "opal/types.h"
-#include "type-traits.h"
+#include "opal/type-traits.h"
 
 namespace Opal
 {
@@ -33,8 +30,8 @@ u64 CalcPOD(const T& value, u64 seed = 0);
 
 /**
  * Calculates 64-bit hash using container data.
- * @tparam Container Type of the container.
- * @param container Container object to use.
+ * @tparam T Type of the container.
+ * @param range Container object to use.
  * @param seed Specific seed to use. Default is 0.
  * @return Returns 64-bit hash value.
  */
@@ -97,7 +94,7 @@ template <typename T>
     requires Opal::Range<T>
 Opal::u64 Opal::Hash::CalcRange(const T& range, Opal::u64 seed)
 {
-    size_t size = end(range) - begin(range);
+    const size_t size = end(range) - begin(range);
     if (range.empty())
     {
         return CalcPOD<T>(range);
