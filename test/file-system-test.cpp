@@ -1,15 +1,11 @@
 #include "opal/file-system.h"
 
-#include "opal/defines.h"
 #include "opal/exceptions.h"
 #include "opal/paths.h"
 #include "opal/container/hash-set.h"
 #include "opal/container/hash-map.h"
 
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 using namespace Opal;
 

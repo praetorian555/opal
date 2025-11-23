@@ -1,13 +1,4 @@
-﻿#include "opal/defines.h"
-
-#include <limits>
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
-
-#include "opal/math/bounds3.h"
+﻿#include "test-helpers.h"
 
 using Point3f = Opal::Point3<float>;
 using Bounds3f = Opal::Bounds3<float>;

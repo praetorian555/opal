@@ -1,8 +1,4 @@
-#include "opal/defines.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
+#include "test-helpers.h"
 
 #include "opal/common.h"
 #include "opal/container/dynamic-array.h"

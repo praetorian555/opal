@@ -1,13 +1,9 @@
 #include "opal/defines.h"
 
 OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-OPAL_DISABLE_WARNING(-Wsign-conversion)
-OPAL_DISABLE_WARNING(-Wunused-variable)
-OPAL_DISABLE_WARNING(-Wself-move)
-OPAL_DISABLE_WARNING(-Wself-assign-overloaded)
-
+OPAL_DISABLE_WARNING("-Wnon-virtual-dtor")
 #include "catch2/catch2.hpp"
+OPAL_END_DISABLE_WARNINGS
 
 #include "opal/container/dynamic-array.h"
 
@@ -368,7 +364,12 @@ TEST_CASE("Copy assignment", "[Array]")
         SECTION("Copy into itself")
         {
             DynamicArray<i32> int_arr(3, 42);
+            OPAL_START_DISABLE_WARNINGS
+#if defined(OPAL_COMPILER_CLANG)
+            OPAL_DISABLE_WARNING("-Wself-assign-overloaded")
+#endif
             int_arr = int_arr;
+            OPAL_END_DISABLE_WARNINGS
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -545,7 +546,14 @@ TEST_CASE("Move assignment", "[Array]")
         SECTION("Move into itself")
         {
             DynamicArray<i32> int_arr(3, 42);
+            OPAL_START_DISABLE_WARNINGS
+#if defined(OPAL_COMPILER_CLANG)
+            OPAL_DISABLE_WARNING("-Wself-assign-overloaded")
+#elif defined(OPAL_COMPILER_GCC)
+            OPAL_DISABLE_WARNING("-Wself-move")
+#endif
             int_arr = std::move(int_arr);
+            OPAL_END_DISABLE_WARNINGS
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2000,7 +2008,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(100, 5);
-            DynamicArray<i32>::iterator it = int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()).GetValue();
+            int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()).GetValue();
             REQUIRE(int_arr.GetCapacity() == 103);
             REQUIRE(int_arr.GetSize() == 103);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2016,7 +2024,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(2, 5);
-            DynamicArray<i32>::iterator it = int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()).GetValue();
+            int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()).GetValue();
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2056,7 +2064,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             i32 other[] = {5, 5};
-            DynamicArray<i32>::iterator it = int_arr.Insert(int_arr.cbegin() + 1, other, other + 2).GetValue();
+            int_arr.Insert(int_arr.cbegin() + 1, other, other + 2).GetValue();
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2495,5 +2503,3 @@ TEST_CASE("Remove", "[Array]")
         }
     }
 }
-
-OPAL_END_DISABLE_WARNINGS

@@ -65,7 +65,7 @@ std::ostream& operator<<(std::ostream& os, const Opal::DualQuaternion<T>& value)
 
 // clang-format off
 OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
+OPAL_DISABLE_WARNING("-Wnon-virtual-dtor")
 #include "catch2/catch2.hpp"
 OPAL_END_DISABLE_WARNINGS
 // clang-format on

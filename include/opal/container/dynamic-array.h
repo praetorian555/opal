@@ -8,10 +8,7 @@
 #include "opal/container/expected.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wsign-conversion)
-// OPAL_DISABLE_WARNING(-Wimplicit-int-float-conversion)
+#include "opal/casts.h"
 
 namespace Opal
 {
@@ -407,6 +404,8 @@ public:
 private:
     T* Allocate(size_type count);
     void Deallocate(T* ptr);
+
+    size_type GetNextCapacity(size_type current_capacity) const;
 
     static constexpr f64 k_resize_factor = 1.5;
 
@@ -882,7 +881,7 @@ Opal::ErrorCode CLASS_HEADER::PushBack(const T& value)
 {
     if (m_size == m_capacity)
     {
-        const size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
+        const size_type new_capacity = GetNextCapacity(m_capacity);
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
@@ -899,7 +898,7 @@ Opal::ErrorCode CLASS_HEADER::PushBack(T&& value)
 {
     if (m_size == m_capacity)
     {
-        const size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
+        const size_type new_capacity = GetNextCapacity(m_capacity);
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
@@ -932,7 +931,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     size_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
     {
-        const size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
+        const size_type new_capacity = GetNextCapacity(m_capacity);
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
@@ -961,7 +960,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     size_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
     {
-        const size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
+        const size_type new_capacity = GetNextCapacity(m_capacity);
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
         {
@@ -995,7 +994,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     size_type pos_offset = position - cbegin();
     if (m_size + count > m_capacity)
     {
-        size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
+        size_type new_capacity = GetNextCapacity(m_capacity);
         new_capacity = m_size + count > new_capacity ? m_size + count : new_capacity;
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
@@ -1038,7 +1037,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     size_type count = static_cast<size_type>(end_it - start);
     if (m_size + count > m_capacity)
     {
-        size_type new_capacity = static_cast<size_type>((m_capacity * k_resize_factor) + 1.0);
+        size_type new_capacity = GetNextCapacity(m_capacity);
         new_capacity = m_size + count > new_capacity ? m_size + count : new_capacity;
         ErrorCode err = Reserve(new_capacity);
         if (err != ErrorCode::Success)
@@ -1258,6 +1257,16 @@ void CLASS_HEADER::Deallocate(T* ptr)
 {
     OPAL_ASSERT(m_allocator, "Allocator should never be null!");
     m_allocator->Free(ptr);
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::size_type CLASS_HEADER::GetNextCapacity(size_type current_capacity) const
+{
+    if (current_capacity == 0)
+    {
+        return 1;
+    }
+    return Narrow<size_type>((Narrow<f64>(m_capacity) * k_resize_factor) + 1.0);
 }
 
 #undef TEMPLATE_HEADER
@@ -1492,8 +1501,6 @@ CLASS_HEADER Opal::operator+(typename DynamicArrayConstIterator<MyArray>::differ
 {
     return it + n;
 }
-
-OPAL_END_DISABLE_WARNINGS
 
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
