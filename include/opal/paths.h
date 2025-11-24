@@ -7,30 +7,30 @@ namespace Opal::Paths
 
 /**
  * @brief Get current working directory.
- * @param out_path String to store the current working directory.
- * @return Returns ErrorCode::Success if the current working directory is obtained. Returns ErrorCode::OSFailure in case that it can't get
- * the current working directory. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
+ * @return Returns path to the current working directory. Uses default allocator.
+ * @throw OutOfMemoryException when memory allocation is needed in the scratch allocator but there is not enough space.
+ * @throw Exception when there is an issue getting the value from the OS.
  */
-ErrorCode OPAL_EXPORT GetCurrentWorkingDirectory(StringUtf8& out_path);
+StringUtf8 OPAL_EXPORT GetCurrentWorkingDirectory();
 
 /**
  * @brief Set current working directory.
  * @note Not thread-safe.
  * @param path Path to the new working directory. This must be an existing directory.
- * @param allocator Allocator to use for allocating the temporary function data. If nullptr, the default allocator will be used.
- * @return ErrorCode::Success if the operation was successful, otherwise ErrorCode::OSFailure.
+ * @throw
  */
-ErrorCode OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path, AllocatorBase* allocator = nullptr);
+void OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
 
 /**
  * @brief Normalize the path. This will remove redundant separators, switch separators with preferred separators, resolve relative paths,
  * remove trailing separators, resolve symlinks (..), etc.
  * @param path Path to normalize.
- * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
- * @return Returns normalized path in case of a success. Returns ErrorCode::OSFailure in case that it can't get the current working
- * directory. Returns ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
+ * @note Uses default allocator for output path.
+ * @note Uses scratch allocator for temporary allocations.
+ * @throw OutOfMemoryException If either the default or scratch allocators run out of memory.
+ * @return Returns normalized path in case of a success.
  */
-Expected<StringUtf8, ErrorCode> OPAL_EXPORT NormalizePath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
+StringUtf8 OPAL_EXPORT NormalizePath(const StringUtf8& path);
 
 /**
  * @brief Check if the path is absolute.

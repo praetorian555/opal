@@ -507,8 +507,8 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
-                const ErrorCode err = str.Assign(5, 'd');
-                REQUIRE(err == ErrorCode::OutOfMemory);
+                ErrorCode err = ErrorCode::Success;
+                REQUIRE_THROWS_AS(err = str.Assign(5, 'd'), OutOfMemoryException);
             }
         }
         SECTION("Other string")
@@ -742,8 +742,8 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
-                const ErrorCode err = str.Assign("Goodbye and then some");
-                REQUIRE(err == ErrorCode::OutOfMemory);
+                ErrorCode err = ErrorCode::Success;
+                REQUIRE_THROWS_AS(err = str.Assign("Goodbye and then some"), OutOfMemoryException);
             }
         }
         SECTION("Iterators")
@@ -788,8 +788,8 @@ TEST_CASE("Assign", "[String]")
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
                 const char* ref = "Hello there";
-                const ErrorCode err = str.Assign(ref + 5, ref + 10);
-                REQUIRE(err == ErrorCode::OutOfMemory);
+                ErrorCode err = ErrorCode::Success;
+                REQUIRE_THROWS_AS(err = str.Assign(ref + 5, ref + 10), OutOfMemoryException);
             }
         }
     }
@@ -832,8 +832,8 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str( &null_allocator);
-                const ErrorCode err = str.Assign(50, 'd');
-                REQUIRE(err == ErrorCode::OutOfMemory);
+                ErrorCode err;
+                REQUIRE_THROWS_AS(err = str.Assign(50, 'd'), OutOfMemoryException);
             }
         }
         SECTION("Other string")
@@ -1066,8 +1066,8 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
-                const ErrorCode err = str.Assign("Goodbye and then some");
-                REQUIRE(err == ErrorCode::OutOfMemory);
+                ErrorCode err;
+                REQUIRE_THROWS_AS(err = str.Assign("Goodbye and then some"), OutOfMemoryException);
             }
         }
         SECTION("Iterators")
@@ -1112,8 +1112,7 @@ TEST_CASE("Assign", "[String]")
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
                 const char* ref = "Hello there";
-                const ErrorCode err = str.Assign(ref + 5, ref + 10);
-                REQUIRE(err == ErrorCode::OutOfMemory);
+                REQUIRE_THROWS_AS(str.Assign(ref + 5, ref + 10), OutOfMemoryException);
             }
         }
     }
@@ -1257,8 +1256,7 @@ TEST_CASE("Reserve", "[String]")
         {
             NullAllocator null_allocator;
             StringUtf8 str(&null_allocator);
-            const ErrorCode err = str.Reserve(10);
-            REQUIRE(err == ErrorCode::OutOfMemory);
+            REQUIRE_THROWS_AS(str.Reserve(10), OutOfMemoryException);
         }
         SECTION("Reserve larger then current capacity")
         {
@@ -1302,8 +1300,7 @@ TEST_CASE("Reserve", "[String]")
         {
             NullAllocator null_allocator;
             StringUtf8 str(&null_allocator);
-            const ErrorCode err = str.Reserve(10);
-            REQUIRE(err == ErrorCode::OutOfMemory);
+            REQUIRE_THROWS_AS(str.Reserve(10), OutOfMemoryException);
         }
         SECTION("Reserve larger then current capacity")
         {
@@ -1390,8 +1387,7 @@ TEST_CASE("Append", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            const ErrorCode err = str.Append(' ');
-            REQUIRE(err == ErrorCode::OutOfMemory);
+            REQUIRE_THROWS_AS(str.Append(' '), OutOfMemoryException);
         }
         SECTION("String literal no change to capacity")
         {
@@ -1451,8 +1447,7 @@ TEST_CASE("Append", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            const ErrorCode err = str.Append(" there");
-            REQUIRE(err == ErrorCode::OutOfMemory);
+            REQUIRE_THROWS_AS(str.Append(" there"), OutOfMemoryException);
         }
         SECTION("Count and value")
         {
@@ -1495,8 +1490,7 @@ TEST_CASE("Append", "[String]")
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
             StringLocale str2(" there");
-            const ErrorCode err = str.Append(str2);
-            REQUIRE(err == ErrorCode::OutOfMemory);
+            REQUIRE_THROWS_AS(str.Append(str2), OutOfMemoryException);
         }
         SECTION("Sub string")
         {
@@ -1538,8 +1532,7 @@ TEST_CASE("Append", "[String]")
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
             StringLocale str2(" there");
-            const ErrorCode err = str.Append(str2, 0, 5);
-            REQUIRE(err == ErrorCode::OutOfMemory);
+            REQUIRE_THROWS_AS(str.Append(str2, 0, 5), OutOfMemoryException);
         }
         SECTION("Sub string with k_npos")
         {
@@ -3338,10 +3331,9 @@ TEST_CASE("Insert", "[String]")
         SECTION("Memory allocation failed")
         {
             NullAllocator null_allocator;
-            StringLocale str("", &null_allocator);
-            auto result = str.Insert(0, 2, 'a');
-            REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+            StringLocale str(&null_allocator);
+            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
+            REQUIRE_THROWS_AS(result = str.Insert(0, 2, 'a'), OutOfMemoryException);
         }
         SECTION("Insert at beginning")
         {
@@ -3387,10 +3379,9 @@ TEST_CASE("Insert", "[String]")
         SECTION("Memory allocation failed")
         {
             NullAllocator null_allocator;
-            StringLocale str("", &null_allocator);
-            auto result = str.Insert(0, "aa", 2);
-            REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+            StringLocale str(&null_allocator);
+            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
+            REQUIRE_THROWS_AS(result = str.Insert(0, "aa", 2), OutOfMemoryException);
         }
         SECTION("Count is zero")
         {
@@ -3446,11 +3437,10 @@ TEST_CASE("Insert", "[String]")
         SECTION("Memory allocation failed")
         {
             NullAllocator null_allocator;
-            StringLocale str("", &null_allocator);
+            StringLocale str(&null_allocator);
             StringLocale in("aa");
-            auto result = str.Insert(0, in);
-            REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
+            REQUIRE_THROWS_AS(result = str.Insert(0, in), OutOfMemoryException);
         }
         SECTION("Count is zero")
         {
@@ -3501,10 +3491,9 @@ TEST_CASE("Insert", "[String]")
         SECTION("Memory allocation failed")
         {
             NullAllocator null_allocator;
-            StringLocale str("", &null_allocator);
-            auto result = str.Insert(str.Begin(), 'a', 2);
-            REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+            StringLocale str(&null_allocator);
+            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
+            REQUIRE_THROWS_AS(result = str.Insert(str.Begin(), 'a', 2), OutOfMemoryException);
         }
         SECTION("Insert at beginning")
         {
@@ -3543,10 +3532,9 @@ TEST_CASE("Insert", "[String]")
         SECTION("Memory allocation failed")
         {
             NullAllocator null_allocator;
-            StringLocale str("", &null_allocator);
-            auto result = str.Insert(str.ConstBegin(), 'a', 2);
-            REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+            StringLocale str(&null_allocator);
+            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
+            REQUIRE_THROWS_AS(result = str.Insert(str.ConstBegin(), 'a', 2), OutOfMemoryException);
         }
         SECTION("Insert at beginning")
         {
@@ -3594,11 +3582,10 @@ TEST_CASE("Insert", "[String]")
         SECTION("Memory allocation failed")
         {
             NullAllocator null_allocator;
-            StringLocale str("", &null_allocator);
+            StringLocale str(&null_allocator);
             StringLocale in("aa");
-            auto result = str.Insert(str.Begin(), in.Begin(), in.End());
-            REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
+            REQUIRE_THROWS_AS(result = str.Insert(str.Begin(), in.Begin(), in.End()), OutOfMemoryException);
         }
         SECTION("Count is zero")
         {
@@ -3658,11 +3645,10 @@ TEST_CASE("Insert", "[String]")
         SECTION("Memory allocation failed")
         {
             NullAllocator null_allocator;
-            StringLocale str("", &null_allocator);
+            StringLocale str(&null_allocator);
             StringLocale in("aa");
-            auto result = str.Insert(str.ConstBegin(), in.Begin(), in.End());
-            REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
+            REQUIRE_THROWS_AS(result = str.Insert(str.ConstBegin(), in.Begin(), in.End()), OutOfMemoryException);
         }
         SECTION("Count is zero")
         {

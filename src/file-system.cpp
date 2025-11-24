@@ -220,15 +220,12 @@ bool Opal::Exists(const StringUtf8& path)
     {
         return false;
     }
-    Expected<StringUtf8, ErrorCode> result = Paths::NormalizePath(path, GetScratchAllocator());
-    if (!result.HasValue())
-    {
-        return false;
-    }
+    const ScratchAsDefault sad;
+    StringUtf8 result = Paths::NormalizePath(path);
 
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(result.GetValue().GetSize() * 2, L'\0', GetScratchAllocator());
-    const ErrorCode err = Transcode(result.GetValue(), path_wide);
+    StringWide path_wide(result.GetSize() * 2, L'\0');
+    const ErrorCode err = Transcode(result, path_wide);
     if (err != ErrorCode::Success)
     {
         return false;
@@ -236,8 +233,7 @@ bool Opal::Exists(const StringUtf8& path)
     const DWORD attributes = GetFileAttributesW(path_wide.GetData());
     return (attributes != INVALID_FILE_ATTRIBUTES);
 #elif defined(OPAL_PLATFORM_LINUX)
-    OPAL_ASSERT(result.GetValue().GetData() != nullptr, "Path must not be null");
-    if (access(result.GetValue().GetData(), F_OK) == 0)
+    if (access(*result, F_OK) == 0)
     {
         return true;
     }

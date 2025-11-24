@@ -97,7 +97,8 @@ TEST_CASE("Linear allocator", "[Allocator]")
 TEST_CASE("Null allocator", "[Allocator]")
 {
     Opal::NullAllocator allocator;
-    void* memory = allocator.Alloc(16, 16);
+    void* memory = nullptr;
+    REQUIRE_THROWS_AS(memory = allocator.Alloc(16, 16), Opal::OutOfMemoryException);
     REQUIRE(memory == nullptr);
     allocator.Free(memory);
 }
@@ -114,21 +115,19 @@ TEST_CASE("Default allocator", "[Allocator]")
         .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(100), .commit_step_size = OPAL_MB(100)};
     Opal::LinearAllocator* linear_allocator = nullptr;
     REQUIRE_NOTHROW(linear_allocator = new Opal::LinearAllocator("Linear Allocator", desc));
-    Opal::PushDefaultAllocator(linear_allocator);
+    Opal::PushDefault pd(linear_allocator);
     allocator = Opal::GetDefaultAllocator();
     REQUIRE(std::strcmp(allocator->GetName(), "Linear Allocator") == 0);
     void* memory2 = allocator->Alloc(16, 16);
     REQUIRE(memory2 != nullptr);
     REQUIRE(memory != memory2);
-    Opal::PopDefaultAllocator();
 
-    Opal::PushDefaultAllocator(nullptr);
+    Opal::PushDefault pd2(nullptr);
     allocator = Opal::GetDefaultAllocator();
     REQUIRE(std::strcmp(allocator->GetName(), "MallocAllocator") == 0);
     void* memory3 = allocator->Alloc(16, 16);
     REQUIRE(memory3 != nullptr);
     allocator->Free(memory3);
-    Opal::PopDefaultAllocator();
 }
 
 TEST_CASE("New and delete", "[Allocator]")
@@ -137,7 +136,7 @@ TEST_CASE("New and delete", "[Allocator]")
     const Opal::SystemMemoryAllocatorDesc desc{
         .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(100), .commit_step_size = OPAL_MB(100)};
     REQUIRE_NOTHROW(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc));
-    Opal::PushDefaultAllocator(allocator);
+    Opal::PushDefault pd(allocator);
     int* a = Opal::New<int>(5);
     REQUIRE(a != nullptr);
     REQUIRE(*a == 5);

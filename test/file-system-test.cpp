@@ -36,8 +36,7 @@ TEST_CASE("Exists", "[FileSystem]")
 TEST_CASE("Creating and deleting a file", "[FileSystem]")
 {
     StringUtf8 path;
-    ErrorCode err = Paths::GetCurrentWorkingDirectory(path);
-    REQUIRE(err == Opal::ErrorCode::Success);
+    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
     SECTION("Create and delete a file")
     {
         path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
@@ -75,8 +74,7 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
 TEST_CASE("Creating and destroying directory", "[FileSystem]")
 {
     StringUtf8 path;
-    ErrorCode err = Paths::GetCurrentWorkingDirectory(path);
-    REQUIRE(err == Opal::ErrorCode::Success);
+    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
     SECTION("Create and delete a directory")
     {
         path = Paths::Combine(nullptr, path, "test-dir").GetValue();
@@ -139,8 +137,7 @@ template<> struct std::hash<Opal::StringUtf8> {
 TEST_CASE("Iterate over directory contents", "[FileSystem]")
 {
     StringUtf8 path;
-    ErrorCode err = Paths::GetCurrentWorkingDirectory(path);
-    REQUIRE(err == Opal::ErrorCode::Success);
+    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
     SECTION("Directory doesn't exist")
     {
         path = Paths::Combine(nullptr, path, "test-dir").GetValue();
