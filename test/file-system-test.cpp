@@ -16,15 +16,9 @@ CATCH_TRANSLATE_EXCEPTION(const Opal::Exception& ex)
 
 TEST_CASE("Exists", "[FileSystem]")
 {
-    SECTION("No memory")
-    {
-        NullAllocator allocator;
-        auto exists = Exists("a/b/c/d", &allocator);
-        REQUIRE(!exists);
-    }
     SECTION("Empty path")
     {
-        auto exists = Exists("", nullptr);
+        auto exists = Exists("");
         REQUIRE(!exists);
     }
     SECTION("Non-existing paths")

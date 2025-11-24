@@ -10,66 +10,66 @@ namespace Opal
  * @brief Creates a file.
  * @param path Path to file to create.
  * @param fail_if_already_exists If true when something already exists at the path don't throw an exception. Default value is false.
- * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
+ * @note Might use current scratch allocator on some platforms.
  * @throw PathNotFoundException when path does not exist.
  * @throw PathAlreadyExistsException when something already exists on the given path.
  * @throw Exception when any other error occurs.
  */
-void OPAL_EXPORT CreateFile(const StringUtf8& path, bool fail_if_already_exists = false, AllocatorBase* scratch_allocator = nullptr);
+void OPAL_EXPORT CreateFile(const StringUtf8& path, bool fail_if_already_exists = false);
 
 /**
  * @brief Deletes a file.
  * @param path Path to the file to delete.
- * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
+ * @note Might use current scratch allocator on some platforms.
  * @throw PathNotFoundException when path does not exist.
  * @throw Exception when any other error occurs.
  */
-void OPAL_EXPORT DeleteFile(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
+void OPAL_EXPORT DeleteFile(const StringUtf8& path);
 
 /**
  * @brief Creates a directory at a specified path.
  * @param path Path on which to create a directory.
  * @param throw_if_exists If true throw exception if something already exists. Default is false.
- * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
+ * @note Might use current scratch allocator on some platforms.
  * @throw PathNotFoundException when path does not exist.
  * @throw PathAlreadyExistsException when something already exists on the given path.
  * @throw Exception when any other error occurs.
  */
-void OPAL_EXPORT CreateDirectory(const StringUtf8& path, bool throw_if_exists = false, AllocatorBase* scratch_allocator = nullptr);
+void OPAL_EXPORT CreateDirectory(const StringUtf8& path, bool throw_if_exists = false);
 
 /**
  * @brief Deletes a directory.
  * @param path Path to the directory.
- * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
+ * @note Might use current scratch allocator on some platforms.
  * @throw PathNotFoundException when path does not exist.
  * @throw DirectoryNotEmptyException when directory is not empty.
  * @throw Exception when any other error occurs.
  */
-void OPAL_EXPORT DeleteDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
+void OPAL_EXPORT DeleteDirectory(const StringUtf8& path);
 
 /**
  * @brief Check if the path exists.
  * @param path Path to check.
- * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
+ * @note Might use current scratch allocator on some platforms.
  * @return True if the path exists, otherwise false, including the errors.
  */
-bool OPAL_EXPORT Exists(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
+bool OPAL_EXPORT Exists(const StringUtf8& path);
 
 /**
  * @brief Check if specified path is a directory.
  * @param path Path to check.
- * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
+ * @note Might use current scratch allocator on some platforms.
  * @return Returns true if path is a directory, false if path does not exist or its not a directory.
  */
-bool OPAL_EXPORT IsDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
+bool OPAL_EXPORT IsDirectory(const StringUtf8& path);
 
 /**
  * @brief Check if specified path is a file.
  * @param path Path to check.
- * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
- * @return Returns true if path is a file, false if path does not exist or its not a directory.
+ * @note Might use current scratch allocator on some platforms.
+ * @return Returns true if path is a file, false if path does not exist or it's not a directory.
  */
-bool OPAL_EXPORT IsFile(const StringUtf8& path, AllocatorBase* scratch_allocator = nullptr);
+bool OPAL_EXPORT IsFile(const StringUtf8& path);
 
 struct DirectoryContentsDesc
 {
@@ -87,13 +87,12 @@ struct DirectoryEntry
  * @brief Collect paths to directories or files that are inside the specified directory.
  * @param path Path to the directory.
  * @param desc Descriptor used to configure the search.
- * @param output_allocator Allocator used to allocate output array.
- * @param scratch_allocator Scratch allocator. If nullptr, default allocator will be used. Default is nullptr.
+ * @note Will use current default allocator for allocation of the output entries.
+ * @note Will use current scratch allocator for internal allocations.
  * @return Returns array of DirectoryEntry objects.
  * @throw PathNotFoundException when path does not exist.
  * @throw NotDirectoryException if a given path is not to a directory.
  */
-DynamicArray<DirectoryEntry> OPAL_EXPORT CollectDirectoryContents(const StringUtf8& path, const DirectoryContentsDesc& desc = {},
-                                                                  AllocatorBase* output_allocator = nullptr, AllocatorBase* scratch_allocator = nullptr);
+DynamicArray<DirectoryEntry> OPAL_EXPORT CollectDirectoryContents(const StringUtf8& path, const DirectoryContentsDesc& desc = {});
 
 }  // namespace Opal
