@@ -100,6 +100,12 @@ struct OutOfMemoryException : Exception
         : Exception(StringEx("Out of memory in allocator ") + allocator_name + " trying to allocate " + size + " bytes.")
     {
     }
+
+    OutOfMemoryException(const char* allocator_name, u64 size)
+    : Exception(StringEx("Out of memory in allocator ") + allocator_name + " trying to allocate " + static_cast<i64>(size) + " bytes.")
+    {
+    }
+
     OutOfMemoryException(const char* custom_message) : Exception(StringEx("Out of memory: ") + custom_message) {}
 };
 
