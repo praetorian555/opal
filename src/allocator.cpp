@@ -2,8 +2,9 @@
 
 #include <malloc.h>
 
-#include "opal/math-base.h"
 #include "opal/casts.h"
+#include "opal/container/dynamic-array.h"
+#include "opal/math-base.h"
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
@@ -197,20 +198,66 @@ void Opal::LinearAllocator::Reset()
 namespace
 {
 Opal::MallocAllocator g_malloc_allocator;
-Opal::AllocatorBase* g_default_allocator = &g_malloc_allocator;
+Opal::DynamicArray<Opal::AllocatorBase*> g_default_allocators(1, &g_malloc_allocator, &g_malloc_allocator);
+Opal::LinearAllocator g_scratch_allocator("Default Scratch Allocator", {.bytes_to_reserve = OPAL_GB(4),
+                                                                        .bytes_to_initially_alloc = OPAL_MB(1),
+                                                                        .commit_step_size = OPAL_MB(2)});
+Opal::DynamicArray<Opal::LinearAllocator*> g_scratch_allocators(1, &g_scratch_allocator, &g_malloc_allocator);
 }  // namespace
 
 Opal::AllocatorBase* Opal::GetDefaultAllocator()
 {
-    return g_default_allocator;
+    return g_default_allocators.Back().GetValue();
 }
 
-void Opal::SetDefaultAllocator(AllocatorBase* allocator)
+void Opal::PushDefaultAllocator(AllocatorBase* allocator)
 {
     if (allocator == nullptr)
     {
-        g_default_allocator = &g_malloc_allocator;
+        g_default_allocators.PushBack(&g_malloc_allocator);
+    }
+    else
+    {
+        g_default_allocators.PushBack(allocator);
+    }
+}
+
+void Opal::PopDefaultAllocator()
+{
+    if (g_default_allocators.GetSize() == 1)
+    {
         return;
     }
-    g_default_allocator = allocator;
+    g_default_allocators.PopBack();
+}
+
+Opal::LinearAllocator* Opal::GetScratchAllocator()
+{
+    return g_scratch_allocators.Back().GetValue();
+}
+
+void Opal::PushScratchAllocator(LinearAllocator* allocator)
+{
+    if (allocator == nullptr)
+    {
+        g_scratch_allocators.PushBack(&g_scratch_allocator);
+    }
+    else
+    {
+        g_scratch_allocators.PushBack(allocator);
+    }
+}
+
+void Opal::PopScratchAllocator()
+{
+    if (g_scratch_allocators.GetSize() == 1)
+    {
+        return;
+    }
+    g_scratch_allocators.PopBack();
+}
+
+void Opal::ResetScratchAllocator()
+{
+    g_scratch_allocators.Back().GetValue()->Reset();
 }

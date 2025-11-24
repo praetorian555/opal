@@ -49,9 +49,9 @@ static_assert(sizeof(char16) == 2);
 //static_assert(sizeof(c16) == 2);
 //static_assert(sizeof(c32) == 4);
 
-#define OPAL_KB(x) (x * 1024)
-#define OPAL_MB(x) (x * 1024 * 1024)
-#define OPAL_GB(x) (x * 1024 * 1024 * 1024)
-#define OPAL_TB(x) (x * 1024 * 1024 * 1024 * 1024)
+#define OPAL_KB(x) (x * 1024ull)
+#define OPAL_MB(x) (x * 1024ull * 1024ull)
+#define OPAL_GB(x) (x * 1024ull * 1024ull * 1024ull)
+#define OPAL_TB(x) (x * 1024ull * 1024ull * 1024ull * 1024ull)
 
 }  // namespace Opal

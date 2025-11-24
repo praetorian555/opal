@@ -125,24 +125,49 @@ private:
 };
 
 /**
- * Get the pointer to the default allocator.
+ * Get the pointer to the default allocator. This allocator should be used for long lived data.
  * @return Pointer to the default allocator. It will never be nullptr.
  */
 OPAL_EXPORT AllocatorBase* GetDefaultAllocator();
 
 /**
- * Set the default allocator.
- * @param allocator Pointer to the allocator. If its nullptr library's default allocator will be used.
+ * Push desired allocator to be new default allocator.
+ * @param allocator Pointer to the allocator. It will never be nullptr.
  */
-OPAL_EXPORT void SetDefaultAllocator(AllocatorBase* allocator);
+OPAL_EXPORT void PushDefaultAllocator(AllocatorBase* allocator);
+
+/**
+ * Remove allocator from the top of the stack. The stack will never be empty and default allocator will be available.
+ */
+OPAL_EXPORT void PopDefaultAllocator();
+
+/**
+ * Get default scratch allocator. This allocator should be used for short-lived allocations, usually inside a function span. Deallocation
+ * is not possible, and it can only be reset.
+ * @return Pointer to a scratch allocator. It will never be nullptr.
+ */
+OPAL_EXPORT LinearAllocator* GetScratchAllocator();
+
+/**
+ * Push desired allocator to be new scratch allocator.
+ * @param allocator New allocator.
+ */
+OPAL_EXPORT void PushScratchAllocator(LinearAllocator* allocator);
+
+/**
+ * Remove allocator from top of the scratch allocator stack.
+ */
+OPAL_EXPORT void PopScratchAllocator();
+
+/**
+ * Reset current scratch allocator.
+ */
+OPAL_EXPORT void ResetScratchAllocator();
 
 template <typename T, class... Args>
-T* New(AllocatorBase* allocator, Args&&... args)
+T* New(Args&&... args)
 {
-    if (allocator == nullptr)
-    {
-        allocator = GetDefaultAllocator();
-    }
+    AllocatorBase* allocator = GetDefaultAllocator();
     void* memory = allocator->Alloc(sizeof(T), alignof(T));
     if (memory == nullptr) [[unlikely]]
     {
@@ -151,14 +176,11 @@ T* New(AllocatorBase* allocator, Args&&... args)
     return new (memory) T(std::forward<Args>(args)...);
 }
 
-template <typename T, class... Args>
-T* New(u32 alignment, AllocatorBase* allocator, Args&&... args)
+template <typename T, u32 Alignment, class... Args>
+T* New(Args&&... args)
 {
-    if (allocator == nullptr)
-    {
-        allocator = GetDefaultAllocator();
-    }
-    void* memory = allocator->Alloc(sizeof(T), alignment);
+    AllocatorBase* allocator = GetDefaultAllocator();
+    void* memory = allocator->Alloc(sizeof(T), Alignment);
     if (memory == nullptr) [[unlikely]]
     {
         return nullptr;
@@ -167,33 +189,11 @@ T* New(u32 alignment, AllocatorBase* allocator, Args&&... args)
 }
 
 template <typename T, class... Args>
-T* New(const Ref<AllocatorBase>& allocator, Args&&... args)
+void Delete(T* ptr)
 {
-    return New<T>(allocator.GetPtr(), std::forward<Args>(args)...);
-}
-
-template <typename T, class... Args>
-T* New(u32 alignment, const Ref<AllocatorBase>& allocator, Args&&... args)
-{
-    return New<T>(alignment, allocator, std::forward<Args>(args)...);
-}
-
-template <typename T, class... Args>
-void Delete(AllocatorBase* allocator, T* ptr)
-{
-    if (allocator == nullptr)
-    {
-        allocator = GetDefaultAllocator();
-    }
+    AllocatorBase* allocator = GetDefaultAllocator();
     ptr->~T();
     allocator->Free(ptr);
 }
-
-template <typename T, class... Args>
-void Delete(const Ref<AllocatorBase>& allocator, T* ptr)
-{
-    return Delete<T>(allocator.GetPtr(), ptr);
-}
-
 
 }  // namespace Opal
