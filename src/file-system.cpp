@@ -403,7 +403,8 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const St
                 continue;
             }
 
-            StringUtf8 entry_path = Paths::Combine(output_allocator, dir_path, entry_name).GetValue();
+            PushDefault pd(output_allocator);
+            StringUtf8 entry_path = Paths::Combine(dir_path, entry_name);
             struct stat statbuf;
             if (stat(*entry_path, &statbuf) == 0)
             {

@@ -39,7 +39,7 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
     SECTION("Create and delete a file")
     {
-        path = Opal::Paths::Combine(nullptr, path, "example.txt").GetValue();
+        path = Paths::Combine(path, "example.txt");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateFile(path));
         REQUIRE(Opal::Exists(path));
@@ -48,13 +48,13 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     }
     SECTION("Try to create a file if part of the path does not exist")
     {
-        path = Paths::Combine(nullptr, path, "test-dir", "example.txt").GetValue();
+        path = Paths::Combine(path, "test-dir", "example.txt");
         REQUIRE(!Exists(path));
         REQUIRE_THROWS_AS(CreateFile(path), Opal::PathNotFoundException);
     }
     SECTION("Try to create a file that already exists")
     {
-        path = Paths::Combine(nullptr, path, "example.txt").GetValue();
+        path = Paths::Combine(path, "example.txt");
         REQUIRE(!Exists(path));
         REQUIRE_NOTHROW(CreateFile(path));
         REQUIRE(Exists(path));
@@ -65,7 +65,7 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     }
     SECTION("Try to delete non-existent file")
     {
-        path = Paths::Combine(nullptr, path, "example.txt").GetValue();
+        path = Paths::Combine(path, "example.txt");
         REQUIRE(!Exists(path));
         REQUIRE_THROWS_AS(DeleteFile(path), Opal::PathNotFoundException);
     }
@@ -77,7 +77,7 @@ TEST_CASE("Creating and destroying directory", "[FileSystem]")
     REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
     SECTION("Create and delete a directory")
     {
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
@@ -86,16 +86,16 @@ TEST_CASE("Creating and destroying directory", "[FileSystem]")
     }
     SECTION("Try to create a directory if part of the path does not exist")
     {
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        path = Paths::Combine(nullptr, path, "test-dir-2").GetValue();
+        path = Paths::Combine(path, "test-dir-2");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_THROWS_AS(CreateDirectory(path), Opal::PathNotFoundException);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to create a directory that already exist")
     {
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
@@ -107,18 +107,18 @@ TEST_CASE("Creating and destroying directory", "[FileSystem]")
     }
     SECTION("Try to delete non-existent directory")
     {
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_THROWS_AS(DeleteDirectory(path), Opal::PathNotFoundException);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to delete non-empty directory")
     {
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
-        const StringUtf8 file_path = Paths::Combine(nullptr, path, "test-file").GetValue();
+        const StringUtf8 file_path = Paths::Combine(path, "test-file");
         REQUIRE(!Opal::Exists(file_path));
         REQUIRE_NOTHROW(CreateFile(file_path));
         REQUIRE(Opal::Exists(file_path));
@@ -140,14 +140,14 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
     SECTION("Directory doesn't exist")
     {
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         DynamicArray<DirectoryEntry> children;
         REQUIRE_THROWS_AS(children = Opal::CollectDirectoryContents(path), PathNotFoundException);
     }
     SECTION("Path is not to directory")
     {
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine( path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateFile(path));
         REQUIRE(Opal::Exists(path));
@@ -159,21 +159,21 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     {
         HashSet<StringUtf8> dir_paths;
         HashMap<StringUtf8, bool> path_types;
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
-        StringUtf8 first_file = Paths::Combine(nullptr, path, "test-file").GetValue();
+        StringUtf8 first_file = Paths::Combine(path, "test-file");
         dir_paths.Insert(first_file);
         path_types.insert(std::make_pair(first_file, false));
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE_NOTHROW(CreateFile(first_file));
-        StringUtf8 another_dir = Paths::Combine(nullptr, path, "another-dir").GetValue();
+        StringUtf8 another_dir = Paths::Combine( path, "another-dir");
         dir_paths.Insert(another_dir);
         path_types.insert(std::make_pair(another_dir, true));
         REQUIRE_NOTHROW(CreateDirectory(another_dir));
         REQUIRE(Opal::Exists(another_dir));
-        const StringUtf8 another_file = Paths::Combine(nullptr, another_dir, "another-file").GetValue();
+        const StringUtf8 another_file = Paths::Combine(another_dir, "another-file");
         dir_paths.Insert(another_file);
         path_types.insert(std::make_pair(another_file, false));
         REQUIRE_NOTHROW(CreateFile(another_file));
@@ -198,21 +198,21 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     {
         HashSet<StringUtf8> dir_paths;
         HashMap<StringUtf8, bool> path_types;
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
-        StringUtf8 first_file = Paths::Combine(nullptr, path, "test-file").GetValue();
+        StringUtf8 first_file = Paths::Combine(path, "test-file");
         dir_paths.Insert(first_file);
         path_types.insert(std::make_pair(first_file, false));
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE_NOTHROW(CreateFile(first_file));
-        StringUtf8 another_dir = Paths::Combine(nullptr, path, "another-dir").GetValue();
+        StringUtf8 another_dir = Paths::Combine(path, "another-dir");
         dir_paths.Insert(another_dir);
         path_types.insert(std::make_pair(another_dir, true));
         REQUIRE_NOTHROW(CreateDirectory(another_dir));
         REQUIRE(Opal::Exists(another_dir));
-        const StringUtf8 another_file = Paths::Combine(nullptr, another_dir, "another-file").GetValue();
+        const StringUtf8 another_file = Paths::Combine( another_dir, "another-file");
         dir_paths.Insert(another_file);
         path_types.insert(std::make_pair(another_file, false));
         REQUIRE_NOTHROW(CreateFile(another_file));
@@ -237,21 +237,21 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     {
         HashSet<StringUtf8> dir_paths;
         HashMap<StringUtf8, bool> path_types;
-        path = Paths::Combine(nullptr, path, "test-dir").GetValue();
+        path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
-        StringUtf8 first_file = Paths::Combine(nullptr, path, "test-file").GetValue();
+        StringUtf8 first_file = Paths::Combine(path, "test-file");
         dir_paths.Insert(first_file);
         path_types.insert(std::make_pair(first_file, false));
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE_NOTHROW(CreateFile(first_file));
-        StringUtf8 another_dir = Paths::Combine(nullptr, path, "another-dir").GetValue();
+        StringUtf8 another_dir = Paths::Combine(path, "another-dir");
         dir_paths.Insert(another_dir);
         path_types.insert(std::make_pair(another_dir, true));
         REQUIRE_NOTHROW(CreateDirectory(another_dir));
         REQUIRE(Opal::Exists(another_dir));
-        const StringUtf8 another_file = Paths::Combine(nullptr, another_dir, "another-file").GetValue();
+        const StringUtf8 another_file = Paths::Combine(another_dir, "another-file");
         dir_paths.Insert(another_file);
         path_types.insert(std::make_pair(another_file, false));
         REQUIRE_NOTHROW(CreateFile(another_file));

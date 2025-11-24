@@ -424,26 +424,24 @@ TEST_CASE("Get extension", "[Paths]")
 
 TEST_CASE("Combining paths", "[Paths]")
 {
-    auto result = Paths::Combine(nullptr, "a", "b", "c");
-    REQUIRE(result.HasValue());
+    auto result = Paths::Combine("a", "b", "c");
 #if defined(OPAL_PLATFORM_WINDOWS)
-    REQUIRE(result.GetValue() == "a\\b\\c");
+    REQUIRE(result == "a\\b\\c");
 #else
-    REQUIRE(result.GetValue() == "a/b/c");
+    REQUIRE(result == "a/b/c");
 #endif
 
-    result = Paths::Combine(nullptr, "a", "b", "c", "");
-    REQUIRE(result.HasValue());
+    result = Paths::Combine("a", "b", "c", "");
 #if defined(OPAL_PLATFORM_WINDOWS)
-    REQUIRE(result.GetValue() == "a\\b\\c\\");
+    REQUIRE(result == "a\\b\\c\\");
 #else
-    REQUIRE(result.GetValue() == "a/b/c/");
+    REQUIRE(result == "a/b/c/");
 #endif
 
-    result = Paths::Combine(nullptr);
-    REQUIRE(result.HasValue());
-    REQUIRE(result.GetValue() == "");
+    result = Paths::Combine();
+    REQUIRE(result == "");
 
     NullAllocator allocator;
-    REQUIRE_THROWS_AS(result = Paths::Combine(&allocator, "a", "b", "c"), OutOfMemoryException);
+    PushDefault pd(&allocator);
+    REQUIRE_THROWS_AS(result = Paths::Combine("a", "b", "c"), OutOfMemoryException);
 }

@@ -17,7 +17,8 @@ StringUtf8 OPAL_EXPORT GetCurrentWorkingDirectory();
  * @brief Set current working directory.
  * @note Not thread-safe.
  * @param path Path to the new working directory. This must be an existing directory.
- * @throw
+* @throw OutOfMemoryException when memory allocation is needed in the scratch allocator but there is not enough space.
+ * @throw Exception when there is an issue setting the value from the OS.
  */
 void OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
 
@@ -76,68 +77,47 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetParentPath(const StringUtf8& path
 /**
  * @brief Combine paths.
  * @tparam Args Types of path components. It needs to be types compatible with StringUtf8.
- * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
  * @param args Path components.
- * @return Combined path in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
+ * @throw OutOfMemoryException when there is not enough memory for appending the path.
+ * @return Returns combined path.
  */
 template <typename... Args>
-Expected<StringUtf8, ErrorCode> Combine(AllocatorBase* allocator, Args... args);
+StringUtf8 Combine(Args... args);
 
 }  // namespace Opal::Paths
 
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_WARNING("-Wunused-value")
 template <typename... Args>
-Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::Combine(AllocatorBase* allocator, Args... args)
+Opal::StringUtf8 Opal::Paths::Combine(Args... args)
 {
-    StringUtf8 result(allocator);
-    ErrorCode err = ErrorCode::Success;
+    StringUtf8 result(GetDefaultAllocator());
 
-    OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_WARNING("-Wunused-but-set-variable")
-    auto append = [&result, &err](const auto& part)
+    auto append = [&result](const auto& part)
     {
-#if defined(OPAL_PLATFORM_WINDOWS)
-        constexpr StringUtf8::value_type k_separator = '\\';
-#elif defined(OPAL_PLATFORM_LINUX)
-        constexpr StringUtf8::value_type k_separator = '/';
-#else
-        constexpr StringUtf8::value_type k_separator = '/';
-#endif
         if (result.IsEmpty())
         {
-            err = result.Append(part);
-            if (err != ErrorCode::Success)
-            {
-                return err;
-            }
+            result.Append(part);
         }
         else
         {
             if (result.Back().GetValue() != '/' || result.Back().GetValue() != '\\')
             {
-                err = result.Append(k_separator);
-                if (err != ErrorCode::Success)
-                {
-                    return err;
-                }
+#if defined(OPAL_PLATFORM_WINDOWS)
+                constexpr StringUtf8::value_type k_separator = '\\';
+#elif defined(OPAL_PLATFORM_LINUX)
+                constexpr StringUtf8::value_type k_separator = '/';
+#else
+                constexpr StringUtf8::value_type k_separator = '/';
+#endif
+                result.Append(k_separator);
             }
-
-            err = result.Append(part);
-            if (err != ErrorCode::Success)
-            {
-                return err;
-            }
+            result.Append(part);
         }
-        return ErrorCode::Success;
     };
-    OPAL_END_DISABLE_WARNINGS
 
-    (... && (append(args) == ErrorCode::Success));
-    if (err != ErrorCode::Success)
-    {
-        return Expected<StringUtf8, ErrorCode>(err);
-    }
-    return Expected<StringUtf8, ErrorCode>(result);
+    (append(args), ...);
+    return result;
 }
 OPAL_END_DISABLE_WARNINGS
