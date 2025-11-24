@@ -507,8 +507,7 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
-                ErrorCode err = ErrorCode::Success;
-                REQUIRE_THROWS_AS(err = str.Assign(5, 'd'), OutOfMemoryException);
+                REQUIRE_THROWS_AS(str.Assign(5, 'd'), OutOfMemoryException);
             }
         }
         SECTION("Other string")
@@ -742,8 +741,7 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
-                ErrorCode err = ErrorCode::Success;
-                REQUIRE_THROWS_AS(err = str.Assign("Goodbye and then some"), OutOfMemoryException);
+                REQUIRE_THROWS_AS(str.Assign("Goodbye and then some"), OutOfMemoryException);
             }
         }
         SECTION("Iterators")
@@ -788,8 +786,7 @@ TEST_CASE("Assign", "[String]")
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
                 const char* ref = "Hello there";
-                ErrorCode err = ErrorCode::Success;
-                REQUIRE_THROWS_AS(err = str.Assign(ref + 5, ref + 10), OutOfMemoryException);
+                REQUIRE_THROWS_AS(str.Assign(ref + 5, ref + 10), OutOfMemoryException);
             }
         }
     }
@@ -832,8 +829,7 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str( &null_allocator);
-                ErrorCode err;
-                REQUIRE_THROWS_AS(err = str.Assign(50, 'd'), OutOfMemoryException);
+                REQUIRE_THROWS_AS(str.Assign(50, 'd'), OutOfMemoryException);
             }
         }
         SECTION("Other string")
@@ -1066,8 +1062,7 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
-                ErrorCode err;
-                REQUIRE_THROWS_AS(err = str.Assign("Goodbye and then some"), OutOfMemoryException);
+                REQUIRE_THROWS_AS(str.Assign("Goodbye and then some"), OutOfMemoryException);
             }
         }
         SECTION("Iterators")
