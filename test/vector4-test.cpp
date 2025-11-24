@@ -1,11 +1,4 @@
-#include "opal/defines.h"
-
-#include <limits>
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 #include "opal/math/vector4.h"
 
@@ -17,29 +10,29 @@ TEST_CASE("Vector4 constructor", "[math][vector4]")
 {
     {
         const Vec4f vec1(1, 2, 3, 4);
-        CHECK(vec1.x == 1);;
-        CHECK(vec1.y == 2);;
-        CHECK(vec1.z == 3);;
-        CHECK(vec1.w == 4);;
+        CHECK(vec1.x == 1.0f);
+        CHECK(vec1.y == 2.0f);
+        CHECK(vec1.z == 3.0f);
+        CHECK(vec1.w == 4.0f);
 
         const Vec4f vec2(1);
-        CHECK(vec2.x == 1);;
-        CHECK(vec2.y == 1);;
-        CHECK(vec2.z == 1);;
-        CHECK(vec2.w == 1);;
+        CHECK(vec2.x == 1.0f);
+        CHECK(vec2.y == 1.0f);
+        CHECK(vec2.z == 1.0f);
+        CHECK(vec2.w == 1.0f);
     }
     {
         const Vec4d vec1(1, 2, 3, 4);
-        CHECK(vec1.x == 1);;
-        CHECK(vec1.y == 2);;
-        CHECK(vec1.z == 3);;
-        CHECK(vec1.w == 4);;
+        CHECK(vec1.x == 1);
+        CHECK(vec1.y == 2);
+        CHECK(vec1.z == 3);
+        CHECK(vec1.w == 4);
 
         const Vec4d vec2(1);
-        CHECK(vec2.x == 1);;
-        CHECK(vec2.y == 1);;
-        CHECK(vec2.z == 1);;
-        CHECK(vec2.w == 1);;
+        CHECK(vec2.x == 1);
+        CHECK(vec2.y == 1);
+        CHECK(vec2.z == 1);
+        CHECK(vec2.w == 1);
     }
     {
         const Vec4i vec1(1, 2, 3, 4);
@@ -333,44 +326,44 @@ TEST_CASE("Vector4 multiplication by scalar", "[math][vector4]")
 
         Vec4d vec2 = vec1 * 5.0f;
 
-        CHECK(vec2.x == 5.0f);;
-        CHECK(vec2.y == 10.0f);;
-        CHECK(vec2.z == 15.0f);;
-        CHECK(vec2.w == 20.0f);;
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
+        CHECK(vec2.w == 20.0);
 
         vec2 *= 2.0f;
-        CHECK(vec2.x == 10.0f);;
-        CHECK(vec2.y == 20.0f);;
-        CHECK(vec2.z == 30.0f);;
-        CHECK(vec2.w == 40.0f);;
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
+        CHECK(vec2.w == 40.0);
 
         const Vec4d vec3 = 2.0f * vec2;
-        CHECK(vec3.x == 20.0f);;
-        CHECK(vec3.y == 40.0f);;
-        CHECK(vec3.z == 60.0f);;
-        CHECK(vec3.w == 80.0f);;
+        CHECK(vec3.x == 20.0);
+        CHECK(vec3.y == 40.0);
+        CHECK(vec3.z == 60.0);
+        CHECK(vec3.w == 80.0);
     }
     {
         const Vec4i vec1(1, 2, 3, 4);
 
         Vec4i vec2 = vec1 * 5.0f;
 
-        CHECK(vec2.x == 5.0f);;
-        CHECK(vec2.y == 10.0f);;
-        CHECK(vec2.z == 15.0f);;
-        CHECK(vec2.w == 20.0f);;
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
+        CHECK(vec2.w == 20.0);
 
         vec2 *= 2.0f;
-        CHECK(vec2.x == 10.0f);;
-        CHECK(vec2.y == 20.0f);;
-        CHECK(vec2.z == 30.0f);;
-        CHECK(vec2.w == 40.0f);;
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
+        CHECK(vec2.w == 40.0);
 
         const Vec4i vec3 = 2.0f * vec2;
-        CHECK(vec3.x == 20.0f);;
-        CHECK(vec3.y == 40.0f);;
-        CHECK(vec3.z == 60.0f);;
-        CHECK(vec3.w == 80.0f);;
+        CHECK(vec3.x == 20.0);
+        CHECK(vec3.y == 40.0);
+        CHECK(vec3.z == 60.0);
+        CHECK(vec3.w == 80.0);
     }
 }
 
@@ -397,32 +390,32 @@ TEST_CASE("Vector4 multiplication", "[math][vector4]")
         Vec4d vec2(2, 3, 4, 5);
 
         const Vec4d vec3 = vec1 * vec2;
-        CHECK(vec3.x == 2.0f);;
-        CHECK(vec3.y == 6.0f);;
-        CHECK(vec3.z == 12.0f);;
-        CHECK(vec3.w == 20.0f);;
+        CHECK(vec3.x == 2.0);
+        CHECK(vec3.y == 6.0);
+        CHECK(vec3.z == 12.0);
+        CHECK(vec3.w == 20.0);
 
         vec2 *= vec1;
-        CHECK(vec2.x == 2.0f);;
-        CHECK(vec2.y == 6.0f);;
-        CHECK(vec2.z == 12.0f);;
-        CHECK(vec2.w == 20.0f);;
+        CHECK(vec2.x == 2.0);
+        CHECK(vec2.y == 6.0);
+        CHECK(vec2.z == 12.0);
+        CHECK(vec2.w == 20.0);
     }
     {
         const Vec4i vec1(1, 2, 3, 4);
         Vec4i vec2(2, 3, 4, 5);
 
         const Vec4i vec3 = vec1 * vec2;
-        CHECK(vec3.x == 2.0f);;
-        CHECK(vec3.y == 6.0f);;
-        CHECK(vec3.z == 12.0f);;
-        CHECK(vec3.w == 20.0f);;
+        CHECK(vec3.x == 2.0);
+        CHECK(vec3.y == 6.0);
+        CHECK(vec3.z == 12.0);
+        CHECK(vec3.w == 20.0);
 
         vec2 *= vec1;
-        CHECK(vec2.x == 2.0f);;
-        CHECK(vec2.y == 6.0f);;
-        CHECK(vec2.z == 12.0f);;
-        CHECK(vec2.w == 20.0f);;
+        CHECK(vec2.x == 2.0);
+        CHECK(vec2.y == 6.0);
+        CHECK(vec2.z == 12.0);
+        CHECK(vec2.w == 20.0);
     }
 }
 
@@ -445,36 +438,36 @@ TEST_CASE("Vector4 division by scalar", "[math][vector4]")
         CHECK(vec2.w == 20.0f);;
     }
     {
-        const Vec4d vec1(20.0f, 40.0f, 60.0f, 80);
+        const Vec4d vec1(20.0, 40.0, 60.0, 80.0);
 
         Vec4d vec2 = vec1 / 2.0f;
 
-        CHECK(vec2.x == 10.0f);;
-        CHECK(vec2.y == 20.0f);;
-        CHECK(vec2.z == 30.0f);;
-        CHECK(vec2.w == 40.0f);;
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
+        CHECK(vec2.w == 40.0);
 
         vec2 /= 2.0f;
-        CHECK(vec2.x == 5.0f);;
-        CHECK(vec2.y == 10.0f);;
-        CHECK(vec2.z == 15.0f);;
-        CHECK(vec2.w == 20.0f);;
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
+        CHECK(vec2.w == 20.0);
     }
     {
         const Vec4i vec1(20, 40, 60, 80);
 
         Vec4i vec2 = vec1 / 2.0f;
 
-        CHECK(vec2.x == 10.0f);;
-        CHECK(vec2.y == 20.0f);;
-        CHECK(vec2.z == 30.0f);;
-        CHECK(vec2.w == 40.0f);;
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
+        CHECK(vec2.w == 40.0);
 
         vec2 /= 2.0f;
-        CHECK(vec2.x == 5.0f);;
-        CHECK(vec2.y == 10.0f);;
-        CHECK(vec2.z == 15.0f);;
-        CHECK(vec2.w == 20.0f);;
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
+        CHECK(vec2.w == 20.0);
     }
 }
 
@@ -493,19 +486,19 @@ TEST_CASE("Vector4 negation", "[math][vector4]")
         const Vec4d vec(5, -10, -15, 20);
         const Vec4d neg = -vec;
 
-        CHECK(neg.x == -5.0f);
-        CHECK(neg.y == 10.0f);;
-        CHECK(neg.z == 15.0f);;
-        CHECK(neg.w == -20.0f);
+        CHECK(neg.x == -5.0);
+        CHECK(neg.y == 10.0);
+        CHECK(neg.z == 15.0);
+        CHECK(neg.w == -20.0);
     }
     {
         const Vec4i vec(5, -10, -15, 20);
         const Vec4i neg = -vec;
 
-        CHECK(neg.x == -5.0f);
-        CHECK(neg.y == 10.0f);;
-        CHECK(neg.z == 15.0f);;
-        CHECK(neg.w == -20.0f);
+        CHECK(neg.x == -5.0);
+        CHECK(neg.y == 10.0);
+        CHECK(neg.z == 15.0);
+        CHECK(neg.w == -20.0);
     }
 }
 
@@ -515,28 +508,28 @@ TEST_CASE("Vector4 abs", "[math][vector4]")
         const Vec4f vec(5, -10, -15, 20);
         const Vec4f a = Opal::Abs(vec);
 
-        CHECK(a.x == 5.0f);;
-        CHECK(a.y == 10.0f);;
-        CHECK(a.z == 15.0f);;
-        CHECK(a.w == 20.0f);;
+        CHECK(a.x == 5.0f);
+        CHECK(a.y == 10.0f);
+        CHECK(a.z == 15.0f);
+        CHECK(a.w == 20.0f);
     }
     {
         const Vec4d vec(5, -10, -15, 20);
         const Vec4d a = Opal::Abs(vec);
 
-        CHECK(a.x == 5.0f);;
-        CHECK(a.y == 10.0f);;
-        CHECK(a.z == 15.0f);;
-        CHECK(a.w == 20.0f);;
+        CHECK(a.x == 5.0);
+        CHECK(a.y == 10.0);
+        CHECK(a.z == 15.0);
+        CHECK(a.w == 20.0);
     }
     {
         const Vec4i vec(5, -10, -15, 20);
         const Vec4i a = Opal::Abs(vec);
 
-        CHECK(a.x == 5.0f);;
-        CHECK(a.y == 10.0f);;
-        CHECK(a.z == 15.0f);;
-        CHECK(a.w == 20.0f);;
+        CHECK(a.x == 5.0);
+        CHECK(a.y == 10.0);
+        CHECK(a.z == 15.0);
+        CHECK(a.w == 20.0);
     }
 }
 
@@ -546,7 +539,7 @@ TEST_CASE("Vector4 length", "[math][vector4]")
         const Vec4f v1(3, 4, 5, 6);
 
         CHECK(Opal::Length(v1) == std::sqrt(86.0));
-        CHECK(Opal::LengthSquared(v1) == 86);
+        CHECK(Opal::LengthSquared(v1) == 86.0f);
     }
     {
         const Vec4d v1(3, 4, 5, 6);
@@ -579,10 +572,10 @@ TEST_CASE("Vector4 lerp", "[math][vector4]")
         const Vec4d v2(3, 4, 5, 6);
 
         const Vec4d v3 = Opal::Lerp(0.5, v1, v2);
-        CHECK(v3.x == 2.0f);;
-        CHECK(v3.y == 3.0f);;
-        CHECK(v3.z == 4.0f);;
-        CHECK(v3.w == 5.0f);;
+        CHECK(v3.x == 2.0);
+        CHECK(v3.y == 3.0);
+        CHECK(v3.z == 4.0);
+        CHECK(v3.w == 5.0);
     }
 }
 
@@ -601,16 +594,16 @@ TEST_CASE("Vector4 dot product", "[math][vector4]")
         const Vec4d vec2(3, 4, 5, 6);
         const Vec4d vec3(-3, -4, -5, -6);
 
-        CHECK(Dot(vec1, vec2) == 50.0f);
-        CHECK(AbsDot(vec1, vec3) == 50.0f);
+        CHECK(Dot(vec1, vec2) == 50.0);
+        CHECK(AbsDot(vec1, vec3) == 50.0);
     }
     {
         const Vec4i vec1(1, 2, 3, 4);
         const Vec4i vec2(3, 4, 5, 6);
         const Vec4i vec3(-3, -4, -5, -6);
 
-        CHECK(Dot(vec1, vec2) == 50.0f);
-        CHECK(AbsDot(vec1, vec3) == 50.0f);
+        CHECK(Dot(vec1, vec2) == 50.0);
+        CHECK(AbsDot(vec1, vec3) == 50.0);
     }
 }
 
@@ -658,21 +651,21 @@ TEST_CASE("Vector4 misc", "[math][vector4]")
         const Vec4d min = Min(vec1, vec2);
         const Vec4d max = Max(vec1, vec2);
 
-        CHECK(min.x == 1.0f);;
-        CHECK(min.y == -2.0f);
-        CHECK(min.z == 3.0f);;
-        CHECK(min.w == -3.0f);
-        CHECK(max.x == 3.0f);;
-        CHECK(max.y == 2.0f);;
-        CHECK(max.z == 5.0f);;
-        CHECK(max.w == 4.0f);;
+        CHECK(min.x == 1.0);
+        CHECK(min.y == -2.0);
+        CHECK(min.z == 3.0);
+        CHECK(min.w == -3.0);
+        CHECK(max.x == 3.0);
+        CHECK(max.y == 2.0);
+        CHECK(max.z == 5.0);
+        CHECK(max.w == 4.0);
 
         const Vec4f vec(1, 2, 3, 4);
         const Vec4f perm = Opal::Permute(vec, 1, 2, 3, 0);
-        CHECK(perm.x == 2.0f);;
-        CHECK(perm.y == 3.0f);;
-        CHECK(perm.z == 4.0f);;
-        CHECK(perm.w == 1.0f);;
+        CHECK(perm.x == 2.0f);
+        CHECK(perm.y == 3.0f);
+        CHECK(perm.z == 4.0f);
+        CHECK(perm.w == 1.0f);
     }
     {
         const Vec4i vec1(1, 2, 3, 4);
@@ -680,14 +673,14 @@ TEST_CASE("Vector4 misc", "[math][vector4]")
         const Vec4i min = Min(vec1, vec2);
         const Vec4i max = Max(vec1, vec2);
 
-        CHECK(min.x == 1.0f);;
-        CHECK(min.y == -2.0f);
-        CHECK(min.z == 3.0f);;
-        CHECK(min.w == -3.0f);
-        CHECK(max.x == 3.0f);;
-        CHECK(max.y == 2.0f);;
-        CHECK(max.z == 5.0f);;
-        CHECK(max.w == 4.0f);;
+        CHECK(min.x == 1.0);
+        CHECK(min.y == -2.0);
+        CHECK(min.z == 3.0);
+        CHECK(min.w == -3.0);
+        CHECK(max.x == 3.0);
+        CHECK(max.y == 2.0);
+        CHECK(max.z == 5.0);
+        CHECK(max.w == 4.0);
 
         const Vec4f vec(1, 2, 3, 4);
         const Vec4f perm = Opal::Permute(vec, 1, 2, 3, 0);
@@ -703,26 +696,26 @@ TEST_CASE("Vector4 clamp", "[math][vector4]")
     {
         const Vec4f v1(2, -5, 10, -4);
         const Vec4f v2 = Opal::Clamp(v1, 0.0f, 5.0f);
-        CHECK(v2.x == 2);;
-        CHECK(v2.y == 0);;
-        CHECK(v2.z == 5);;
-        CHECK(v2.w == 0);;
+        CHECK(v2.x == 2.0f);
+        CHECK(v2.y == 0.0f);
+        CHECK(v2.z == 5.0f);
+        CHECK(v2.w == 0.0f);
     }
     {
         const Vec4d v1(2, -5, 10, -4);
         const Vec4d v2 = Opal::Clamp(v1, 0.0, 5.0);
-        CHECK(v2.x == 2);;
-        CHECK(v2.y == 0);;
-        CHECK(v2.z == 5);;
-        CHECK(v2.w == 0);;
+        CHECK(v2.x == 2);
+        CHECK(v2.y == 0);
+        CHECK(v2.z == 5);
+        CHECK(v2.w == 0);
     }
     {
         const Vec4i v1(2, -5, 10, -4);
         const Vec4i v2 = Opal::Clamp(v1, 0, 5);
-        CHECK(v2.x == 2);;
-        CHECK(v2.y == 0);;
-        CHECK(v2.z == 5);;
-        CHECK(v2.w == 0);;
+        CHECK(v2.x == 2);
+        CHECK(v2.y == 0);
+        CHECK(v2.z == 5);
+        CHECK(v2.w == 0);
     }
 }
 
@@ -770,8 +763,8 @@ TEST_CASE("Vector4 min and max component", "[math][vector4]")
 {
     {
         const Vec4f v(1, 2, 3, 4);
-        CHECK(Opal::MinComponent(v) == 1);
-        CHECK(Opal::MaxComponent(v) == 4);
+        CHECK(Opal::MinComponent(v) == 1.0f);
+        CHECK(Opal::MaxComponent(v) == 4.0f);
     }
     {
         const Vec4d v(1, 2, 3, 4);

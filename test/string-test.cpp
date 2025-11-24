@@ -1,11 +1,6 @@
-#include "opal/defines.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
-
 #include <iostream>
+
+#include "test-helpers.h"
 
 #include "opal/container/string.h"
 #include "opal/container/hash-map.h"
@@ -40,7 +35,7 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(str.GetSize() == 5);
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetData() != nullptr);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            for (u64 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == 'd');
             }
@@ -52,7 +47,7 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(str.GetSize() == 5);
             REQUIRE(str.GetCapacity() == 6);
             REQUIRE(str.GetData() != nullptr);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            for (u64 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == 'd');
             }
@@ -170,7 +165,7 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(str.GetSize() == 50);
             REQUIRE(str.GetCapacity() == 51);
             REQUIRE(str.GetData() != nullptr);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            for (u64 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == 'd');
             }
@@ -181,7 +176,7 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(str.GetSize() == 50);
             REQUIRE(str.GetCapacity() == 51);
             REQUIRE(str.GetData() != nullptr);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            for (u64 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == 'd');
             }
@@ -210,7 +205,7 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(str.GetSize() == k_sub_str_size);
             REQUIRE(str.GetCapacity() == k_sub_str_size + 1);
             REQUIRE(str.GetData() != nullptr);
-            for (i32 i = 0; i < k_sub_str_size; i++)
+            for (u64 i = 0; i < k_sub_str_size; i++)
             {
                 REQUIRE(ref[i] == str.GetData()[i]);
             }
@@ -223,7 +218,7 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(str.GetSize() == k_sub_str_size);
             REQUIRE(str.GetCapacity() == k_sub_str_size + 1);
             REQUIRE(str.GetData() != nullptr);
-            for (i32 i = 0; i < k_sub_str_size; i++)
+            for (u64 i = 0; i < k_sub_str_size; i++)
             {
                 REQUIRE(ref[i] == str.GetData()[i]);
             }
@@ -258,7 +253,7 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(second.GetSize() == 568);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() != &second.GetAllocator());
-            for (i32 i = 0; i < second.GetSize(); i++)
+            for (u64 i = 0; i < second.GetSize(); i++)
             {
                 REQUIRE(ref[6 + i] == second.GetData()[i]);
             }
@@ -272,7 +267,7 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(second.GetSize() == 568);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() != &second.GetAllocator());
-            for (i32 i = 0; i < second.GetSize(); i++)
+            for (u64 i = 0; i < second.GetSize(); i++)
             {
                 REQUIRE(ref[6 + i] == second.GetData()[i]);
             }
@@ -503,7 +498,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetCapacity() == 6);
                 REQUIRE(str.GetSize() == 5);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == 'd');
                 }
@@ -534,7 +529,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetCapacity() == 12);
                 REQUIRE(str.GetSize() == 11);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
                 }
@@ -547,7 +542,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetCapacity() == 12);
                 REQUIRE(str.GetSize() == 5);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello"[i]);
                 }
@@ -559,7 +554,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign(other);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 20);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello there and then some"[i]);
                 }
@@ -603,7 +598,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(copy.GetSize() == 5);
                 REQUIRE(copy.GetCapacity() == 6);
-                for (i32 i = 0; i < copy.GetSize(); i++)
+                for (u64 i = 0; i < copy.GetSize(); i++)
                 {
                     REQUIRE(copy.GetData()[i] == u8"there"[i]);
                 }
@@ -616,7 +611,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(copy.GetSize() == 3);
                 REQUIRE(copy.GetCapacity() == 4);
-                for (i32 i = 0; i < copy.GetSize(); i++)
+                for (u64 i = 0; i < copy.GetSize(); i++)
                 {
                     REQUIRE(copy.GetData()[i] == u8"the"[i]);
                 }
@@ -629,7 +624,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetCapacity() == 12);
                 REQUIRE(str.GetSize() == 5);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello"[i]);
                 }
@@ -641,7 +636,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign(other, 0, 20);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 20);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello there and then some"[i]);
                 }
@@ -665,7 +660,7 @@ TEST_CASE("Assign", "[String]")
                 str.Assign(Move(str));
                 REQUIRE(str.GetCapacity() == 12);
                 REQUIRE(str.GetSize() == 11);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
                 }
@@ -677,7 +672,7 @@ TEST_CASE("Assign", "[String]")
                 str.Assign(Move(other));
                 REQUIRE(str.GetCapacity() == 8);
                 REQUIRE(str.GetSize() == 7);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye"[i]);
                 }
@@ -714,7 +709,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 7);
                 REQUIRE(str.GetCapacity() == 12);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye"[i]);
                 }
@@ -726,7 +721,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 4);
                 REQUIRE(str.GetCapacity() == 12);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Good"[i]);
                 }
@@ -738,7 +733,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 21);
                 REQUIRE(str.GetCapacity() == 22);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye and then some"[i]);
                 }
@@ -783,7 +778,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 5);
                 REQUIRE(str.GetCapacity() == 6);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == ref[5 + i]);
                 }
@@ -828,7 +823,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign(50, 'd');
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 50);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == 'd');
                 }
@@ -859,7 +854,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetCapacity() == 31);
                 REQUIRE(str.GetSize() == 30);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello there and then some more"[i]);
                 }
@@ -872,7 +867,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetCapacity() == 31);
                 REQUIRE(str.GetSize() == 5);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello"[i]);
                 }
@@ -884,7 +879,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign(other);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 41);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello there and then some more and double"[i]);
                 }
@@ -927,7 +922,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = copy.Assign(ref, 6);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(copy.GetSize() == 35);
-                for (i32 i = 0; i < copy.GetSize(); i++)
+                for (u64 i = 0; i < copy.GetSize(); i++)
                 {
                     REQUIRE(copy.GetData()[i] == u8"there and then some more and double"[i]);
                 }
@@ -940,7 +935,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(copy.GetSize() == 28);
                 REQUIRE(copy.GetCapacity() == 29);
-                for (i32 i = 0; i < copy.GetSize(); i++)
+                for (u64 i = 0; i < copy.GetSize(); i++)
                 {
                     REQUIRE(copy.GetData()[i] == u8"there and then some more and"[i]);
                 }
@@ -953,7 +948,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetCapacity() == 31);
                 REQUIRE(str.GetSize() == 5);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello"[i]);
                 }
@@ -965,7 +960,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign(other, 0, 20);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 20);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello there and then"[i]);
                 }
@@ -989,7 +984,7 @@ TEST_CASE("Assign", "[String]")
                 str.Assign(Move(str));
                 REQUIRE(str.GetCapacity() == 31);
                 REQUIRE(str.GetSize() == 30);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Hello there and then some more"[i]);
                 }
@@ -1001,7 +996,7 @@ TEST_CASE("Assign", "[String]")
                 str.Assign(Move(other));
                 REQUIRE(str.GetCapacity() == 8);
                 REQUIRE(str.GetSize() == 7);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye"[i]);
                 }
@@ -1038,7 +1033,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 7);
                 REQUIRE(str.GetCapacity() == 31);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye"[i]);
                 }
@@ -1050,7 +1045,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 4);
                 REQUIRE(str.GetCapacity() == 31);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Good"[i]);
                 }
@@ -1062,7 +1057,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 21);
                 REQUIRE(str.GetCapacity() == 31);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye and then some"[i]);
                 }
@@ -1107,7 +1102,7 @@ TEST_CASE("Assign", "[String]")
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 25);
                 REQUIRE(str.GetCapacity() == 26);
-                for (i32 i = 0; i < str.GetSize(); i++)
+                for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == ref[5 + i]);
                 }
@@ -1271,7 +1266,7 @@ TEST_CASE("Reserve", "[String]")
             str.Reserve(20);
             REQUIRE(str.GetCapacity() == 20);
             REQUIRE(str.GetSize() == 11);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            for (u64 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
             }
@@ -1282,7 +1277,7 @@ TEST_CASE("Reserve", "[String]")
             str.Reserve(5);
             REQUIRE(str.GetCapacity() == 12);
             REQUIRE(str.GetSize() == 11);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            for (u64 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == u8"Hello there"[i]);
             }
@@ -1317,7 +1312,7 @@ TEST_CASE("Reserve", "[String]")
             str.Reserve(600);
             REQUIRE(str.GetCapacity() == 600);
             REQUIRE(str.GetSize() == 574);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            for (u64 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == ref_str[i]);
             }
@@ -1328,7 +1323,7 @@ TEST_CASE("Reserve", "[String]")
             str.Reserve(500);
             REQUIRE(str.GetCapacity() == 575);
             REQUIRE(str.GetSize() == 574);
-            for (i32 i = 0; i < str.GetSize(); i++)
+            for (u64 i = 0; i < str.GetSize(); i++)
             {
                 REQUIRE(str.GetData()[i] == ref_str[i]);
             }

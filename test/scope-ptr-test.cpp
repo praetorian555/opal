@@ -1,9 +1,4 @@
-#include "opal/defines.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 #include "opal/container/scope-ptr.h"
 
@@ -32,8 +27,12 @@ TEST_CASE("ScopePtr creation", "[ScopePtr]")
     }
     SECTION("Move construction with derived type")
     {
-        struct A{};
-        struct B : public A{};
+        struct A
+        {
+        };
+        struct B : public A
+        {
+        };
 
         ScopePtr<A> ptr = MakeDefaultScoped<B>();
         ScopePtr<B> move(std::move(ptr));

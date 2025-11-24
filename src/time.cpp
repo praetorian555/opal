@@ -5,6 +5,7 @@
 #include <Windows.h>
 #elif defined(OPAL_PLATFORM_LINUX)
 #include <ctime>
+#include <sys/stat.h>
 #else
 #error "Unsupported platform"
 #endif
@@ -80,6 +81,11 @@ f64 GetLastFileModifiedTimeInSeconds(const StringUtf8& file_path)
     return static_cast<f64>(uli.QuadPart / 10'000'000);
 
 #elif defined(OPAL_PLATFORM_LINUX)
+    struct stat result;
+    if (stat(*file_path, &result) == 0)
+    {
+        return static_cast<f64>(result.st_mtim.tv_sec) + static_cast<f64>(result.st_mtim.tv_nsec) / 1'000'000'000;
+    }
     return -1;
 #endif
 }

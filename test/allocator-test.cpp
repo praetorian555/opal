@@ -1,11 +1,6 @@
-#include "opal/defines.h"
+#include "test-helpers.h"
+
 #include "opal/exceptions.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
-
 #include "opal/allocator.h"
 
 TEST_CASE("Malloc allocator", "[Allocator]")

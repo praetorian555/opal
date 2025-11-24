@@ -1,11 +1,4 @@
-#include "opal/defines.h"
-
-#include <limits>
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 #include "opal/math/rotator.h"
 
@@ -65,14 +58,14 @@ TEST_CASE("Rotator addition", "[math][rotator]")
         const Rotf rot2(12, 23, 64);
 
         const Rotf rot3 = rot1 + rot2;
-        CHECK(rot3.pitch == 22);
-        CHECK(rot3.yaw == 38);
-        CHECK(rot3.roll == 98);
+        CHECK(rot3.pitch == 22.0f);
+        CHECK(rot3.yaw == 38.0f);
+        CHECK(rot3.roll == 98.0f);
 
         rot1 += rot2;
-        CHECK(rot1.pitch == 22);
-        CHECK(rot1.yaw == 38);
-        CHECK(rot1.roll == 98);
+        CHECK(rot1.pitch == 22.0f);
+        CHECK(rot1.yaw == 38.0f);
+        CHECK(rot1.roll == 98.0f);
     }
     {
         Rotd rot1(10, 15, 34);
@@ -97,14 +90,14 @@ TEST_CASE("Rotator subtraction", "[math][rotator]")
         const Rotf rot2(12, 23, 64);
 
         const Rotf rot3 = rot1 - rot2;
-        CHECK(rot3.pitch == -2);
-        CHECK(rot3.yaw == -8);
-        CHECK(rot3.roll == -30);
+        CHECK(rot3.pitch == -2.0f);
+        CHECK(rot3.yaw == -8.0f);
+        CHECK(rot3.roll == -30.0f);
 
         rot1 -= rot2;
-        CHECK(rot1.pitch == -2);
-        CHECK(rot1.yaw == -8);
-        CHECK(rot1.roll == -30);
+        CHECK(rot1.pitch == -2.0f);
+        CHECK(rot1.yaw == -8.0f);
+        CHECK(rot1.roll == -30.0f);
     }
     {
         Rotd rot1(10, 15, 34);
@@ -128,14 +121,14 @@ TEST_CASE("Rotator multiplication by scalar", "[math][rotator]")
         Rotf rot1(10, 15, 34);
 
         const Rotf rot2 = 2.0f * rot1;
-        CHECK(rot2.pitch == 20);
-        CHECK(rot2.yaw == 30);
-        CHECK(rot2.roll == 68);
+        CHECK(rot2.pitch == 20.0f);
+        CHECK(rot2.yaw == 30.0f);
+        CHECK(rot2.roll == 68.0f);
 
         rot1 *= 2;
-        CHECK(rot1.pitch == 20);
-        CHECK(rot1.yaw == 30);
-        CHECK(rot1.roll == 68);
+        CHECK(rot1.pitch == 20.0f);
+        CHECK(rot1.yaw == 30.0f);
+        CHECK(rot1.roll == 68.0f);
     }
     {
         Rotd rot1(10, 15, 34);

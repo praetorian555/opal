@@ -642,7 +642,7 @@ typename MyString::size_type Find(const MyString& haystack, const typename MyStr
  * @param start_pos Position in the haystack to start searching from. Search will start from right to left. If start_pos is greater than
  * the size of the haystack, the entire haystack will be searched.
  * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns MyString::k_npos. If needle is
- * empty, returns start_pos or if start_pos is larger then or equal to the size of the string the size of haystack will be returned.
+ * empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
  */
 template <typename MyString>
 typename MyString::size_type ReverseFind(const MyString& haystack, const MyString& needle,
@@ -658,7 +658,7 @@ typename MyString::size_type ReverseFind(const MyString& haystack, const MyStrin
  * @param needle_count Number of code units to search for in the needle. Includes the null-terminator characters. If needle_count is
  * equal to MyString::k_npos, the entire needle will be searched for until the first null-terminator character.
  * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns MyString::k_npos. If needle is
- * empty, returns start_pos or if start_pos is larger then or equal to the size of the string the size of haystack will be returned.
+ * empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
  */
 template <typename MyString>
 typename MyString::size_type ReverseFind(const MyString& haystack, const typename MyString::value_type* needle,
@@ -888,7 +888,7 @@ CLASS_HEADER::String(String&& other) noexcept
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-CLASS_HEADER::String(InputIt start, InputIt end, AllocatorType* allocator) : String(&(*start), end - start, allocator)
+CLASS_HEADER::String(InputIt start, InputIt end, AllocatorType* allocator) : String(&(*start), Narrow<size_type>(end - start), allocator)
 {
 }
 
@@ -1588,7 +1588,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(start);
     }
-    const size_type start_pos = start - Begin();
+    const size_type start_pos = Narrow<size_type>(start - Begin());
     if (m_size + count + 1 > m_capacity)
     {
         const ErrorCode error = Reserve(m_size + count + 1);
@@ -1623,7 +1623,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(iterator(m_data + (start - ConstBegin())));
     }
-    const size_type start_pos = start - ConstBegin();
+    const size_type start_pos = Narrow<size_type>(start - ConstBegin());
     if (m_size + count + 1 > m_capacity)
     {
         const ErrorCode error = Reserve(m_size + count + 1);
@@ -1659,12 +1659,12 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(ErrorCode::InvalidArgument);
     }
-    const size_type count = end - begin;
+    const size_type count = Narrow<size_type>(end - begin);
     if (count == 0)
     {
         return ReturnType(start);
     }
-    const size_type start_pos = start - Begin();
+    const size_type start_pos = Narrow<size_type>(start - Begin());
     if (m_size + count + 1 > m_capacity)
     {
         const ErrorCode error = Reserve(m_size + count + 1);
@@ -1679,7 +1679,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     for (size_type i = start_pos; i < start_pos + count; ++i)
     {
-        m_data[i] = *(begin + i - start_pos);
+        m_data[i] = *(begin + Narrow<difference_type>(i - start_pos));
     }
     m_size += count;
     m_data[m_size] = 0;
@@ -1700,12 +1700,12 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(ErrorCode::InvalidArgument);
     }
-    const size_type count = end - begin;
+    const size_type count = Narrow<size_type>(end - begin);
     if (count == 0)
     {
         return ReturnType(iterator(m_data + (start - ConstBegin())));
     }
-    const size_type start_pos = start - ConstBegin();
+    const size_type start_pos = Narrow<size_type>(start - ConstBegin());
     if (m_size + count + 1 > m_capacity)
     {
         const ErrorCode error = Reserve(m_size + count + 1);
@@ -1773,7 +1773,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
         return ReturnType(ErrorCode::OutOfBounds);
     }
 
-    const size_type start_index = pos - ConstBegin();
+    const size_type start_index = Narrow<size_type>(pos - ConstBegin());
     for (size_type i = start_index; i < m_size - 1; ++i)
     {
         m_data[i] = m_data[i + 1];
@@ -1804,8 +1804,8 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
         return ReturnType(first);
     }
 
-    const size_type count_to_erase = last - first;
-    const size_type start_index = first - Begin();
+    const size_type count_to_erase = Narrow<size_type>(last - first);
+    const size_type start_index = Narrow<size_type>(first - Begin());
     for (size_type i = start_index; i < m_size - count_to_erase; ++i)
     {
         m_data[i] = m_data[i + count_to_erase];
@@ -1833,11 +1833,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     }
     if (first == last)
     {
-        return ReturnType(iterator(m_data + (first - ConstBegin())));
+        return ReturnType(iterator(m_data + Narrow<size_type>(first - ConstBegin())));
     }
 
-    const size_type count_to_erase = last - first;
-    const size_type start_index = first - ConstBegin();
+    const size_type count_to_erase = Narrow<size_type>(last - first);
+    const size_type start_index = Narrow<size_type>(first - ConstBegin());
     for (size_type i = start_index; i < m_size - count_to_erase; ++i)
     {
         m_data[i] = m_data[i + count_to_erase];
@@ -1946,7 +1946,7 @@ bool CLASS_HEADER::operator<=(const StringIterator& other) const
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator++()
 {
-    m_ptr++;
+    ++m_ptr;
     return *this;
 }
 
@@ -1954,14 +1954,14 @@ TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator++(int)
 {
     StringIterator temp = *this;
-    m_ptr++;
+    ++m_ptr;
     return temp;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator--()
 {
-    m_ptr--;
+    --m_ptr;
     return *this;
 }
 
@@ -1969,7 +1969,7 @@ TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator--(int)
 {
     StringIterator temp = *this;
-    m_ptr--;
+    --m_ptr;
     return temp;
 }
 
@@ -2062,7 +2062,7 @@ bool CLASS_HEADER::operator<=(const StringConstIterator& other) const
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator++()
 {
-    m_ptr++;
+    ++m_ptr;
     return *this;
 }
 
@@ -2070,14 +2070,14 @@ TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator++(int)
 {
     StringConstIterator temp = *this;
-    m_ptr++;
+    ++m_ptr;
     return temp;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator--()
 {
-    m_ptr--;
+    --m_ptr;
     return *this;
 }
 
@@ -2085,7 +2085,7 @@ TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator--(int)
 {
     StringConstIterator temp = *this;
-    m_ptr--;
+    --m_ptr;
     return temp;
 }
 
@@ -2587,7 +2587,7 @@ bool Opal::StartsWith(const StringClass& str, const StringClass& prefix)
     {
         return false;
     }
-    for (i32 i = 0; i < prefix.GetSize(); i++)
+    for (typename StringClass::size_type i = 0; i < prefix.GetSize(); ++i)
     {
         if (prefix[i] != str[i])
         {
@@ -2604,7 +2604,7 @@ bool Opal::EndsWith(const StringClass& str, const StringClass& suffix)
     {
         return false;
     }
-    for (i32 i = 0; i < suffix.GetSize(); i++)
+    for (typename StringClass::size_type i = 0; i < suffix.GetSize(); ++i)
     {
         if (suffix[i] != str[str.GetSize() - suffix.GetSize() + i])
         {

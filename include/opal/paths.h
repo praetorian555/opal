@@ -86,13 +86,15 @@ Expected<StringUtf8, ErrorCode> Combine(AllocatorBase* allocator, Args... args);
 }  // namespace Opal::Paths
 
 OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wunused - value)
+OPAL_DISABLE_WARNING("-Wunused-value")
 template <typename... Args>
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::Combine(AllocatorBase* allocator, Args... args)
 {
     StringUtf8 result(allocator);
     ErrorCode err = ErrorCode::Success;
 
+    OPAL_START_DISABLE_WARNINGS
+    OPAL_DISABLE_WARNING("-Wunused-but-set-variable")
     auto append = [&result, &err](const auto& part)
     {
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -129,6 +131,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::Combine(Allocator
         }
         return ErrorCode::Success;
     };
+    OPAL_END_DISABLE_WARNINGS
 
     (... && (append(args) == ErrorCode::Success));
     if (err != ErrorCode::Success)

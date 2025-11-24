@@ -1,11 +1,6 @@
-#include "opal/defines.h"
-
 #include <limits>
 
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 #include "opal/math/point3.h"
 
@@ -20,14 +15,14 @@ TEST_CASE("Point3 construction", "[math][point3]")
 {
     {
         const Point3f vec1(1, 2, 3);
-        CHECK(vec1.x == 1);
-        CHECK(vec1.y == 2);
-        CHECK(vec1.z == 3);
+        CHECK(vec1.x == 1.0f);
+        CHECK(vec1.y == 2.0f);
+        CHECK(vec1.z == 3.0f);
 
         const Point3f vec2(1);
-        CHECK(vec2.x == 1);
-        CHECK(vec2.y == 1);
-        CHECK(vec2.z == 1);
+        CHECK(vec2.x == 1.0f);
+        CHECK(vec2.y == 1.0f);
+        CHECK(vec2.z == 1.0f);
     }
     {
         const Point3d vec1(1, 2, 3);
@@ -57,16 +52,16 @@ TEST_CASE("Point3 access operator", "[math][point3]")
 {
     {
         Point3f p1(1, 2, 3);
-        CHECK(p1[0] == 1);
-        CHECK(p1[1] == 2);
-        CHECK(p1[2] == 3);
+        CHECK(p1[0] == 1.0f);
+        CHECK(p1[1] == 2.0f);
+        CHECK(p1[2] == 3.0f);
 
         p1[0] = 5;
         p1[1] = 6;
         p1[2] = 7;
-        CHECK(p1[0] == 5);
-        CHECK(p1[1] == 6);
-        CHECK(p1[2] == 7);
+        CHECK(p1[0] == 5.0f);
+        CHECK(p1[1] == 6.0f);
+        CHECK(p1[2] == 7.0f);
     }
     {
         Point3d p1(1, 2, 3);
@@ -309,14 +304,14 @@ TEST_CASE("Point3 subtraction", "[math][point3]")
         const Vec3d vec3(2, 2, 2);
 
         const Point3d vec4 = vec2 - vec3;
-        CHECK(vec4.x == 1.0f);
-        CHECK(vec4.y == 2.0f);
-        CHECK(vec4.z == 3.0f);
+        CHECK(vec4.x == 1.0);
+        CHECK(vec4.y == 2.0);
+        CHECK(vec4.z == 3.0);
 
         const Vec3d vec5 = vec2 - vec1;
-        CHECK(vec5.x == 2.0f);
-        CHECK(vec5.y == 2.0f);
-        CHECK(vec5.z == 2.0f);
+        CHECK(vec5.x == 2.0);
+        CHECK(vec5.y == 2.0);
+        CHECK(vec5.z == 2.0);
     }
     {
         const Point3i vec1(1, 2, 3);
@@ -324,14 +319,14 @@ TEST_CASE("Point3 subtraction", "[math][point3]")
         const Vec3i vec3(2, 2, 2);
 
         const Point3i vec4 = vec2 - vec3;
-        CHECK(vec4.x == 1.0f);
-        CHECK(vec4.y == 2.0f);
-        CHECK(vec4.z == 3.0f);
+        CHECK(vec4.x == 1.0);
+        CHECK(vec4.y == 2.0);
+        CHECK(vec4.z == 3.0);
 
         const Vec3i vec5 = vec2 - vec1;
-        CHECK(vec5.x == 2.0f);
-        CHECK(vec5.y == 2.0f);
-        CHECK(vec5.z == 2.0f);
+        CHECK(vec5.x == 2.0);
+        CHECK(vec5.y == 2.0);
+        CHECK(vec5.z == 2.0);
     }
 }
 
@@ -349,17 +344,17 @@ TEST_CASE("Point3 negation", "[math][point3]")
         const Point3d vec(5, -10, -15);
         const Point3d neg = -vec;
 
-        CHECK(neg.x == -5.0f);
-        CHECK(neg.y == 10.0f);
-        CHECK(neg.z == 15.0f);
+        CHECK(neg.x == -5.0);
+        CHECK(neg.y == 10.0);
+        CHECK(neg.z == 15.0);
     }
     {
         const Point3i vec(5, -10, -15);
         const Point3i neg = -vec;
 
-        CHECK(neg.x == -5.0f);
-        CHECK(neg.y == 10.0f);
-        CHECK(neg.z == 15.0f);
+        CHECK(neg.x == -5.0);
+        CHECK(neg.y == 10.0);
+        CHECK(neg.z == 15.0);
     }
 }
 
@@ -389,38 +384,38 @@ TEST_CASE("Point3 multiplication by scalar", "[math][point3]")
 
         Point3d vec2 = vec1 * 5.0f;
 
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
-        CHECK(vec2.z == 15.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
 
         vec2 *= 2.0f;
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
-        CHECK(vec2.z == 30.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
 
         const Point3d vec3 = 2.0f * vec2;
-        CHECK(vec3.x == 20.0f);
-        CHECK(vec3.y == 40.0f);
-        CHECK(vec3.z == 60.0f);
+        CHECK(vec3.x == 20.0);
+        CHECK(vec3.y == 40.0);
+        CHECK(vec3.z == 60.0);
     }
     {
         const Point3i vec1(1, 2, 3);
 
         Point3i vec2 = vec1 * 5.0f;
 
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
-        CHECK(vec2.z == 15.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
 
         vec2 *= 2.0f;
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
-        CHECK(vec2.z == 30.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
 
         const Point3i vec3 = 2.0f * vec2;
-        CHECK(vec3.x == 20.0f);
-        CHECK(vec3.y == 40.0f);
-        CHECK(vec3.z == 60.0f);
+        CHECK(vec3.x == 20.0);
+        CHECK(vec3.y == 40.0);
+        CHECK(vec3.z == 60.0);
     }
 }
 
@@ -441,32 +436,32 @@ TEST_CASE("Point3 division by scalar", "[math][point3]")
         CHECK(vec2.z == 15.0f);
     }
     {
-        const Point3d vec1(20.0f, 40.0f, 60.0f);
+        const Point3d vec1(20.0, 40.0, 60.0);
 
         Point3d vec2 = vec1 / 2.0f;
 
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
-        CHECK(vec2.z == 30.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
 
         vec2 /= 2.0f;
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
-        CHECK(vec2.z == 15.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
     }
     {
         const Point3i vec1(20, 40, 60);
 
         Point3i vec2 = vec1 / 2.0f;
 
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
-        CHECK(vec2.z == 30.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
 
         vec2 /= 2.0f;
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
-        CHECK(vec2.z == 15.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
     }
 }
 
@@ -484,17 +479,17 @@ TEST_CASE("Point3 abs", "[math][point3]")
         const Point3d vec(5, -10, -15);
         const Point3d a = Opal::Abs(vec);
 
-        CHECK(a.x == 5.0f);
-        CHECK(a.y == 10.0f);
-        CHECK(a.z == 15.0f);
+        CHECK(a.x == 5.0);
+        CHECK(a.y == 10.0);
+        CHECK(a.z == 15.0);
     }
     {
         const Point3i vec(5, -10, -15);
         const Point3i a = Opal::Abs(vec);
 
-        CHECK(a.x == 5.0f);
-        CHECK(a.y == 10.0f);
-        CHECK(a.z == 15.0f);
+        CHECK(a.x == 5.0);
+        CHECK(a.y == 10.0);
+        CHECK(a.z == 15.0);
     }
 }
 
@@ -544,7 +539,7 @@ TEST_CASE("Point3 distance", "[math][point3]")
         const Point3f p1(3, 4, 5);
         const Point3f p2(4, 6, 7);
 
-        CHECK(Opal::Distance(p1, p2) == 3.0f);
+        CHECK(Opal::Distance(p1, p2) == 3.0);
         CHECK(Opal::DistanceSquared(p1, p2) == 9.0f);
     }
     {
@@ -624,12 +619,12 @@ TEST_CASE("Point3 min, max and permute", "[math][point3]")
         const Point3d min = Min(vec1, vec2);
         const Point3d max = Max(vec1, vec2);
 
-        CHECK(min.x == 1.0f);
-        CHECK(min.y == -2.0f);
-        CHECK(min.z == 3.0f);
-        CHECK(max.x == 3.0f);
-        CHECK(max.y == 2.0f);
-        CHECK(max.z == 5.0f);
+        CHECK(min.x == 1.0);
+        CHECK(min.y == -2.0);
+        CHECK(min.z == 3.0);
+        CHECK(max.x == 3.0);
+        CHECK(max.y == 2.0);
+        CHECK(max.z == 5.0);
 
         const Point3f vec(1, 2, 3);
         const Point3f perm = Opal::Permute(vec, 1, 2, 0);
@@ -643,12 +638,12 @@ TEST_CASE("Point3 min, max and permute", "[math][point3]")
         const Point3i min = Min(vec1, vec2);
         const Point3i max = Max(vec1, vec2);
 
-        CHECK(min.x == 1.0f);
-        CHECK(min.y == -2.0f);
-        CHECK(min.z == 3.0f);
-        CHECK(max.x == 3.0f);
-        CHECK(max.y == 2.0f);
-        CHECK(max.z == 5.0f);
+        CHECK(min.x == 1.0);
+        CHECK(min.y == -2.0);
+        CHECK(min.z == 3.0);
+        CHECK(max.x == 3.0);
+        CHECK(max.y == 2.0);
+        CHECK(max.z == 5.0);
 
         const Point3f vec(1, 2, 3);
         const Point3f perm = Opal::Permute(vec, 1, 2, 0);

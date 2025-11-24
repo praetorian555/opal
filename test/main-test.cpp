@@ -1,10 +1,6 @@
 #include "opal/defines.h"
 
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#define CATCH_CONFIG_RUNNER
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 int main(int argc, char* argv[])
 {

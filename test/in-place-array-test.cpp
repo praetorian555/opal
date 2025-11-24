@@ -1,9 +1,4 @@
-#include "opal/defines.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-
-#include <catch2/catch2.hpp>
+#include "test-helpers.h"
 
 #include "opal/container/in-place-array.h"
 
@@ -447,5 +442,3 @@ TEST_CASE("Const iterator", "[InPlaceArray]")
         REQUIRE(sum == 129);
     }
 }
-
-OPAL_END_DISABLE_WARNINGS

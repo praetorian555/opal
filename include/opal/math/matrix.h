@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include <cstring>
+
 #include "opal/assert.h"
 #include "opal/common.h"
 #include "opal/math-base.h"
@@ -69,8 +71,8 @@ struct Matrix
     static Matrix Zero();
 
     /** Operators **/
-    T& operator()(i32 row, i32 column);
-    const T& operator()(i32 row, i32 column) const;
+    T& operator()(u32 row, u32 column);
+    const T& operator()(u32 row, u32 column) const;
 
     bool operator==(const Matrix& other) const;
     bool operator!=(const Matrix& other) const;
@@ -189,18 +191,18 @@ bool Opal::Matrix<T, k_row_count, k_col_count>::operator!=(const Matrix& other) 
 }
 
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
-T& Opal::Matrix<T, k_row_count, k_col_count>::operator()(i32 row, i32 column)
+T& Opal::Matrix<T, k_row_count, k_col_count>::operator()(u32 row, u32 column)
 {
-    OPAL_ASSERT(row >= 0 && row < k_row_count, "Row index out of range.");
-    OPAL_ASSERT(column >= 0 && column < k_col_count, "Column index out of range.");
+    OPAL_ASSERT(row < k_row_count, "Row index out of range.");
+    OPAL_ASSERT(column < k_col_count, "Column index out of range.");
     return elements[row][column];
 }
 
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
-const T& Opal::Matrix<T, k_row_count, k_col_count>::operator()(i32 row, i32 column) const
+const T& Opal::Matrix<T, k_row_count, k_col_count>::operator()(u32 row, u32 column) const
 {
-    OPAL_ASSERT(row >= 0 && row < k_row_count, "Row index out of range.");
-    OPAL_ASSERT(column >= 0 && column < k_col_count, "Column index out of range.");
+    OPAL_ASSERT(row < k_row_count, "Row index out of range.");
+    OPAL_ASSERT(column < k_col_count, "Column index out of range.");
     return elements[row][column];
 }
 
@@ -233,9 +235,9 @@ template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator+(const Matrix& other) const
 {
     Matrix<T> result;
-    for (i32 i = 0; i < k_row_count; ++i)
+    for (u32 i = 0; i < k_row_count; ++i)
     {
-        for (i32 j = 0; j < k_col_count; ++j)
+        for (u32 j = 0; j < k_col_count; ++j)
         {
             result.elements[i][j] = elements[i][j] + other.elements[i][j];
         }
@@ -254,9 +256,9 @@ template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator-(const Matrix& other) const
 {
     Matrix<T> result;
-    for (i32 i = 0; i < k_row_count; ++i)
+    for (u32 i = 0; i < k_row_count; ++i)
     {
-        for (i32 j = 0; j < k_col_count; ++j)
+        for (u32 j = 0; j < k_col_count; ++j)
         {
             result.elements[i][j] = elements[i][j] - other.elements[i][j];
         }
@@ -276,9 +278,9 @@ template <typename U>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator*(U scalar) const
 {
     Matrix<T> result;
-    for (i32 i = 0; i < k_row_count; ++i)
+    for (u32 i = 0; i < k_row_count; ++i)
     {
-        for (i32 j = 0; j < k_col_count; ++j)
+        for (u32 j = 0; j < k_col_count; ++j)
         {
             result.elements[i][j] = elements[i][j] * static_cast<T>(scalar);
         }
@@ -299,9 +301,9 @@ template <typename U>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator/(U scalar) const
 {
     Matrix<T> result;
-    for (i32 i = 0; i < k_row_count; ++i)
+    for (u32 i = 0; i < k_row_count; ++i)
     {
-        for (i32 j = 0; j < k_col_count; ++j)
+        for (u32 j = 0; j < k_col_count; ++j)
         {
             result.elements[i][j] = elements[i][j] / static_cast<T>(scalar);
         }
@@ -412,9 +414,9 @@ MatrixType Opal::operator*(U scalar, const MatrixType& m)
 template <typename MatrixType>
 bool Opal::IsEqual(const MatrixType& m1, const MatrixType& m2, typename MatrixType::value_type epsilon)
 {
-    for (i32 i = 0; i < MatrixType::k_row_count_value; ++i)
+    for (u32 i = 0; i < MatrixType::k_row_count_value; ++i)
     {
-        for (i32 j = 0; j < MatrixType::k_col_count_value; ++j)
+        for (u32 j = 0; j < MatrixType::k_col_count_value; ++j)
         {
             if (!Opal::IsEqual(m1.elements[i][j], m2.elements[i][j], epsilon))
             {
@@ -429,9 +431,9 @@ template <typename MatrixType>
 MatrixType Opal::Transpose(const MatrixType& m)
 {
     MatrixType result;
-    for (i32 i = 0; i < MatrixType::k_row_count_value; ++i)
+    for (u32 i = 0; i < MatrixType::k_row_count_value; ++i)
     {
-        for (i32 j = 0; j < MatrixType::k_col_count_value; ++j)
+        for (u32 j = 0; j < MatrixType::k_col_count_value; ++j)
         {
             result.elements[i][j] = m.elements[j][i];
         }
@@ -444,24 +446,24 @@ MatrixType Opal::Inverse(const MatrixType& m)
 {
     using value_type = typename MatrixType::value_type;
     OPAL_ASSERT(MatrixType::k_row_count_value == MatrixType::k_col_count_value, "The matrix must be symmetric");
-    int indxc[MatrixType::k_row_count_value] = {};
-    int indxr[MatrixType::k_row_count_value] = {};
-    int ipiv[MatrixType::k_row_count_value] = {};
+    u32 indxc[MatrixType::k_row_count_value] = {};
+    u32 indxr[MatrixType::k_row_count_value] = {};
+    u32 ipiv[MatrixType::k_row_count_value] = {};
     value_type mat_inv[MatrixType::k_row_count_value][MatrixType::k_row_count_value] = {};
     memcpy(mat_inv, m.elements, sizeof(MatrixType));
-    for (int it = 0; it < MatrixType::k_row_count_value; it++)
+    for (u32 it = 0; it < MatrixType::k_row_count_value; it++)
     {
-        int index_row = 0;
-        int index_column = 0;
+        u32 index_row = 0;
+        u32 index_column = 0;
         value_type big = 0;
         // Choose pivot
-        for (int row = 0; row < MatrixType::k_row_count_value; row++)
+        for (u32 row = 0; row < MatrixType::k_row_count_value; row++)
         {
             if (ipiv[row] == 1)
             {
                 continue;
             }
-            for (int column = 0; column < MatrixType::k_col_count_value; column++)
+            for (u32 column = 0; column < MatrixType::k_col_count_value; column++)
             {
                 if (ipiv[column] == 0)
                 {
@@ -482,7 +484,7 @@ MatrixType Opal::Inverse(const MatrixType& m)
         // Swap rows _irow_ and _icol_ for pivot
         if (index_row != index_column)
         {
-            for (int column = 0; column < MatrixType::k_col_count_value; column++)
+            for (u32 column = 0; column < MatrixType::k_col_count_value; column++)
             {
                 Swap(mat_inv[index_row][column], mat_inv[index_column][column]);
             }
@@ -497,19 +499,19 @@ MatrixType Opal::Inverse(const MatrixType& m)
         // Set m[icol][icol] to one by scaling row _icol_ appropriately
         const value_type pivinv = 1 / mat_inv[index_column][index_column];
         mat_inv[index_column][index_column] = 1;
-        for (int column = 0; column < MatrixType::k_col_count_value; column++)
+        for (u32 column = 0; column < MatrixType::k_col_count_value; column++)
         {
             mat_inv[index_column][column] *= pivinv;
         }
 
         // Subtract this row from Others to zero out their columns
-        for (int row = 0; row < MatrixType::k_row_count_value; row++)
+        for (u32 row = 0; row < MatrixType::k_row_count_value; row++)
         {
             if (row != index_column)
             {
                 const value_type save = mat_inv[row][index_column];
                 mat_inv[row][index_column] = 0;
-                for (int column = 0; column < MatrixType::k_col_count_value; column++)
+                for (u32 column = 0; column < MatrixType::k_col_count_value; column++)
                 {
                     mat_inv[row][column] -= mat_inv[index_column][column] * save;
                 }
@@ -518,11 +520,11 @@ MatrixType Opal::Inverse(const MatrixType& m)
     }
 
     // Swap columns to reflect permutation
-    for (int column = MatrixType::k_col_count_value - 1; column >= 0; --column)
+    for (i32 column = MatrixType::k_col_count_value - 1; column >= 0; --column)
     {
         if (indxr[column] != indxc[column])
         {
-            for (int row = 0; row < 4; row++)
+            for (u32 row = 0; row < 4; row++)
             {
                 Swap(mat_inv[row][indxr[column]], mat_inv[row][indxc[column]]);
             }

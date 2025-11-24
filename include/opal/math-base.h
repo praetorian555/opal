@@ -284,7 +284,7 @@ T Opal::Mod(T a, T b)
     {
         if (IsNaN(a) || IsNaN(b) || b == 0)
         {
-            return NAN;
+            return static_cast<T>(k_nan_double);
         }
         return std::fmod(a, b);
     }

@@ -136,12 +136,6 @@ Opal::DualQuaternion<T>& Opal::DualQuaternion<T>::operator=(const DualQuaternion
 }
 
 template <Opal::FloatingPoint T>
-Opal::DualQuaternion<T> Identity()
-{
-    return DualQuaternion<T>(Quaternion<T>(1, 0, 0, 0), Quaternion<T>(0, 0, 0, 0));
-}
-
-template <Opal::FloatingPoint T>
 template <typename U>
 Opal::DualQuaternion<T>& Opal::DualQuaternion<T>::operator*=(U scalar)
 {

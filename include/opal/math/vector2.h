@@ -10,7 +10,7 @@ template <typename T>
 struct Vector2
 {
     OPAL_START_DISABLE_WARNINGS
-    OPAL_DISABLE_WARNING(-Wpedantic)
+    OPAL_DISABLE_WARNING("-Wpedantic")
     union
     {
         struct

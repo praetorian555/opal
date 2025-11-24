@@ -549,6 +549,7 @@ TEST_CASE("Move assignment", "[Array]")
             OPAL_START_DISABLE_WARNINGS
 #if defined(OPAL_COMPILER_CLANG)
             OPAL_DISABLE_WARNING("-Wself-assign-overloaded")
+            OPAL_DISABLE_WARNING("-Wself-move")
 #elif defined(OPAL_COMPILER_GCC)
             OPAL_DISABLE_WARNING("-Wself-move")
 #endif
@@ -2015,7 +2016,7 @@ TEST_CASE("Insert", "[Array]")
             REQUIRE(int_arr[0] == 42);
             REQUIRE(int_arr[1] == 42);
             REQUIRE(int_arr[2] == 42);
-            for (i32 i = 0; i < 100; ++i)
+            for (u32 i = 0; i < 100; ++i)
             {
                 REQUIRE(int_arr[3 + i] == 5);
             }

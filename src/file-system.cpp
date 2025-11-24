@@ -11,12 +11,12 @@
 #undef DeleteFile
 #undef CreateDirectory
 #elif defined(OPAL_PLATFORM_LINUX)
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <dirent.h>
 #endif
 
 #include "opal/container/dynamic-array.h"
@@ -56,6 +56,7 @@ void Opal::CreateFile(const StringUtf8& path, bool fail_if_already_exists, Alloc
     }
     throw Exception("Failed to create a file!");
 #elif defined(OPAL_PLATFORM_LINUX)
+    (void)scratch_allocator;
     const i32 flags = O_CREAT | O_EXCL;
     i32 fd = open(path.GetData(), flags, 0644);
     if (fd != -1)
@@ -102,6 +103,7 @@ void Opal::DeleteFile(const StringUtf8& path, AllocatorBase* scratch_allocator)
     }
     throw Exception("Failed to delete a file!");
 #elif defined(OPAL_PLATFORM_LINUX)
+    (void)scratch_allocator;
     i32 result = remove(path.GetData());
     if (result == 0)
     {
@@ -147,6 +149,7 @@ void Opal::CreateDirectory(const StringUtf8& path, bool throw_if_exists, Allocat
     }
     throw Exception("Failed to create a directory!");
 #elif defined(OPAL_PLATFORM_LINUX)
+    (void)scratch_allocator;
     if (mkdir(*path, 0777) == 0)
     {
         return;
@@ -196,6 +199,7 @@ void Opal::DeleteDirectory(const StringUtf8& path, AllocatorBase* scratch_alloca
     }
     throw Exception("Failed to delete a directory!");
 #elif defined(OPAL_PLATFORM_LINUX)
+    (void)scratch_allocator;
     if (rmdir(*path) == 0)
     {
         return;
@@ -262,9 +266,16 @@ bool Opal::IsDirectory(const StringUtf8& path, AllocatorBase* scratch_allocator)
         return false;
     }
     return (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-#else
-    // TODO: Implement
+#elif defined(OPAL_PLATFORM_LINUX)
+    (void)scratch_allocator;
+    struct stat buff;
+    if (stat(*path, &buff) == 0)
+    {
+        return S_ISDIR(buff.st_mode) != 0;
+    }
     return false;
+#else
+    throw NotImplementedException(__FUNCTION__);
 #endif
 }
 
@@ -283,9 +294,16 @@ bool Opal::IsFile(const StringUtf8& path, AllocatorBase* scratch_allocator)
         return false;
     }
     return (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
-#else
-    // TODO: Implement
+#elif defined(OPAL_PLATFORM_LINUX)
+    (void)scratch_allocator;
+    struct stat buff;
+    if (stat(*path, &buff) == 0)
+    {
+        return S_ISREG(buff.st_mode) != 0;
+    }
     return false;
+#else
+    throw NotImplementedException(__FUNCTION__);
 #endif
 }
 

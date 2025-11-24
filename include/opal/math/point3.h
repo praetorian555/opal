@@ -9,7 +9,7 @@ template <typename T>
 struct Point3
 {
     OPAL_START_DISABLE_WARNINGS
-    OPAL_DISABLE_WARNING(-Wpedantic)
+    OPAL_DISABLE_WARNING("-Wpedantic")
     union
     {
         struct

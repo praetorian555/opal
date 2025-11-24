@@ -189,7 +189,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
     }
     if ((input[0] & 0x80) == 0)
     {
-        out_code_point = input[0];
+        out_code_point = static_cast<CodePointType>(input[0]);
         input = ArrayView<const CodeUnitT>(in_begin + 1, in_end);
         return ErrorCode::Success;
     }
@@ -203,7 +203,8 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
         {
             return ErrorCode::InvalidArgument;
         }
-        out_code_point = ((input[0] & 0x07) << 18) | ((input[1] & 0x3F) << 12) | ((input[2] & 0x3F) << 6) | (input[3] & 0x3F);
+        out_code_point = Narrow<CodePointType>((input[0] & 0x07) << 18) | Narrow<CodePointType>((input[1] & 0x3F) << 12) |
+                         Narrow<CodePointType>((input[2] & 0x3F) << 6) | Narrow<CodePointType>(input[3] & 0x3F);
         input = ArrayView<const CodeUnitT>(in_begin + 4, in_end);
         return ErrorCode::Success;
     }
@@ -217,7 +218,8 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
         {
             return ErrorCode::InvalidArgument;
         }
-        out_code_point = ((input[0] & 0x0F) << 12) | ((input[1] & 0x3F) << 6) | (input[2] & 0x3F);
+        out_code_point = Narrow<CodePointType>((input[0] & 0x0F) << 12) | Narrow<CodePointType>((input[1] & 0x3F) << 6) |
+                         Narrow<CodePointType>(input[2] & 0x3F);
         input = ArrayView<const CodeUnitT>(in_begin + 3, in_end);
         return ErrorCode::Success;
     }
@@ -231,7 +233,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
         {
             return ErrorCode::InvalidArgument;
         }
-        out_code_point = ((input[0] & 0x1F) << 6) | (input[1] & 0x3F);
+        out_code_point = Narrow<CodePointType>((input[0] & 0x1F) << 6) | Narrow<CodePointType>(input[1] & 0x3F);
         input = ArrayView<const CodeUnitT>(in_begin + 2, in_end);
         return ErrorCode::Success;
     }
@@ -330,7 +332,7 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
         }
         if (input[1] >= 0xDC00 && input[1] <= 0xDFFF)
         {
-            out_code_point = ((input[0] - 0xD800) << 10) | (input[1] - 0xDC00);
+            out_code_point = static_cast<CodePointType>((input[0] - 0xD800) << 10) | (input[1] - 0xDC00);
             out_code_point += 0x10000;
             input = ArrayView<const CodeUnitT>(input.begin() + 2, input.end());
             return ErrorCode::Success;

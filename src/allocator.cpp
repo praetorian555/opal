@@ -3,6 +3,7 @@
 #include <malloc.h>
 
 #include "opal/math-base.h"
+#include "opal/casts.h"
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
@@ -57,8 +58,8 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const
     }
 #elif defined(OPAL_PLATFORM_LINUX)
     const i64 page_size = sysconf(_SC_PAGESIZE);
-    m_page_size = page_size;
-    m_allocation_granularity = page_size;
+    m_page_size = Narrow<u64>(page_size);
+    m_allocation_granularity = Narrow<u64>(page_size);
     if (m_reserved_size % m_allocation_granularity != 0)
     {
         m_reserved_size += m_allocation_granularity - (m_reserved_size % m_allocation_granularity);

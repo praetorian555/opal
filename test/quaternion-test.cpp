@@ -16,25 +16,25 @@ TEST_CASE("Quaternion constructors", "[math][quaternion]")
     SECTION("float")
     {
         const Quatf q1(4, 1, 2, 3);
-        CHECK(q1.vec.x == 1);
-        CHECK(q1.vec.y == 2);
-        CHECK(q1.vec.z == 3);
-        CHECK(q1.w == 4);
+        CHECK(q1.vec.x == 1.0f);
+        CHECK(q1.vec.y == 2.0f);
+        CHECK(q1.vec.z == 3.0f);
+        CHECK(q1.w == 4.0f);
         const Quatf q2 = Quatf::FromAxisAngleDegrees(Vector3f(0, 0, 2), 60);
-        CHECK(q2.vec.x == 0);
-        CHECK(q2.vec.y == 0);
+        CHECK(q2.vec.x == 0.0f);
+        CHECK(q2.vec.y == 0.0f);
         CHECK(q2.vec.z == 0.5f);
         CHECK(q2.w == 0.866025403784438646763723170752f);
         const Quatf q3 = Quatf::FromAxisAngleRadians(Vector3f(0, 0, 2), Radians(60.0f));
-        CHECK(q3.vec.x == 0);
-        CHECK(q3.vec.y == 0);
+        CHECK(q3.vec.x == 0.0f);
+        CHECK(q3.vec.y == 0.0f);
         CHECK(q3.vec.z == 0.5f);
         CHECK(q2.w == 0.866025403784438646763723170752f);
         const Quatf q4 = Quatf::Identity();
-        CHECK(q4.vec.x == 0);
-        CHECK(q4.vec.y == 0);
-        CHECK(q4.vec.z == 0);
-        CHECK(q4.w == 1);
+        CHECK(q4.vec.x == 0.0f);
+        CHECK(q4.vec.y == 0.0f);
+        CHECK(q4.vec.z == 0.0f);
+        CHECK(q4.w == 1.0f);
     }
     SECTION("double")
     {
@@ -111,20 +111,20 @@ TEST_CASE("Quaternion addition", "[math][quaternion]")
             const Quatf q1(4, 1, 2, 3);
             const Quatf q2(4, 1, 2, 3);
             const Quatf q3 = q1 + q2;
-            CHECK(q3.vec.x == 2);
-            CHECK(q3.vec.y == 4);
-            CHECK(q3.vec.z == 6);
-            CHECK(q3.w == 8);
+            CHECK(q3.vec.x == 2.0f);
+            CHECK(q3.vec.y == 4.0f);
+            CHECK(q3.vec.z == 6.0f);
+            CHECK(q3.w == 8.0f);
         }
         SECTION("Add quaternions and assign")
         {
             Quatf q1(4, 1, 2, 3);
             const Quatf q2(4, 1, 2, 3);
             q1 += q2;
-            CHECK(q1.vec.x == 2);
-            CHECK(q1.vec.y == 4);
-            CHECK(q1.vec.z == 6);
-            CHECK(q1.w == 8);
+            CHECK(q1.vec.x == 2.0f);
+            CHECK(q1.vec.y == 4.0f);
+            CHECK(q1.vec.z == 6.0f);
+            CHECK(q1.w == 8.0f);
         }
     }
     SECTION("double")
@@ -161,20 +161,20 @@ TEST_CASE("Quaternion subtraction", "[math][quaternion]")
             const Quatf q1(4, 1, 2, 3);
             const Quatf q2(4, 1, 2, 3);
             const Quatf q3 = q1 - q2;
-            CHECK(q3.vec.x == 0);
-            CHECK(q3.vec.y == 0);
-            CHECK(q3.vec.z == 0);
-            CHECK(q3.w == 0);
+            CHECK(q3.vec.x == 0.0f);
+            CHECK(q3.vec.y == 0.0f);
+            CHECK(q3.vec.z == 0.0f);
+            CHECK(q3.w == 0.0f);
         }
         SECTION("Subtract quaternions and assign")
         {
             Quatf q1(4, 1, 2, 3);
             const Quatf q2(4, 1, 2, 3);
             q1 -= q2;
-            CHECK(q1.vec.x == 0);
-            CHECK(q1.vec.y == 0);
-            CHECK(q1.vec.z == 0);
-            CHECK(q1.w == 0);
+            CHECK(q1.vec.x == 0.0f);
+            CHECK(q1.vec.y == 0.0f);
+            CHECK(q1.vec.z == 0.0f);
+            CHECK(q1.w == 0.0f);
         }
     }
     SECTION("double")
@@ -211,63 +211,63 @@ TEST_CASE("Quaternion multiplication", "[math][quaternion]")
             const Quatf q1(4, 1, 2, 3);
             const Quatf q2(4, 1, 2, 3);
             const Quatf q3 = q1 * q2;
-            CHECK(q3.vec.x == 8);
-            CHECK(q3.vec.y == 16);
-            CHECK(q3.vec.z == 24);
-            CHECK(q3.w == 2);
+            CHECK(q3.vec.x == 8.0f);
+            CHECK(q3.vec.y == 16.0f);
+            CHECK(q3.vec.z == 24.0f);
+            CHECK(q3.w == 2.0f);
         }
         SECTION("Multiply quaternions and assign")
         {
             Quatf q1(4, 1, 2, 3);
             const Quatf q2(4, 1, 2, 3);
             q1 *= q2;
-            CHECK(q1.vec.x == 8);
-            CHECK(q1.vec.y == 16);
-            CHECK(q1.vec.z == 24);
-            CHECK(q1.w == 2);
+            CHECK(q1.vec.x == 8.0f);
+            CHECK(q1.vec.y == 16.0f);
+            CHECK(q1.vec.z == 24.0f);
+            CHECK(q1.w == 2.0f);
         }
         SECTION("Multiply by scalar")
         {
             const Quatf q1(4, 1, 2, 3);
             const Quatf q2 = q1 * 2;
-            CHECK(q2.vec.x == 2);
-            CHECK(q2.vec.y == 4);
-            CHECK(q2.vec.z == 6);
-            CHECK(q2.w == 8);
+            CHECK(q2.vec.x == 2.0f);
+            CHECK(q2.vec.y == 4.0f);
+            CHECK(q2.vec.z == 6.0f);
+            CHECK(q2.w == 8.0f);
         }
         SECTION("Multiply by scalar from left")
         {
             const Quatf q1(4, 1, 2, 3);
             const Quatf q2 = 2.0f * q1;
-            CHECK(q2.vec.x == 2);
-            CHECK(q2.vec.y == 4);
-            CHECK(q2.vec.z == 6);
-            CHECK(q2.w == 8);
+            CHECK(q2.vec.x == 2.0f);
+            CHECK(q2.vec.y == 4.0f);
+            CHECK(q2.vec.z == 6.0f);
+            CHECK(q2.w == 8.0f);
         }
         SECTION("Multiply by scalar and assign")
         {
             Quatf q1(4, 1, 2, 3);
             q1 *= 2;
-            CHECK(q1.vec.x == 2);
-            CHECK(q1.vec.y == 4);
-            CHECK(q1.vec.z == 6);
-            CHECK(q1.w == 8);
+            CHECK(q1.vec.x == 2.0f);
+            CHECK(q1.vec.y == 4.0f);
+            CHECK(q1.vec.z == 6.0f);
+            CHECK(q1.w == 8.0f);
         }
         SECTION("Multiply 3D vector")
         {
             const Quatf q1 = Quatf::FromAxisAngleDegrees(Vector3f(1, 0, 0), 90);
             const Vector3f Res = q1 * Vector3f(0, 1, 0);
-            CHECK(Res.x == 0);
+            CHECK(Res.x == 0.0f);
             CHECK(IsEqual(Res.y, 0.0f, 0.0001f));
-            CHECK(Res.z == 1);
+            CHECK(Res.z == 1.0f);
         }
         SECTION("Multiply 3D point")
         {
             const Quatf q1 = Quatf::FromAxisAngleDegrees(Vector3f(1, 0, 0), 90);
             const Point3f Res = q1 * Point3f(0, 0, 1);
-            CHECK(Res.x == 0);
-            CHECK(Res.y == -1);
-            CHECK(Res.z == 0);
+            CHECK(Res.x == 0.0f);
+            CHECK(Res.y == -1.0f);
+            CHECK(Res.z == 0.0f);
         }
     }
     SECTION("double")
@@ -347,18 +347,18 @@ TEST_CASE("Quaternion division", "[math][quaternion]")
             const Quatf Q1(4, 1, 2, 3);
             const Quatf Q2 = Q1 / 2;
             CHECK(Q2.vec.x == 0.5f);
-            CHECK(Q2.vec.y == 1);
+            CHECK(Q2.vec.y == 1.0f);
             CHECK(Q2.vec.z == 1.5f);
-            CHECK(Q2.w == 2);
+            CHECK(Q2.w == 2.0f);
         }
         SECTION("Divide quaternion by scalar and assign")
         {
             Quatf Q1(4, 1, 2, 3);
             Q1 /= 2;
             CHECK(Q1.vec.x == 0.5f);
-            CHECK(Q1.vec.y == 1);
+            CHECK(Q1.vec.y == 1.0f);
             CHECK(Q1.vec.z == 1.5f);
-            CHECK(Q1.w == 2);
+            CHECK(Q1.w == 2.0f);
         }
     }
     SECTION("double")
@@ -401,15 +401,15 @@ TEST_CASE("Quaternion NaN and non-finite", "[math][quaternion]")
     }
     SECTION("double")
     {
-        const Quatd q1(1, 1, NAN, 3);
+        const Quatd q1(1, 1, k_nan_double, 3);
         CHECK(ContainsNaN(q1));
         CHECK(ContainsNonFinite(q1));
-        const Quatd q2(NAN, 1, 2, 3);
+        const Quatd q2(k_nan_double, 1, 2, 3);
         CHECK(ContainsNaN(q2));
         CHECK(ContainsNonFinite(q2));
-        const Quatd q3(1, 1, INFINITY, 3);
+        const Quatd q3(1, 1, k_inf_double, 3);
         CHECK(ContainsNonFinite(q3));
-        const Quatd q4(INFINITY, 1, 2, 3);
+        const Quatd q4(k_inf_double, 1, 2, 3);
         CHECK(ContainsNonFinite(q4));
     }
 }
@@ -436,7 +436,7 @@ TEST_CASE("Quaternion dot product", "[math][quaternion]")
     {
         const Quatf q1(4, 1, 2, 3);
         const Quatf q2(4, 1, 2, 3);
-        CHECK(Dot(q1, q2) == 30);
+        CHECK(Dot(q1, q2) == 30.0f);
     }
     SECTION("double")
     {
@@ -559,19 +559,19 @@ TEST_CASE("Quaternion conjugate", "[math][quaternion]")
     {
         const Quatf q1(4, 1, 2, 3);
         const Quatf q2 = Conjugate(q1);
-        CHECK(q2.vec.x == -1);
-        CHECK(q2.vec.y == -2);
-        CHECK(q2.vec.z == -3);
-        CHECK(q2.w == 4);
+        CHECK(q2.vec.x == -1.0f);
+        CHECK(q2.vec.y == -2.0f);
+        CHECK(q2.vec.z == -3.0f);
+        CHECK(q2.w == 4.0f);
     }
     SECTION("double")
     {
         const Quatd q1(4, 1, 2, 3);
         const Quatd q2 = Conjugate(q1);
-        CHECK(q2.vec.x == -1);
-        CHECK(q2.vec.y == -2);
-        CHECK(q2.vec.z == -3);
-        CHECK(q2.w == 4);
+        CHECK(q2.vec.x == -1.0);
+        CHECK(q2.vec.y == -2.0);
+        CHECK(q2.vec.z == -3.0);
+        CHECK(q2.w == 4.0);
     }
 }
 
@@ -604,15 +604,15 @@ TEST_CASE("Quaternion rotate a point", "[math][quaternion]")
         // Rotate point around an axis
         const Quatf q = Quatf::FromAxisAngleDegrees(Vector3f(0, 0, 1), 90);
         const Point3f p = q * Point3f(1, 0, 0);
-        CHECK(p.x == 0);
-        CHECK(p.y == 1);
-        CHECK(p.z == 0);
+        CHECK(p.x == 0.0f);
+        CHECK(p.y == 1.0f);
+        CHECK(p.z == 0.0f);
         // Rotate using an inverse, should be in the opposite direction by the same amount
         const Quatf q_inv = Inverse(q);
         const Point3f p_inv = q_inv * Point3f(1, 0, 0);
-        CHECK(p_inv.x == 0);
-        CHECK(p_inv.y == -1);
-        CHECK(p_inv.z == 0);
+        CHECK(p_inv.x == 0.0f);
+        CHECK(p_inv.y == -1.0f);
+        CHECK(p_inv.z == 0.0f);
     }
     SECTION("rotate point using a composition of two rotations")
     {

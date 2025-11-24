@@ -1,11 +1,6 @@
-#include "opal/defines.h"
-
 #include <limits>
 
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 #include "opal/math-base.h"
 
@@ -28,7 +23,7 @@ TEST_CASE("NaN", "[BaseTests]")
     {
         const float a = 5;
         const float b = 10.2f;
-        const float c = nanf("");
+        const float c = Opal::k_nan_float;
         CHECK_FALSE(Opal::IsNaN(a));
         CHECK_FALSE(Opal::IsNaN(b));
         CHECK(Opal::IsNaN(c));
@@ -37,7 +32,7 @@ TEST_CASE("NaN", "[BaseTests]")
     {
         const double a = 5;
         const double b = 10.2;
-        const double c = nanf("");  // using nanf as in the original test
+        const double c = Opal::k_nan_double;  // using nanf as in the original test
         CHECK_FALSE(Opal::IsNaN(a));
         CHECK_FALSE(Opal::IsNaN(b));
         CHECK(Opal::IsNaN(c));
@@ -55,7 +50,7 @@ TEST_CASE("IsFinite", "[BaseTests]")
     {
         const float a = 5;
         const float b = 10.2f;
-        const float c = nanf("");
+        const float c = Opal::k_nan_float;
         CHECK(Opal::IsFinite(a));
         CHECK(Opal::IsFinite(b));
         CHECK_FALSE(Opal::IsFinite(c));
@@ -64,7 +59,7 @@ TEST_CASE("IsFinite", "[BaseTests]")
     {
         const double a = 5;
         const double b = 10.2;
-        const double c = nanf("");
+        const double c = Opal::k_nan_double;
         CHECK(Opal::IsFinite(a));
         CHECK(Opal::IsFinite(b));
         CHECK_FALSE(Opal::IsFinite(c));

@@ -1,5 +1,6 @@
 #include "opal/rng.h"
 #include "opal/assert.h"
+#include "opal/casts.h"
 #include "opal/math-base.h"
 
 static constexpr Opal::u64 k_default_state = 0x853c49e6748fea9bULL;
@@ -39,7 +40,7 @@ Opal::u32 Opal::RNG::RandomU32(u32 min, u32 max)
     OPAL_ASSERT(max >= min, "Invalid range!");
     const u32 range = max - min;
     const u32 x = RandomU32();
-    return min + (u32)((static_cast<u64>(x) * static_cast<u64>(range)) >> 32);
+    return min + Narrow<u32>((static_cast<u64>(x) * static_cast<u64>(range)) >> 32);
 }
 
 Opal::i32 Opal::RNG::RandomI32()
@@ -52,7 +53,7 @@ Opal::i32 Opal::RNG::RandomI32(i32 min, i32 max)
     OPAL_ASSERT(max >= min, "Invalid range!");
     u32 range = static_cast<u32>(max - min);
     u32 x = RandomU32();
-    return min + (i32)((static_cast<u64>(x) * static_cast<u64>(range)) >> 32);
+    return min + Narrow<i32>((static_cast<u64>(x) * static_cast<u64>(range)) >> 32);
 }
 
 Opal::f32 Opal::RNG::RandomF32()

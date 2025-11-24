@@ -48,5 +48,3 @@ TEST_CASE("Swap", "[common]")
         REQUIRE(b[1] == 2);
     }
 }
-
-OPAL_END_DISABLE_WARNINGS

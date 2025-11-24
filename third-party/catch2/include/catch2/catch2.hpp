@@ -5245,6 +5245,7 @@ namespace Detail {
 #elif defined __GNUC__
 #  pragma GCC diagnostic push
 #  pragma GCC diagnostic ignored "-Wsign-compare"
+#  pragma GCC diagnostic ignored "-Wnon-virtual-dtor"
 #endif
 
 #if defined(CATCH_CPP20_OR_GREATER) && __has_include(<compare>)

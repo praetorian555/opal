@@ -705,9 +705,9 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start, InputIt end)
     }
     m_size = count;
     InputIt current = start;
-    for (size_type i = 0; i < m_size; i++)
+    for (size_type i = 0; i < m_size; ++i)
     {
-        new (&m_data[i]) T(*(current + i));  // Invokes copy constructor on allocated memory
+        new (&m_data[i]) T(*(current + Narrow<difference_type>(i)));  // Invokes copy constructor on allocated memory
     }
     return ErrorCode::Success;
 }
@@ -928,7 +928,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return Expected<iterator, ErrorCode>(ErrorCode::OutOfBounds);
     }
-    size_type pos_offset = position - cbegin();
+    difference_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
     {
         const size_type new_capacity = GetNextCapacity(m_capacity);
@@ -957,7 +957,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return Expected<iterator, ErrorCode>(ErrorCode::OutOfBounds);
     }
-    size_type pos_offset = position - cbegin();
+    difference_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
     {
         const size_type new_capacity = GetNextCapacity(m_capacity);
@@ -991,7 +991,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return Expected<iterator, ErrorCode>(ErrorCode::InvalidArgument);
     }
-    size_type pos_offset = position - cbegin();
+    difference_type pos_offset = position - cbegin();
     if (m_size + count > m_capacity)
     {
         size_type new_capacity = GetNextCapacity(m_capacity);
@@ -1006,7 +1006,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     iterator mut_position = begin() + pos_offset;
     while (it >= mut_position)
     {
-        *(it + count) = Move(*it);
+        *(it + Narrow<difference_type>(count)) = Move(*it);
         --it;
     }
     iterator return_it = mut_position;
@@ -1033,7 +1033,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return Expected<iterator, ErrorCode>(ErrorCode::InvalidArgument);
     }
-    size_type pos_offset = position - cbegin();
+    difference_type pos_offset = position - cbegin();
     size_type count = static_cast<size_type>(end_it - start);
     if (m_size + count > m_capacity)
     {
@@ -1049,7 +1049,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     iterator mut_position = begin() + pos_offset;
     while (it >= mut_position)
     {
-        *(it + count) = Move(*it);
+        *(it + Narrow<difference_type>(count)) = Move(*it);
         --it;
     }
     iterator return_it = mut_position;
@@ -1070,7 +1070,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     {
         return ReturnType{ErrorCode::OutOfBounds};
     }
-    size_type pos_offset = position - cbegin();
+    difference_type pos_offset = position - cbegin();
     iterator mut_position = begin() + pos_offset;
     (*mut_position).~T();  // Invokes destructor on allocated memory
     while (mut_position < end() - 1)
@@ -1090,7 +1090,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     {
         return ReturnType{ErrorCode::OutOfBounds};
     }
-    size_type pos_offset = position - begin();
+    difference_type pos_offset =position - begin();
     iterator mut_position = begin() + pos_offset;
     (*mut_position).~T();  // Invokes destructor on allocated memory
     while (mut_position < end() - 1)
@@ -1158,9 +1158,9 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     {
         return Expected<iterator, ErrorCode>(begin() + (start_it - cbegin()));
     }
-    const size_type start_offset = start_it - cbegin();
-    const size_type end_offset = end_it - cbegin();
-    for (size_type i = start_offset; i < end_offset; i++)
+    const difference_type start_offset = start_it - cbegin();
+    const difference_type end_offset = end_it - cbegin();
+    for (difference_type i = start_offset; i < end_offset; ++i)
     {
         m_data[i].~T();  // Invokes destructor on allocated memory
     }
@@ -1172,7 +1172,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
         ++mut_start;
         ++mut_end;
     }
-    m_size += start_offset - end_offset;
+    m_size += Narrow<size_type>(start_offset - end_offset);
     using ReturnType = Expected<iterator, ErrorCode>;
     return ReturnType{begin() + start_offset};
 }
@@ -1192,9 +1192,9 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     {
         return Expected<iterator, ErrorCode>(begin() + (start_it - begin()));
     }
-    const size_type start_offset = start_it - begin();
-    const size_type end_offset = end_it - begin();
-    for (size_type i = start_offset; i < end_offset; i++)
+    const difference_type start_offset = start_it - begin();
+    const difference_type end_offset = end_it - begin();
+    for (difference_type i = start_offset; i < end_offset; ++i)
     {
         m_data[i].~T();  // Invokes destructor on allocated memory
     }
@@ -1206,7 +1206,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
         ++mut_start;
         ++mut_end;
     }
-    m_size += start_offset - end_offset;
+    m_size += Narrow<size_type>(start_offset - end_offset);
     using ReturnType = Expected<iterator, ErrorCode>;
     return ReturnType{begin() + start_offset};
 }
@@ -1266,7 +1266,7 @@ typename CLASS_HEADER::size_type CLASS_HEADER::GetNextCapacity(size_type current
     {
         return 1;
     }
-    return Narrow<size_type>((Narrow<f64>(m_capacity) * k_resize_factor) + 1.0);
+    return static_cast<size_type>((Narrow<f64>(m_capacity) * k_resize_factor) + 1.0);
 }
 
 #undef TEMPLATE_HEADER

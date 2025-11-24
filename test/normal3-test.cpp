@@ -1,11 +1,6 @@
-#include "opal/defines.h"
-
 #include <limits>
 
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 #include "opal/math/normal3.h"
 
@@ -18,19 +13,19 @@ TEST_CASE("Normal3 constructor", "[math][normal3]")
 {
     {
         const Normal3f vec1(1, 2, 3);
-        CHECK(vec1.x == 1);
-        CHECK(vec1.y == 2);
-        CHECK(vec1.z == 3);
+        CHECK(vec1.x == 1.0f);
+        CHECK(vec1.y == 2.0f);
+        CHECK(vec1.z == 3.0f);
 
         const Normal3f vec2(1);
-        CHECK(vec2.x == 1);
-        CHECK(vec2.y == 1);
-        CHECK(vec2.z == 1);
+        CHECK(vec2.x == 1.0f);
+        CHECK(vec2.y == 1.0f);
+        CHECK(vec2.z == 1.0f);
 
         const Normal3f vec3(Vec3f(1, 2, 3));
-        CHECK(vec3.x == 1);
-        CHECK(vec3.y == 2);
-        CHECK(vec3.z == 3);
+        CHECK(vec3.x == 1.0f);
+        CHECK(vec3.y == 2.0f);
+        CHECK(vec3.z == 3.0f);
     }
     {
         const Normal3d vec1(1, 2, 3);
@@ -264,19 +259,19 @@ TEST_CASE("Normal3 multiplication by scalar", "[math][normal3]")
 
         Normal3d vec2 = vec1 * 5.0f;
 
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
-        CHECK(vec2.z == 15.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
 
         vec2 *= 2.0f;
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
-        CHECK(vec2.z == 30.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
 
         const Normal3d vec3 = 2.0f * vec2;
-        CHECK(vec3.x == 20.0f);
-        CHECK(vec3.y == 40.0f);
-        CHECK(vec3.z == 60.0f);
+        CHECK(vec3.x == 20.0);
+        CHECK(vec3.y == 40.0);
+        CHECK(vec3.z == 60.0);
     }
 }
 
@@ -301,14 +296,14 @@ TEST_CASE("Normal3 multiplication", "[math][normal3]")
         Normal3d vec2(2, 3, 4);
 
         const Normal3d vec3 = vec1 * vec2;
-        CHECK(vec3.x == 2.0f);
-        CHECK(vec3.y == 6.0f);
-        CHECK(vec3.z == 12.0f);
+        CHECK(vec3.x == 2.0);
+        CHECK(vec3.y == 6.0);
+        CHECK(vec3.z == 12.0);
 
         vec2 *= vec1;
-        CHECK(vec2.x == 2.0f);
-        CHECK(vec2.y == 6.0f);
-        CHECK(vec2.z == 12.0f);
+        CHECK(vec2.x == 2.0);
+        CHECK(vec2.y == 6.0);
+        CHECK(vec2.z == 12.0);
     }
 }
 
@@ -329,18 +324,18 @@ TEST_CASE("Normal3 division by scalar", "[math][normal3]")
         CHECK(vec2.z == 15.0f);
     }
     {
-        const Normal3d vec1(20.0f, 40.0f, 60.0f);
+        const Normal3d vec1(20.0, 40.0, 60.0);
 
         Normal3d vec2 = vec1 / 2.0f;
 
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
-        CHECK(vec2.z == 30.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
+        CHECK(vec2.z == 30.0);
 
         vec2 /= 2.0f;
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
-        CHECK(vec2.z == 15.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
+        CHECK(vec2.z == 15.0);
     }
 }
 
@@ -358,9 +353,9 @@ TEST_CASE("Normal3 negation", "[math][normal3]")
         const Normal3d vec(5, -10, -15);
         const Normal3d neg = -vec;
 
-        CHECK(neg.x == -5.0f);
-        CHECK(neg.y == 10.0f);
-        CHECK(neg.z == 15.0f);
+        CHECK(neg.x == -5.0);
+        CHECK(neg.y == 10.0);
+        CHECK(neg.z == 15.0);
     }
 }
 
@@ -378,9 +373,9 @@ TEST_CASE("Normal3 abs", "[math][normal3]")
         const Normal3d vec(5, -10, -15);
         const Normal3d a = Opal::Abs(vec);
 
-        CHECK(a.x == 5.0f);
-        CHECK(a.y == 10.0f);
-        CHECK(a.z == 15.0f);
+        CHECK(a.x == 5.0);
+        CHECK(a.y == 10.0);
+        CHECK(a.z == 15.0);
     }
 }
 
@@ -390,7 +385,7 @@ TEST_CASE("Normal3 length", "[math][normal3]")
         const Normal3f v1(3, 4, 5);
 
         CHECK(Opal::Length(v1) == std::sqrt(50.0));
-        CHECK(Opal::LengthSquared(v1) == 50);
+        CHECK(Opal::LengthSquared(v1) == 50.0f);
     }
     {
         const Normal3d v1(3, 4, 5);
@@ -423,12 +418,12 @@ TEST_CASE("Normal3 dot product", "[math][normal3]")
         const Vec3d vec4(3, 4, 5);
         const Vec3d vec5(-3, -4, -5);
 
-        CHECK(Dot(vec1, vec2) == 26.0f);
-        CHECK(Dot(vec1, vec4) == 26.0f);
-        CHECK(Dot(vec4, vec1) == 26.0f);
-        CHECK(AbsDot(vec1, vec3) == 26.0f);
-        CHECK(AbsDot(vec1, vec5) == 26.0f);
-        CHECK(AbsDot(vec5, vec1) == 26.0f);
+        CHECK(Dot(vec1, vec2) == 26.0);
+        CHECK(Dot(vec1, vec4) == 26.0);
+        CHECK(Dot(vec4, vec1) == 26.0);
+        CHECK(AbsDot(vec1, vec3) == 26.0);
+        CHECK(AbsDot(vec1, vec5) == 26.0);
+        CHECK(AbsDot(vec5, vec1) == 26.0);
     }
 }
 
@@ -473,12 +468,12 @@ TEST_CASE("Normal3 misc", "[math][normal3]")
         const Normal3d min = Min(vec1, vec2);
         const Normal3d max = Max(vec1, vec2);
 
-        CHECK(min.x == 1.0f);
-        CHECK(min.y == -2.0f);
-        CHECK(min.z == 3.0f);
-        CHECK(max.x == 3.0f);
-        CHECK(max.y == 2.0f);
-        CHECK(max.z == 5.0f);
+        CHECK(min.x == 1.0);
+        CHECK(min.y == -2.0);
+        CHECK(min.z == 3.0);
+        CHECK(max.x == 3.0);
+        CHECK(max.y == 2.0);
+        CHECK(max.z == 5.0);
 
         const Normal3f vec(1, 2, 3);
         const Normal3f perm = Opal::Permute(vec, 1, 2, 0);
@@ -520,8 +515,8 @@ TEST_CASE("Normal3 min and max component", "[math][normal3]")
 {
     {
         const Normal3f v(1, 2, 3);
-        CHECK(Opal::MinComponent(v) == 1);
-        CHECK(Opal::MaxComponent(v) == 3);
+        CHECK(Opal::MinComponent(v) == 1.0f);
+        CHECK(Opal::MaxComponent(v) == 3.0f);
     }
     {
         const Normal3d v(1, 2, 3);

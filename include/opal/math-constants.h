@@ -35,13 +35,17 @@ static constexpr f64 k_machine_epsilon_double = DBL_EPSILON;
 #if defined(OPAL_COMPILER_MSVC)
 static constexpr f32 k_inf_float = static_cast<f32>(1e300 * 1e300);
 static constexpr f32 k_neg_inf_float = -k_inf_float;
+static constexpr f32 k_nan_float = __builtin_nanf("");
 static constexpr f64 k_inf_double = 1e300 * 1e300;
 static constexpr f64 k_neg_inf_double = -k_inf_double;
+static constexpr f64 k_nan_double = __builtin_nan("");
 #elif defined(OPAL_COMPILER_GCC) || defined(OPAL_COMPILER_CLANG)
 static constexpr f32 k_inf_float = __builtin_inff();
 static constexpr f32 k_neg_inf_float = -k_inf_float;
+static constexpr f32 k_nan_float = __builtin_nanf("");
 static constexpr f64 k_inf_double = __builtin_inf();
 static constexpr f64 k_neg_inf_double = -k_inf_double;
+static constexpr f64 k_nan_double = __builtin_nan("");
 #else
 #error No definition for infinity constants!
 #endif

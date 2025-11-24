@@ -1,9 +1,4 @@
-#include "opal/defines.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 #include "opal/rng.h"
 
@@ -38,8 +33,8 @@ TEST_CASE("UniformFloat", "[rng]")
     for (int i = 0; i < k_case_count; i++)
     {
         const float num = gen.RandomF32();
-        CHECK(num < 1);
-        CHECK(num >= 0);
+        CHECK(num < 1.0f);
+        CHECK(num >= 0.0f);
     }
 }
 

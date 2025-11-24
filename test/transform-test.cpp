@@ -1,9 +1,4 @@
-﻿#include "opal/defines.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+﻿#include "test-helpers.h"
 
 #include "opal/math/transform.h"
 
@@ -432,38 +427,38 @@ TEST_CASE("Transform rotation and translation", "[math][transform]")
         const Matrix4f t1 = RotateAndTranslate(rot1, Vector3f(2, 3, 5));
         CHECK(t1(0, 0) == c1);
         CHECK(t1(0, 1) == -s1);
-        CHECK(t1(0, 2) == 0);
-        CHECK(t1(0, 3) == 2);
+        CHECK(t1(0, 2) == 0.0f);
+        CHECK(t1(0, 3) == 2.0f);
         CHECK(t1(1, 0) == s1);
         CHECK(t1(1, 1) == c1);
-        CHECK(t1(1, 2) == 0);
-        CHECK(t1(1, 3) == 3);
-        CHECK(t1(2, 0) == 0);
-        CHECK(t1(2, 1) == 0);
-        CHECK(t1(2, 2) == 1);
-        CHECK(t1(2, 3) == 5);
-        CHECK(t1(3, 0) == 0);
-        CHECK(t1(3, 1) == 0);
-        CHECK(t1(3, 2) == 0);
-        CHECK(t1(3, 3) == 1);
+        CHECK(t1(1, 2) == 0.0f);
+        CHECK(t1(1, 3) == 3.0f);
+        CHECK(t1(2, 0) == 0.0f);
+        CHECK(t1(2, 1) == 0.0f);
+        CHECK(t1(2, 2) == 1.0f);
+        CHECK(t1(2, 3) == 5.0f);
+        CHECK(t1(3, 0) == 0.0f);
+        CHECK(t1(3, 1) == 0.0f);
+        CHECK(t1(3, 2) == 0.0f);
+        CHECK(t1(3, 3) == 1.0f);
 
         const Matrix4f t2 = RotateAndTranslate(rot1, Point3f(2, 3, 5));
         CHECK(t2(0, 0) == c1);
         CHECK(t2(0, 1) == -s1);
-        CHECK(t2(0, 2) == 0);
-        CHECK(t2(0, 3) == 2);
+        CHECK(t2(0, 2) == 0.0f);
+        CHECK(t2(0, 3) == 2.0f);
         CHECK(t2(1, 0) == s1);
         CHECK(t2(1, 1) == c1);
-        CHECK(t2(1, 2) == 0);
-        CHECK(t2(1, 3) == 3);
-        CHECK(t2(2, 0) == 0);
-        CHECK(t2(2, 1) == 0);
-        CHECK(t2(2, 2) == 1);
-        CHECK(t2(2, 3) == 5);
-        CHECK(t2(3, 0) == 0);
-        CHECK(t2(3, 1) == 0);
-        CHECK(t2(3, 2) == 0);
-        CHECK(t2(3, 3) == 1);
+        CHECK(t2(1, 2) == 0.0f);
+        CHECK(t2(1, 3) == 3.0f);
+        CHECK(t2(2, 0) == 0.0f);
+        CHECK(t2(2, 1) == 0.0f);
+        CHECK(t2(2, 2) == 1.0f);
+        CHECK(t2(2, 3) == 5.0f);
+        CHECK(t2(3, 0) == 0.0f);
+        CHECK(t2(3, 1) == 0.0f);
+        CHECK(t2(3, 2) == 0.0f);
+        CHECK(t2(3, 3) == 1.0f);
     }
     SECTION("double")
     {
@@ -517,38 +512,38 @@ TEST_CASE("Transform applying", "[math][transform]")
         const Matrix4f t2 = Scale(2.0f);
         const Point3f p1(1, 1, 1);
         const Point3f p2 = t1 * p1;
-        CHECK(p2.x == 3);
-        CHECK(p2.y == 4);
-        CHECK(p2.z == 6);
+        CHECK(p2.x == 3.0f);
+        CHECK(p2.y == 4.0f);
+        CHECK(p2.z == 6.0f);
         const Point4f p3 = t1 * Point4f(1, 1, 1, 1);
-        CHECK(p3.x == 3);
-        CHECK(p3.y == 4);
-        CHECK(p3.z == 6);
-        CHECK(p3.w == 1);
+        CHECK(p3.x == 3.0f);
+        CHECK(p3.y == 4.0f);
+        CHECK(p3.z == 6.0f);
+        CHECK(p3.w == 1.0f);
         const Vector3f v1(1, 1, 1);
         const Vector3f v2 = t1 * v1;
-        CHECK(v2.x == 1);
-        CHECK(v2.y == 1);
-        CHECK(v2.z == 1);
+        CHECK(v2.x == 1.0f);
+        CHECK(v2.y == 1.0f);
+        CHECK(v2.z == 1.0f);
         const Vector4f v3 = t1 * Vector4f(1, 1, 1, 1);
-        CHECK(v3.x == 3);
-        CHECK(v3.y == 4);
-        CHECK(v3.z == 6);
-        CHECK(v3.w == 1);
+        CHECK(v3.x == 3.0f);
+        CHECK(v3.y == 4.0f);
+        CHECK(v3.z == 6.0f);
+        CHECK(v3.w == 1.0f);
         const Vector3f v4 = t2 * v1;
-        CHECK(v4.x == 2);
-        CHECK(v4.y == 2);
-        CHECK(v4.z == 2);
+        CHECK(v4.x == 2.0f);
+        CHECK(v4.y == 2.0f);
+        CHECK(v4.z == 2.0f);
         const Vector4f v5 = t2 * Vector4f(1, 1, 1, 1);
-        CHECK(v5.x == 2);
-        CHECK(v5.y == 2);
-        CHECK(v5.z == 2);
-        CHECK(v5.w == 1);
+        CHECK(v5.x == 2.0f);
+        CHECK(v5.y == 2.0f);
+        CHECK(v5.z == 2.0f);
+        CHECK(v5.w == 1.0f);
         const Normal3f n1(1, 1, 1);
         const Normal3f n2 = t1 * n1;
-        CHECK(n2.x == 1);
-        CHECK(n2.y == 1);
-        CHECK(n2.z == 1);
+        CHECK(n2.x == 1.0f);
+        CHECK(n2.y == 1.0f);
+        CHECK(n2.z == 1.0f);
     }
     SECTION("double")
     {

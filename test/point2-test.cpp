@@ -1,11 +1,6 @@
-#include "opal/defines.h"
-
 #include <limits>
 
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon-virtual-dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 #include "opal/math/point2.h"
 
@@ -20,12 +15,12 @@ TEST_CASE("Point2 constructor", "[math][point2]")
 {
     {
         const Point2f vec1(1, 2);
-        CHECK(vec1.x == 1);
-        CHECK(vec1.y == 2);
+        CHECK(vec1.x == 1.0f);
+        CHECK(vec1.y == 2.0f);
 
         const Point2f vec2(1);
-        CHECK(vec2.x == 1);
-        CHECK(vec2.y == 1);
+        CHECK(vec2.x == 1.0f);
+        CHECK(vec2.y == 1.0f);
     }
     {
         const Point2d vec1(1, 2);
@@ -51,13 +46,13 @@ TEST_CASE("Point2 access operators", "[math][point2]")
 {
     {
         Point2f p1(1, 2);
-        CHECK(p1[0] == 1);
-        CHECK(p1[1] == 2);
+        CHECK(p1[0] == 1.0f);
+        CHECK(p1[1] == 2.0f);
 
         p1[0] = 5;
         p1[1] = 6;
-        CHECK(p1[0] == 5);
-        CHECK(p1[1] == 6);
+        CHECK(p1[0] == 5.0f);
+        CHECK(p1[1] == 6.0f);
     }
     {
         Point2d p1(1, 2);
@@ -286,12 +281,12 @@ TEST_CASE("Point2 subtraction", "[math][point2]")
         const Vec2d vec3(2, 2);
 
         const Point2d vec4 = vec2 - vec3;
-        CHECK(vec4.x == 1.0f);
-        CHECK(vec4.y == 2.0f);
+        CHECK(vec4.x == 1.0);
+        CHECK(vec4.y == 2.0);
 
         const Vec2d vec5 = vec2 - vec1;
-        CHECK(vec5.x == 2.0f);
-        CHECK(vec5.y == 2.0f);
+        CHECK(vec5.x == 2.0);
+        CHECK(vec5.y == 2.0);
     }
     {
         const Point2i vec1(1, 2);
@@ -299,12 +294,12 @@ TEST_CASE("Point2 subtraction", "[math][point2]")
         const Vec2i vec3(2, 2);
 
         const Point2i vec4 = vec2 - vec3;
-        CHECK(vec4.x == 1.0f);
-        CHECK(vec4.y == 2.0f);
+        CHECK(vec4.x == 1.0);
+        CHECK(vec4.y == 2.0);
 
         const Vec2i vec5 = vec2 - vec1;
-        CHECK(vec5.x == 2.0f);
-        CHECK(vec5.y == 2.0f);
+        CHECK(vec5.x == 2.0);
+        CHECK(vec5.y == 2.0);
     }
 }
 
@@ -321,15 +316,15 @@ TEST_CASE("Point2 negation", "[math][point2]")
         const Point2d vec(5, -10);
         const Point2d neg = -vec;
 
-        CHECK(neg.x == -5.0f);
-        CHECK(neg.y == 10.0f);
+        CHECK(neg.x == -5.0);
+        CHECK(neg.y == 10.0);
     }
     {
         const Point2i vec(5, -10);
         const Point2i neg = -vec;
 
-        CHECK(neg.x == -5.0f);
-        CHECK(neg.y == 10.0f);
+        CHECK(neg.x == -5.0);
+        CHECK(neg.y == 10.0);
     }
 }
 
@@ -356,32 +351,32 @@ TEST_CASE("Point2 multiplication by scalar", "[math][point2]")
 
         Point2d vec2 = vec1 * 5.0f;
 
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
 
         vec2 *= 2.0f;
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
 
         const Point2d vec3 = 2.0f * vec2;
-        CHECK(vec3.x == 20.0f);
-        CHECK(vec3.y == 40.0f);
+        CHECK(vec3.x == 20.0);
+        CHECK(vec3.y == 40.0);
     }
     {
         const Point2i vec1(1, 2);
 
         Point2i vec2 = vec1 * 5.0f;
 
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
 
         vec2 *= 2.0f;
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
 
         const Point2i vec3 = 2.0f * vec2;
-        CHECK(vec3.x == 20.0f);
-        CHECK(vec3.y == 40.0f);
+        CHECK(vec3.x == 20.0);
+        CHECK(vec3.y == 40.0);
     }
 }
 
@@ -400,28 +395,28 @@ TEST_CASE("Point2 division by scalar", "[math][point2]")
         CHECK(vec2.y == 10.0f);
     }
     {
-        const Point2d vec1(20.0f, 40.0f);
+        const Point2d vec1(20.0, 40.0);
 
         Point2d vec2 = vec1 / 2.0f;
 
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
 
         vec2 /= 2.0f;
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
     }
     {
         const Point2i vec1(20, 40);
 
         Point2i vec2 = vec1 / 2.0f;
 
-        CHECK(vec2.x == 10.0f);
-        CHECK(vec2.y == 20.0f);
+        CHECK(vec2.x == 10.0);
+        CHECK(vec2.y == 20.0);
 
         vec2 /= 2.0f;
-        CHECK(vec2.x == 5.0f);
-        CHECK(vec2.y == 10.0f);
+        CHECK(vec2.x == 5.0);
+        CHECK(vec2.y == 10.0);
     }
 }
 
@@ -438,15 +433,15 @@ TEST_CASE("Point2 abs", "[math][point2]")
         const Point2d vec(5, -10);
         const Point2d a = Opal::Abs(vec);
 
-        CHECK(a.x == 5.0f);
-        CHECK(a.y == 10.0f);
+        CHECK(a.x == 5.0);
+        CHECK(a.y == 10.0);
     }
     {
         const Point2i vec(5, -10);
         const Point2i a = Opal::Abs(vec);
 
-        CHECK(a.x == 5.0f);
-        CHECK(a.y == 10.0f);
+        CHECK(a.x == 5.0);
+        CHECK(a.y == 10.0);
     }
 }
 
@@ -496,7 +491,7 @@ TEST_CASE("Point2 distance", "[math][point2]")
         const Point2f p1(3, 4);
         const Point2f p2(6, 8);
 
-        CHECK(Opal::Distance(p1, p2) == 5.0f);
+        CHECK(Opal::Distance(p1, p2) == 5.0);
         CHECK(Opal::DistanceSquared(p1, p2) == 25.0f);
     }
     {
@@ -570,10 +565,10 @@ TEST_CASE("Point2 min, max and permute", "[math][point2]")
         const Point2d min = Min(vec1, vec2);
         const Point2d max = Max(vec1, vec2);
 
-        CHECK(min.x == 1.0f);
-        CHECK(min.y == -2.0f);
-        CHECK(max.x == 3.0f);
-        CHECK(max.y == 2.0f);
+        CHECK(min.x == 1.0);
+        CHECK(min.y == -2.0);
+        CHECK(max.x == 3.0);
+        CHECK(max.y == 2.0);
 
         const Point2f vec(1, 2);
         const Point2f perm = Opal::Permute(vec, 1, 0);
@@ -586,10 +581,10 @@ TEST_CASE("Point2 min, max and permute", "[math][point2]")
         const Point2i min = Min(vec1, vec2);
         const Point2i max = Max(vec1, vec2);
 
-        CHECK(min.x == 1.0f);
-        CHECK(min.y == -2.0f);
-        CHECK(max.x == 3.0f);
-        CHECK(max.y == 2.0f);
+        CHECK(min.x == 1.0);
+        CHECK(min.y == -2.0);
+        CHECK(max.x == 3.0);
+        CHECK(max.y == 2.0);
 
         const Point2f vec(1, 2);
         const Point2f perm = Opal::Permute(vec, 1, 0);

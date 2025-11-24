@@ -87,6 +87,11 @@ struct InvalidArgumentException : Exception
         : Exception(StringEx("Invalid argument ") + argument + " in function " + function + " with value " + value)
     {
     }
+
+    InvalidArgumentException(const char* function, const char* argument, u64 value)
+        : Exception(StringEx("Invalid argument ") + argument + " in function " + function + " with value " + static_cast<i64>(value))
+    {
+    }
 };
 
 struct OutOfMemoryException : Exception

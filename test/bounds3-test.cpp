@@ -1,5 +1,7 @@
 ﻿#include "test-helpers.h"
 
+#include "opal/math/bounds3.h"
+
 using Point3f = Opal::Point3<float>;
 using Bounds3f = Opal::Bounds3<float>;
 using Vector3f = Opal::Vector3<float>;

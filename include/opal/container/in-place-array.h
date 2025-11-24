@@ -3,13 +3,11 @@
 #include <initializer_list>
 
 #include "opal/assert.h"
+#include "opal/casts.h"
 #include "opal/common.h"
 #include "opal/container/expected.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wsign-conversion)
 
 namespace Opal
 {
@@ -291,7 +289,7 @@ constexpr Opal::InPlaceArray<T, N>::InPlaceArray(std::initializer_list<T> list)
 {
     const T* start = list.begin();
     const T* end = list.end();
-    u64 size = end - start;
+    const size_type size = Narrow<size_type>(end - start);
     OPAL_ASSERT(size <= N, "Initializer list size is greater than the array size");
 
     for (u64 i = 0; i < size; ++i)
@@ -392,5 +390,3 @@ void Opal::InPlaceArray<T, N>::Fill(const T& value)
         m_data[i] = value;
     }
 }
-
-OPAL_END_DISABLE_WARNINGS

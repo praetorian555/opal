@@ -1,11 +1,6 @@
-﻿#include "opal/defines.h"
+﻿#include <limits>
 
-#include <limits>
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wnon - virtual - dtor)
-#include "catch2/catch2.hpp"
-OPAL_END_DISABLE_WARNINGS
+#include "test-helpers.h"
 
 #include "opal/math/matrix.h"
 
@@ -116,7 +111,7 @@ TEST_CASE("Matrix 4x4 constructor", "[math][matrix]")
         CHECK(m2(3, 2) == -1.0);
         CHECK(m2(3, 3) == 9.0);
 
-        f64 data2[4][4] = {1.0, 4.0, -4.0, 5.0, 3.0, -2.0, 1.0, 10.0, 7.0, 10.0, -5.0, -3.0, -6.0, -2.0, -1.0, 9.0};
+        f64 data2[4][4] = {{1.0, 4.0, -4.0, 5.0}, {3.0, -2.0, 1.0, 10.0}, {7.0, 10.0, -5.0, -3.0}, {-6.0, -2.0, -1.0, 9.0}};
 
         const Matrix4x4d m3(data2);
         CHECK(m3(0, 0) == 1.0);
@@ -153,7 +148,7 @@ TEST_CASE("Matrix 4x4 comparison", "[math][matrix]")
     }
     SECTION("double")
     {
-        f64 data[16] = {1.0f, 4.0f, -4.0f, 5.0f, 3.0f, -2.0f, 1.0f, 10.0f, 7.0f, 10.0f, -5.0f, -3.0f, -6.0f, -2.0f, -1.0f, 9.0f};
+        f64 data[16] = {1.0, 4.0, -4.0, 5.0, 3.0, -2.0, 1.0, 10.0, 7.0, 10.0, -5.0, -3.0, -6.0, -2.0, -1.0, 9.0};
 
         const Matrix4x4d m1(1);
         const Matrix4x4d m2(data);
@@ -850,7 +845,7 @@ TEST_CASE("Matrix 4x4 transpose operator", "[math][matrix]")
     }
     SECTION("double")
     {
-        f64 data[16] = {1.0f, 4.0f, -4.0f, 5.0f, 3.0f, -2.0f, 1.0f, 10.0f, 7.0f, 10.0f, -5.0f, -3.0f, -6.0f, -2.0f, -1.0f, 9.0f};
+        f64 data[16] = {1.0, 4.0, -4.0, 5.0, 3.0, -2.0, 1.0, 10.0, 7.0, 10.0, -5.0, -3.0, -6.0, -2.0, -1.0, 9.0};
          const Matrix4x4d m1(data);
 
         const Matrix4x4d m2 = Transpose(m1);

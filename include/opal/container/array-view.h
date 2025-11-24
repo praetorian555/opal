@@ -1,12 +1,10 @@
 #pragma once
 
+#include "opal/casts.h"
 #include "opal/container/expected.h"
 #include "opal/container/iterator.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
-
-OPAL_START_DISABLE_WARNINGS
-OPAL_DISABLE_WARNING(-Wsign-conversion)
 
 namespace Opal
 {
@@ -99,7 +97,8 @@ private:
 };
 
 template <typename MySpan>
-ArrayViewConstIterator<MySpan> operator+(typename ArrayViewConstIterator<MySpan>::difference_type n, const ArrayViewConstIterator<MySpan>& it);
+ArrayViewConstIterator<MySpan> operator+(typename ArrayViewConstIterator<MySpan>::difference_type n,
+                                         const ArrayViewConstIterator<MySpan>& it);
 
 /**
  * Represents a non-owning view of contiguous sequence of elements.
@@ -150,8 +149,8 @@ public:
 
     /**
      * Construct a span from a container.
-     * @tparam Container Type of container. Must be a range. The value type of the container must match T, and if T is mutable then value type
-     * of the container must be mutable as well.
+     * @tparam Container Type of container. Must be a range. The value type of the container must match T, and if T is mutable then value
+     * type of the container must be mutable as well.
      * @param container Container to construct the span from.
      */
     template <typename Container>
@@ -434,7 +433,9 @@ Opal::ArrayView<const Opal::u8> Opal::AsBytes(Container& container)
         return {};
     }
     auto data = &(*container.begin());
-    Opal::u64 size = sizeof(typename Container::value_type) * (container.end() - container.begin());
+    using value_type = Container::value_type;
+    using size_type = Container::size_type;
+    Opal::u64 size = sizeof(value_type) * Narrow<size_type>(container.end() - container.begin());
     return {reinterpret_cast<const u8*>(data), size};
 }
 
@@ -447,7 +448,9 @@ Opal::ArrayView<Opal::u8> Opal::AsWritableBytes(Container& container)
         return {};
     }
     auto data = &(*container.begin());
-    Opal::u64 size = sizeof(typename Container::value_type) * (container.end() - container.begin());
+    using value_type = Container::value_type;
+    using size_type = Container::size_type;
+    Opal::u64 size = sizeof(value_type) * Narrow<size_type>(container.end() - container.begin());
     return {reinterpret_cast<u8*>(data), size};
 }
 
@@ -494,7 +497,7 @@ bool CLASS_HEADER::operator<=(const ArrayViewIterator& other) const
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator++()
 {
-    m_ptr++;
+    ++m_ptr;
     return *this;
 }
 
@@ -502,14 +505,14 @@ TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator++(int)
 {
     ArrayViewIterator temp = *this;
-    m_ptr++;
+    ++m_ptr;
     return temp;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator--()
 {
-    m_ptr--;
+    --m_ptr;
     return *this;
 }
 
@@ -517,7 +520,7 @@ TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator--(int)
 {
     ArrayViewIterator temp = *this;
-    m_ptr--;
+    --m_ptr;
     return temp;
 }
 
@@ -610,7 +613,7 @@ bool CLASS_HEADER::operator<=(const ArrayViewConstIterator& other) const
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator++()
 {
-    m_ptr++;
+    ++m_ptr;
     return *this;
 }
 
@@ -618,14 +621,14 @@ TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator++(int)
 {
     ArrayViewConstIterator temp = *this;
-    m_ptr++;
+    ++m_ptr;
     return temp;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator--()
 {
-    m_ptr--;
+    --m_ptr;
     return *this;
 }
 
@@ -633,7 +636,7 @@ TEMPLATE_HEADER
 CLASS_HEADER CLASS_HEADER::operator--(int)
 {
     ArrayViewConstIterator temp = *this;
-    m_ptr--;
+    --m_ptr;
     return temp;
 }
 
@@ -695,5 +698,3 @@ CLASS_HEADER Opal::operator+(typename ArrayViewConstIterator<MySpan>::difference
 
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
-
-OPAL_END_DISABLE_WARNINGS
