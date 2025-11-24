@@ -261,3 +261,33 @@ void Opal::ResetScratchAllocator()
 {
     g_scratch_allocators.Back().GetValue()->Reset();
 }
+
+Opal::ScratchAsDefault::ScratchAsDefault()
+{
+    PushDefaultAllocator(GetScratchAllocator());
+}
+
+Opal::ScratchAsDefault::~ScratchAsDefault()
+{
+    PopDefaultAllocator();
+}
+
+Opal::PushDefault::PushDefault(AllocatorBase* allocator)
+{
+    PushDefaultAllocator(allocator);
+}
+
+Opal::PushDefault::~PushDefault()
+{
+    PopDefaultAllocator();
+}
+
+Opal::PushScratch::PushScratch(LinearAllocator* allocator)
+{
+    PushScratchAllocator(allocator);
+}
+
+Opal::PushScratch::~PushScratch()
+{
+    PopScratchAllocator();
+}

@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "container/ref.h"
+#include "exceptions.h"
 #include "opal/export.h"
 #include "opal/types.h"
 
@@ -93,7 +94,7 @@ struct OPAL_EXPORT NullAllocator final : public AllocatorBase
 
     bool operator==(const NullAllocator&) const { return true; }
 
-    void* Alloc(u64, u64) override { return nullptr; }
+    void* Alloc(u64, u64) override { throw OutOfMemoryException("NullAllocator::Alloc"); }
     void Free(void*) override {}
 
     [[nodiscard]] const char* GetName() const override { return "NullAllocator"; }
@@ -163,6 +164,25 @@ OPAL_EXPORT void PopScratchAllocator();
  * Reset current scratch allocator.
  */
 OPAL_EXPORT void ResetScratchAllocator();
+
+struct OPAL_EXPORT ScratchAsDefault
+{
+    ScratchAsDefault();
+    ~ScratchAsDefault();
+};
+
+struct OPAL_EXPORT PushDefault
+{
+    PushDefault(AllocatorBase* allocator);
+    ~PushDefault();
+};
+
+struct OPAL_EXPORT PushScratch
+{
+    PushScratch(LinearAllocator* allocator);
+    ~PushScratch();
+
+};
 
 template <typename T, class... Args>
 T* New(Args&&... args)
