@@ -124,6 +124,8 @@ struct OutOfBoundsException : Exception
         : Exception(StringEx("Out of bounds with value ") + value + " and range [" + lower_bound + ", " + upper_bound + "]")
     {
     }
+
+    OutOfBoundsException(const char* custom_message) : Exception(StringEx("Out of bounds: ") + custom_message) {}
 };
 
 }  // namespace Opal
