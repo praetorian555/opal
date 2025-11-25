@@ -207,7 +207,7 @@ Opal::DynamicArray<Opal::LinearAllocator*> g_scratch_allocators(1, &g_scratch_al
 
 Opal::AllocatorBase* Opal::GetDefaultAllocator()
 {
-    return g_default_allocators.Back().GetValue();
+    return g_default_allocators.Back();
 }
 
 void Opal::PushDefaultAllocator(AllocatorBase* allocator)
@@ -233,7 +233,7 @@ void Opal::PopDefaultAllocator()
 
 Opal::LinearAllocator* Opal::GetScratchAllocator()
 {
-    return g_scratch_allocators.Back().GetValue();
+    return g_scratch_allocators.Back();
 }
 
 void Opal::PushScratchAllocator(LinearAllocator* allocator)
@@ -259,7 +259,7 @@ void Opal::PopScratchAllocator()
 
 void Opal::ResetScratchAllocator()
 {
-    g_scratch_allocators.Back().GetValue()->Reset();
+    g_scratch_allocators.Back()->Reset();
 }
 
 Opal::ScratchAsDefault::ScratchAsDefault()

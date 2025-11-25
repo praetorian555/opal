@@ -324,7 +324,7 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const St
     DynamicArray<DirectoryEntry> out_contents(output_allocator);
     while (!directories.IsEmpty())
     {
-        const StringWide dir_wide = Move(directories.Back().GetValue());
+        const StringWide dir_wide = Move(directories.Back());
         directories.PopBack();
 
         WIN32_FIND_DATAW find_data;
@@ -375,7 +375,7 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const St
 
     while (!directories.IsEmpty())
     {
-        StringUtf8 dir_path = directories.Back().GetValue();
+        StringUtf8 dir_path = directories.Back();
         directories.PopBack();
         DIR* dir = opendir(*dir_path);
         if (dir == nullptr)

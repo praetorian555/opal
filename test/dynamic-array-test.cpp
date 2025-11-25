@@ -818,18 +818,18 @@ TEST_CASE("Access element with At", "[Array]")
     SECTION("POD data")
     {
         DynamicArray<i32> int_arr(3, 42);
-        REQUIRE(int_arr.At(0).GetValue() == 42);
-        REQUIRE(int_arr.At(1).GetValue() == 42);
-        REQUIRE(int_arr.At(2).GetValue() == 42);
-        REQUIRE(int_arr.At(3).HasValue() == false);
+        REQUIRE(int_arr.At(0) == 42);
+        REQUIRE(int_arr.At(1) == 42);
+        REQUIRE(int_arr.At(2) == 42);
+        REQUIRE_THROWS_AS(int_arr.At(3), OutOfBoundsException);
     }
     SECTION("Const POD data")
     {
         const DynamicArray<i32> int_arr(3, 42);
-        REQUIRE(int_arr.At(0).GetValue() == 42);
-        REQUIRE(int_arr.At(1).GetValue() == 42);
-        REQUIRE(int_arr.At(2).GetValue() == 42);
-        REQUIRE(int_arr.At(3).HasValue() == false);
+        REQUIRE(int_arr.At(0) == 42);
+        REQUIRE(int_arr.At(1) == 42);
+        REQUIRE(int_arr.At(2) == 42);
+        REQUIRE_THROWS_AS(int_arr.At(3), OutOfBoundsException);
     }
     SECTION("Non-POD data")
     {
@@ -839,10 +839,10 @@ TEST_CASE("Access element with At", "[Array]")
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
-            REQUIRE(*non_pod_arr.At(0).GetValue().ptr == 42);
-            REQUIRE(*non_pod_arr.At(1).GetValue().ptr == 42);
-            REQUIRE(*non_pod_arr.At(2).GetValue().ptr == 42);
-            REQUIRE(non_pod_arr.At(3).HasValue() == false);
+            REQUIRE(*non_pod_arr.At(0).ptr == 42);
+            REQUIRE(*non_pod_arr.At(1).ptr == 42);
+            REQUIRE(*non_pod_arr.At(2).ptr == 42);
+            REQUIRE_THROWS_AS(non_pod_arr.At(3), OutOfBoundsException);
             REQUIRE(g_value_call_count == 1);
             REQUIRE(g_copy_call_count == 3);
             REQUIRE(g_copy_assign_call_count == 0);
@@ -856,12 +856,12 @@ TEST_CASE("Change element using At access", "[Array]")
     SECTION("POD data")
     {
         DynamicArray<i32> int_arr(3, 42);
-        int_arr.At(0).GetValue() = 24;
-        int_arr.At(1).GetValue() = 25;
-        int_arr.At(2).GetValue() = 26;
-        REQUIRE(int_arr.At(0).GetValue() == 24);
-        REQUIRE(int_arr.At(1).GetValue() == 25);
-        REQUIRE(int_arr.At(2).GetValue() == 26);
+        int_arr.At(0) = 24;
+        int_arr.At(1) = 25;
+        int_arr.At(2) = 26;
+        REQUIRE(int_arr.At(0) == 24);
+        REQUIRE(int_arr.At(1) == 25);
+        REQUIRE(int_arr.At(2) == 26);
     }
     SECTION("Non-POD data")
     {
@@ -871,12 +871,12 @@ TEST_CASE("Change element using At access", "[Array]")
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
-            *non_pod_arr.At(0).GetValue().ptr = 24;
-            *non_pod_arr.At(1).GetValue().ptr = 25;
-            *non_pod_arr.At(2).GetValue().ptr = 26;
-            REQUIRE(*non_pod_arr.At(0).GetValue().ptr == 24);
-            REQUIRE(*non_pod_arr.At(1).GetValue().ptr == 25);
-            REQUIRE(*non_pod_arr.At(2).GetValue().ptr == 26);
+            *non_pod_arr.At(0).ptr = 24;
+            *non_pod_arr.At(1).ptr = 25;
+            *non_pod_arr.At(2).ptr = 26;
+            REQUIRE(*non_pod_arr.At(0).ptr == 24);
+            REQUIRE(*non_pod_arr.At(1).ptr == 25);
+            REQUIRE(*non_pod_arr.At(2).ptr == 26);
             REQUIRE(g_value_call_count == 1);
             REQUIRE(g_copy_call_count == 3);
             REQUIRE(g_copy_assign_call_count == 0);
@@ -953,7 +953,7 @@ TEST_CASE("Access element with Front", "[Array]")
     {
         DynamicArray<i32> int_arr(3, 42);
         int_arr[0] = 25;
-        REQUIRE(int_arr.Front().GetValue() == 25);
+        REQUIRE(int_arr.Front() == 25);
     }
     SECTION("Non-POD data")
     {
@@ -964,7 +964,7 @@ TEST_CASE("Access element with Front", "[Array]")
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
             *non_pod_arr[0].ptr = 25;
-            REQUIRE(*non_pod_arr.Front().GetValue().ptr == 25);
+            REQUIRE(*non_pod_arr.Front().ptr == 25);
             REQUIRE(g_value_call_count == 1);
             REQUIRE(g_copy_call_count == 3);
             REQUIRE(g_copy_assign_call_count == 0);
@@ -979,7 +979,7 @@ TEST_CASE("Access element with Back", "[Array]")
     {
         DynamicArray<i32> int_arr(3, 42);
         int_arr[2] = 25;
-        REQUIRE(int_arr.Back().GetValue() == 25);
+        REQUIRE(int_arr.Back() == 25);
     }
     SECTION("Non-POD data")
     {
@@ -990,7 +990,7 @@ TEST_CASE("Access element with Back", "[Array]")
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
             *non_pod_arr[2].ptr = 25;
-            REQUIRE(*non_pod_arr.Back().GetValue().ptr == 25);
+            REQUIRE(*non_pod_arr.Back().ptr == 25);
             REQUIRE(g_value_call_count == 1);
             REQUIRE(g_copy_call_count == 3);
             REQUIRE(g_copy_assign_call_count == 0);
@@ -1881,9 +1881,8 @@ TEST_CASE("Insert", "[Array]")
         SECTION("Bad position")
         {
             DynamicArray<i32> int_arr(3, 42);
-            i32 val = 25;
-            ErrorCode err = int_arr.Insert(int_arr.cend() + 1, val).GetError();
-            REQUIRE(err == ErrorCode::OutOfBounds);
+            const i32 val = 25;
+            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cend() + 1, val), OutOfBoundsException);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1894,8 +1893,7 @@ TEST_CASE("Insert", "[Array]")
         SECTION("Bad position move")
         {
             DynamicArray<i32> int_arr(3, 42);
-            ErrorCode err = int_arr.Insert(int_arr.cend() + 1, 25).GetError();
-            REQUIRE(err == ErrorCode::OutOfBounds);
+            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cend() + 1, 25), OutOfBoundsException);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1910,7 +1908,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
-            int_arr.Insert(int_arr.cbegin() + 1, 2, val).GetValue();
+            int_arr.Insert(int_arr.cbegin() + 1, 2, val);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1952,8 +1950,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             i32 val = 25;
-            ErrorCode err = int_arr.Insert(int_arr.cend() + 1, 2, val).GetError();
-            REQUIRE(err == ErrorCode::OutOfBounds);
+            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cend() + 1, 2, val), OutOfBoundsException);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1965,8 +1962,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             i32 val = 25;
-            ErrorCode err = int_arr.Insert(int_arr.cbegin(), 0, val).GetError();
-            REQUIRE(err == ErrorCode::InvalidArgument);
+            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cbegin(), 0, val), InvalidArgumentException);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2009,7 +2005,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(100, 5);
-            int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()).GetValue();
+            REQUIRE_NOTHROW(int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()));
             REQUIRE(int_arr.GetCapacity() == 103);
             REQUIRE(int_arr.GetSize() == 103);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2025,7 +2021,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(2, 5);
-            int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()).GetValue();
+            REQUIRE_NOTHROW(int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()));
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2039,8 +2035,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(2, 5);
-            ErrorCode err = int_arr.Insert(int_arr.cend() + 1, other.cbegin(), other.cend()).GetError();
-            REQUIRE(err == ErrorCode::OutOfBounds);
+            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cend() + 1, other.cbegin(), other.cend()), OutOfBoundsException);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2052,8 +2047,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(2, 5);
-            ErrorCode err = int_arr.Insert(int_arr.cbegin(), other.cend(), other.cbegin()).GetError();
-            REQUIRE(err == ErrorCode::InvalidArgument);
+            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cbegin(), other.cend(), other.cbegin()), InvalidArgumentException);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2065,7 +2059,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             i32 other[] = {5, 5};
-            int_arr.Insert(int_arr.cbegin() + 1, other, other + 2).GetValue();
+            REQUIRE_NOTHROW(int_arr.Insert(int_arr.cbegin() + 1, other, other + 2));
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
