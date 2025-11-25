@@ -136,6 +136,7 @@ public:
      * @param count Number of code units to initialize the string with.
      * @param value Value of the code unit to initialize the string with.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
     String(size_type count, CodeUnitType value, AllocatorType* allocator = nullptr);
 
@@ -144,6 +145,7 @@ public:
      * @param count Number of code units to initialize the string with.
      * @param str Pointer to the null-terminated string to initialize the string with.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
     String(const CodeUnitType* str, size_type count, AllocatorType* allocator = nullptr);
 
@@ -151,6 +153,7 @@ public:
      * @brief Construct a string using a null-terminated string.
      * @param str Pointer to the null-terminated string to initialize the string with.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
     String(const CodeUnitType* str, AllocatorType* allocator = nullptr);
 
@@ -158,6 +161,7 @@ public:
      * Copy constructor.
      * @param other String to copy.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
     String(const String& other, AllocatorType* allocator = nullptr);
 
@@ -166,6 +170,7 @@ public:
      * @param other String to copy from.
      * @param pos Position in the other string to start copying from.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
     String(const String& other, size_type pos, AllocatorType* allocator = nullptr);
     String(String&& other) noexcept;
@@ -176,6 +181,7 @@ public:
      * @param start Start of the range.
      * @param end End of the range.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -188,7 +194,7 @@ public:
 
     bool operator==(const String& other) const;
 
-    AllocatorType& GetAllocator() const { return *m_allocator; }
+    [[nodiscard]] AllocatorType& GetAllocator() const { return *m_allocator; }
 
     value_type* GetData() { return m_data; }
     [[nodiscard]] const value_type* GetData() const { return m_data; }
@@ -205,18 +211,16 @@ public:
      * @brief Override a string with a specific number of code units.
      * @param count Number of code units to assign.
      * @param value Value of the code unit to assign.
-     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
-     * units.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
-    ErrorCode Assign(size_type count, CodeUnitType value);
+    void Assign(size_type count, CodeUnitType value);
 
     /**
      * Override a string with another string.
      * @param other String to assign.
-     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
-     * units.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
-    ErrorCode Assign(const String& other);
+    void Assign(const String& other);
 
     /**
      * @brief Override a string with a substring of another string.
@@ -225,8 +229,9 @@ public:
      * @param count Number of code units to assign. If count is equal to k_npos, the entire string starting from pos will be assigned.
      * Default is k_npos.
      * @return ErrorCode::Success in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the other string or count is
-     * larger than the amount of code units in the other string starting from pos. ErrorCode::OutOfMemory if the string cannot be resized to
-     * accommodate the new code units. ErrorCode::SelfNotAllowed if the other is the same as this.
+     * larger than the amount of code units in the other string starting from pos. ErrorCode::SelfNotAllowed if the other is the same as
+     * this.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
     ErrorCode Assign(const String& other, size_type pos, size_type count = k_npos);
 
@@ -242,8 +247,8 @@ public:
      * @param count Number of code units to assign. If count is equal to k_npos, the entire string starting from str will be assigned.
      * Default is k_npos.
      * @return ErrorCode::Success in case of a success. ErrorCode::BadInput if str is nullptr. ErrorCode::OutOfBounds if count is larger
-     * then the size of the null-terminated string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
-     * units.
+     * then the size of the null-terminated string.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
     ErrorCode Assign(const CodeUnitType* str, size_type count = k_npos);
 
@@ -253,8 +258,8 @@ public:
      * @param start_it Start of the range.
      * @param end_it End of the range.
      * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if start_it is greater than end_it.
-     * ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units. ErrorCode::SelfNotAllowed if the range is
-     * the same as the current string.
+     * ErrorCode::SelfNotAllowed if the range is the same as the current string.
+     * @throw OutOfMemoryException if allocator runs out of memory.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -263,10 +268,11 @@ public:
     /**
      * @brief Get the code unit at a specific position in the string.
      * @param pos Position in the string to get the code unit from.
-     * @return Reference to the code unit in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the string.
+     * @return Reference to the code unit.
+     * @throw OutOfBoundsException
      */
-    Expected<CodeUnitType&, ErrorCode> At(size_type pos);
-    Expected<const CodeUnitType&, ErrorCode> At(size_type pos) const;
+    CodeUnitType& At(size_type pos);
+    const CodeUnitType& At(size_type pos) const;
 
     /**
      * @brief Get the code unit at a specific position in the string. Bounds checking only in debug mode.
@@ -293,16 +299,16 @@ public:
     /**
      * Reserve memory for a specific number of code units.
      * @param new_capacity Number of code units to reserve memory for.
-     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
-     * units. ErrorCode::InvalidArgument if new_capacity is 0.
+     * @throw InvalidArgumentException when capacity is 0.
+     * @throw OutOfMemoryException when there is no more memory.
      */
-    ErrorCode Reserve(size_type new_capacity);
+    void Reserve(size_type new_capacity);
 
     /**
      * Resize the string to a specific size. If new code units are added they will be initialized with the default value of the code unit.
      * @param new_size New size of the string.
-     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
-     * units.
+     * @return ErrorCode::Success in case of a success.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     ErrorCode Resize(size_type new_size);
 
@@ -310,8 +316,8 @@ public:
      * Resize the string to a specific size. If new code units are added they will be initialized with the provided value.
      * @param new_size New size of the string.
      * @param value Value of the code unit to initialize the new code units with.
-     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
-     * units.
+     * @return ErrorCode::Success in case of a success.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     ErrorCode Resize(size_type new_size, CodeUnitType value);
 
@@ -324,8 +330,8 @@ public:
     /**
      * Append a code unit to the end of the string.
      * @param ch Code unit to append.
-     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code
-     * unit.
+     * @return ErrorCode::Success in case of a success.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     ErrorCode Append(const value_type& ch);
 
@@ -333,8 +339,8 @@ public:
      * Append a specific number of code units to the end of the string.
      * @param str Pointer to the code units to append.
      * @param size Number of code units to append. If size is equal to k_npos, the entire string starting from str will be appended.
-     * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if str is nullptr. ErrorCode::OutOfMemory if the string
-     * cannot be resized to accommodate the new code units.
+     * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if str is nullptr.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     ErrorCode Append(const value_type* str, size_type size = k_npos);
 
@@ -342,16 +348,16 @@ public:
      * Append a specific number of code units to the end of the string.
      * @param count Number of code units to append.
      * @param value Value of the code unit to append.
-     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to
-     * accommodate the new code units.
+     * @return ErrorCode::Success in case of a success.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     ErrorCode Append(size_type count, CodeUnitType value);
 
     /**
      * Append a string to the end of the string.
      * @param other String to append.
-     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string cannot be resized to
-     * accommodate the new code units.
+     * @return ErrorCode::Success in case of a success.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     ErrorCode Append(const String& other);
 
@@ -362,18 +368,19 @@ public:
      * @param count Number of code units to append. If count is equal to k_npos, the entire string starting from pos
      * will be appended.
      * @return ErrorCode::Success in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the other
-     * string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units.
+     * string.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     ErrorCode Append(const String& other, size_type pos, size_type count = k_npos);
 
     /**
      * Append a range specified using random access iterators to the end of the string.
      * @tparam InputIt Type of the input iterator. Must be a random access iterator.
-     * @param begin Iterator pointing to the first code unit in the string to append.
-     * @param end Iterator pointing to the code unit after the last code unit in the string to append.
+     * @param begin_it Iterator pointing to the first code unit in the string to append.
+     * @param end_it Iterator pointing to the code unit after the last code unit in the string to append.
      * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if begin is greater than end.
-     * ErrorCode::SelfNotAllowed if the range is the same as the current string. ErrorCode::OutOfMemory if the string
-     * cannot be resized to accommodate the new code units.
+     * ErrorCode::SelfNotAllowed if the range is the same as the current string.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -385,7 +392,8 @@ public:
      * @param count Number of code units to insert.
      * @param value Value of the code unit to insert.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
-     * of the string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units.
+     * of the string.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     Expected<iterator, ErrorCode> Insert(size_type start_pos, size_type count, CodeUnitType value);
 
@@ -395,8 +403,8 @@ public:
      * @param str Pointer to the string to insert.
      * @param count Number of code units to insert. If count is equal to k_npos, the entire string starting from str will be inserted.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
-     * of the string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units. ErrorCode::BadInput if str
-     * is nullptr.
+     * of the string. ErrorCode::BadInput if str is nullptr.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     Expected<iterator, ErrorCode> Insert(size_type start_pos, const CodeUnitType* str, size_type count = k_npos);
 
@@ -408,8 +416,8 @@ public:
      * @param count Number of code units to insert. If count is equal to k_npos, the entire string starting from other_start_pos will be
      * inserted.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
-     * of the string. ErrorCode::OutOfBounds if other_start_pos is out of bounds of the other string. ErrorCode::OutOfMemory if the string
-     * cannot be resized to accommodate the new code units.
+     * of the string. ErrorCode::OutOfBounds if other_start_pos is out of bounds of the other string.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     Expected<iterator, ErrorCode> Insert(size_type start_pos, const String& other, size_type other_start_pos = 0, size_type count = k_npos);
 
@@ -419,7 +427,8 @@ public:
      * @param value Value of the code unit to insert.
      * @param count Number of code units to insert. Default is 1.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start is out of bounds of
-     * the string. ErrorCode::OutOfMemory if the string cannot be resized to accommodate the new code units.
+     * the string.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     Expected<iterator, ErrorCode> Insert(iterator start, CodeUnitType value, size_type count = 1);
     Expected<iterator, ErrorCode> Insert(const_iterator start, CodeUnitType value, size_type count = 1);
@@ -431,8 +440,8 @@ public:
      * @param begin Iterator pointing to the first code unit in the string to insert.
      * @param end Iterator pointing to the code unit after the last code unit in the string to insert.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start is out of bounds of
-     * the string. ErrorCode::BadInput if begin is greater than end. ErrorCode::OutOfMemory if the string cannot be resized to accommodate
-     * the new code units.
+     * the string. ErrorCode::BadInput if begin is greater than end.
+     * @throw OutOfMemoryException when there is no more memory.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -779,15 +788,11 @@ CLASS_HEADER::String(AllocatorType* allocator) : m_allocator(allocator == nullpt
 
 TEMPLATE_HEADER
 CLASS_HEADER::String(size_type count, CodeUnitType value, AllocatorType* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(count), m_capacity(count + 1)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_capacity = 0;
-        m_size = 0;
-        return;
-    }
+    m_data = Allocate(count + 1);
+    m_size = count;
+    m_capacity = count + 1;
     for (size_type i = 0; i < m_size; i++)
     {
         m_data[i] = value;
@@ -798,15 +803,10 @@ CLASS_HEADER::String(size_type count, CodeUnitType value, AllocatorType* allocat
 TEMPLATE_HEADER CLASS_HEADER::String(const String& other, size_type pos, AllocatorType* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
-    m_capacity = other.m_size - pos + 1;
+    size_type new_capacity = other.m_size - pos + 1;
+    m_data = Allocate(new_capacity);
+    m_capacity = new_capacity;
     m_size = m_capacity - 1;
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_size = 0;
-        m_capacity = 0;
-        return;
-    }
     for (size_type i = 0; i < m_size; i++)
     {
         m_data[i] = other.m_data[pos + i];
@@ -816,15 +816,11 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, size_type pos, Allocat
 
 TEMPLATE_HEADER
 CLASS_HEADER::String(const CodeUnitType* str, size_type count, AllocatorType* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(count), m_capacity(count + 1)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
-    m_data = Allocate(m_capacity);
-    if (m_data == nullptr)
-    {
-        m_capacity = 0;
-        m_size = 0;
-        return;
-    }
+    m_data = Allocate(count + 1);
+    m_size = count;
+    m_capacity = count + 1;
     for (size_type i = 0; i < m_size; i++)
     {
         m_data[i] = str[i];
@@ -836,17 +832,13 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(const CodeUnitType* str, AllocatorType* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
-    m_size = GetStringLength(str);
-    m_capacity = m_size + 1;
-    if (m_capacity > 0)
+    const size_type new_size = GetStringLength(str);
+    const size_type new_capacity = new_size + 1;
+    if (new_capacity > 0)
     {
-        m_data = Allocate(m_capacity);
-        if (m_data == nullptr)
-        {
-            m_capacity = 0;
-            m_size = 0;
-            return;
-        }
+        m_data = Allocate(new_capacity);
+        m_size = new_size;
+        m_capacity = new_capacity;
         for (size_type i = 0; i < m_size; i++)
         {
             m_data[i] = str[i];
@@ -859,15 +851,11 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(const String& other, AllocatorType* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(other.m_size), m_capacity(other.m_capacity)
 {
-    if (m_capacity > 0)
+    if (other.m_capacity > 0)
     {
-        m_data = Allocate(m_capacity);
-        if (m_data == nullptr)
-        {
-            m_capacity = 0;
-            m_size = 0;
-            return;
-        }
+        m_data = Allocate(other.m_capacity);
+        m_size = other.m_size;
+        m_capacity = other.m_capacity;
         for (size_type i = 0; i < m_size; i++)
         {
             m_data[i] = other.GetData()[i];
@@ -929,12 +917,6 @@ CLASS_HEADER& CLASS_HEADER::operator=(const String& other)
         Deallocate(m_data);
         m_capacity = other.m_capacity;
         m_data = Allocate(m_capacity);
-        if (m_data == nullptr)
-        {
-            m_capacity = 0;
-            m_size = 0;
-            return *this;
-        }
     }
     m_size = other.m_size;
     memcpy(m_data, other.m_data, m_size * sizeof(CodeUnitType));
@@ -977,7 +959,7 @@ bool CLASS_HEADER::operator==(const String& other) const
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(size_type count, CodeUnitType value)
+void CLASS_HEADER::Assign(size_type count, CodeUnitType value)
 {
     if (count + 1 > m_capacity)
     {
@@ -986,10 +968,6 @@ Opal::ErrorCode CLASS_HEADER::Assign(size_type count, CodeUnitType value)
             Deallocate(m_data);
         }
         m_data = Allocate(count + 1);
-        if (m_data == nullptr)
-        {
-            return ErrorCode::OutOfMemory;
-        }
         m_capacity = count + 1;
     }
     for (size_type i = 0; i < count; i++)
@@ -998,15 +976,14 @@ Opal::ErrorCode CLASS_HEADER::Assign(size_type count, CodeUnitType value)
     }
     m_size = count;
     m_data[m_size] = 0;
-    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
+void CLASS_HEADER::Assign(const String& other)
 {
     if (this == &other)
     {
-        return ErrorCode::Success;
+        return;
     }
     if (other.m_size + 1 > m_capacity)
     {
@@ -1015,10 +992,6 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
             Deallocate(m_data);
         }
         m_data = Allocate(other.m_size + 1);
-        if (m_data == nullptr)
-        {
-            return ErrorCode::OutOfMemory;
-        }
         m_capacity = other.m_size + 1;
     }
     if (other.m_size > 0)
@@ -1027,7 +1000,6 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
     }
     m_size = other.m_size;
     m_data[m_size] = 0;
-    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
@@ -1056,10 +1028,6 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other, size_type pos, size_ty
             Deallocate(m_data);
         }
         m_data = Allocate(count + 1);
-        if (m_data == nullptr)
-        {
-            return ErrorCode::OutOfMemory;
-        }
         m_capacity = count + 1;
     }
     if (count > 0)
@@ -1100,10 +1068,6 @@ Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitType* str, size_type count)
             Deallocate(m_data);
         }
         m_data = Allocate(count + 1);
-        if (m_data == nullptr)
-        {
-            return ErrorCode::OutOfMemory;
-        }
         m_capacity = count + 1;
     }
     for (size_type i = 0; i < count; i++)
@@ -1136,10 +1100,6 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start_it, InputIt end_it)
             Deallocate(m_data);
         }
         m_data = Allocate(count + 1);
-        if (m_data == nullptr)
-        {
-            return ErrorCode::OutOfMemory;
-        }
         m_capacity = count + 1;
     }
     for (size_type i = 0; i < count; i++)
@@ -1153,25 +1113,23 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start_it, InputIt end_it)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::At(size_type pos)
+CodeUnitType& CLASS_HEADER::At(size_type pos)
 {
-    using ReturnType = Expected<CodeUnitType&, ErrorCode>;
     if (pos >= m_size)
     {
-        return ReturnType(ErrorCode::OutOfBounds);
+        throw OutOfBoundsException(pos, 0, m_size - 1);
     }
-    return ReturnType(m_data[pos]);
+    return m_data[pos];
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::At(size_type pos) const
+const CodeUnitType& CLASS_HEADER::At(size_type pos) const
 {
-    using ReturnType = Expected<const CodeUnitType&, ErrorCode>;
     if (pos >= m_size)
     {
-        return ReturnType(ErrorCode::OutOfBounds);
+        throw OutOfBoundsException(pos, 0, m_size - 1);
     }
-    return ReturnType(m_data[pos]);
+    return m_data[pos];
 }
 
 TEMPLATE_HEADER
@@ -1233,21 +1191,17 @@ Opal::Expected<const CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::Back() const
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Reserve(size_type new_capacity)
+void CLASS_HEADER::Reserve(size_type new_capacity)
 {
     if (new_capacity == 0)
     {
-        return ErrorCode::InvalidArgument;
+        throw InvalidArgumentException(__FUNCTION__, "new_capacity", new_capacity);
     }
     if (new_capacity <= m_capacity)
     {
-        return ErrorCode::Success;
+        return;
     }
     value_type* new_data = Allocate(new_capacity);
-    if (new_data == nullptr)
-    {
-        return ErrorCode::OutOfMemory;
-    }
     if (m_data != nullptr)
     {
         std::memcpy(new_data, m_data, (m_size + 1) * sizeof(value_type));
@@ -1255,7 +1209,6 @@ Opal::ErrorCode CLASS_HEADER::Reserve(size_type new_capacity)
     }
     m_data = new_data;
     m_capacity = new_capacity;
-    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
@@ -1273,11 +1226,7 @@ Opal::ErrorCode CLASS_HEADER::Resize(size_type new_size, CodeUnitType value)
     }
     if (new_size > m_capacity)
     {
-        ErrorCode error = Reserve(new_size + 1);
-        if (error != ErrorCode::Success)
-        {
-            return error;
-        }
+        Reserve(new_size + 1);
     }
     for (size_type i = m_size; i < new_size; i++)
     {
@@ -1310,11 +1259,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const value_type& ch)
 {
     if (m_size + 2 > m_capacity)
     {
-        ErrorCode error = Reserve(m_size + 2);
-        if (error != ErrorCode::Success)
-        {
-            return error;
-        }
+        Reserve(m_size + 2);
     }
     m_data[m_size] = ch;
     m_size += 1;
@@ -1335,11 +1280,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const value_type* str, size_type size)
     }
     if (m_size + size + 1 > m_capacity)
     {
-        ErrorCode error = Reserve(m_size + size + 1);
-        if (error != ErrorCode::Success)
-        {
-            return error;
-        }
+        Reserve(m_size + size + 1);
     }
     if (size > 0)
     {
@@ -1355,11 +1296,7 @@ Opal::ErrorCode CLASS_HEADER::Append(size_type count, CodeUnitType value)
 {
     if (m_size + count + 1 > m_capacity)
     {
-        ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return error;
-        }
+        Reserve(m_size + count + 1);
     }
     for (size_type i = m_size; i < m_size + count; i++)
     {
@@ -1375,11 +1312,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other)
 {
     if (m_size + other.m_size + 1 > m_capacity)
     {
-        ErrorCode error = Reserve(m_size + other.m_size + 1);
-        if (error != ErrorCode::Success)
-        {
-            return error;
-        }
+        Reserve(m_size + other.m_size + 1);
     }
     if (other.m_size > 0)
     {
@@ -1407,11 +1340,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, size_type pos, size_ty
     }
     if (m_size + count + 1 > m_capacity)
     {
-        ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return error;
-        }
+        Reserve(m_size + count + 1);
     }
     if (count > 0)
     {
@@ -1438,11 +1367,7 @@ Opal::ErrorCode CLASS_HEADER::Append(InputIt begin_it, InputIt end_it)
     u64 count = static_cast<u64>(end_it - begin_it);
     if (m_size + count + 1 > m_capacity)
     {
-        ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return error;
-        }
+        Reserve(m_size + count + 1);
     }
     for (size_type i = 0; i < count; i++)
     {
@@ -1469,11 +1394,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     if (m_size + count + 1 > m_capacity)
     {
-        const ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return ReturnType(error);
-        }
+        Reserve(m_size + count + 1);
     }
     for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1515,11 +1436,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     if (m_size + count + 1 > m_capacity)
     {
-        const ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return ReturnType(error);
-        }
+        Reserve(m_size + count + 1);
     }
     for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1557,11 +1474,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     if (m_size + count + 1 > m_capacity)
     {
-        const ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return ReturnType(error);
-        }
+        Reserve(m_size + count + 1);
     }
     for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1591,11 +1504,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     const size_type start_pos = Narrow<size_type>(start - Begin());
     if (m_size + count + 1 > m_capacity)
     {
-        const ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return ReturnType(error);
-        }
+        Reserve(m_size + count + 1);
     }
     for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1626,11 +1535,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     const size_type start_pos = Narrow<size_type>(start - ConstBegin());
     if (m_size + count + 1 > m_capacity)
     {
-        const ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return ReturnType(error);
-        }
+        Reserve(m_size + count + 1);
     }
     for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1667,11 +1572,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     const size_type start_pos = Narrow<size_type>(start - Begin());
     if (m_size + count + 1 > m_capacity)
     {
-        const ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return ReturnType(error);
-        }
+        Reserve(m_size + count + 1);
     }
     for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1708,11 +1609,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     const size_type start_pos = Narrow<size_type>(start - ConstBegin());
     if (m_size + count + 1 > m_capacity)
     {
-        const ErrorCode error = Reserve(m_size + count + 1);
-        if (error != ErrorCode::Success)
-        {
-            return ReturnType(error);
-        }
+        Reserve(m_size + count + 1);
     }
     for (size_type i = m_size - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1871,7 +1768,10 @@ CLASS_HEADER& CLASS_HEADER::operator+=(const value_type* str)
 TEMPLATE_HEADER
 CodeUnitType* CLASS_HEADER::Allocate(size_type size)
 {
-    OPAL_ASSERT(m_allocator != nullptr, "Allocator should never be null!");
+    if (m_allocator == nullptr)
+    {
+        throw OutOfMemoryException("Allocator is not set!");
+    }
     constexpr u64 k_alignment = alignof(CodeUnitType);
     const u64 size_bytes = size * sizeof(value_type);
     return reinterpret_cast<value_type*>(m_allocator->Alloc(size_bytes, k_alignment));
@@ -1880,7 +1780,10 @@ CodeUnitType* CLASS_HEADER::Allocate(size_type size)
 TEMPLATE_HEADER
 void CLASS_HEADER::Deallocate(value_type* data)
 {
-    OPAL_ASSERT(m_allocator != nullptr, "Allocator should never be null!");
+    if (m_allocator == nullptr)
+    {
+        throw OutOfMemoryException("Allocator is not set!");
+    }
     m_allocator->Free(data);
 }
 
@@ -2300,7 +2203,7 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
     }
 
     size_type count = count2 > count1 ? count1 : count2;
-    for (size_type i = 0; i < count; i++)
+    for (size_type i = 0; i < count; ++i)
     {
         if (first[pos1 + i] < second[i])
         {

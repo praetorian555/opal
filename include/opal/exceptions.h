@@ -36,6 +36,15 @@ public:
         return *this + buffer;
     }
 
+    StringEx& operator+(u64 nb)
+    {
+        constexpr i64 k_buffer_size = 64;
+        char buffer[k_buffer_size] = {};
+        snprintf(buffer, k_buffer_size - 1, "%u", static_cast<u32>(nb));
+        return *this + buffer;
+    }
+
+
     const char* operator*() const { return m_data; }
 
 private:
@@ -102,11 +111,19 @@ struct OutOfMemoryException : Exception
     }
 
     OutOfMemoryException(const char* allocator_name, u64 size)
-    : Exception(StringEx("Out of memory in allocator ") + allocator_name + " trying to allocate " + static_cast<i64>(size) + " bytes.")
+        : Exception(StringEx("Out of memory in allocator ") + allocator_name + " trying to allocate " + static_cast<i64>(size) + " bytes.")
     {
     }
 
     OutOfMemoryException(const char* custom_message) : Exception(StringEx("Out of memory: ") + custom_message) {}
+};
+
+struct OutOfBoundsException : Exception
+{
+    OutOfBoundsException(u64 value, u64 lower_bound, u64 upper_bound)
+        : Exception(StringEx("Out of bounds with value ") + value + " and range [" + lower_bound + ", " + upper_bound + "]")
+    {
+    }
 };
 
 }  // namespace Opal

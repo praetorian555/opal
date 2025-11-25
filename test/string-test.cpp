@@ -474,16 +474,14 @@ TEST_CASE("Assign", "[String]")
             SECTION("Count is zero")
             {
                 StringUtf8 str("Hello there");
-                const ErrorCode err = str.Assign(0, 'd');
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(0, 'd'));
                 REQUIRE(str.GetCapacity() == 12);
                 REQUIRE(str.GetSize() == 0);
             }
             SECTION("Count is normal and no resize")
             {
                 StringUtf8 str("Hello there");
-                const ErrorCode err = str.Assign(5, 'd');
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(5, 'd'));
                 REQUIRE(str.GetCapacity() == 12);
                 REQUIRE(str.GetSize() == 5);
                 for (i32 i = 0; i < 5; i++)
@@ -494,8 +492,7 @@ TEST_CASE("Assign", "[String]")
             SECTION("Count is normal and triggers resize")
             {
                 StringUtf8 str;
-                const ErrorCode err = str.Assign(5, 'd');
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(5, 'd'));
                 REQUIRE(str.GetCapacity() == 6);
                 REQUIRE(str.GetSize() == 5);
                 for (u64 i = 0; i < str.GetSize(); i++)
@@ -516,16 +513,14 @@ TEST_CASE("Assign", "[String]")
             {
                 StringUtf8 str("Hello there");
                 const StringUtf8 other;
-                const ErrorCode err = str.Assign(other);
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(other));
                 REQUIRE(str.GetCapacity() == 12);
                 REQUIRE(str.GetSize() == 0);
             }
             SECTION("Same string")
             {
                 StringUtf8 str("Hello there");
-                const ErrorCode err = str.Assign(str);
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(str));
                 REQUIRE(str.GetCapacity() == 12);
                 REQUIRE(str.GetSize() == 11);
                 for (u64 i = 0; i < str.GetSize(); i++)
@@ -537,8 +532,7 @@ TEST_CASE("Assign", "[String]")
             {
                 StringUtf8 str("Hello there");
                 const StringUtf8 other("Hello");
-                const ErrorCode err = str.Assign(other);
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(other));
                 REQUIRE(str.GetCapacity() == 12);
                 REQUIRE(str.GetSize() == 5);
                 for (u64 i = 0; i < str.GetSize(); i++)
@@ -550,8 +544,7 @@ TEST_CASE("Assign", "[String]")
             {
                 StringUtf8 str("Hello there");
                 const StringUtf8 other("Hello there and then");
-                const ErrorCode err = str.Assign(other);
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(other));
                 REQUIRE(str.GetSize() == 20);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
@@ -797,16 +790,14 @@ TEST_CASE("Assign", "[String]")
             SECTION("Count is zero")
             {
                 StringUtf8 str("Hello there and then some more");
-                const ErrorCode err = str.Assign(0, 'd');
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(0, 'd'));
                 REQUIRE(str.GetCapacity() == 31);
                 REQUIRE(str.GetSize() == 0);
             }
             SECTION("Count is normal and no resize")
             {
                 StringUtf8 str("Hello there and then some more");
-                const ErrorCode err = str.Assign(5, 'd');
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(5, 'd'));
                 REQUIRE(str.GetCapacity() == 31);
                 REQUIRE(str.GetSize() == 5);
                 for (i32 i = 0; i < 5; i++)
@@ -817,8 +808,7 @@ TEST_CASE("Assign", "[String]")
             SECTION("Count is normal and triggers resize")
             {
                 StringUtf8 str("Hello there and then some more");
-                const ErrorCode err = str.Assign(50, 'd');
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(50, 'd'));
                 REQUIRE(str.GetSize() == 50);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
@@ -838,16 +828,14 @@ TEST_CASE("Assign", "[String]")
             {
                 StringUtf8 str("Hello there and then some more");
                 const StringUtf8 other;
-                const ErrorCode err = str.Assign(other);
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(other));
                 REQUIRE(str.GetCapacity() == 31);
                 REQUIRE(str.GetSize() == 0);
             }
             SECTION("Same string")
             {
                 StringUtf8 str("Hello there and then some more");
-                const ErrorCode err = str.Assign(str);
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(str));
                 REQUIRE(str.GetCapacity() == 31);
                 REQUIRE(str.GetSize() == 30);
                 for (u64 i = 0; i < str.GetSize(); i++)
@@ -859,8 +847,7 @@ TEST_CASE("Assign", "[String]")
             {
                 StringUtf8 str("Hello there and then some more");
                 const StringUtf8 other("Hello");
-                const ErrorCode err = str.Assign(other);
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(other));
                 REQUIRE(str.GetCapacity() == 31);
                 REQUIRE(str.GetSize() == 5);
                 for (u64 i = 0; i < str.GetSize(); i++)
@@ -872,8 +859,7 @@ TEST_CASE("Assign", "[String]")
             {
                 StringUtf8 str("Hello there and then some more");
                 const StringUtf8 other("Hello there and then some more and double");
-                const ErrorCode err = str.Assign(other);
-                REQUIRE(err == ErrorCode::Success);
+                REQUIRE_NOTHROW(str.Assign(other));
                 REQUIRE(str.GetSize() == 41);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
@@ -1120,44 +1106,42 @@ TEST_CASE("Accessors", "[String]")
         SECTION("At")
         {
             StringUtf8 str("Hello there");
-            REQUIRE(str.At(0).GetValue() == 'H');
-            REQUIRE(str.At(1).GetValue() == 'e');
-            REQUIRE(str.At(2).GetValue() == 'l');
-            REQUIRE(str.At(3).GetValue() == 'l');
-            REQUIRE(str.At(4).GetValue() == 'o');
-            REQUIRE(str.At(5).GetValue() == ' ');
-            REQUIRE(str.At(6).GetValue() == 't');
-            REQUIRE(str.At(7).GetValue() == 'h');
-            REQUIRE(str.At(8).GetValue() == 'e');
-            REQUIRE(str.At(9).GetValue() == 'r');
-            REQUIRE(str.At(10).GetValue() == 'e');
+            REQUIRE(str.At(0) == 'H');
+            REQUIRE(str.At(1) == 'e');
+            REQUIRE(str.At(2) == 'l');
+            REQUIRE(str.At(3) == 'l');
+            REQUIRE(str.At(4) == 'o');
+            REQUIRE(str.At(5) == ' ');
+            REQUIRE(str.At(6) == 't');
+            REQUIRE(str.At(7) == 'h');
+            REQUIRE(str.At(8) == 'e');
+            REQUIRE(str.At(9) == 'r');
+            REQUIRE(str.At(10) == 'e');
         }
         SECTION("Out of bounds At")
         {
             StringUtf8 str("Hello there");
-            REQUIRE(!str.At(12).HasValue());
-            REQUIRE(str.At(12).GetError() == ErrorCode::OutOfBounds);
+            REQUIRE_THROWS_AS(!str.At(12), OutOfBoundsException);
         }
         SECTION("Const At")
         {
             const StringUtf8 str("Hello there");
-            REQUIRE(str.At(0).GetValue() == 'H');
-            REQUIRE(str.At(1).GetValue() == 'e');
-            REQUIRE(str.At(2).GetValue() == 'l');
-            REQUIRE(str.At(3).GetValue() == 'l');
-            REQUIRE(str.At(4).GetValue() == 'o');
-            REQUIRE(str.At(5).GetValue() == ' ');
-            REQUIRE(str.At(6).GetValue() == 't');
-            REQUIRE(str.At(7).GetValue() == 'h');
-            REQUIRE(str.At(8).GetValue() == 'e');
-            REQUIRE(str.At(9).GetValue() == 'r');
-            REQUIRE(str.At(10).GetValue() == 'e');
+            REQUIRE(str.At(0) == 'H');
+            REQUIRE(str.At(1) == 'e');
+            REQUIRE(str.At(2) == 'l');
+            REQUIRE(str.At(3) == 'l');
+            REQUIRE(str.At(4) == 'o');
+            REQUIRE(str.At(5) == ' ');
+            REQUIRE(str.At(6) == 't');
+            REQUIRE(str.At(7) == 'h');
+            REQUIRE(str.At(8) == 'e');
+            REQUIRE(str.At(9) == 'r');
+            REQUIRE(str.At(10) == 'e');
         }
         SECTION("Out of bounds const At")
         {
             const StringUtf8 str("Hello there");
-            REQUIRE(!str.At(11).HasValue());
-            REQUIRE(str.At(11).GetError() == ErrorCode::OutOfBounds);
+            REQUIRE_THROWS_AS(!str.At(11), OutOfBoundsException);
         }
         SECTION("Array operator")
         {
@@ -1244,8 +1228,7 @@ TEST_CASE("Reserve", "[String]")
         SECTION("Reserve zero")
         {
             StringUtf8 str("Hello there");
-            const ErrorCode err = str.Reserve(0);
-            REQUIRE(err == ErrorCode::InvalidArgument);
+            REQUIRE_THROWS_AS(str.Reserve(0), InvalidArgumentException);
         }
         SECTION("Out of memory")
         {
@@ -1288,8 +1271,7 @@ TEST_CASE("Reserve", "[String]")
         SECTION("Reserve zero")
         {
             StringUtf8 str(ref_str);
-            const ErrorCode err = str.Reserve(0);
-            REQUIRE(err == ErrorCode::InvalidArgument);
+            REQUIRE_THROWS_AS(str.Reserve(0), InvalidArgumentException);
         }
         SECTION("Out of memory")
         {
