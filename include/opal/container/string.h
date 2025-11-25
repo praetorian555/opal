@@ -13,14 +13,14 @@
 namespace Opal
 {
 
-template <typename MyString>
+template <typename StringClass>
 class StringIterator
 {
 public:
-    using value_type = typename MyString::value_type;
-    using difference_type = typename MyString::difference_type;
-    using reference = typename MyString::reference;
-    using pointer = typename MyString::pointer;
+    using value_type = typename StringClass::value_type;
+    using difference_type = typename StringClass::difference_type;
+    using reference = typename StringClass::reference;
+    using pointer = typename StringClass::pointer;
 
     StringIterator() = default;
     explicit StringIterator(pointer ptr) : m_ptr(ptr) {}
@@ -51,17 +51,17 @@ private:
     pointer m_ptr = nullptr;
 };
 
-template <typename MyString>
-StringIterator<MyString> operator+(typename StringIterator<MyString>::difference_type n, const StringIterator<MyString>& it);
+template <typename StringClass>
+StringIterator<StringClass> operator+(typename StringIterator<StringClass>::difference_type n, const StringIterator<StringClass>& it);
 
-template <typename MyString>
+template <typename StringClass>
 class StringConstIterator
 {
 public:
-    using value_type = typename MyString::value_type;
-    using difference_type = typename MyString::difference_type;
-    using const_reference = typename MyString::const_reference;
-    using pointer = typename MyString::pointer;
+    using value_type = typename StringClass::value_type;
+    using difference_type = typename StringClass::difference_type;
+    using const_reference = typename StringClass::const_reference;
+    using pointer = typename StringClass::pointer;
 
     StringConstIterator() = default;
     explicit StringConstIterator(pointer ptr) : m_ptr(ptr) {}
@@ -92,21 +92,20 @@ private:
     pointer m_ptr = nullptr;
 };
 
-template <typename MyString>
-StringConstIterator<MyString> operator+(typename StringConstIterator<MyString>::difference_type n, const StringConstIterator<MyString>& it);
+template <typename StringClass>
+StringConstIterator<StringClass> operator+(typename StringConstIterator<StringClass>::difference_type n, const StringConstIterator<StringClass>& it);
 
 /**
  * @brief String class that stores a sequence of code units.
  * @tparam CodeUnitType Type of the code unit used in the string.
  * @tparam EncodingType Type of the encoding used in the string.
- * @tparam AllocatorType Type of the allocator used for memory management. Default is AllocatorBase so that any allocator can be used.
  */
-template <typename CodeUnitType, typename EncodingType, typename AllocatorType = AllocatorBase>
+template <typename CodeUnitType, typename EncodingType>
 class String
 {
 public:
     using value_type = CodeUnitType;
-    using allocator_type = AllocatorType;
+    using allocator_type = AllocatorBase;
     using size_type = u64;
     using difference_type = i64;
     using reference = CodeUnitType&;
@@ -114,8 +113,8 @@ public:
     using pointer = CodeUnitType*;
     using const_pointer = CodeUnitType*;
     using encoding_type = EncodingType;
-    using iterator = StringIterator<String<CodeUnitType, EncodingType, AllocatorType>>;
-    using const_iterator = StringConstIterator<String<CodeUnitType, EncodingType, AllocatorType>>;
+    using iterator = StringIterator<String>;
+    using const_iterator = StringConstIterator<String>;
 
     static_assert(k_is_same_value<value_type, typename encoding_type::CodeUnitType>,
                   "Encoding code unit type needs to match string code unit type");
@@ -129,7 +128,7 @@ public:
      * @brief Default constructor.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
      */
-    String(AllocatorType* allocator = nullptr);
+    String(allocator_type* allocator = nullptr);
 
     /**
      * @brief Construct a string with a specific size and value.
@@ -138,7 +137,7 @@ public:
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
      * @throw OutOfMemoryException if allocator runs out of memory.
      */
-    String(size_type count, CodeUnitType value, AllocatorType* allocator = nullptr);
+    String(size_type count, CodeUnitType value, allocator_type* allocator = nullptr);
 
     /**
      * @brief Construct a string using 'count' code units from a null-terminated string.
@@ -147,7 +146,7 @@ public:
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
      * @throw OutOfMemoryException if allocator runs out of memory.
      */
-    String(const CodeUnitType* str, size_type count, AllocatorType* allocator = nullptr);
+    String(const CodeUnitType* str, size_type count, allocator_type* allocator = nullptr);
 
     /**
      * @brief Construct a string using a null-terminated string.
@@ -155,7 +154,7 @@ public:
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
      * @throw OutOfMemoryException if allocator runs out of memory.
      */
-    String(const CodeUnitType* str, AllocatorType* allocator = nullptr);
+    String(const CodeUnitType* str, allocator_type* allocator = nullptr);
 
     /**
      * Copy constructor.
@@ -163,7 +162,7 @@ public:
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
      * @throw OutOfMemoryException if allocator runs out of memory.
      */
-    String(const String& other, AllocatorType* allocator = nullptr);
+    String(const String& other, allocator_type* allocator = nullptr);
 
     /**
      * @brief Construct a string using a substring of another string.
@@ -172,7 +171,7 @@ public:
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
      * @throw OutOfMemoryException if allocator runs out of memory.
      */
-    String(const String& other, size_type pos, AllocatorType* allocator = nullptr);
+    String(const String& other, size_type pos, allocator_type* allocator = nullptr);
     String(String&& other) noexcept;
 
     /**
@@ -185,7 +184,7 @@ public:
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
-    String(InputIt start, InputIt end, AllocatorType* allocator = nullptr);
+    String(InputIt start, InputIt end, allocator_type* allocator = nullptr);
 
     ~String();
 
@@ -194,7 +193,7 @@ public:
 
     bool operator==(const String& other) const;
 
-    [[nodiscard]] AllocatorType& GetAllocator() const { return *m_allocator; }
+    [[nodiscard]] allocator_type& GetAllocator() const { return *m_allocator; }
 
     value_type* GetData() { return m_data; }
     [[nodiscard]] const value_type* GetData() const { return m_data; }
@@ -272,7 +271,7 @@ public:
      * @throw OutOfBoundsException
      */
     CodeUnitType& At(size_type pos);
-    const CodeUnitType& At(size_type pos) const;
+    [[nodiscard]] const CodeUnitType& At(size_type pos) const;
 
     /**
      * @brief Get the code unit at a specific position in the string. Bounds checking only in debug mode.
@@ -287,14 +286,14 @@ public:
      * @return Reference to the first code unit in case of a success. ErrorCode::OutOfBounds if the string is empty.
      */
     Expected<CodeUnitType&, ErrorCode> Front();
-    Expected<const CodeUnitType&, ErrorCode> Front() const;
+    [[nodiscard]] Expected<const CodeUnitType&, ErrorCode> Front() const;
 
     /**
      * @brief Get the last code unit in the string.
      * @return Reference to the last code unit in case of a success. ErrorCode::OutOfBounds if the string is empty.
      */
     Expected<CodeUnitType&, ErrorCode> Back();
-    Expected<const CodeUnitType&, ErrorCode> Back() const;
+    [[nodiscard]] Expected<const CodeUnitType&, ErrorCode> Back() const;
 
     /**
      * Reserve memory for a specific number of code units.
@@ -503,7 +502,7 @@ private:
     inline value_type* Allocate(size_type size);
     inline void Deallocate(value_type* data);
 
-    AllocatorType* m_allocator = nullptr;
+    allocator_type* m_allocator = nullptr;
     value_type* m_data = nullptr;
     size_type m_size = 0;
     size_type m_capacity = 0;
@@ -511,17 +510,17 @@ private:
 
 /**
  * @brief Compare two strings lexicographically.
- * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @param first First string to compare.
  * @param second Second string to compare.
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second.
  */
-template <typename MyString>
-Expected<i32, ErrorCode> Compare(const MyString& first, const MyString& second);
+template <typename StringClass>
+Expected<i32, ErrorCode> Compare(const StringClass& first, const StringClass& second);
 
 /**
  * @brief Compare two strings lexicographically.
- * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @param first First string to compare.
  * @param pos1 Position in the first string to start comparing.
  * @param count1 Number of code units to compare in the first string. If you want to compare from pos1 to the end of the string, set
@@ -530,13 +529,13 @@ Expected<i32, ErrorCode> Compare(const MyString& first, const MyString& second);
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string.
  */
-template <typename MyString>
-Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_type pos1, typename MyString::size_type count1,
-                                 const MyString& second);
+template <typename StringClass>
+Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
+                                 const StringClass& second);
 
 /**
  * @brief Compare two strings lexicographically.
- * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @param first First string to compare.
  * @param pos1 Position in the first string to start comparing.
  * @param count1 Number of code units to compare in the first string. If you want to compare from pos1 to the end of the string, set
@@ -548,13 +547,13 @@ Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string or pos2 is greater than the size of the second string.
  */
-template <typename MyString>
-Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_type pos1, typename MyString::size_type count1,
-                                 const MyString& second, typename MyString::size_type pos2, typename MyString::size_type count2);
+template <typename StringClass>
+Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
+                                 const StringClass& second, typename StringClass::size_type pos2, typename StringClass::size_type count2);
 
 /**
  * @brief Compare a string with a null-terminated string lexicographically.
- * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @note The null-terminated string is expected to be in the same encoding as the first string.
  * @param first First string to compare.
  * @param pos1 Position in the first string to start comparing.
@@ -564,13 +563,13 @@ Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
  */
-template <typename MyString>
-Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_type pos1, typename MyString::size_type count1,
-                                 const typename MyString::value_type* second);
+template <typename StringClass>
+Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
+                                 const typename StringClass::value_type* second);
 
 /**
  * @brief Compare a string with a null-terminated string lexicographically.
- * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @note The null-terminated string is expected to be in the same encoding as the first string.
  * @param first First string to compare.
  * @param pos1 Position in the first string to start comparing.
@@ -582,111 +581,111 @@ Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
  */
-template <typename MyString>
-Expected<i32, ErrorCode> Compare(const MyString& first, typename MyString::size_type pos1, typename MyString::size_type count1,
-                                 const typename MyString::value_type* second, typename MyString::size_type count2);
+template <typename StringClass>
+Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
+                                 const typename StringClass::value_type* second, typename StringClass::size_type count2);
 
-template <typename MyString>
-MyString operator+(const MyString& lhs, const MyString& rhs);
+template <typename StringClass>
+StringClass operator+(const StringClass& lhs, const StringClass& rhs);
 
-template <typename MyString>
-MyString operator+(const MyString& lhs, const typename MyString::value_type* rhs);
+template <typename StringClass>
+StringClass operator+(const StringClass& lhs, const typename StringClass::value_type* rhs);
 
-template <typename MyString>
-MyString operator+(const MyString& lhs, typename MyString::value_type ch);
+template <typename StringClass>
+StringClass operator+(const StringClass& lhs, typename StringClass::value_type ch);
 
-template <typename MyString>
-MyString operator+(const typename MyString::value_type* lhs, const MyString& rhs);
+template <typename StringClass>
+StringClass operator+(const typename StringClass::value_type* lhs, const StringClass& rhs);
 
-template <typename MyString>
-MyString operator+(typename MyString::value_type ch, const MyString& rhs);
+template <typename StringClass>
+StringClass operator+(typename StringClass::value_type ch, const StringClass& rhs);
 
 /**
  * @brief Find the first occurrence of a string in another string.
- * @tparam MyString String type to search in.
+ * @tparam StringClass String type to search in.
  * @param haystack String to search in.
  * @param needle String to search for.
  * @param start_pos Position in the haystack to start searching from.
- * @return Position of the first occurrence of the needle in the haystack. If the needle is not found, returns MyString::k_npos. If
- * start_pos is greater than the size of the haystack, returns MyString::k_npos. If needle is empty and start_pos is less than the size of
- * the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns MyString::k_npos.
+ * @return Position of the first occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If
+ * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is less than the size of
+ * the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns StringClass::k_npos.
  */
-template <typename MyString>
-typename MyString::size_type Find(const MyString& haystack, const MyString& needle, typename MyString::size_type start_pos = 0);
+template <typename StringClass>
+typename StringClass::size_type Find(const StringClass& haystack, const StringClass& needle, typename StringClass::size_type start_pos = 0);
 
 /**
  * @brief Find the first occurrence of a string in another string.
- * @tparam MyString String type to search in.
+ * @tparam StringClass String type to search in.
  * @param haystack String to search in.
  * @param needle String to search for.
  * @param start_pos Position in the haystack to start searching from.
  * @param needle_count Number of code units to search for in the needle. Includes the null-terminator characters. If needle_count is
- * equal to MyString::k_npos, the entire needle will be searched for until the first null-terminator character.
- * @return Position of the first occurrence of the needle in the haystack. If the needle is not found, returns MyString::k_npos. If
- * start_pos is greater than the size of the haystack, returns MyString::k_npos. If needle is empty and start_pos is less than the size of
- * the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns MyString::k_npos.
+ * equal to StringClass::k_npos, the entire needle will be searched for until the first null-terminator character.
+ * @return Position of the first occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If
+ * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is less than the size of
+ * the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns StringClass::k_npos.
  */
-template <typename MyString>
-typename MyString::size_type Find(const MyString& haystack, const typename MyString::value_type* needle,
-                                  typename MyString::size_type start_pos = 0, typename MyString::size_type needle_count = MyString::k_npos);
+template <typename StringClass>
+typename StringClass::size_type Find(const StringClass& haystack, const typename StringClass::value_type* needle,
+                                  typename StringClass::size_type start_pos = 0, typename StringClass::size_type needle_count = StringClass::k_npos);
 
 /**
  * @brief Find the first occurrence of a character in another string.
- * @tparam MyString String type to search in.
+ * @tparam StringClass String type to search in.
  * @param haystack String to search in.
  * @param ch Character to search for.
  * @param start_pos Position in the haystack to start searching from.
- * @return Position of the first occurrence of the character in the haystack. If the character is not found, returns MyString::k_npos. If
- * start_pos is greater than the size of the haystack, returns MyString::k_npos. If haystack is empty, returns MyString::k_npos.
+ * @return Position of the first occurrence of the character in the haystack. If the character is not found, returns StringClass::k_npos. If
+ * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If haystack is empty, returns StringClass::k_npos.
  */
-template <typename MyString>
-typename MyString::size_type Find(const MyString& haystack, const typename MyString::value_type& ch,
-                                  typename MyString::size_type start_pos = 0);
+template <typename StringClass>
+typename StringClass::size_type Find(const StringClass& haystack, const typename StringClass::value_type& ch,
+                                  typename StringClass::size_type start_pos = 0);
 
 /**
  * @brief Find the last occurrence of a string in another string.
- * @tparam MyString String type to search in.
+ * @tparam StringClass String type to search in.
  * @param haystack String to search in.
  * @param needle String to search for.
  * @param start_pos Position in the haystack to start searching from. Search will start from right to left. If start_pos is greater than
  * the size of the haystack, the entire haystack will be searched.
- * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns MyString::k_npos. If needle is
+ * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If needle is
  * empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
  */
-template <typename MyString>
-typename MyString::size_type ReverseFind(const MyString& haystack, const MyString& needle,
-                                         typename MyString::size_type start_pos = MyString::k_npos);
+template <typename StringClass>
+typename StringClass::size_type ReverseFind(const StringClass& haystack, const StringClass& needle,
+                                         typename StringClass::size_type start_pos = StringClass::k_npos);
 
 /**
  * @brief Find the last occurrence of a string in another string.
- * @tparam MyString String type to search in.
+ * @tparam StringClass String type to search in.
  * @param haystack String to search in.
  * @param needle String to search for.
  * @param start_pos Position in the haystack to start searching from. Search will start from right to left. If start_pos is greater than
  * or equal to the size of the haystack, the entire haystack will be searched.
  * @param needle_count Number of code units to search for in the needle. Includes the null-terminator characters. If needle_count is
- * equal to MyString::k_npos, the entire needle will be searched for until the first null-terminator character.
- * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns MyString::k_npos. If needle is
+ * equal to StringClass::k_npos, the entire needle will be searched for until the first null-terminator character.
+ * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If needle is
  * empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
  */
-template <typename MyString>
-typename MyString::size_type ReverseFind(const MyString& haystack, const typename MyString::value_type* needle,
-                                         typename MyString::size_type start_pos = MyString::k_npos,
-                                         typename MyString::size_type needle_count = MyString::k_npos);
+template <typename StringClass>
+typename StringClass::size_type ReverseFind(const StringClass& haystack, const typename StringClass::value_type* needle,
+                                         typename StringClass::size_type start_pos = StringClass::k_npos,
+                                         typename StringClass::size_type needle_count = StringClass::k_npos);
 
 /**
  * @brief Find the last occurrence of a character in another string.
- * @tparam MyString String type to search in.
+ * @tparam StringClass String type to search in.
  * @param haystack String to search in.
  * @param ch Character to search for.
  * @param start_pos Position in the haystack to start searching from. Search will start from right to left. If start_pos is greater than
  * the size of the haystack, the entire haystack will be searched.
- * @return Position of the last occurrence of the character in the haystack. If the character is not found, returns MyString::k_npos. If
- * haystack is empty, returns MyString::k_npos.
+ * @return Position of the last occurrence of the character in the haystack. If the character is not found, returns StringClass::k_npos. If
+ * haystack is empty, returns StringClass::k_npos.
  */
-template <typename MyString>
-typename MyString::size_type ReverseFind(const MyString& haystack, const typename MyString::value_type& ch,
-                                         typename MyString::size_type start_pos = MyString::k_npos);
+template <typename StringClass>
+typename StringClass::size_type ReverseFind(const StringClass& haystack, const typename StringClass::value_type& ch,
+                                         typename StringClass::size_type start_pos = StringClass::k_npos);
 
 /**
  * Transcode a string from one encoding to another.
@@ -701,18 +700,18 @@ ErrorCode Transcode(const InputString& input, OutputString& output);
 
 /**
  * @brief Get a substring from a string.
- * @tparam MyString Type of the string used. Defines code unit type, encoding and allocator.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @tparam Allocator Type of the allocator to use for allocating the result. If nullptr, the default allocator will be used.
  * @param str String to get the substring from.
  * @param start_pos Position in the string to start the substring from. Default is 0.
- * @param count Number of code units to include in the substring. If count is equal to MyString::k_npos, the entire string starting from
+ * @param count Number of code units to include in the substring. If count is equal to StringClass::k_npos, the entire string starting from
  * start_pos will be included.
  * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
  * @return Substring in case of a success. ErrorCode::OutOfBounds if start_pos is greater than the size of the string.
  */
-template <typename MyString, typename Allocator = AllocatorBase>
-Expected<MyString, ErrorCode> GetSubString(const MyString& str, typename MyString::size_type start_pos = 0,
-                                           typename MyString::size_type count = MyString::k_npos, Allocator* allocator = nullptr);
+template <typename StringClass, typename Allocator = AllocatorBase>
+Expected<StringClass, ErrorCode> GetSubString(const StringClass& str, typename StringClass::size_type start_pos = 0,
+                                           typename StringClass::size_type count = StringClass::k_npos, Allocator* allocator = nullptr);
 
 /**
  * @brief Get the length of a null-terminated string.
@@ -780,14 +779,14 @@ using StringWide = String<char16, EncodingUtf16LE<char16>>;
 
 };  // namespace Opal
 
-#define TEMPLATE_HEADER template <typename CodeUnitType, typename EncodingType, typename AllocatorType>
-#define CLASS_HEADER Opal::String<CodeUnitType, EncodingType, AllocatorType>
+#define TEMPLATE_HEADER template <typename CodeUnitType, typename EncodingType>
+#define CLASS_HEADER Opal::String<CodeUnitType, EncodingType>
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(AllocatorType* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
+CLASS_HEADER::String(allocator_type* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(size_type count, CodeUnitType value, AllocatorType* allocator)
+CLASS_HEADER::String(size_type count, CodeUnitType value, allocator_type* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     m_data = Allocate(count + 1);
@@ -800,7 +799,7 @@ CLASS_HEADER::String(size_type count, CodeUnitType value, AllocatorType* allocat
     m_data[m_size] = 0;
 }
 
-TEMPLATE_HEADER CLASS_HEADER::String(const String& other, size_type pos, AllocatorType* allocator)
+TEMPLATE_HEADER CLASS_HEADER::String(const String& other, size_type pos, allocator_type* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     size_type new_capacity = other.m_size - pos + 1;
@@ -815,7 +814,7 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, size_type pos, Allocat
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const CodeUnitType* str, size_type count, AllocatorType* allocator)
+CLASS_HEADER::String(const CodeUnitType* str, size_type count, allocator_type* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     m_data = Allocate(count + 1);
@@ -829,7 +828,7 @@ CLASS_HEADER::String(const CodeUnitType* str, size_type count, AllocatorType* al
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const CodeUnitType* str, AllocatorType* allocator)
+CLASS_HEADER::String(const CodeUnitType* str, allocator_type* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     const size_type new_size = GetStringLength(str);
@@ -848,7 +847,7 @@ CLASS_HEADER::String(const CodeUnitType* str, AllocatorType* allocator)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(const String& other, AllocatorType* allocator)
+CLASS_HEADER::String(const String& other, allocator_type* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(other.m_size), m_capacity(other.m_capacity)
 {
     if (other.m_capacity > 0)
@@ -876,7 +875,7 @@ CLASS_HEADER::String(String&& other) noexcept
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-CLASS_HEADER::String(InputIt start, InputIt end, AllocatorType* allocator) : String(&(*start), Narrow<size_type>(end - start), allocator)
+CLASS_HEADER::String(InputIt start, InputIt end, allocator_type* allocator) : String(&(*start), Narrow<size_type>(end - start), allocator)
 {
 }
 
@@ -1819,8 +1818,8 @@ Opal::ErrorCode Opal::Transcode(const InputString& input, OutputString& output)
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
 
-#define TEMPLATE_HEADER template <typename MyString>
-#define CLASS_HEADER Opal::StringIterator<MyString>
+#define TEMPLATE_HEADER template <typename StringClass>
+#define CLASS_HEADER Opal::StringIterator<StringClass>
 
 TEMPLATE_HEADER
 bool CLASS_HEADER::operator>(const StringIterator& other) const
@@ -1927,7 +1926,7 @@ typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename StringIterator<MyString>::difference_type n, const StringIterator<MyString>& it)
+CLASS_HEADER Opal::operator+(typename StringIterator<StringClass>::difference_type n, const StringIterator<StringClass>& it)
 {
     return it + n;
 }
@@ -1935,8 +1934,8 @@ CLASS_HEADER Opal::operator+(typename StringIterator<MyString>::difference_type 
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
 
-#define TEMPLATE_HEADER template <typename MyString>
-#define CLASS_HEADER Opal::StringConstIterator<MyString>
+#define TEMPLATE_HEADER template <typename StringClass>
+#define CLASS_HEADER Opal::StringConstIterator<StringClass>
 
 TEMPLATE_HEADER
 bool CLASS_HEADER::operator>(const StringConstIterator& other) const
@@ -2043,7 +2042,7 @@ typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER Opal::operator+(typename StringConstIterator<MyString>::difference_type n, const StringConstIterator<MyString>& it)
+CLASS_HEADER Opal::operator+(typename StringConstIterator<StringClass>::difference_type n, const StringConstIterator<StringClass>& it)
 {
     return it + n;
 }
@@ -2051,26 +2050,26 @@ CLASS_HEADER Opal::operator+(typename StringConstIterator<MyString>::difference_
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
 
-template <typename MyString>
-Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, const MyString& second)
+template <typename StringClass>
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, const StringClass& second)
 {
     return Compare(first, 0, first.GetSize(), second, 0, second.GetSize());
 }
 
-template <typename MyString>
-Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::size_type pos1,
-                                                         typename MyString::size_type count1, const MyString& second)
+template <typename StringClass>
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
+                                                         typename StringClass::size_type count1, const StringClass& second)
 {
     return Compare(first, pos1, count1, second, 0, second.GetSize());
 }
 
-template <typename MyString>
-Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::size_type pos1,
-                                                         typename MyString::size_type count1, const MyString& second,
-                                                         typename MyString::size_type pos2, typename MyString::size_type count2)
+template <typename StringClass>
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
+                                                         typename StringClass::size_type count1, const StringClass& second,
+                                                         typename StringClass::size_type pos2, typename StringClass::size_type count2)
 {
     using ReturnType = Expected<i32, ErrorCode>;
-    using size_type = typename MyString::size_type;
+    using size_type = typename StringClass::size_type;
 
     if (pos1 > first.GetSize())
     {
@@ -2080,11 +2079,11 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
-    if (count1 == MyString::k_npos)
+    if (count1 == StringClass::k_npos)
     {
         count1 = first.GetSize() - pos1;
     }
-    if (count2 == MyString::k_npos)
+    if (count2 == StringClass::k_npos)
     {
         count2 = second.GetSize() - pos2;
     }
@@ -2120,18 +2119,18 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
     return ReturnType(0);
 }
 
-template <typename MyString>
-Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::size_type pos1,
-                                                         typename MyString::size_type count1, const typename MyString::value_type* second)
+template <typename StringClass>
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
+                                                         typename StringClass::size_type count1, const typename StringClass::value_type* second)
 {
     using ReturnType = Expected<i32, ErrorCode>;
-    using size_type = typename MyString::size_type;
+    using size_type = typename StringClass::size_type;
 
     if (pos1 > first.GetSize())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
-    if (count1 == MyString::k_npos)
+    if (count1 == StringClass::k_npos)
     {
         count1 = first.GetSize() - pos1;
     }
@@ -2168,19 +2167,19 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
     return ReturnType(0);
 }
 
-template <typename MyString>
-Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, typename MyString::size_type pos1,
-                                                         typename MyString::size_type count1, const typename MyString::value_type* second,
-                                                         typename MyString::size_type count2)
+template <typename StringClass>
+Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
+                                                         typename StringClass::size_type count1, const typename StringClass::value_type* second,
+                                                         typename StringClass::size_type count2)
 {
     using ReturnType = Expected<i32, ErrorCode>;
-    using size_type = typename MyString::size_type;
+    using size_type = typename StringClass::size_type;
 
     if (pos1 > first.GetSize())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
-    if (count1 == MyString::k_npos)
+    if (count1 == StringClass::k_npos)
     {
         count1 = first.GetSize() - pos1;
     }
@@ -2193,7 +2192,7 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
         return ReturnType(ErrorCode::InvalidArgument);
     }
     size_type str_length = GetStringLength(second);
-    if (count2 == MyString::k_npos)
+    if (count2 == StringClass::k_npos)
     {
         count2 = str_length;
     }
@@ -2225,71 +2224,71 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const MyString& first, 
     return ReturnType(0);
 }
 
-template <typename MyString>
-MyString Opal::operator+(const MyString& lhs, const MyString& rhs)
+template <typename StringClass>
+StringClass Opal::operator+(const StringClass& lhs, const StringClass& rhs)
 {
-    MyString result = lhs;
+    StringClass result = lhs;
     result += rhs;
     return result;
 }
 
-template <typename MyString>
-MyString Opal::operator+(const MyString& lhs, const typename MyString::value_type* rhs)
+template <typename StringClass>
+StringClass Opal::operator+(const StringClass& lhs, const typename StringClass::value_type* rhs)
 {
-    MyString result = lhs;
+    StringClass result = lhs;
     result += rhs;
     return result;
 }
 
-template <typename MyString>
-MyString Opal::operator+(const MyString& lhs, typename MyString::value_type ch)
+template <typename StringClass>
+StringClass Opal::operator+(const StringClass& lhs, typename StringClass::value_type ch)
 {
-    MyString result = lhs;
+    StringClass result = lhs;
     result += ch;
     return result;
 }
 
-template <typename MyString>
-MyString Opal::operator+(const typename MyString::value_type* lhs, const MyString& rhs)
+template <typename StringClass>
+StringClass Opal::operator+(const typename StringClass::value_type* lhs, const StringClass& rhs)
 {
-    MyString result;
+    StringClass result;
     result += lhs;
     result += rhs;
     return result;
 }
 
-template <typename MyString>
-MyString Opal::operator+(typename MyString::value_type ch, const MyString& rhs)
+template <typename StringClass>
+StringClass Opal::operator+(typename StringClass::value_type ch, const StringClass& rhs)
 {
-    MyString result;
+    StringClass result;
     result += ch;
     result += rhs;
     return result;
 }
 
-template <typename MyString>
-typename MyString::size_type Opal::Find(const MyString& haystack, const MyString& needle, typename MyString::size_type start_pos)
+template <typename StringClass>
+typename StringClass::size_type Opal::Find(const StringClass& haystack, const StringClass& needle, typename StringClass::size_type start_pos)
 {
     if (needle.IsEmpty())
     {
         if (start_pos >= haystack.GetSize())
         {
-            return MyString::k_npos;
+            return StringClass::k_npos;
         }
         return start_pos;
     }
     return Find(haystack, needle.GetData(), start_pos, needle.GetSize());
 }
 
-template <typename MyString>
-typename MyString::size_type Opal::Find(const MyString& haystack, const typename MyString::value_type* needle,
-                                        typename MyString::size_type start_pos, typename MyString::size_type needle_count)
+template <typename StringClass>
+typename StringClass::size_type Opal::Find(const StringClass& haystack, const typename StringClass::value_type* needle,
+                                        typename StringClass::size_type start_pos, typename StringClass::size_type needle_count)
 {
     if (needle == nullptr)
     {
-        return MyString::k_npos;
+        return StringClass::k_npos;
     }
-    if (needle_count == MyString::k_npos)
+    if (needle_count == StringClass::k_npos)
     {
         needle_count = 0;
         while (needle[needle_count] != 0)
@@ -2301,18 +2300,18 @@ typename MyString::size_type Opal::Find(const MyString& haystack, const typename
     {
         if (start_pos >= haystack.GetSize())
         {
-            return MyString::k_npos;
+            return StringClass::k_npos;
         }
         return start_pos;
     }
     if (start_pos >= haystack.GetSize() || needle_count > haystack.GetSize() - start_pos)
     {
-        return MyString::k_npos;
+        return StringClass::k_npos;
     }
-    for (typename MyString::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
+    for (typename StringClass::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
     {
         bool is_found = false;
-        for (typename MyString::size_type needle_pos = 0; needle_pos < needle_count; ++needle_pos)
+        for (typename StringClass::size_type needle_pos = 0; needle_pos < needle_count; ++needle_pos)
         {
             // We found the symbol only if there is enough of a haystack to find it
             is_found = haystack_pos + needle_pos < haystack.GetSize() && needle[needle_pos] == haystack[haystack_pos + needle_pos];
@@ -2326,33 +2325,33 @@ typename MyString::size_type Opal::Find(const MyString& haystack, const typename
             return haystack_pos;
         }
     }
-    return MyString::k_npos;
+    return StringClass::k_npos;
 }
 
-template <typename MyString>
-typename MyString::size_type Opal::Find(const MyString& haystack, const typename MyString::value_type& ch,
-                                        typename MyString::size_type start_pos)
+template <typename StringClass>
+typename StringClass::size_type Opal::Find(const StringClass& haystack, const typename StringClass::value_type& ch,
+                                        typename StringClass::size_type start_pos)
 {
     if (haystack.IsEmpty())
     {
-        return MyString::k_npos;
+        return StringClass::k_npos;
     }
     if (start_pos >= haystack.GetSize())
     {
-        return MyString::k_npos;
+        return StringClass::k_npos;
     }
-    for (typename MyString::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
+    for (typename StringClass::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
     {
         if (haystack[haystack_pos] == ch)
         {
             return haystack_pos;
         }
     }
-    return MyString::k_npos;
+    return StringClass::k_npos;
 }
 
-template <typename MyString>
-typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const MyString& needle, typename MyString::size_type start_pos)
+template <typename StringClass>
+typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const StringClass& needle, typename StringClass::size_type start_pos)
 {
     if (needle.IsEmpty())
     {
@@ -2364,12 +2363,12 @@ typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const M
     }
     if (needle.GetSize() > start_pos + 1)
     {
-        return MyString::k_npos;
+        return StringClass::k_npos;
     }
-    for (typename MyString::size_type haystack_pos = start_pos - needle.GetSize(); haystack_pos != MyString::k_npos; --haystack_pos)
+    for (typename StringClass::size_type haystack_pos = start_pos - needle.GetSize(); haystack_pos != StringClass::k_npos; --haystack_pos)
     {
         bool is_found = true;
-        for (typename MyString::size_type needle_pos = 0; needle_pos < needle.GetSize(); ++needle_pos)
+        for (typename StringClass::size_type needle_pos = 0; needle_pos < needle.GetSize(); ++needle_pos)
         {
             if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
             {
@@ -2382,18 +2381,18 @@ typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const M
             return haystack_pos;
         }
     }
-    return MyString::k_npos;
+    return StringClass::k_npos;
 }
 
-template <typename MyString>
-typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const typename MyString::value_type* needle,
-                                               typename MyString::size_type start_pos, typename MyString::size_type needle_count)
+template <typename StringClass>
+typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const typename StringClass::value_type* needle,
+                                               typename StringClass::size_type start_pos, typename StringClass::size_type needle_count)
 {
     if (needle == nullptr)
     {
-        return MyString::k_npos;
+        return StringClass::k_npos;
     }
-    if (needle_count == MyString::k_npos)
+    if (needle_count == StringClass::k_npos)
     {
         needle_count = 0;
         while (needle[needle_count] != 0)
@@ -2411,12 +2410,12 @@ typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const t
     }
     if (needle_count > start_pos + 1)
     {
-        return MyString::k_npos;
+        return StringClass::k_npos;
     }
-    for (typename MyString::size_type haystack_pos = start_pos - needle_count; haystack_pos != MyString::k_npos; --haystack_pos)
+    for (typename StringClass::size_type haystack_pos = start_pos - needle_count; haystack_pos != StringClass::k_npos; --haystack_pos)
     {
         bool is_found = true;
-        for (typename MyString::size_type needle_pos = 0; needle_pos < needle_count; ++needle_pos)
+        for (typename StringClass::size_type needle_pos = 0; needle_pos < needle_count; ++needle_pos)
         {
             if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
             {
@@ -2429,42 +2428,42 @@ typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const t
             return haystack_pos;
         }
     }
-    return MyString::k_npos;
+    return StringClass::k_npos;
 }
 
-template <typename MyString>
-typename MyString::size_type Opal::ReverseFind(const MyString& haystack, const typename MyString::value_type& ch,
-                                               typename MyString::size_type start_pos)
+template <typename StringClass>
+typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const typename StringClass::value_type& ch,
+                                               typename StringClass::size_type start_pos)
 {
     if (haystack.IsEmpty())
     {
-        return MyString::k_npos;
+        return StringClass::k_npos;
     }
     if (start_pos >= haystack.GetSize())
     {
         start_pos = haystack.GetSize() - 1;
     }
-    for (typename MyString::size_type haystack_pos = start_pos; haystack_pos != MyString::k_npos; --haystack_pos)
+    for (typename StringClass::size_type haystack_pos = start_pos; haystack_pos != StringClass::k_npos; --haystack_pos)
     {
         if (haystack[haystack_pos] == ch)
         {
             return haystack_pos;
         }
     }
-    return MyString::k_npos;
+    return StringClass::k_npos;
 }
 
-template <typename MyString, typename Allocator>
-Opal::Expected<MyString, Opal::ErrorCode> Opal::GetSubString(const MyString& str, typename MyString::size_type start_pos,
-                                                             typename MyString::size_type count, Allocator* allocator)
+template <typename StringClass, typename Allocator>
+Opal::Expected<StringClass, Opal::ErrorCode> Opal::GetSubString(const StringClass& str, typename StringClass::size_type start_pos,
+                                                             typename StringClass::size_type count, Allocator* allocator)
 {
-    using ReturnType = Expected<MyString, ErrorCode>;
+    using ReturnType = Expected<StringClass, ErrorCode>;
     if (start_pos >= str.GetSize())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
-    count = MyString::Min(count, str.GetSize() - start_pos);
-    return ReturnType(MyString(str.GetData() + start_pos, count, allocator));
+    count = StringClass::Min(count, str.GetSize() - start_pos);
+    return ReturnType(StringClass(str.GetData() + start_pos, count, allocator));
 }
 
 template <typename CodeUnitType>
