@@ -2,6 +2,7 @@
 
 #include <initializer_list>
 #include <new>
+#include <cstring>
 
 #include "opal/allocator.h"
 #include "opal/assert.h"
@@ -308,24 +309,23 @@ public:
      * end.
      * @param count How many new elements to insert.
      * @param value Value of the new elements.
-     * @return Iterator pointing to the first newly inserted element.
+     * @return Iterator pointing to the first newly inserted element or @p position if no element is inserted.
      * @throw OutOfMemoryException when allocator runs out of memory.
      * @throw OutOfBoundsException when position is out of bounds.
-     * @throw InvalidArgumentException if count is set to 0.
      */
     iterator Insert(const_iterator position, size_type count, const T& value);
 
     /**
-     * Insert new elements from the range [start, end) at the specified position.
+     * Insert new elements from the range [@p start_it, @p end_it) at the specified position.
      * @tparam InputIt Input iterator type.
-     * @param position Iterator pointing to the position where the new elements should be inserted. Can be cend() to insert at the
+     * @param position Iterator pointing to the position where the new elements should be inserted. Can be @ref cend to insert at the
      * end.
      * @param start_it Start of the range, inclusive.
      * @param end_it end of the range, exclusive.
-     * @return Iterator pointing to the first newly inserted element.
+     * @return Iterator pointing to the first newly inserted element or @p position if no element is inserted.
      * @throw OutOfMemoryException when allocator runs out of memory.
      * @throw OutOfBoundsException when position is out of bounds.
-     * @throw InvalidArgumentException if start_it is greater than end_it.
+     * @throw InvalidArgumentException if @p start_it is greater than @p end_it.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -334,18 +334,18 @@ public:
     /**
      * Erase the element at the specified position. Does not deallocate memory.
      * @param position Iterator pointing to the element to erase.
-     * @return Iterator pointing to the element following the erased element or ErrorCode::OutOfBounds if the position is invalid.
+     * @return Iterator pointing to the element following the erased element. Returns @ref end() if @p position is out of bounds.
      */
-    Expected<iterator, ErrorCode> Erase(const_iterator position);
-    Expected<iterator, ErrorCode> Erase(iterator position);
+    iterator Erase(const_iterator position);
+    iterator Erase(iterator position);
 
     /**
      * Erase the element at the specified position by swapping it with the last element. Does not deallocate memory.
      * @param position Iterator pointing to the element to erase.
-     * @return Iterator pointing to the new element at the position or ErrorCode::OutOfBounds if the position is invalid.
+     * @return Iterator pointing to the new element at the @pos position, or @ref end() if @p position is out of bounds.
      */
-    Expected<iterator, ErrorCode> EraseWithSwap(const_iterator position);
-    Expected<iterator, ErrorCode> EraseWithSwap(iterator position);
+    iterator EraseWithSwap(const_iterator position);
+    iterator EraseWithSwap(iterator position);
 
     /**
      * Erase elements in the range [start, end). Does not deallocate memory.
@@ -358,20 +358,17 @@ public:
     Expected<iterator, ErrorCode> Erase(iterator start_it, iterator end_it);
 
     /**
-     * Remove an element in the array matching the value argument. The order of the elements stays the same.
+     * Remove an element in the array matching the value argument. Do nothing if element is not in the array. The order of the elements
+     * stays the same.
      * @param value Value to find. Uses equality operator of the type T.
-     * @return Returns ErrorCode::Success if the element is successfully removed. Returns ErrorCode::InvalidArgument if element was not
-     * found in the array.
      */
-    ErrorCode Remove(const T& value);
+    void Remove(const T& value);
 
     /**
      * Remove an element in the array matching the value argument. The order of the elements does not stay the same.
      * @param value Value to find. Uses equality operator of the type T.
-     * @return Returns ErrorCode::Success if the element is successfully removed. Returns ErrorCode::InvalidArgument if the element was not
-     * found in the array.
      */
-    ErrorCode RemoveWithSwap(const T& value);
+    void RemoveWithSwap(const T& value);
 
     /** Iterator API - Compatible with standard library. */
 
@@ -1033,7 +1030,7 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, si
     }
     if (count == 0)
     {
-        throw InvalidArgumentException(__FUNCTION__, "count", count);
+        return begin() + (position - cbegin());
     }
     difference_type pos_offset = position - cbegin();
     if (m_size + count > m_capacity)
@@ -1068,9 +1065,9 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, In
     {
         throw OutOfBoundsException(position - cbegin(), 0, cend() - cbegin() - 1);
     }
-    if (start_it >= end_it)
+    if (start_it > end_it)
     {
-        throw InvalidArgumentException(__FUNCTION__, "end_it - start_it", end_it - start_it);
+        throw InvalidArgumentException(__FUNCTION__, "end_it - start_it", static_cast<i64>(end_it - start_it));
     }
     difference_type pos_offset = position - cbegin();
     size_type count = static_cast<size_type>(end_it - start_it);
@@ -1098,12 +1095,11 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, In
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(DynamicArray::const_iterator position)
+typename CLASS_HEADER::iterator CLASS_HEADER::Erase(const_iterator position)
 {
-    using ReturnType = Expected<iterator, ErrorCode>;
     if (position < cbegin() || position >= cend())
     {
-        return ReturnType{ErrorCode::OutOfBounds};
+        return end();
     }
     difference_type pos_offset = position - cbegin();
     iterator mut_position = begin() + pos_offset;
@@ -1114,16 +1110,15 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
         ++mut_position;
     }
     m_size--;
-    return ReturnType{begin() + pos_offset};
+    return begin() + pos_offset;
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(iterator position)
+typename CLASS_HEADER::iterator CLASS_HEADER::Erase(iterator position)
 {
-    using ReturnType = Expected<iterator, ErrorCode>;
     if (position < begin() || position >= end())
     {
-        return ReturnType{ErrorCode::OutOfBounds};
+        return end();
     }
     difference_type pos_offset = position - begin();
     iterator mut_position = begin() + pos_offset;
@@ -1134,16 +1129,15 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
         ++mut_position;
     }
     m_size--;
-    return ReturnType{begin() + pos_offset};
+    return begin() + pos_offset;
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(DynamicArray::const_iterator position)
+typename CLASS_HEADER::iterator CLASS_HEADER::EraseWithSwap(DynamicArray::const_iterator position)
 {
-    using ReturnType = Expected<iterator, ErrorCode>;
     if (position < cbegin() || position >= cend())
     {
-        return ReturnType{ErrorCode::OutOfBounds};
+        return end();
     }
     iterator mut_position = begin() + (position - cbegin());
     (*mut_position).~T();  // Invokes destructor on allocated memory
@@ -1151,19 +1145,18 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     {
         *mut_position = Move(*(end() - 1));
         m_size--;
-        return ReturnType{mut_position};
+        return mut_position;
     }
     m_size--;
-    return ReturnType{end()};
+    return end();
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::EraseWithSwap(iterator position)
+typename CLASS_HEADER::iterator CLASS_HEADER::EraseWithSwap(iterator position)
 {
-    using ReturnType = Expected<iterator, ErrorCode>;
     if (position < begin() || position >= end())
     {
-        return ReturnType{ErrorCode::OutOfBounds};
+        return end();
     }
     iterator mut_position = begin() + (position - begin());
     (*mut_position).~T();  // Invokes destructor on allocated memory
@@ -1171,10 +1164,10 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     {
         *mut_position = Move(*(end() - 1));
         m_size--;
-        return ReturnType{mut_position};
+        return mut_position;
     }
     m_size--;
-    return ReturnType{end()};
+    return end();
 }
 
 TEMPLATE_HEADER
@@ -1247,35 +1240,33 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Remove(const T& value)
+void CLASS_HEADER::Remove(const T& value)
 {
     iterator it = begin();
     while (it != end())
     {
         if (*it == value)
         {
-            auto result = Erase(it);
-            return result.HasValue() ? ErrorCode::Success : ErrorCode::InvalidArgument;
+            Erase(it);
+            return;
         }
         ++it;
     }
-    return ErrorCode::InvalidArgument;
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::RemoveWithSwap(const T& value)
+void CLASS_HEADER::RemoveWithSwap(const T& value)
 {
     iterator it = begin();
     while (it != end())
     {
         if (*it == value)
         {
-            auto result = EraseWithSwap(it);
-            return result.HasValue() ? ErrorCode::Success : ErrorCode::InvalidArgument;
+            EraseWithSwap(it);
+            return;
         }
         ++it;
     }
-    return ErrorCode::InvalidArgument;
 }
 
 TEMPLATE_HEADER

@@ -1832,7 +1832,9 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
-            int_arr.Insert(int_arr.cbegin() + 1, val);
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, val));
+            REQUIRE(*it == val);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1844,7 +1846,9 @@ TEST_CASE("Insert", "[Array]")
         SECTION("In mid move")
         {
             DynamicArray<i32> int_arr(3, 42);
-            int_arr.Insert(int_arr.cbegin() + 1, 25);
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, 25));
+            REQUIRE(*it == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1857,7 +1861,9 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
-            int_arr.Insert(int_arr.cend(), val);
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), val));
+            REQUIRE(*it == val);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1869,7 +1875,9 @@ TEST_CASE("Insert", "[Array]")
         SECTION("At the end move")
         {
             DynamicArray<i32> int_arr(3, 42);
-            int_arr.Insert(int_arr.cend(), 25);
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), 25));
+            REQUIRE(*it == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1908,7 +1916,10 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
-            int_arr.Insert(int_arr.cbegin() + 1, 2, val);
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, 2, val));
+            REQUIRE(*it == 25);
+            REQUIRE(*(it + 1) == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1922,7 +1933,10 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
-            int_arr.Insert(int_arr.cend(), 2, val);
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), 2, val));
+            REQUIRE(*it == 25);
+            REQUIRE(*(it + 1) == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1936,7 +1950,10 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
-            int_arr.Insert(int_arr.cbegin(), 2, val);
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin(), 2, val));
+            REQUIRE(*it == 25);
+            REQUIRE(*(it + 1) == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1962,7 +1979,9 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             i32 val = 25;
-            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cbegin(), 0, val), InvalidArgumentException);
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin(), 0, val));
+            REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1977,7 +1996,10 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             const DynamicArray<i32> other(2, 5);
-            int_arr.Insert(int_arr.cbegin() + 1, other.cbegin(), other.cend());
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, other.cbegin(), other.cend()));
+            REQUIRE(*it == 5);
+            REQUIRE(*(it + 1) == 5);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -1991,7 +2013,10 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             const DynamicArray<i32> other(2, 5);
-            int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend());
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()));
+            REQUIRE(*it == 5);
+            REQUIRE(*(it + 1) == 5);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2005,7 +2030,12 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(100, 5);
-            REQUIRE_NOTHROW(int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()));
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()));
+            for (int i = 0; i < 100; ++i)
+            {
+                REQUIRE(*(it + i) == 5);
+            }
             REQUIRE(int_arr.GetCapacity() == 103);
             REQUIRE(int_arr.GetSize() == 103);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2021,7 +2051,10 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(2, 5);
-            REQUIRE_NOTHROW(int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()));
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()));
+            REQUIRE(*it == 5);
+            REQUIRE(*(it + 1) == 5);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2059,7 +2092,10 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             i32 other[] = {5, 5};
-            REQUIRE_NOTHROW(int_arr.Insert(int_arr.cbegin() + 1, other, other + 2));
+            DynamicArray<i32>::iterator it;
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, other, other + 2));
+            REQUIRE(*it == 5);
+            REQUIRE(*(it + 1) == 5);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2079,7 +2115,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from mid")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cbegin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cbegin() + 1);
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2090,7 +2126,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from end")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cend() - 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cend() - 1);
             REQUIRE(it - int_arr.begin() == int_arr.cend() - int_arr.cbegin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2101,7 +2137,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from beginning")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cbegin()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.cbegin());
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2112,8 +2148,8 @@ TEST_CASE("Erase", "[Array]")
         SECTION("out of bounds")
         {
             DynamicArray<i32> int_arr(3, 42);
-            ErrorCode err = int_arr.Erase(int_arr.cend()).GetError();
-            REQUIRE(err == ErrorCode::OutOfBounds);
+            auto it = int_arr.Erase(int_arr.cend());
+            REQUIRE(it == int_arr.end());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2124,7 +2160,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from mid non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.begin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.begin() + 1);
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2135,7 +2171,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from end non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.end() - 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.end() - 1);
             REQUIRE(it - int_arr.begin() == int_arr.end() - int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2146,7 +2182,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from beginning non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.begin()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.Erase(int_arr.begin());
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2157,8 +2193,8 @@ TEST_CASE("Erase", "[Array]")
         SECTION("out of bounds non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            ErrorCode err = int_arr.Erase(int_arr.end()).GetError();
-            REQUIRE(err == ErrorCode::OutOfBounds);
+            auto it = int_arr.Erase(int_arr.end());
+            REQUIRE(it == int_arr.end());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2172,7 +2208,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from mid")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.cbegin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.cbegin() + 1);
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2183,7 +2219,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from end")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.cend() - 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.cend() - 1);
             REQUIRE(it - int_arr.begin() == int_arr.cend() - int_arr.cbegin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2194,7 +2230,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from beginning")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.cbegin()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.cbegin());
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2205,8 +2241,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("out of bounds")
         {
             DynamicArray<i32> int_arr(3, 42);
-            ErrorCode err = int_arr.EraseWithSwap(int_arr.cend()).GetError();
-            REQUIRE(err == ErrorCode::OutOfBounds);
+            int_arr.EraseWithSwap(int_arr.cend());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2217,7 +2252,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from mid non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.begin() + 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.begin() + 1);
             REQUIRE(it - int_arr.begin() == 1);
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2228,7 +2263,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from end non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.end() - 1).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.end() - 1);
             REQUIRE(it - int_arr.begin() == int_arr.end() - int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2239,7 +2274,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("from beginning non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.begin()).GetValue();
+            DynamicArray<i32>::iterator it = int_arr.EraseWithSwap(int_arr.begin());
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 2);
@@ -2250,8 +2285,7 @@ TEST_CASE("Erase", "[Array]")
         SECTION("out of bounds non-const")
         {
             DynamicArray<i32> int_arr(3, 42);
-            ErrorCode err = int_arr.EraseWithSwap(int_arr.end()).GetError();
-            REQUIRE(err == ErrorCode::OutOfBounds);
+            int_arr.EraseWithSwap(int_arr.end());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
             REQUIRE(int_arr.GetData() != nullptr);
@@ -2429,32 +2463,28 @@ TEST_CASE("Remove", "[Array]")
     {
         SECTION("From start")
         {
-            const ErrorCode err = arr.Remove(5);
-            REQUIRE(ErrorCode::Success == err);
+            arr.Remove(5);
             REQUIRE(arr.GetSize() == 2);
             REQUIRE(arr[0] == 10);
             REQUIRE(arr[1] == 20);
         }
         SECTION("From end")
         {
-            const ErrorCode err = arr.Remove(20);
-            REQUIRE(ErrorCode::Success == err);
+            arr.Remove(20);
             REQUIRE(arr.GetSize() == 2);
             REQUIRE(arr[0] == 5);
             REQUIRE(arr[1] == 10);
         }
         SECTION("From middle")
         {
-            const ErrorCode err = arr.Remove(10);
-            REQUIRE(ErrorCode::Success == err);
+            arr.Remove(10);
             REQUIRE(arr.GetSize() == 2);
             REQUIRE(arr[0] == 5);
             REQUIRE(arr[1] == 20);
         }
         SECTION("Element not in the array")
         {
-            const ErrorCode err = arr.Remove(15);
-            REQUIRE(ErrorCode::InvalidArgument == err);
+            arr.Remove(15);
             REQUIRE(arr.GetSize() == 3);
             REQUIRE(arr[0] == 5);
             REQUIRE(arr[1] == 10);
@@ -2465,32 +2495,28 @@ TEST_CASE("Remove", "[Array]")
     {
         SECTION("From start")
         {
-            const ErrorCode err = arr.RemoveWithSwap(5);
-            REQUIRE(ErrorCode::Success == err);
+            arr.RemoveWithSwap(5);
             REQUIRE(arr.GetSize() == 2);
             REQUIRE(arr[0] == 20);
             REQUIRE(arr[1] == 10);
         }
         SECTION("From end")
         {
-            const ErrorCode err = arr.RemoveWithSwap(20);
-            REQUIRE(ErrorCode::Success == err);
+            arr.RemoveWithSwap(20);
             REQUIRE(arr.GetSize() == 2);
             REQUIRE(arr[0] == 5);
             REQUIRE(arr[1] == 10);
         }
         SECTION("From middle")
         {
-            const ErrorCode err = arr.RemoveWithSwap(10);
-            REQUIRE(ErrorCode::Success == err);
+            arr.RemoveWithSwap(10);
             REQUIRE(arr.GetSize() == 2);
             REQUIRE(arr[0] == 5);
             REQUIRE(arr[1] == 20);
         }
         SECTION("Element not in the array")
         {
-            const ErrorCode err = arr.Remove(15);
-            REQUIRE(ErrorCode::InvalidArgument == err);
+            arr.RemoveWithSwap(15);
             REQUIRE(arr.GetSize() == 3);
             REQUIRE(arr[0] == 5);
             REQUIRE(arr[1] == 10);

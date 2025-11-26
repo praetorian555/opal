@@ -125,6 +125,11 @@ struct OutOfBoundsException : Exception
     {
     }
 
+    OutOfBoundsException(i64 value, i64 lower_bound, i64 upper_bound)
+        : Exception(StringEx("Out of bounds with value ") + value + " and range [" + lower_bound + ", " + upper_bound + "]")
+    {
+    }
+
     OutOfBoundsException(const char* custom_message) : Exception(StringEx("Out of bounds: ") + custom_message) {}
 };
 
