@@ -3751,3 +3751,111 @@ TEST_CASE("Split", "[String]")
     first = "";
     second = "";
 }
+
+TEST_CASE("Reverse", "[String]")
+{
+    SECTION("Normal case")
+    {
+        StringUtf8 str("Hello there");
+        REQUIRE_NOTHROW(str.Reverse());
+        REQUIRE(str == "ereht olleH");
+    }
+    SECTION("Empty case")
+    {
+        StringUtf8 empty;
+        REQUIRE_NOTHROW(empty.Reverse());
+        REQUIRE(empty == "");
+    }
+    SECTION("Reverse substring")
+    {
+        StringUtf8 str("Hello there");
+        REQUIRE_NOTHROW(str.Reverse(str.begin() + 6, str.end()));
+        REQUIRE(str == "Hello ereht");
+    }
+    SECTION("Reverse even number of characters")
+    {
+        StringUtf8 str("cube");
+        REQUIRE_NOTHROW(str.Reverse());
+        REQUIRE(str == "ebuc");
+    }
+}
+
+TEST_CASE("Make string from i64", "[String]")
+{
+    SECTION("Binary")
+    {
+        StringUtf8 str = NumberToString(5ll, NumberSystemBase::Binary);
+        REQUIRE(str == "101");
+        str = NumberToString(-5ll, NumberSystemBase::Binary);
+        REQUIRE(str == "1111111111111111111111111111111111111111111111111111111111111011");
+        str = NumberToString(12345678ll, NumberSystemBase::Binary);
+        REQUIRE(str == "101111000110000101001110");
+        str = NumberToString(-12345678ll, NumberSystemBase::Binary);
+        REQUIRE(str == "1111111111111111111111111111111111111111010000111001111010110010");
+        str = NumberToString(std::numeric_limits<i64>::min(), NumberSystemBase::Binary);
+        REQUIRE(str == "1000000000000000000000000000000000000000000000000000000000000000");
+        str = NumberToString(std::numeric_limits<i64>::max(), NumberSystemBase::Binary);
+        REQUIRE(str == "111111111111111111111111111111111111111111111111111111111111111");
+        str = NumberToString(0ll, NumberSystemBase::Binary);
+        REQUIRE(str == "0");
+        str = NumberToString(-0ll, NumberSystemBase::Binary);
+        REQUIRE(str == "0");
+    }
+    SECTION("Octal")
+    {
+        StringUtf8 str = NumberToString(5ll, NumberSystemBase::Octal);
+        REQUIRE(str == "5");
+        str = NumberToString(-5ll, NumberSystemBase::Octal);
+        REQUIRE(str == "1777777777777777777773");
+        str = NumberToString(12345678ll, NumberSystemBase::Octal);
+        REQUIRE(str == "57060516");
+        str = NumberToString(-12345678ll, NumberSystemBase::Octal);
+        REQUIRE(str == "1777777777777720717262");
+        str = NumberToString(std::numeric_limits<i64>::min(), NumberSystemBase::Octal);
+        REQUIRE(str == "1000000000000000000000");
+        str = NumberToString(std::numeric_limits<i64>::max(), NumberSystemBase::Octal);
+        REQUIRE(str == "777777777777777777777");
+        str = NumberToString(0ll, NumberSystemBase::Octal);
+        REQUIRE(str == "0");
+        str = NumberToString(-0ll, NumberSystemBase::Octal);
+        REQUIRE(str == "0");
+    }
+    SECTION("Decimal")
+    {
+        StringUtf8 str = NumberToString(5ll);
+        REQUIRE(str == "5");
+        str = NumberToString(-5ll);
+        REQUIRE(str == "-5");
+        str = NumberToString(12345678ll);
+        REQUIRE(str == "12345678");
+        str = NumberToString(-12345678ll);
+        REQUIRE(str == "-12345678");
+        str = NumberToString(std::numeric_limits<i64>::min());
+        REQUIRE(str == "-9223372036854775808");
+        str = NumberToString(std::numeric_limits<i64>::max());
+        REQUIRE(str == "9223372036854775807");
+        str = NumberToString(0ll);
+        REQUIRE(str == "0");
+        str = NumberToString(-0ll);
+        REQUIRE(str == "0");
+    }
+    SECTION("Hexadecimal")
+    {
+        StringUtf8 str = NumberToString(5ll, NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "5");
+        str = NumberToString<i64>(-5ll, NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "FFFFFFFFFFFFFFFB");
+        str = NumberToString(12345678ll, NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "BC614E");
+        str = NumberToString(-12345678ll, NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "FFFFFFFFFF439EB2");
+        str = NumberToString(std::numeric_limits<i64>::min(), NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "8000000000000000");
+        str = NumberToString(std::numeric_limits<i64>::max(), NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "7FFFFFFFFFFFFFFF");
+        str = NumberToString(0ll, NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "0");
+        str = NumberToString(-0ll, NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "0");
+    }
+}

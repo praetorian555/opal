@@ -1,6 +1,8 @@
 #pragma once
 
+#include <cinttypes>
 #include <cstring>
+#include <cstdio>
 
 #include "dynamic-array.h"
 #include "opal/allocator.h"
@@ -12,6 +14,14 @@
 
 namespace Opal
 {
+
+enum class NumberSystemBase
+{
+    Binary = 2,
+    Octal = 8,
+    Decimal = 10,
+    Hexadecimal = 16
+};
 
 template <typename StringClass>
 class StringIterator
@@ -93,7 +103,8 @@ private:
 };
 
 template <typename StringClass>
-StringConstIterator<StringClass> operator+(typename StringConstIterator<StringClass>::difference_type n, const StringConstIterator<StringClass>& it);
+StringConstIterator<StringClass> operator+(typename StringConstIterator<StringClass>::difference_type n,
+                                           const StringConstIterator<StringClass>& it);
 
 /**
  * @brief String class that stores a sequence of code units.
@@ -476,6 +487,9 @@ public:
     Expected<iterator, ErrorCode> Erase(iterator first, iterator last);
     Expected<iterator, ErrorCode> Erase(const_iterator first, const_iterator last);
 
+    void Reverse();
+    void Reverse(iterator start_it, iterator end_it);
+
     String& operator+=(const String& other);
     String& operator+=(value_type ch);
     String& operator+=(const value_type* str);
@@ -607,8 +621,9 @@ StringClass operator+(typename StringClass::value_type ch, const StringClass& rh
  * @param needle String to search for.
  * @param start_pos Position in the haystack to start searching from.
  * @return Position of the first occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If
- * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is less than the size of
- * the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns StringClass::k_npos.
+ * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is less than the size
+ * of the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns
+ * StringClass::k_npos.
  */
 template <typename StringClass>
 typename StringClass::size_type Find(const StringClass& haystack, const StringClass& needle, typename StringClass::size_type start_pos = 0);
@@ -622,12 +637,14 @@ typename StringClass::size_type Find(const StringClass& haystack, const StringCl
  * @param needle_count Number of code units to search for in the needle. Includes the null-terminator characters. If needle_count is
  * equal to StringClass::k_npos, the entire needle will be searched for until the first null-terminator character.
  * @return Position of the first occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If
- * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is less than the size of
- * the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns StringClass::k_npos.
+ * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is less than the size
+ * of the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns
+ * StringClass::k_npos.
  */
 template <typename StringClass>
 typename StringClass::size_type Find(const StringClass& haystack, const typename StringClass::value_type* needle,
-                                  typename StringClass::size_type start_pos = 0, typename StringClass::size_type needle_count = StringClass::k_npos);
+                                     typename StringClass::size_type start_pos = 0,
+                                     typename StringClass::size_type needle_count = StringClass::k_npos);
 
 /**
  * @brief Find the first occurrence of a character in another string.
@@ -640,7 +657,7 @@ typename StringClass::size_type Find(const StringClass& haystack, const typename
  */
 template <typename StringClass>
 typename StringClass::size_type Find(const StringClass& haystack, const typename StringClass::value_type& ch,
-                                  typename StringClass::size_type start_pos = 0);
+                                     typename StringClass::size_type start_pos = 0);
 
 /**
  * @brief Find the last occurrence of a string in another string.
@@ -649,12 +666,12 @@ typename StringClass::size_type Find(const StringClass& haystack, const typename
  * @param needle String to search for.
  * @param start_pos Position in the haystack to start searching from. Search will start from right to left. If start_pos is greater than
  * the size of the haystack, the entire haystack will be searched.
- * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If needle is
- * empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
+ * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If needle
+ * is empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
  */
 template <typename StringClass>
 typename StringClass::size_type ReverseFind(const StringClass& haystack, const StringClass& needle,
-                                         typename StringClass::size_type start_pos = StringClass::k_npos);
+                                            typename StringClass::size_type start_pos = StringClass::k_npos);
 
 /**
  * @brief Find the last occurrence of a string in another string.
@@ -665,13 +682,13 @@ typename StringClass::size_type ReverseFind(const StringClass& haystack, const S
  * or equal to the size of the haystack, the entire haystack will be searched.
  * @param needle_count Number of code units to search for in the needle. Includes the null-terminator characters. If needle_count is
  * equal to StringClass::k_npos, the entire needle will be searched for until the first null-terminator character.
- * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If needle is
- * empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
+ * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If needle
+ * is empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
  */
 template <typename StringClass>
 typename StringClass::size_type ReverseFind(const StringClass& haystack, const typename StringClass::value_type* needle,
-                                         typename StringClass::size_type start_pos = StringClass::k_npos,
-                                         typename StringClass::size_type needle_count = StringClass::k_npos);
+                                            typename StringClass::size_type start_pos = StringClass::k_npos,
+                                            typename StringClass::size_type needle_count = StringClass::k_npos);
 
 /**
  * @brief Find the last occurrence of a character in another string.
@@ -685,12 +702,12 @@ typename StringClass::size_type ReverseFind(const StringClass& haystack, const t
  */
 template <typename StringClass>
 typename StringClass::size_type ReverseFind(const StringClass& haystack, const typename StringClass::value_type& ch,
-                                         typename StringClass::size_type start_pos = StringClass::k_npos);
+                                            typename StringClass::size_type start_pos = StringClass::k_npos);
 
 /**
  * Transcode a string from one encoding to another.
- * @tparam InputString Type of the input string. Defines code unit type, encoding and allocator.
- * @tparam OutputString Type of the output string. Defines code unit type, encoding and allocator.
+ * @tparam InputStringClass Type of the input string. Defines code unit type and encoding. Needs to be DecodableEncoding.
+ * @tparam InputStringClass Type of the output string. Defines code unit type and encoding. Needs to be EncodableEncoding.
  * @param input Input string to transcode.
  * @param output Output string to store the transcoded result.
  * @return ErrorCode::Success if transcoding was successful, other error codes depend on the encoding implementation.
@@ -713,7 +730,7 @@ ErrorCode Transcode(const InputStringClass& input, OutputStringClass& output);
  */
 template <typename StringClass, typename Allocator = AllocatorBase>
 Expected<StringClass, ErrorCode> GetSubString(const StringClass& str, typename StringClass::size_type start_pos = 0,
-                                           typename StringClass::size_type count = StringClass::k_npos, Allocator* allocator = nullptr);
+                                              typename StringClass::size_type count = StringClass::k_npos, Allocator* allocator = nullptr);
 
 /**
  * @brief Get the length of a null-terminated string.
@@ -778,6 +795,21 @@ using StringUtf8 = String<char8, EncodingUtf8<char8>>;
 using StringUtf32 = String<uchar32, EncodingUtf32LE<uchar32>>;
 using StringLocale = String<char8, EncodingLocale>;
 using StringWide = String<char16, EncodingUtf16LE<char16>>;
+
+/*************************************************************************************************/
+/** Useful functions not implemented for all string classes. *************************************/
+/*************************************************************************************************/
+
+/**
+ * Converts number to a string.
+ * @param base Number base system used.
+ * @param add_leading_zeros If true add leading zeros in binary, octal and hexadecimal bases for positive numbers up to the bit size of
+ * the type.
+ * @return Number as a string.
+ * @throw OutOfMemoryException when default allocator runs out of memory.
+ */
+template <Integral T>
+StringUtf8 NumberToString(T value, NumberSystemBase base = NumberSystemBase::Decimal, bool add_leading_zeros = false);
 
 };  // namespace Opal
 
@@ -1745,6 +1777,35 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     return ReturnType(iterator(m_data + start_index));
 }
 
+template <typename CodeUnitType, typename EncodingType>
+void Opal::String<CodeUnitType, EncodingType>::Reverse()
+{
+    Reverse(begin(), end());
+}
+
+template <typename CodeUnitType, typename EncodingType>
+void Opal::String<CodeUnitType, EncodingType>::Reverse(iterator start_it, iterator end_it)
+{
+    if (start_it == end_it || start_it == end_it - 1)
+    {
+        return;
+    }
+    if (start_it > end_it) [[unlikely]]
+    {
+        throw InvalidArgumentException(__FUNCTION__, "end_it - start_it", end_it - start_it);
+    }
+
+    iterator last_it = end_it - 1;
+    while (start_it < last_it)
+    {
+        CodeUnitType c = *start_it;
+        *start_it = *last_it;
+        *last_it = c;
+        ++start_it;
+        --last_it;
+    }
+}
+
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator+=(const String& other)
 {
@@ -2125,7 +2186,8 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& firs
 
 template <typename StringClass>
 Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
-                                                         typename StringClass::size_type count1, const typename StringClass::value_type* second)
+                                                         typename StringClass::size_type count1,
+                                                         const typename StringClass::value_type* second)
 {
     using ReturnType = Expected<i32, ErrorCode>;
     using size_type = typename StringClass::size_type;
@@ -2173,7 +2235,8 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& firs
 
 template <typename StringClass>
 Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
-                                                         typename StringClass::size_type count1, const typename StringClass::value_type* second,
+                                                         typename StringClass::size_type count1,
+                                                         const typename StringClass::value_type* second,
                                                          typename StringClass::size_type count2)
 {
     using ReturnType = Expected<i32, ErrorCode>;
@@ -2271,7 +2334,8 @@ StringClass Opal::operator+(typename StringClass::value_type ch, const StringCla
 }
 
 template <typename StringClass>
-typename StringClass::size_type Opal::Find(const StringClass& haystack, const StringClass& needle, typename StringClass::size_type start_pos)
+typename StringClass::size_type Opal::Find(const StringClass& haystack, const StringClass& needle,
+                                           typename StringClass::size_type start_pos)
 {
     if (needle.IsEmpty())
     {
@@ -2286,7 +2350,7 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const St
 
 template <typename StringClass>
 typename StringClass::size_type Opal::Find(const StringClass& haystack, const typename StringClass::value_type* needle,
-                                        typename StringClass::size_type start_pos, typename StringClass::size_type needle_count)
+                                           typename StringClass::size_type start_pos, typename StringClass::size_type needle_count)
 {
     if (needle == nullptr)
     {
@@ -2334,7 +2398,7 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const ty
 
 template <typename StringClass>
 typename StringClass::size_type Opal::Find(const StringClass& haystack, const typename StringClass::value_type& ch,
-                                        typename StringClass::size_type start_pos)
+                                           typename StringClass::size_type start_pos)
 {
     if (haystack.IsEmpty())
     {
@@ -2355,7 +2419,8 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const ty
 }
 
 template <typename StringClass>
-typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const StringClass& needle, typename StringClass::size_type start_pos)
+typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const StringClass& needle,
+                                                  typename StringClass::size_type start_pos)
 {
     if (needle.IsEmpty())
     {
@@ -2390,7 +2455,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
 
 template <typename StringClass>
 typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const typename StringClass::value_type* needle,
-                                               typename StringClass::size_type start_pos, typename StringClass::size_type needle_count)
+                                                  typename StringClass::size_type start_pos, typename StringClass::size_type needle_count)
 {
     if (needle == nullptr)
     {
@@ -2437,7 +2502,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
 
 template <typename StringClass>
 typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const typename StringClass::value_type& ch,
-                                               typename StringClass::size_type start_pos)
+                                                  typename StringClass::size_type start_pos)
 {
     if (haystack.IsEmpty())
     {
@@ -2459,7 +2524,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
 
 template <typename StringClass, typename Allocator>
 Opal::Expected<StringClass, Opal::ErrorCode> Opal::GetSubString(const StringClass& str, typename StringClass::size_type start_pos,
-                                                             typename StringClass::size_type count, Allocator* allocator)
+                                                                typename StringClass::size_type count, Allocator* allocator)
 {
     using ReturnType = Expected<StringClass, ErrorCode>;
     if (start_pos >= str.GetSize())
@@ -2569,4 +2634,168 @@ bool Opal::SplitToArray(const StringClass& str, const StringClass& delimiter, Dy
         result.PushBack(it.GetValue());
         start_pos = pos + 1;
     }
+}
+
+namespace Opal::Impl
+{
+
+template <typename T>
+void ToBinary(Opal::StringUtf8& out_str, T number, bool leading_zeros)
+{
+    constexpr Opal::i32 k_max_digit_count = sizeof(T) * 8;
+    Opal::size_t count = 0;
+    while (number != 0 && count < k_max_digit_count)
+    {
+        char digit = number & 0x01 ? '1' : '0';
+        out_str[count++] = digit;
+        number >>= 1;
+    }
+    while (count < k_max_digit_count && leading_zeros)
+    {
+        out_str[count++] = '0';
+    }
+    if (count == 0)
+    {
+        out_str[0] = '0';
+    }
+    out_str.Trim();
+    out_str.Reverse();
+}
+
+template <typename T>
+Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_leading_zeros)
+{
+    constexpr size_t k_type_size = sizeof(T);
+    Opal::StringUtf8 out_str("%", Opal::GetScratchAllocator());
+    out_str += add_leading_zeros ? "0" : "";
+    if constexpr (k_type_size == 8)
+    {
+        switch (number_system_base)
+        {
+            case Opal::NumberSystemBase::Octal:
+                out_str += PRIo64;
+                break;
+            case Opal::NumberSystemBase::Hexadecimal:
+                out_str += PRIX64;
+                break;
+            case Opal::NumberSystemBase::Decimal:
+            {
+                if constexpr (Opal::SignedIntegral<T>)
+                {
+                    out_str += PRId64;
+                    break;
+                }
+                else
+                {
+                    out_str += PRIu64;
+                    break;
+                }
+            }
+            default:
+                throw Opal::NotImplementedException(__FUNCTION__);
+        }
+    }
+    else if constexpr (k_type_size == 4)
+    {
+        switch (number_system_base)
+        {
+            case Opal::NumberSystemBase::Octal:
+                out_str += PRIo32;
+                break;
+            case Opal::NumberSystemBase::Hexadecimal:
+                out_str += PRIX32;
+                break;
+            case Opal::NumberSystemBase::Decimal:
+            {
+                if constexpr (Opal::SignedIntegral<T>)
+                {
+                    out_str += PRId32;
+                    break;
+                }
+                else
+                {
+                    out_str += PRIu32;
+                    break;
+                }
+            }
+            default:
+                throw Opal::NotImplementedException(__FUNCTION__);
+        }
+    }
+    else if constexpr (k_type_size == 2)
+    {
+        switch (number_system_base)
+        {
+            case Opal::NumberSystemBase::Octal:
+                out_str += PRIo16;
+                break;
+            case Opal::NumberSystemBase::Hexadecimal:
+                out_str += PRIX16;
+                break;
+            case Opal::NumberSystemBase::Decimal:
+            {
+                if constexpr (Opal::SignedIntegral<T>)
+                {
+                    out_str += PRId16;
+                    break;
+                }
+                else
+                {
+                    out_str += PRIu16;
+                    break;
+                }
+            }
+            default:
+                throw Opal::NotImplementedException(__FUNCTION__);
+        }
+    }
+    else if constexpr (k_type_size == 1)
+    {
+        switch (number_system_base)
+        {
+            case Opal::NumberSystemBase::Octal:
+                out_str += PRIo8;
+                break;
+            case Opal::NumberSystemBase::Hexadecimal:
+                out_str += PRIX8;
+                break;
+            case Opal::NumberSystemBase::Decimal:
+            {
+                if constexpr (Opal::SignedIntegral<T>)
+                {
+                    out_str += PRId8;
+                    break;
+                }
+                else
+                {
+                    out_str += PRIu8;
+                    break;
+                }
+            }
+            default:
+                throw Opal::NotImplementedException(__FUNCTION__);
+        }
+    }
+    return out_str;
+}
+}  // namespace Opal::Impl
+
+template <Opal::Integral T>
+Opal::StringUtf8 Opal::NumberToString(T value, NumberSystemBase base, bool add_leading_zeros)
+{
+    StringUtf8 str(256, 0);
+    if (base == NumberSystemBase::Binary)
+    {
+        Impl::ToBinary(str, value, add_leading_zeros);
+    }
+    else
+    {
+        StringUtf8 format = Impl::GetFormat<T>(base, add_leading_zeros);
+        OPAL_START_DISABLE_WARNINGS
+        OPAL_DISABLE_WARNING("-Wformat-nonliteral")
+        sprintf(*str, *format, value);
+        OPAL_END_DISABLE_WARNINGS
+    }
+    str.Trim();
+    return str;
 }
