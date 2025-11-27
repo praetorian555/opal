@@ -9,6 +9,22 @@
 
 namespace Opal
 {
+enum class NumberSystemBase;
+}
+namespace Opal
+{
+
+template <typename EncodingType>
+concept DecodableEncoding =
+    requires(EncodingType& e, ArrayView<const typename EncodingType::CodeUnitType>& in, typename EncodingType::CodePointType& out) {
+        { e.DecodeOne(in, out) } -> SameAs<ErrorCode>;
+    };
+
+template <typename EncodingType>
+concept EncodableEncoding =
+    requires(EncodingType& e, typename EncodingType::CodePointType& in, ArrayView<typename EncodingType::CodeUnitType>& out) {
+        { e.EncodeOne(in, out) } -> SameAs<ErrorCode>;
+    };
 
 template <typename CodeUnitT>
 struct EncodingUtf8

@@ -695,8 +695,10 @@ typename StringClass::size_type ReverseFind(const StringClass& haystack, const t
  * @param output Output string to store the transcoded result.
  * @return ErrorCode::Success if transcoding was successful, other error codes depend on the encoding implementation.
  */
-template <typename InputString, typename OutputString>
-ErrorCode Transcode(const InputString& input, OutputString& output);
+template <typename InputStringClass, typename OutputStringClass>
+    requires Opal::DecodableEncoding<typename InputStringClass::encoding_type> &&
+             Opal::EncodableEncoding<typename OutputStringClass::encoding_type>
+ErrorCode Transcode(const InputStringClass& input, OutputStringClass& output);
 
 /**
  * @brief Get a substring from a string.
@@ -1786,13 +1788,15 @@ void CLASS_HEADER::Deallocate(value_type* data)
     m_allocator->Free(data);
 }
 
-template <typename InputString, typename OutputString>
-Opal::ErrorCode Opal::Transcode(const InputString& input, OutputString& output)
+template <typename InputStringClass, typename OutputStringClass>
+    requires Opal::DecodableEncoding<typename InputStringClass::encoding_type> &&
+             Opal::EncodableEncoding<typename OutputStringClass::encoding_type>
+Opal::ErrorCode Opal::Transcode(const InputStringClass& input, OutputStringClass& output)
 {
-    typename InputString::encoding_type src_decoder;
-    typename OutputString::encoding_type dst_encoder;
-    ArrayView<const typename InputString::value_type> input_span(input.GetData(), input.GetSize());
-    ArrayView<typename OutputString::value_type> output_span(output.GetData(), output.GetSize());
+    typename InputStringClass::encoding_type src_decoder;
+    typename OutputStringClass::encoding_type dst_encoder;
+    ArrayView<const typename InputStringClass::value_type> input_span(input.GetData(), input.GetSize());
+    ArrayView<typename OutputStringClass::value_type> output_span(output.GetData(), output.GetSize());
     while (true)
     {
         uchar32 code_point = 0;
