@@ -338,6 +338,13 @@ concept FloatingPoint = AnyOf<T, f32, f64>;
 template <typename T>
 concept Integral = AnyOf<T, u8, u16, u32, u64, i8, i16, i32, i64, long, long unsigned, char8, char16, uchar32>;
 
+template <typename T>
+concept SignedIntegral = AnyOf<T, i8, i16, i32, i64, long, char8, char16>;
+
+template <typename T>
+concept UnsignedIntegral = AnyOf<T, u8, u16, u32, u64, long unsigned, uchar32>;
+
+
 /**
  * @brief Concept that checks if a type is either an integral or a floating point type.
  * @tparam T The type to be evaluated.
