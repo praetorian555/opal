@@ -811,6 +811,9 @@ using StringWide = String<char16, EncodingUtf16LE<char16>>;
 template <Integral T>
 StringUtf8 NumberToString(T value, NumberSystemBase base = NumberSystemBase::Decimal, bool add_leading_zeros = false);
 
+template <FloatingPoint T>
+StringUtf8 NumberToString(T value, i32 decimal_points = -1);
+
 };  // namespace Opal
 
 #define TEMPLATE_HEADER template <typename CodeUnitType, typename EncodingType>
@@ -2800,6 +2803,25 @@ Opal::StringUtf8 Opal::NumberToString(T value, NumberSystemBase base, bool add_l
         OPAL_END_DISABLE_WARNINGS
 #endif
     }
+    str.Trim();
+    return str;
+}
+
+template <Opal::FloatingPoint T>
+Opal::StringUtf8 Opal::NumberToString(T value, i32 decimal_points)
+{
+    StringUtf8 str(256, 0);
+    StringUtf8 format("%", GetScratchAllocator());
+    format += decimal_points == -1 ? "" : "." + NumberToString(decimal_points);
+    if constexpr (sizeof(T) == 8)
+    {
+        format +=  "lf";
+    }
+    else
+    {
+        format += "f";
+    }
+    sprintf_s(*str, str.GetSize(), *format, value);
     str.Trim();
     return str;
 }

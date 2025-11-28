@@ -4035,3 +4035,21 @@ TEST_CASE("Make string from u32", "[String]")
         REQUIRE(str == "0");
     }
 }
+
+TEST_CASE("Make string from floating point", "[String]")
+{
+    SECTION("32 bit")
+    {
+        const f32 val = 2.33f;
+        REQUIRE(NumberToString(val) == "2.330000");
+        REQUIRE(NumberToString(val, 1) == "2.3");
+        REQUIRE(NumberToString(val, 0) == "2");
+    }
+    SECTION("64 bit")
+    {
+        const f64 val = 2.33;
+        REQUIRE(NumberToString(val) == "2.330000");
+        REQUIRE(NumberToString(val, 1) == "2.3");
+        REQUIRE(NumberToString(val, 0) == "2");
+    }
+}
