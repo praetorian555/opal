@@ -2821,7 +2821,15 @@ Opal::StringUtf8 Opal::NumberToString(T value, i32 decimal_points)
     {
         format += "f";
     }
+#if defined(OPAL_COMPILER_MSVC)
     sprintf_s(*str, str.GetSize(), *format, value);
+#else
+    OPAL_START_DISABLE_WARNINGS
+    OPAL_DISABLE_WARNING("-Wformat-nonliteral")
+    OPAL_DISABLE_WARNING("-Wdouble-promotion")
+    sprintf(*str, *format, value);
+    OPAL_END_DISABLE_WARNINGS
+#endif
     str.Trim();
     return str;
 }
