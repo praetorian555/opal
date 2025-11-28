@@ -3987,3 +3987,51 @@ TEST_CASE("Make string from u64", "[String]")
         REQUIRE(str == "0");
     }
 }
+
+TEST_CASE("Make string from u32", "[String]")
+{
+    SECTION("Binary")
+    {
+        StringUtf8 str = NumberToString(5u, NumberSystemBase::Binary);
+        REQUIRE(str == "101");
+        str = NumberToString(12345678u, NumberSystemBase::Binary);
+        REQUIRE(str == "101111000110000101001110");
+        str = NumberToString(std::numeric_limits<u32>::max(), NumberSystemBase::Binary);
+        REQUIRE(str == "11111111111111111111111111111111");
+        str = NumberToString(0u, NumberSystemBase::Binary);
+        REQUIRE(str == "0");
+    }
+    SECTION("Octal")
+    {
+        StringUtf8 str = NumberToString(5u, NumberSystemBase::Octal);
+        REQUIRE(str == "5");
+        str = NumberToString(12345678u, NumberSystemBase::Octal);
+        REQUIRE(str == "57060516");
+        str = NumberToString(std::numeric_limits<u32>::max(), NumberSystemBase::Octal);
+        REQUIRE(str == "37777777777");
+        str = NumberToString(0u, NumberSystemBase::Octal);
+        REQUIRE(str == "0");
+    }
+    SECTION("Decimal")
+    {
+        StringUtf8 str = NumberToString(5u);
+        REQUIRE(str == "5");
+        str = NumberToString(12345678u);
+        REQUIRE(str == "12345678");
+        str = NumberToString(std::numeric_limits<u32>::max());
+        REQUIRE(str == "4294967295");
+        str = NumberToString(0u);
+        REQUIRE(str == "0");
+    }
+    SECTION("Hexadecimal")
+    {
+        StringUtf8 str = NumberToString(5u, NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "5");
+        str = NumberToString(12345678u, NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "BC614E");
+        str = NumberToString(std::numeric_limits<u32>::max(), NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "FFFFFFFF");
+        str = NumberToString(0u, NumberSystemBase::Hexadecimal);
+        REQUIRE(str == "0");
+    }
+}
