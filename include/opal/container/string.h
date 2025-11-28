@@ -2791,10 +2791,14 @@ Opal::StringUtf8 Opal::NumberToString(T value, NumberSystemBase base, bool add_l
     else
     {
         StringUtf8 format = Impl::GetFormat<T>(base, add_leading_zeros);
+#if defined(OPAL_COMPILER_MSVC)
+        sprintf_s(*str, str.GetSize(), *format, value);
+#else
         OPAL_START_DISABLE_WARNINGS
         OPAL_DISABLE_WARNING("-Wformat-nonliteral")
         sprintf(*str, *format, value);
         OPAL_END_DISABLE_WARNINGS
+#endif
     }
     str.Trim();
     return str;
