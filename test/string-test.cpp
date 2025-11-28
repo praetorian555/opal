@@ -4053,3 +4053,17 @@ TEST_CASE("Make string from floating point", "[String]")
         REQUIRE(NumberToString(val, 0) == "2");
     }
 }
+
+TEST_CASE("Make i32 from string", "[String]")
+{
+    i32 val = StringToI32("-5");
+    REQUIRE(val == -5);
+    val = StringToI32("0343");
+    REQUIRE(val == 227);
+}
+
+TEST_CASE("Make u32 from string", "[String]")
+{
+    REQUIRE(5 == StringToU32("5"));
+    REQUIRE(255 == StringToU32("0xFF"));
+}

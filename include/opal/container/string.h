@@ -814,6 +814,9 @@ StringUtf8 NumberToString(T value, NumberSystemBase base = NumberSystemBase::Dec
 template <FloatingPoint T>
 StringUtf8 NumberToString(T value, i32 decimal_points = -1);
 
+u32 OPAL_EXPORT StringToU32(const StringUtf8& str);
+i32 OPAL_EXPORT StringToI32(const StringUtf8& str);
+
 };  // namespace Opal
 
 #define TEMPLATE_HEADER template <typename CodeUnitType, typename EncodingType>

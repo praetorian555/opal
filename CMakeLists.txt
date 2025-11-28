@@ -45,6 +45,7 @@ set(OPAL_FILES
         src/hash.cpp
         src/rng.cpp
         src/file-system.cpp
+        src/string.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
