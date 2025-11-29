@@ -30,6 +30,7 @@ struct OPAL_EXPORT ProgramArgumentDefinition
 };
 
 template class OPAL_EXPORT DynamicArray<ProgramArgumentDefinition*>;
+template class OPAL_EXPORT DynamicArray<StringUtf8>;
 
 template <typename T>
 struct TypedProgramArgumentDefinition final : ProgramArgumentDefinition
