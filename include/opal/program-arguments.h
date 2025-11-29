@@ -1,18 +1,20 @@
 #pragma once
 
+#include "opal/container/dynamic-array.h"
 #include "opal/container/string.h"
+#include "opal/export.h"
 
 namespace Opal
 {
 
-struct ProgramArgumentDefinitionDesc
+struct OPAL_EXPORT ProgramArgumentDefinitionDesc
 {
     StringUtf8 name;
     StringUtf8 desc;
     bool is_optional;
 };
 
-struct ProgramArgumentDefinition
+struct OPAL_EXPORT ProgramArgumentDefinition
 {
     StringUtf8 name;
     StringUtf8 description;
@@ -26,6 +28,8 @@ struct ProgramArgumentDefinition
     virtual ~ProgramArgumentDefinition() = default;
     virtual void SetValue(const StringUtf8& str) = 0;
 };
+
+template class OPAL_EXPORT DynamicArray<ProgramArgumentDefinition*>;
 
 template <typename T>
 struct TypedProgramArgumentDefinition final : ProgramArgumentDefinition
@@ -172,7 +176,7 @@ struct TypedProgramArgumentDefinition<bool> final : ProgramArgumentDefinition
     void SetValue(const StringUtf8&) override { *destination = true; }
 };
 
-struct ProgramArgumentsBuilder
+struct OPAL_EXPORT ProgramArgumentsBuilder
 {
     template <typename T>
     ProgramArgumentsBuilder& AddArgumentDefinition(T& field, const ProgramArgumentDefinitionDesc& desc)

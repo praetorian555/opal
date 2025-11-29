@@ -690,7 +690,7 @@ void CLASS_HEADER::SetAllocator(allocator_type* allocator)
     {
         return;
     }
-    T* new_data = allocator->Alloc(m_size * sizeof(T), alignof(T));
+    T* new_data = static_cast<T*>(allocator->Alloc(m_size * sizeof(T), alignof(T)));
     if constexpr (IsPOD<T>)
     {
         memcpy(new_data, m_data, m_size * sizeof(T));

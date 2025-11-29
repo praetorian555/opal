@@ -796,6 +796,8 @@ using StringUtf32 = String<uchar32, EncodingUtf32LE<uchar32>>;
 using StringLocale = String<char8, EncodingLocale>;
 using StringWide = String<char16, EncodingUtf16LE<char16>>;
 
+template class OPAL_EXPORT String<char8, EncodingUtf8<char8>>;
+
 /*************************************************************************************************/
 /** Useful functions not implemented for all string classes. *************************************/
 /*************************************************************************************************/
