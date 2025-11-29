@@ -178,6 +178,9 @@ struct TypedProgramArgumentDefinition<bool> final : ProgramArgumentDefinition
 
 struct OPAL_EXPORT ProgramArgumentsBuilder
 {
+    ProgramArgumentsBuilder& AddProgramDescription(const StringUtf8& description);
+    ProgramArgumentsBuilder& AddUsageExample(const StringUtf8& example);
+
     template <typename T>
     ProgramArgumentsBuilder& AddArgumentDefinition(T& field, const ProgramArgumentDefinitionDesc& desc)
     {
@@ -191,13 +194,27 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
         }
         ProgramArgumentDefinition* arg_def = New<TypedProgramArgumentDefinition<T>>(&field, desc);
         m_argument_definitions.PushBack(arg_def);
+        if (desc.is_optional)
+        {
+            m_has_optional_argument = true;
+        }
+        else
+        {
+            m_has_required_argument = true;
+        }
         return *this;
     }
 
     bool Build(const char** arguments, u32 count);
 
 private:
+    void ShowHelp();
+
+    StringUtf8 m_program_description;
+    DynamicArray<StringUtf8> m_usage_examples;
     DynamicArray<ProgramArgumentDefinition*> m_argument_definitions;
+    bool m_has_required_argument = false;
+    bool m_has_optional_argument = false;
 };
 
 }  // namespace Opal

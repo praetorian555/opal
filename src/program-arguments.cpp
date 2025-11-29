@@ -12,6 +12,18 @@ struct std::hash<Opal::StringUtf8>
     }
 };
 
+Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddProgramDescription(const StringUtf8& description)
+{
+    m_program_description = description;
+    return *this;
+}
+
+Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddUsageExample(const StringUtf8& example)
+{
+    m_usage_examples.PushBack(example);
+    return *this;
+}
+
 bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
 {
     DynamicArray<StringUtf8> names(GetScratchAllocator());
@@ -26,6 +38,15 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         values.PushBack(value);
     }
 
+    for (const auto& name : names)
+    {
+        if (name == "help" || name == "--help")
+        {
+            ShowHelp();
+            return false;
+        }
+    }
+
     HashMap<StringUtf8, bool> visited;
     for (u32 i = 0; i < names.GetSize(); ++i)
     {
@@ -37,7 +58,9 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
             {
                 arg_def->SetValue(values[i]);
                 visited[arg_def->name] = true;
+                break;
             }
+
         }
     }
 
@@ -45,9 +68,48 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
     {
         if (!def->is_optional && !visited[def->name])
         {
-            // TODO: Print help
+            printf("Required argument '%s' not provided, here is the information on how to use the program:\n\n", *def->name);
+            ShowHelp();
             return false;
         }
     }
     return true;
+}
+
+void Opal::ProgramArgumentsBuilder::ShowHelp()
+{
+    printf("%s\n\n", *m_program_description);
+    if (!m_usage_examples.IsEmpty())
+    {
+        printf("Usage examples:\n");
+        for (const StringUtf8& example : m_usage_examples)
+        {
+            printf("\t%s\n", *example);
+        }
+        printf("\n");
+    }
+    if (m_has_required_argument)
+    {
+        printf("Required arguments:\n");
+        for (const ProgramArgumentDefinition* def : m_argument_definitions)
+        {
+            if (!def->is_optional)
+            {
+                printf("\t%-30s%s\n", *def->name, *def->description);
+            }
+        }
+        printf("\n");
+    }
+    if (m_has_optional_argument)
+    {
+        printf("Optional arguments:\n");
+        for (const ProgramArgumentDefinition* def : m_argument_definitions)
+        {
+            if (def->is_optional)
+            {
+                printf("\t%-30s%s\n", *def->name, *def->description);
+            }
+        }
+        printf("\n");
+    }
 }

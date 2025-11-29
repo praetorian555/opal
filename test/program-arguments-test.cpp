@@ -66,3 +66,21 @@ TEST_CASE("Required program argument is missing", "[ProgramArguments]")
     };
     REQUIRE(builder.Build(arguments, 1) == false);
 }
+
+TEST_CASE("Print help", "[ProgramArguments]")
+{
+    i32 test_i32 = 0;
+    i32 test_i32_opt = 0;
+
+    ProgramArgumentsBuilder builder;
+    builder.AddProgramDescription("Test program to see how the help looks.");
+    builder.AddUsageExample("prog-name test_i32=<some-value>");
+    builder.AddUsageExample("prog-name test_i32=<some-value> test_i32_opt=<some-opt-value>");
+    builder.AddArgumentDefinition(test_i32, {.name = "test_i32", .desc = "Value to be processed.", .is_optional = false});
+    builder.AddArgumentDefinition(test_i32_opt, {.name = "test_i32_opt", .desc = "Optional value to modify the calculation.", .is_optional = true});
+
+    const char* arguments[] = {
+        "prog-name"
+    };
+    builder.Build(arguments, 1);
+}
