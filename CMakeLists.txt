@@ -47,6 +47,7 @@ set(OPAL_FILES
         src/file-system.cpp
         src/program-arguments.cpp
         src/string.cpp
+        src/thread.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -96,6 +97,7 @@ set(OPAL_FILES
         include/opal/math/dual-quaternion.h
         include/opal/math/transform.h
         include/opal/program-arguments.h
+        include/opal/thread.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})
@@ -164,6 +166,7 @@ if (OPAL_BUILD_TESTS)
             test/transform-test.cpp
             test/file-system-test.cpp
             test/program-arguments-test.cpp
+            test/thread-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
