@@ -2,6 +2,7 @@
 
 #include <utility>
 
+#include "assert.h"
 #include "container/ref.h"
 #include "exceptions.h"
 #include "opal/export.h"
@@ -16,6 +17,7 @@ struct OPAL_EXPORT AllocatorBase
     virtual ~AllocatorBase() = default;
     virtual void* Alloc(u64 size, u64 alignment) = 0;
     virtual void Free(void* ptr) = 0;
+    [[nodiscard]] virtual bool IsThreadSafe() const = 0;
     [[nodiscard]] virtual const char* GetName() const { return m_debug_name; }
 
 protected:
@@ -41,6 +43,8 @@ struct OPAL_EXPORT SystemMemoryAllocator : public AllocatorBase
 
     void* Alloc(u64 size, u64 alignment) override;
     void Free(void* ptr) override;
+
+    [[nodiscard]] bool IsThreadSafe() const override { return false; }
 
     void Commit(u64 size);
 
@@ -78,6 +82,8 @@ struct OPAL_EXPORT MallocAllocator final : public AllocatorBase
     void* Alloc(u64 size, u64 alignment) override;
     void Free(void* ptr) override;
 
+    [[nodiscard]] bool IsThreadSafe() const override { return true; }
+
     [[nodiscard]] const char* GetName() const override { return "MallocAllocator"; }
 };
 
@@ -97,6 +103,8 @@ struct OPAL_EXPORT NullAllocator final : public AllocatorBase
     void* Alloc(u64, u64) override { throw OutOfMemoryException("NullAllocator::Alloc"); }
     void Free(void*) override {}
 
+    [[nodiscard]] bool IsThreadSafe() const override { return false; }
+
     [[nodiscard]] const char* GetName() const override { return "NullAllocator"; }
 };
 
@@ -115,7 +123,12 @@ struct OPAL_EXPORT LinearAllocator final : public AllocatorBase
 
     void* Alloc(u64 size, u64 alignment) override;
     void Free(void* ptr) override;
-    void Reset();
+
+    u64 Mark() const { return m_offset; }
+    virtual void Reset();
+    virtual void Reset(u64 position);
+
+    [[nodiscard]] bool IsThreadSafe() const override { return false; }
 
 private:
     SystemMemoryAllocator m_system_allocator;
@@ -181,7 +194,6 @@ struct OPAL_EXPORT PushScratch
 {
     PushScratch(LinearAllocator* allocator);
     ~PushScratch();
-
 };
 
 template <typename T, class... Args>
@@ -208,10 +220,14 @@ T* New(Args&&... args)
     return new (memory) T(std::forward<Args>(args)...);
 }
 
-template <typename T, class... Args>
-void Delete(T* ptr)
+template <typename T>
+void Delete(T* ptr, AllocatorBase* allocator = nullptr)
 {
-    AllocatorBase* allocator = GetDefaultAllocator();
+    if (allocator == nullptr)
+    {
+        allocator = GetDefaultAllocator();
+    }
+    OPAL_ASSERT(allocator != nullptr, "Allocator must not be null!");
     ptr->~T();
     allocator->Free(ptr);
 }

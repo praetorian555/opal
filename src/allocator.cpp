@@ -195,6 +195,11 @@ void Opal::LinearAllocator::Reset()
     m_offset = 0;
 }
 
+void Opal::LinearAllocator::Reset(u64 position)
+{
+    m_offset = position;
+}
+
 namespace
 {
 Opal::MallocAllocator g_malloc_allocator;
