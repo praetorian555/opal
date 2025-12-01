@@ -599,7 +599,10 @@ CLASS_HEADER& CLASS_HEADER::operator=(const DynamicArray& other)
     m_size = other.m_size;
     if constexpr (IsPOD<T>)
     {
-        memcpy(m_data, other.m_data, m_size * sizeof(T));
+        if (m_size > 0)
+        {
+            memcpy(m_data, other.m_data, m_size * sizeof(T));
+        }
     }
     else
     {
@@ -867,7 +870,10 @@ void CLASS_HEADER::Reserve(DynamicArray::size_type new_capacity)
     T* new_data = Allocate(new_capacity);
     if constexpr (IsPOD<T>)
     {
-        memcpy(new_data, m_data, sizeof(T) * m_size);
+        if (m_size > 0)
+        {
+            memcpy(new_data, m_data, sizeof(T) * m_size);
+        }
     }
     else
     {
