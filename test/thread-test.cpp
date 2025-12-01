@@ -16,13 +16,17 @@ TEST_CASE("Create a thread", "[Thread]")
     JoinThread(handle);
     REQUIRE(n == 5);
 
-    handle = CreateThread([](int& nn)
+    ThreadHandle out_handle;
+    handle = CreateThread([](int& nn, ThreadHandle& inner_handle)
     {
         REQUIRE(nn == 5);
         nn++;
-    }, Ref<int>(n));
+        inner_handle = GetCurrentThreadHandle();
+    }, Ref(n), Ref(out_handle));
 
     JoinThread(handle);
     REQUIRE(n == 6);
+    REQUIRE(out_handle == handle);
+    REQUIRE(GetCurrentThreadHandle() != out_handle);
 }
 
