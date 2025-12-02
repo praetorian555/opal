@@ -18,8 +18,6 @@ using u64 = unsigned long long;
 using f32 = float;
 using f64 = double;
 
-using size_t = u64;
-
 using char8 = char;
 using uchar32 = char32_t;
 

@@ -134,7 +134,7 @@ void Opal::SystemMemoryAllocator::Reset()
     m_offset = 0;
 }
 
-void* Opal::MallocAllocator::Alloc(size_t size, size_t alignment)
+void* Opal::MallocAllocator::Alloc(u64 size, u64 alignment)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return _aligned_malloc(size, alignment);
@@ -170,7 +170,7 @@ bool Opal::LinearAllocator::operator==(const Opal::LinearAllocator& other) const
     return false;
 }
 
-void* Opal::LinearAllocator::Alloc(size_t size, size_t alignment)
+void* Opal::LinearAllocator::Alloc(u64 size, u64 alignment)
 {
     u64 current_address = reinterpret_cast<u64>(m_memory) + m_offset;
     u64 new_address = AlignForward(current_address, alignment);

@@ -2651,7 +2651,7 @@ template <typename T>
 void ToBinary(Opal::StringUtf8& out_str, T number, bool leading_zeros)
 {
     constexpr Opal::i32 k_max_digit_count = sizeof(T) * 8;
-    Opal::size_t count = 0;
+    size_t count = 0;
     while (number != 0 && count < k_max_digit_count)
     {
         char digit = number & 0x01 ? '1' : '0';
