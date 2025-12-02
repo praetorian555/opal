@@ -20,14 +20,17 @@
 #if defined(OPAL_COMPILER_MSVC)
 #define OPAL_START_DISABLE_WARNINGS __pragma(warning(push))
 #define OPAL_DISABLE_WARNING(warning_name)
+#define OPAL_DISABLE_MSVC_WARNING(warning_name) __pragma(warning(disable: warning_name))
 #define OPAL_END_DISABLE_WARNINGS __pragma(warning(pop))
 #elif defined(OPAL_COMPILER_GCC)
 #define OPAL_START_DISABLE_WARNINGS _Pragma("GCC diagnostic push")
 #define OPAL_DISABLE_WARNING(warning_name) _Pragma(OPAL_TOSTRING(GCC diagnostic ignored warning_name))
+#define OPAL_DISABLE_MSVC_WARNING(warning_name)
 #define OPAL_END_DISABLE_WARNINGS _Pragma("GCC diagnostic pop")
 #elif defined(OPAL_COMPILER_CLANG)
 #define OPAL_START_DISABLE_WARNINGS _Pragma("clang diagnostic push")
 #define OPAL_DISABLE_WARNING(warning_name)  _Pragma(OPAL_TOSTRING(clang diagnostic ignored warning_name))
+#define OPAL_DISABLE_MSVC_WARNING(warning_name)
 #define OPAL_END_DISABLE_WARNINGS _Pragma("clang diagnostic pop")
 #endif
 
