@@ -1,5 +1,6 @@
 #pragma once
 
+#include "exceptions.h"
 #include "opal/export.h"
 #include "opal/types.h"
 
@@ -34,6 +35,11 @@ OPAL_EXPORT u32 CountTrailingZeros(u32 value);
  */
 OPAL_EXPORT u64 CountTrailingZeros(u64 value);
 
+/**
+ * Get number of bits type has.
+ * @tparam T Type to check.
+ * @return Number of bits.
+ */
 template <typename T>
 u32 GetBitWidth();
 
@@ -74,5 +80,7 @@ public:
 private:
     T m_bit_mask;
 };
+
+u64 OPAL_EXPORT GetNextPowerOf2(u64 value);
 
 }  // namespace Opal
