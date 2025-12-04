@@ -17,29 +17,29 @@ public:
     template <typename ...Args>
     SharedPtr(AllocatorBase* allocator, Args&&... args)
     {
+        if (allocator == nullptr)
+        {
+            allocator = GetDefaultAllocator();
+        }
         OPAL_ASSERT(allocator && allocator->IsThreadSafe(), "Allocator should be thread-safe");
         m_object = New<T>(allocator, std::forward<Args>(args)...);
         m_refcount = New<std::atomic<size_t>>(allocator);
         m_refcount->store(1, std::memory_order_relaxed);
+        m_allocator = allocator;
     }
 
     ~SharedPtr()
     {
-        if (m_refcount != nullptr && m_refcount->fetch_sub(1, std::memory_order_acq_rel) == 1)
-        {
-            Delete(m_allocator, m_object);
-            m_object = nullptr;
-            Delete(m_allocator, m_refcount);
-            m_refcount = nullptr;
-        }
+        Reset();
     }
 
     SharedPtr(const SharedPtr&) = delete;
     SharedPtr& operator=(const SharedPtr&) = delete;
 
-    SharedPtr(SharedPtr&& other) noexcept : m_refcount(other.m_refcount), m_object(other.m_object)
+    SharedPtr(SharedPtr&& other) noexcept : m_object(other.m_object), m_allocator(other.m_allocator), m_refcount(other.m_refcount)
     {
         other.m_object = nullptr;
+        other.m_allocator = nullptr;
         other.m_refcount = nullptr;
     }
 
@@ -49,22 +49,42 @@ public:
         {
             return *this;
         }
-        this->~SharedPtr();
+        Reset();
         m_object = other.m_object;
         m_refcount = other.m_refcount;
+        m_allocator = other.m_allocator;
         other.m_object = nullptr;
         other.m_refcount = nullptr;
+        other.m_allocator = nullptr;
         return *this;
     }
+
+    T* operator->() { return m_object; }
 
     SharedPtr Clone()
     {
         SharedPtr clone;
+        if (!IsValid())
+        {
+            return clone;
+        }
         clone.m_object = m_object;
         clone.m_refcount = m_refcount;
         clone.m_refcount->fetch_add(1, std::memory_order_relaxed);
         clone.m_allocator = m_allocator;
         return clone;
+    }
+
+    void Reset()
+    {
+        if (m_refcount != nullptr && m_refcount->fetch_sub(1, std::memory_order_acq_rel) == 1)
+        {
+            Delete(m_allocator, m_object);
+            Delete(m_allocator, m_refcount);
+        }
+        m_object = nullptr;
+        m_refcount = nullptr;
+        m_allocator = nullptr;
     }
 
     [[nodiscard]] bool IsValid() const

@@ -4,6 +4,8 @@
 #include "opal/rng.h"
 #include "opal/thread.h"
 
+#include "opal/container/scope-ptr.h"
+
 using namespace Opal;
 
 TEST_CASE("Create a thread", "[Thread]")
@@ -46,10 +48,10 @@ TEST_CASE("SPSC queue basic Push and Pop", "[Thread]")
         i64 value = static_cast<i64>(rng.RandomI32()) << 32 | rng.RandomI32();
         data.PushBack(value);
     }
-    QueueSPSC<i64> queue(32);
+    Impl::QueueSPSC<i64> queue(32);
 
     const ThreadHandle handle = CreateThread(
-        [](QueueSPSC<i64>& in_queue, Opal::DynamicArray<i64>& in_data)
+        [](Impl::QueueSPSC<i64>& in_queue, Opal::DynamicArray<i64>& in_data)
         {
             size_t count = 0;
             while (count < k_capacity)
@@ -103,10 +105,10 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
         i64 value = static_cast<i64>(rng.RandomI32()) << 32 | rng.RandomI32();
         data.PushBack(value);
     }
-    QueueSPSC<Data> queue(32);
+    Impl::QueueSPSC<Data> queue(32);
 
     const ThreadHandle handle = CreateThread(
-        [](QueueSPSC<Data>& in_queue, Opal::DynamicArray<Data>& in_data)
+        [](Impl::QueueSPSC<Data>& in_queue, Opal::DynamicArray<Data>& in_data)
         {
             size_t count = 0;
             while (count < k_capacity)
@@ -138,7 +140,7 @@ TEST_CASE("SPSC queue Push with Emplace", "[Thread]")
         Data(i32 aa, f32 bb) : a(aa), b(bb) {}
     };
 
-    QueueSPSC<Data> queue(32);
+    Impl::QueueSPSC<Data> queue(32);
     queue.PushWithEmplace(5, 5.0f);
     Data data = queue.Pop();
     REQUIRE(data.a == 5);
@@ -171,5 +173,38 @@ TEST_CASE("Shared pointer", "[Thread]")
         REQUIRE(!ptr2.IsValid());
         REQUIRE(ptr3.IsValid());
         REQUIRE(5 == *ptr3.Get());
+    }
+    SECTION("Reset")
+    {
+        SharedPtr<i32> ptr(GetDefaultAllocator(), 5);
+        ptr.Reset();
+        REQUIRE(!ptr.IsValid());
+    }
+}
+
+TEST_CASE("SPSC channel", "[Thread]")
+{
+    SECTION("Basic usage")
+    {
+        ChannelSPSC<i32> channel(128);
+        channel.transmitter.Send(5);
+        i32 val = channel.receiver.Receive();
+        REQUIRE(val == 5);
+    }
+    SECTION("With different threads")
+    {
+        ChannelSPSC<i32> channel(128);
+
+        const ThreadHandle t = CreateThread([](ReceiverSPSC<i32> receiver)
+        {
+            REQUIRE(receiver.IsValid());
+            const i32 val = receiver.Receive();
+            REQUIRE(val == 5);
+        }, Move(channel.receiver));
+
+        REQUIRE(!channel.receiver.IsValid());
+        channel.transmitter.Send(5);
+
+        JoinThread(t);
     }
 }
