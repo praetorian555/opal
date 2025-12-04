@@ -11,11 +11,7 @@
 #include "opal/container/dynamic-array.h"
 #include "opal/type-traits.h"
 
-#if defined(__cpp_lib_hardware_interference_size)
-#define OPAL_CACHE_LINE_SIZE (std::hardware_destructive_interference_size)
-#else
 #define OPAL_CACHE_LINE_SIZE (64)
-#endif
 
 namespace Opal
 {

@@ -1,8 +1,8 @@
 #include "test-helpers.h"
 
-#include "opal/thread.h"
-
+#include "opal/container/shared-ptr.h"
 #include "opal/rng.h"
+#include "opal/thread.h"
 
 using namespace Opal;
 
@@ -143,4 +143,33 @@ TEST_CASE("SPSC queue Push with Emplace", "[Thread]")
     Data data = queue.Pop();
     REQUIRE(data.a == 5);
     REQUIRE(data.b == 5.0f);
+}
+
+TEST_CASE("Shared pointer", "[Thread]")
+{
+    SECTION("Creation and cloning")
+    {
+        SharedPtr<i32> ptr(GetDefaultAllocator(), 5);
+        REQUIRE(5 == *ptr.Get());
+        {
+            SharedPtr<i32> ptr2 = ptr.Clone();
+            REQUIRE(5 == *ptr2.Get());
+            REQUIRE(ptr == ptr2);
+        }
+        REQUIRE(ptr.IsValid());
+        REQUIRE(5 == *ptr.Get());
+    }
+    SECTION("Moving")
+    {
+        SharedPtr<i32> ptr(GetDefaultAllocator(), 5);
+        SharedPtr<i32> ptr2 = Move(ptr);
+        REQUIRE(ptr2.IsValid());
+        REQUIRE(5 == *ptr2.Get());
+        REQUIRE(!ptr.IsValid());
+        SharedPtr<i32> ptr3(GetDefaultAllocator(), 10);
+        ptr3 = Move(ptr2);
+        REQUIRE(!ptr2.IsValid());
+        REQUIRE(ptr3.IsValid());
+        REQUIRE(5 == *ptr3.Get());
+    }
 }
