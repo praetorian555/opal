@@ -195,16 +195,27 @@ TEST_CASE("SPSC channel", "[Thread]")
     {
         ChannelSPSC<i32> channel(128);
 
-        const ThreadHandle t = CreateThread([](ReceiverSPSC<i32> receiver)
-        {
-            REQUIRE(receiver.IsValid());
-            const i32 val = receiver.Receive();
-            REQUIRE(val == 5);
-        }, Move(channel.receiver));
+        const ThreadHandle t = CreateThread(
+            [](ReceiverSPSC<i32> receiver)
+            {
+                REQUIRE(receiver.IsValid());
+                const i32 val = receiver.Receive();
+                REQUIRE(val == 5);
+            },
+            Move(channel.receiver));
 
         REQUIRE(!channel.receiver.IsValid());
         channel.transmitter.Send(5);
 
         JoinThread(t);
+    }
+}
+
+TEST_CASE("Mutex", "[Thread]")
+{
+    Mutex<i32> mutex(5);
+    {
+        auto guard = mutex.Lock();
+        REQUIRE(*guard.Deref() == 5);
     }
 }
