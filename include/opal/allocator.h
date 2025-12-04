@@ -197,31 +197,29 @@ struct OPAL_EXPORT PushScratch
 };
 
 template <typename T, class... Args>
-T* New(Args&&... args)
+T* New(AllocatorBase* allocator, Args&&... args)
 {
-    AllocatorBase* allocator = GetDefaultAllocator();
-    void* memory = allocator->Alloc(sizeof(T), alignof(T));
-    if (memory == nullptr) [[unlikely]]
+    if (allocator == nullptr) [[unlikely]]
     {
-        return nullptr;
+        throw Exception("Allocator can't be null");
     }
+    void* memory = allocator->Alloc(sizeof(T), alignof(T));
     return new (memory) T(std::forward<Args>(args)...);
 }
 
 template <typename T, u32 Alignment, class... Args>
-T* New(Args&&... args)
+T* New(AllocatorBase* allocator, Args&&... args)
 {
-    AllocatorBase* allocator = GetDefaultAllocator();
-    void* memory = allocator->Alloc(sizeof(T), Alignment);
-    if (memory == nullptr) [[unlikely]]
+    if (allocator == nullptr) [[unlikely]]
     {
-        return nullptr;
+        throw Exception("Allocator can't be null");
     }
+    void* memory = allocator->Alloc(sizeof(T), Alignment);
     return new (memory) T(std::forward<Args>(args)...);
 }
 
 template <typename T>
-void Delete(T* ptr, AllocatorBase* allocator = nullptr)
+void Delete(AllocatorBase* allocator, T* ptr)
 {
     if (allocator == nullptr)
     {

@@ -64,14 +64,15 @@ ThreadHandle OPAL_EXPORT CreateThread(ThreadDataBase* data);
 template <typename Function, typename... Args>
 ThreadHandle CreateThread(Function&& function, Args&&... args)
 {
-    OPAL_ASSERT(GetDefaultAllocator()->IsThreadSafe(), "Allocator must be thread safe!");
+    AllocatorBase* allocator = GetDefaultAllocator();
+    OPAL_ASSERT(allocator->IsThreadSafe(), "Allocator must be thread safe!");
 
-    Impl::ThreadDataBase* data = Opal::New<Impl::ThreadData<Function, Args...>>(GetDefaultAllocator(), std::forward<Function>(function),
+    Impl::ThreadDataBase* data = Opal::New<Impl::ThreadData<Function, Args...>>(allocator, allocator, std::forward<Function>(function),
                                                                                 std::forward<Args>(args)...);
     ThreadHandle handle = Impl::CreateThread(data);
     if (handle.native_handle == nullptr)
     {
-        Delete(data);
+        Delete(allocator, data);
     }
     return handle;
 }

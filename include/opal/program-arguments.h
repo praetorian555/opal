@@ -193,7 +193,7 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
         {
             throw InvalidArgumentException(__FUNCTION__, "description of the argument can't be empty");
         }
-        ProgramArgumentDefinition* arg_def = New<TypedProgramArgumentDefinition<T>>(&field, desc);
+        ProgramArgumentDefinition* arg_def = New<TypedProgramArgumentDefinition<T>>(GetDefaultAllocator(), &field, desc);
         m_argument_definitions.PushBack(arg_def);
         if (desc.is_optional)
         {

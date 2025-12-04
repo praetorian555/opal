@@ -77,18 +77,22 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
         Data() = default;
         Data(i64 v) : value(v) {}
 
-        Data(const Data& other) : value(other.value)
+        Data(const Data& other) : value(other.value) {}
+
+        Data& operator=(const Data& other)
         {
+            value = other.value;
+            return *this;
         }
 
-        Data& operator=(const Data& other) { value = other.value; return *this; }
+        Data(Data&& other) : value(other.value) { other.value = 0; }
 
-        Data(Data&& other) : value(other.value)
+        Data& operator=(Data&& other)
         {
+            value = other.value;
             other.value = 0;
+            return *this;
         }
-
-        Data& operator=(Data&& other) { value = other.value; other.value = 0; return *this; }
     };
 
     DynamicArray<Data> data;

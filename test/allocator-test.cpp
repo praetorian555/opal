@@ -137,14 +137,14 @@ TEST_CASE("New and delete", "[Allocator]")
         .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(100), .commit_step_size = OPAL_MB(100)};
     REQUIRE_NOTHROW(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc));
     Opal::PushDefault pd(allocator);
-    int* a = Opal::New<int>(5);
+    int* a = Opal::New<int>(Opal::GetDefaultAllocator(), 5);
     REQUIRE(a != nullptr);
     REQUIRE(*a == 5);
-    Opal::Delete(a);
+    Opal::Delete(Opal::GetDefaultAllocator(), a);
 
-    int* b = Opal::New<int, 32>(10);
+    int* b = Opal::New<int, 32>(Opal::GetDefaultAllocator(),10);
     REQUIRE(b != nullptr);
     REQUIRE(*b == 10);
     REQUIRE(reinterpret_cast<Opal::u64>(b) % 32 == 0);
-    Opal::Delete(b);
+    Opal::Delete(Opal::GetDefaultAllocator(), b);
 }

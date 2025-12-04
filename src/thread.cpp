@@ -13,7 +13,7 @@ DWORD WINAPI WindowsThread(LPVOID param)
 {
     Opal::Impl::ThreadDataBase* data = static_cast<Opal::Impl::ThreadDataBase*>(param);
     data->Invoke();
-    Delete(data, data->allocator);
+    Delete(data->allocator, data);
     return 0;
 }
 #elif defined(OPAL_PLATFORM_LINUX)
@@ -21,7 +21,7 @@ void* ThreadFunction(void* param)
 {
     Opal::Impl::ThreadDataBase* data = static_cast<Opal::Impl::ThreadDataBase*>(param);
     data->Invoke();
-    Delete(data, data->allocator);
+    Delete(data->allocator, data);
     return nullptr;
 }
 #endif
