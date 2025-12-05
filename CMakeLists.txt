@@ -48,6 +48,7 @@ set(OPAL_FILES
         src/program-arguments.cpp
         src/string.cpp
         src/thread.cpp
+        src/mutex.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -64,6 +65,7 @@ set(OPAL_FILES
         include/opal/bit.h
         include/opal/hash.h
         include/opal/rng.h
+        include/opal/program-arguments.h
         include/opal/math-base.h
         include/opal/math-constants.h
         include/opal/container/iterator.h
@@ -96,8 +98,8 @@ set(OPAL_FILES
         include/opal/math/quaternion.h
         include/opal/math/dual-quaternion.h
         include/opal/math/transform.h
-        include/opal/program-arguments.h
-        include/opal/thread.h
+        include/opal/threading/thread.h
+        include/opal/threading/mutex.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})

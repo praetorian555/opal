@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <new>
 
 #include "assert.h"
 #include "container/ref.h"

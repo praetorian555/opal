@@ -8,6 +8,14 @@
 namespace Opal
 {
 
+/**
+ * Thread-safe, reference counting wrapper around objects of the desired type.
+ * Object that is wrapped is created when shared pointer is constructed. It is not possible to pass in a pointer to object
+ * not created inside the shared pointer.
+ * When last shared pointer that points to the same data is destroyed the data is destroyed as well.
+ * Shared pointer can only be copied using the Clone API. It can be moved.
+ * @tparam T Object type stored inside the shared pointer.
+ */
 template <typename T>
 class SharedPtr
 {

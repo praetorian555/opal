@@ -1,100 +1,15 @@
 #pragma once
 
-#include <new>
-#include <thread>
-#include <tuple>
-#include <type_traits>
+#include <atomic>
 
-#include "container/dynamic-array.h"
-#include "container/shared-ptr.h"
 #include "opal/allocator.h"
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/container/shared-ptr.h"
 #include "opal/type-traits.h"
-
-#define OPAL_CACHE_LINE_SIZE (64)
 
 namespace Opal
 {
-
-namespace Impl
-{
-
-struct OPAL_EXPORT ThreadDataBase
-{
-    AllocatorBase* allocator = nullptr;
-
-    ThreadDataBase(AllocatorBase* a) : allocator(a) {}
-    virtual ~ThreadDataBase() = default;
-    virtual void Invoke() = 0;
-};
-
-template <typename Function, typename... Args>
-struct ThreadData : ThreadDataBase
-{
-    Function function;
-    std::tuple<std::decay_t<Args>...> args;
-
-    explicit ThreadData(AllocatorBase* alloc, Function&& f, Args&&... a)
-        : ThreadDataBase(alloc), function(std::forward<Function>(f)), args(std::forward<Args>(a)...)
-    {
-    }
-
-    void Invoke() override { std::apply(function, std::move(args)); }
-};
-
-}  // namespace Impl
-
-struct OPAL_EXPORT ThreadHandle
-{
-    void* native_handle = nullptr;
-    void* native_id = nullptr;
-
-    bool operator==(const ThreadHandle& other) const;
-};
-
-namespace Impl
-{
-ThreadHandle OPAL_EXPORT CreateThread(ThreadDataBase* data);
-}  // namespace Impl
-
-/**
- * Creates and starts a new thread using the @p function for a body and @p for function arguments.
- * @tparam Function Type of function used for a thread body.
- * @tparam Args Variable list of types of the function arguments.
- * @param function Function used for the thread body.
- * @param args Arguments passed to the function.
- * @return Returns a thread handle in case of a success.
- * @throw Exception when thread creation fails.
- */
-template <typename Function, typename... Args>
-ThreadHandle CreateThread(Function&& function, Args&&... args)
-{
-    AllocatorBase* allocator = GetDefaultAllocator();
-    OPAL_ASSERT(allocator->IsThreadSafe(), "Allocator must be thread safe!");
-
-    Impl::ThreadDataBase* data =
-        Opal::New<Impl::ThreadData<Function, Args...>>(allocator, allocator, std::forward<Function>(function), std::forward<Args>(args)...);
-    ThreadHandle handle = Impl::CreateThread(data);
-    if (handle.native_handle == nullptr)
-    {
-        Delete(allocator, data);
-    }
-    return handle;
-}
-
-/**
- * Wait for a thread to exit.
- * @param handle Handle of a thread to wait for.
- */
-void OPAL_EXPORT JoinThread(ThreadHandle handle);
-
-/**
- * Get a thread handle of a current thread.
- * @return Thread handle.
- */
-ThreadHandle OPAL_EXPORT GetCurrentThreadHandle();
-
 namespace Impl
 {
 template <typename T>
@@ -193,6 +108,7 @@ private:
 
 /**
  * Part of the single-producer single-consumer communication channel used for sending data.
+ * It can't be copied only moved.
  * @tparam T Type of data that is being sent.
  */
 template <typename T>
@@ -230,6 +146,7 @@ private:
 
 /**
  * Part of the single-producer single-consumer communication channel used for receiving data.
+ * It can't be copied, only moved.
  * @tparam T Type of data that is being received.
  */
 template <typename T>
@@ -265,6 +182,7 @@ private:
 
 /**
  * Represents one-way, thread-safe communication channel that can have one producer and one consumer.
+ * To send data you need to use transmitter field and to receive it you need to use receiver field.
  * @tparam T Type of data to be sent over the channel.
  */
 template <typename T>
@@ -279,67 +197,6 @@ struct ChannelSPSC
         transmitter = TransmitterSPSC<T>(q.Clone());
         receiver = ReceiverSPSC<T>(Move(q));
     }
-};
-
-template <typename T>
-struct Mutex;
-
-template <typename T>
-struct MutexGuard
-{
-    MutexGuard(struct Mutex<T>* lock, T* object) : m_lock(lock), m_object(object) {}
-
-    ~MutexGuard() { m_lock->Unlock(); }
-
-    T* Deref() { return m_object; }
-
-private:
-    struct Mutex<T>* m_lock = nullptr;
-    T* m_object = nullptr;
-};
-
-namespace Impl
-{
-struct OPAL_EXPORT PureMutex
-{
-    PureMutex();
-    ~PureMutex();
-
-    void Lock();
-    void Unlock();
-
-private:
-    void* m_native_handle;
-    AllocatorBase* m_allocator = nullptr;
-};
-}  // namespace Impl
-
-template <typename T>
-struct Mutex
-{
-    Mutex(T&& object) : m_object(Move(object)) {}
-
-    template <typename... Args>
-    Mutex(Args&&... args) : m_object(std::forward<Args>(args)...)
-    {
-    }
-
-    MutexGuard<T> Lock()
-    {
-        m_pure_mutex.Lock();
-        return {this, &m_object};
-    }
-
-    void Unlock()
-    {
-        m_pure_mutex.Unlock();
-    }
-
-private:
-    friend struct MutexGuard<T>;
-
-    T m_object;
-    Impl::PureMutex m_pure_mutex;
 };
 
 }  // namespace Opal

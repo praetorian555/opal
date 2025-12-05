@@ -1,25 +1,30 @@
 #pragma once
 
-// TODO: See if we can implement std::forward
 #include <utility>
 
 #include "opal/allocator.h"
-#include "opal/defines.h"
-#include "opal/assert.h"
 #include "opal/type-traits.h"
 
 namespace Opal
 {
 
-template <typename T, typename Allocator = AllocatorBase>
+/**
+ * Ownership wrapper around object of type T.
+ * Internal object can only be created in the constructor of the scope pointer and this pointer is responsible for the object's
+ * lifetime.
+ * @tparam T
+ */
+template <typename T>
 class ScopePtr
 {
 public:
-    ScopePtr() : m_ptr(nullptr), m_allocator(GetDefaultAllocator()) {}
+    ScopePtr() = default;
 
-    explicit ScopePtr(T* ptr, Allocator* allocator = nullptr)
-        : m_ptr(ptr), m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
+    template <typename... Args>
+    explicit ScopePtr(AllocatorBase* allocator, Args&&... args)
+        : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
     {
+        m_ptr = New<T>(m_allocator, std::forward<Args>(args)...);
     }
 
     ScopePtr(const ScopePtr& other) = delete;
@@ -31,12 +36,14 @@ public:
         other.m_allocator = nullptr;
     }
 
-    template <typename U, typename OtherAllocator = AllocatorBase>
-        requires Convertible<U*, T*> && Convertible<Allocator*, AllocatorBase*>
-    ScopePtr(ScopePtr<U, OtherAllocator>&& other)  noexcept
+    template <typename U>
+        requires Convertible<U*, T*>
+    ScopePtr(ScopePtr<U>&& other)  noexcept
     {
-        m_ptr = static_cast<T*>(other.Release());
-        m_allocator = static_cast<AllocatorBase*>(other.GetAllocator());
+        m_ptr = static_cast<T*>(other.m_ptr);
+        m_allocator = other.GetAllocator();
+        other.m_ptr = nullptr;
+        other.m_allocator = nullptr;
     }
 
     ScopePtr& operator=(ScopePtr&& other)
@@ -45,9 +52,7 @@ public:
         {
             if (m_ptr != nullptr)
             {
-                m_ptr->~T();
-                OPAL_ASSERT(m_allocator != nullptr, "Allocator is null!");
-                m_allocator->Free(m_ptr);
+                Delete(m_allocator, m_ptr);
             }
             m_ptr = other.m_ptr;
             m_allocator = other.m_allocator;
@@ -61,36 +66,23 @@ public:
     {
         if (m_ptr != nullptr)
         {
-            m_ptr->~T();
-            OPAL_ASSERT(m_allocator != nullptr, "Allocator is null!");
-            m_allocator->Free(m_ptr);
+            Delete(m_allocator, m_ptr);
         }
     }
 
     T* operator->() const { return m_ptr; }
-
     T& operator*() const { return *m_ptr; }
-
     T* Get() const { return m_ptr; }
     [[nodiscard]] AllocatorBase* GetAllocator() const { return m_allocator; }
 
-    void Reset(T* ptr, Allocator* allocator = nullptr)
+    void Reset()
     {
         if (m_ptr != nullptr)
         {
-            m_ptr->~T();
-            OPAL_ASSERT(m_allocator != nullptr, "Allocator is null!");
-            m_allocator->Free(m_ptr);
+            Delete(m_allocator, m_ptr);
         }
-        m_ptr = ptr;
-        m_allocator = allocator;
-    }
-
-    T* Release()
-    {
-        T* ptr = m_ptr;
         m_ptr = nullptr;
-        return ptr;
+        m_allocator = nullptr;
     }
 
     [[nodiscard]] bool IsValid() const { return m_ptr != nullptr; }
@@ -102,49 +94,11 @@ public:
     bool operator==(decltype(nullptr)) const { return m_ptr == nullptr; }
 
 private:
-    T* m_ptr;
-    AllocatorBase* m_allocator;
+    template <typename U>
+    friend class ScopePtr;
+
+    T* m_ptr = nullptr;
+    AllocatorBase* m_allocator = nullptr;
 };
-
-/**
- * Allocates memory using the provided allocator and constructs an object of type T in that memory.
- * @tparam T Type of the object to be constructed.
- * @tparam Allocator Type of the allocator to be used for memory allocation.
- * @tparam Args Types of the arguments to be passed to the constructor of the object.
- * @param allocator Allocator to be used for memory allocation.
- * @param args Arguments to be passed to the constructor of the object.
- * @return A unique pointer to the object of type T.
- */
-template <typename T, typename Allocator, typename... Args>
-ScopePtr<T> MakeScoped(Allocator* allocator, Args&&... args)
-{
-    void* memory = nullptr;
-    if (allocator == nullptr)
-    {
-        AllocatorBase* default_allocator = GetDefaultAllocator();
-        memory = default_allocator->Alloc(sizeof(T), 8);
-    }
-    else
-    {
-        memory = allocator->Alloc(sizeof(T), 8);
-    }
-    return Opal::ScopePtr<T>{new (memory) T(std::forward<Args>(args)...), allocator};
-}
-
-/**
- * Allocates memory using MallocAllocator and constructs an object of type T in that memory.
- * @tparam T Type of the object to be constructed.
- * @tparam Args Types of the arguments to be passed to the constructor of T.
- * @param args Arguments to be passed to the constructor of T.
- * @return A unique pointer to the object of type T.
- */
-template <typename T, typename... Args>
-ScopePtr<T> MakeDefaultScoped(Args&&... args)
-{
-    void* memory = nullptr;
-    AllocatorBase* default_allocator = GetDefaultAllocator();
-    memory = default_allocator->Alloc(sizeof(T), 8);
-    return Opal::ScopePtr<T>{new (memory) T(std::forward<Args>(args)...), default_allocator};
-}
 
 }  // namespace Opal

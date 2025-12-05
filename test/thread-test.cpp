@@ -1,10 +1,11 @@
 #include "test-helpers.h"
 
+#include "opal/container/scope-ptr.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/rng.h"
-#include "opal/thread.h"
-
-#include "opal/container/scope-ptr.h"
+#include "opal/threading/channel-spsc.h"
+#include "opal/threading/mutex.h"
+#include "opal/threading/thread.h"
 
 using namespace Opal;
 

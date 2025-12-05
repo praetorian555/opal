@@ -13,14 +13,14 @@ TEST_CASE("ScopePtr creation", "[ScopePtr]")
     }
     SECTION("Construction with value")
     {
-        ScopePtr<int> ptr = MakeDefaultScoped<int>(42);
+        ScopePtr<int> ptr(GetDefaultAllocator(), 42);
         REQUIRE(ptr.Get() != nullptr);
         REQUIRE(*ptr.Get() == 42);
     }
     SECTION("Move construction")
     {
-        ScopePtr<int> ptr = MakeDefaultScoped<int>(42);
-        ScopePtr<int> move(std::move(ptr));
+        ScopePtr<int> ptr(GetDefaultAllocator(), 42);
+        ScopePtr<int> move(Move(ptr));
         REQUIRE(move.Get() != nullptr);
         REQUIRE(*move.Get() == 42);
         REQUIRE(ptr.Get() == nullptr);
@@ -34,8 +34,8 @@ TEST_CASE("ScopePtr creation", "[ScopePtr]")
         {
         };
 
-        ScopePtr<A> ptr = MakeDefaultScoped<B>();
-        ScopePtr<B> move(std::move(ptr));
+        ScopePtr<A> ptr = ScopePtr<B>(GetDefaultAllocator());
+        ScopePtr<B> move(Move(ptr));
         REQUIRE(move.Get() != nullptr);
         REQUIRE(ptr.Get() == nullptr);
     }

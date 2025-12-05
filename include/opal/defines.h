@@ -55,3 +55,6 @@
 #else
 #define OPAL_DEBUG
 #endif
+
+#define OPAL_CACHE_LINE_SIZE (64)
+
