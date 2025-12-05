@@ -72,6 +72,40 @@ TEST_CASE("SPSC queue basic Push and Pop", "[Thread]")
     JoinThread(handle);
 }
 
+TEST_CASE("SPSC queue TryPush", "[Thread]")
+{
+    DynamicArray<i64> data;
+    constexpr size_t k_capacity = 1024;
+    Opal::RNG rng;
+    for (size_t i = 0; i < k_capacity; ++i)
+    {
+        i64 value = static_cast<i64>(rng.RandomI32()) << 32 | rng.RandomI32();
+        data.PushBack(value);
+    }
+    Impl::QueueSPSC<i64> queue(32);
+
+    const ThreadHandle handle = CreateThread(
+        [](Impl::QueueSPSC<i64>& in_queue, Opal::DynamicArray<i64>& in_data)
+        {
+            size_t count = 0;
+            while (count < k_capacity)
+            {
+                const i64 value = in_data[count];
+                i64 queued_value;
+                while (!in_queue.TryPop(queued_value)) {}
+                REQUIRE(queued_value == value);
+                count++;
+            }
+        },
+        Ref(queue), Ref(data));
+
+    for (const i64& value : data)
+    {
+        while (!queue.TryPush(value));
+    }
+    JoinThread(handle);
+}
+
 TEST_CASE("SPSC queue Push with move", "[Thread]")
 {
     struct Data
@@ -148,6 +182,23 @@ TEST_CASE("SPSC queue Push with Emplace", "[Thread]")
     REQUIRE(data.b == 5.0f);
 }
 
+TEST_CASE("SPSC queue Try Push with Emplace", "[Thread]")
+{
+    struct Data
+    {
+        i32 a = 0;
+        f32 b = 0.0f;
+        Data() = default;
+        Data(i32 aa, f32 bb) : a(aa), b(bb) {}
+    };
+
+    Impl::QueueSPSC<Data> queue(32);
+    REQUIRE(queue.TryPushWithEmplace(5, 5.0f));
+    Data data = queue.Pop();
+    REQUIRE(data.a == 5);
+    REQUIRE(data.b == 5.0f);
+}
+
 TEST_CASE("Shared pointer", "[Thread]")
 {
     SECTION("Creation and cloning")
@@ -189,8 +240,11 @@ TEST_CASE("SPSC channel", "[Thread]")
     {
         ChannelSPSC<i32> channel(128);
         channel.transmitter.Send(5);
+        REQUIRE(channel.transmitter.TrySend(10));
         i32 val = channel.receiver.Receive();
         REQUIRE(val == 5);
+        REQUIRE(channel.receiver.TryReceive(val));
+        REQUIRE(val == 10);
     }
     SECTION("With different threads")
     {

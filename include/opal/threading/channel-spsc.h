@@ -44,6 +44,24 @@ public:
         m_write_idx.store(write_idx + 1, std::memory_order_release);
     }
 
+    bool TryPush(const T& item)
+    {
+        size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
+        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
+
+        if (write_idx - read_idx == m_capacity)
+        {
+            // We are full, busy wait
+            return false;
+        }
+
+        size_t bound_write_idx = write_idx & (m_capacity - 1);
+        m_data[bound_write_idx] = item;  // Do copy
+
+        m_write_idx.store(write_idx + 1, std::memory_order_release);
+        return true;
+    }
+
     void Push(T&& item)
     {
         size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
@@ -79,6 +97,24 @@ public:
         m_write_idx.store(write_idx + 1, std::memory_order_release);
     }
 
+    template <typename... Args>
+    bool TryPushWithEmplace(const Args&... args)
+    {
+        size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
+        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
+
+        if (write_idx - read_idx == m_capacity)
+        {
+            return false;
+        }
+
+        size_t bound_write_idx = write_idx & (m_capacity - 1);
+        new (&m_data[bound_write_idx]) T(args...);
+
+        m_write_idx.store(write_idx + 1, std::memory_order_release);
+        return true;
+    }
+
     T Pop()
     {
         size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
@@ -92,6 +128,20 @@ public:
         T result = Move(m_data[bound_read_idx]);
         m_read_idx.store(read_idx + 1, std::memory_order_release);
         return result;
+    }
+
+    bool TryPop(T& result)
+    {
+        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
+        size_t write_idx = m_write_idx.load(std::memory_order_acquire);
+        if (write_idx - read_idx == 0)
+        {
+            return false;
+        }
+        size_t bound_read_idx = read_idx & (m_capacity - 1);
+        result = Move(m_data[bound_read_idx]);
+        m_read_idx.store(read_idx + 1, std::memory_order_release);
+        return true;
     }
 
 private:
@@ -139,6 +189,7 @@ struct TransmitterSPSC
 
     void Send(const T& item) { m_queue->Push(item); }
     void Send(T&& item) { m_queue->Push(Move(item)); }
+    bool TrySend(const T& item) { return m_queue->TryPush(item); }
 
 private:
     SharedPtr<Impl::QueueSPSC<T>> m_queue;
@@ -171,6 +222,7 @@ struct ReceiverSPSC
     }
 
     T Receive() { return m_queue->Pop(); }
+    bool TryReceive(T& result) { return m_queue->TryPop(result); }
 
     bool operator==(const ReceiverSPSC& other) const { return m_queue == other.m_queue; }
 
