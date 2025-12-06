@@ -50,6 +50,28 @@ Opal::u64 Opal::CountTrailingZeros(u64 value)
 #endif
 }
 
+Opal::u32 Opal::CountSetBits(u32 value)
+{
+#if defined(OPAL_COMPILER_MSVC)
+    return __popcnt(value);
+#elif (defined(OPAL_COMPILER_GCC) || defined(OPAL_COMPILER_CLANG))
+    return __builtin_popcount(value);
+#else
+    throw NotImplementedException(__FUNCTION__)
+#endif
+}
+
+Opal::u64 Opal::CountSetBits(u64 value)
+{
+#if defined(OPAL_COMPILER_MSVC)
+    return __popcnt64(value);
+#elif (defined(OPAL_COMPILER_GCC) || defined(OPAL_COMPILER_CLANG))
+    return __builtin_popcountll(value);
+#else
+    throw NotImplementedException(__FUNCTION__)
+#endif
+}
+
 template <>
 OPAL_EXPORT Opal::u32 Opal::GetBitWidth<Opal::u8>()
 {
@@ -76,5 +98,5 @@ OPAL_EXPORT Opal::u32 Opal::GetBitWidth<Opal::u64>()
 
 Opal::u64 Opal::GetNextPowerOf2(u64 value)
 {
-    return value <= 1 ? 1ull : 1ull << (64ull - CountLeadingZeros(value - 1));
+    return value < 1 ? 1ull : 1ull << (64ull - CountLeadingZeros(value - 1));
 }

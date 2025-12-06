@@ -36,6 +36,21 @@ OPAL_EXPORT u32 CountTrailingZeros(u32 value);
 OPAL_EXPORT u64 CountTrailingZeros(u64 value);
 
 /**
+ * @brief Counts the number of set bits in the 32-bit or 64-bit integer.
+ * @param value 32-bit integer or 64-bit integer.
+ * @return The number of set bits.
+ */
+OPAL_EXPORT u32 CountSetBits(u32 value);
+OPAL_EXPORT u64 CountSetBits(u64 value);
+
+/**
+ * Calculates the next number greater then given value that is the power of 2.
+ * @param value Reference number.
+ * @return Value that is power of 2. If the value is 0 or 1, it returns 1.
+ */
+u64 OPAL_EXPORT GetNextPowerOf2(u64 value);
+
+/**
  * Get number of bits type has.
  * @tparam T Type to check.
  * @return Number of bits.
@@ -52,6 +67,7 @@ template <typename T>
 class BitMask
 {
 public:
+    BitMask() : m_bit_mask(static_cast<T>(0)) {}
     explicit BitMask(T bit_mask) : m_bit_mask(bit_mask) {}
 
     [[nodiscard]] u32 GetLowestSetBitIndex() const { return static_cast<u32>(CountTrailingZeros(m_bit_mask)); }
@@ -59,6 +75,8 @@ public:
 
     [[nodiscard]] u32 GetTrailingZeros() const { return CountTrailingZeros(m_bit_mask); }
     [[nodiscard]] u32 GetLeadingZeros() const { return CountLeadingZeros(m_bit_mask); }
+
+    [[nodiscard]] u32 GetSetBitCount() const { return static_cast<u32>(CountSetBits(m_bit_mask)); }
 
     // Move to next, more significant bit
     BitMask operator++()
@@ -80,7 +98,5 @@ public:
 private:
     T m_bit_mask;
 };
-
-u64 OPAL_EXPORT GetNextPowerOf2(u64 value);
 
 }  // namespace Opal
