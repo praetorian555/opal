@@ -1,6 +1,5 @@
 #pragma once
 
-#include "exceptions.h"
 #include "opal/export.h"
 #include "opal/types.h"
 
@@ -73,8 +72,8 @@ public:
     [[nodiscard]] u32 GetLowestSetBitIndex() const { return static_cast<u32>(CountTrailingZeros(m_bit_mask)); }
     [[nodiscard]] u32 GetHighestSetBitIndex() const { return static_cast<u32>(GetBitWidth<T>() - CountLeadingZeros(m_bit_mask) - 1); }
 
-    [[nodiscard]] u32 GetTrailingZeros() const { return CountTrailingZeros(m_bit_mask); }
-    [[nodiscard]] u32 GetLeadingZeros() const { return CountLeadingZeros(m_bit_mask); }
+    [[nodiscard]] u32 GetTrailingZeros() const { return static_cast<u32>(CountTrailingZeros(m_bit_mask)); }
+    [[nodiscard]] u32 GetLeadingZeros() const { return static_cast<u32>(CountLeadingZeros(m_bit_mask)); }
 
     [[nodiscard]] u32 GetSetBitCount() const { return static_cast<u32>(CountSetBits(m_bit_mask)); }
 

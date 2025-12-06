@@ -1,4 +1,4 @@
-#include "../include/opal/threading/thread.h"
+#include "opal/threading/thread.h"
 
 #include "opal/container/scope-ptr.h"
 
@@ -110,7 +110,7 @@ Opal::CpuInfo Opal::GetCpuInfo()
         {
             case RelationProcessorCore:
             {
-                PhysicalProcessorInfo pp_info;
+                PhysicalCoreInfo pp_info;
                 pp_info.id = static_cast<u32>(info.physical_processors.GetSize());
                 pp_info.logical_cores = BitMask<u64>(lp_info->Processor.GroupMask[0].Mask);
                 pp_info.is_hyperthreaded = lp_info->Processor.Flags == LTP_PC_SMT;

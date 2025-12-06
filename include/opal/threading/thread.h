@@ -1,15 +1,12 @@
 #pragma once
 
-#include <new>
 #include <thread>
 #include <tuple>
 #include <type_traits>
 
-#include "../container/dynamic-array.h"
-#include "../container/shared-ptr.h"
 #include "opal/allocator.h"
 #include "opal/bit.h"
-#include "opal/type-traits.h"
+#include "opal/container/dynamic-array.h"
 
 namespace Opal
 {
@@ -92,17 +89,21 @@ void OPAL_EXPORT JoinThread(ThreadHandle handle);
  */
 ThreadHandle OPAL_EXPORT GetCurrentThreadHandle();
 
-struct OPAL_EXPORT PhysicalProcessorInfo
+template class OPAL_EXPORT BitMask<u64>;
+struct OPAL_EXPORT PhysicalCoreInfo
 {
     u32 id = 0;
     BitMask<u64> logical_cores;
     bool is_hyperthreaded = false;
+
+    [[nodiscard]] bool operator==(const PhysicalCoreInfo& other) const { return id == other.id; }
 };
 
+template class OPAL_EXPORT DynamicArray<PhysicalCoreInfo>;
 struct OPAL_EXPORT CpuInfo
 {
     u32 logical_cores_count = 0;
-    DynamicArray<PhysicalProcessorInfo> physical_processors;
+    DynamicArray<PhysicalCoreInfo> physical_processors;
 };
 
 /**
