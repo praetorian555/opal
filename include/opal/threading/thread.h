@@ -92,4 +92,33 @@ void OPAL_EXPORT JoinThread(ThreadHandle handle);
  */
 ThreadHandle OPAL_EXPORT GetCurrentThreadHandle();
 
+struct OPAL_EXPORT PhysicalProcessorInfo
+{
+    u32 id = 0;
+    BitMask<u64> logical_cores;
+    bool is_hyperthreaded = false;
+};
+
+struct OPAL_EXPORT CpuInfo
+{
+    u32 logical_cores_count = 0;
+    DynamicArray<PhysicalProcessorInfo> physical_processors;
+};
+
+/**
+ * Get info about the physical and logical cores of the processor. It returns number of logical cores in the
+ * system, as well as a list of physical cores. Each physical core also has a bit mask representing logical
+ * cores that belong to it. Logical cores can be indexed starting from 0 to the number of logical cores
+ * minus one.
+ */
+CpuInfo OPAL_EXPORT GetCpuInfo();
+
+/**
+ * Pin the thread to a specific logical core.
+ * @param handle Handle to a thread to pin.
+ * @param logical_core_id Logical core id. Values always start from 0 and go to number of logical
+ * cores minus one.
+ */
+void OPAL_EXPORT SetThreadAffinity(ThreadHandle handle, u32 logical_core_id);
+
 }  // namespace Opal

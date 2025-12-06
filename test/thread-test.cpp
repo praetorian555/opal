@@ -6,6 +6,7 @@
 #include "opal/threading/channel-spsc.h"
 #include "opal/threading/mutex.h"
 #include "opal/threading/thread.h"
+#include "opal/time.h"
 
 using namespace Opal;
 
@@ -92,7 +93,9 @@ TEST_CASE("SPSC queue TryPush", "[Thread]")
             {
                 const i64 value = in_data[count];
                 i64 queued_value;
-                while (!in_queue.TryPop(queued_value)) {}
+                while (!in_queue.TryPop(queued_value))
+                {
+                }
                 REQUIRE(queued_value == value);
                 count++;
             }
@@ -101,7 +104,8 @@ TEST_CASE("SPSC queue TryPush", "[Thread]")
 
     for (const i64& value : data)
     {
-        while (!queue.TryPush(value));
+        while (!queue.TryPush(value))
+            ;
     }
     JoinThread(handle);
 }

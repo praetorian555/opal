@@ -85,3 +85,72 @@ Opal::ThreadHandle Opal::GetCurrentThreadHandle()
     throw NotImplementedException(__FUNCTION__);
 #endif
 }
+
+Opal::CpuInfo Opal::GetCpuInfo()
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    CpuInfo info;
+    AllocatorBase* scratch_allocator = GetScratchAllocator();
+    DWORD buffer_size = 0;
+    PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buffer = NULL;
+    GetLogicalProcessorInformationEx(RelationAll, NULL, &buffer_size);
+    buffer = static_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(scratch_allocator->Alloc(buffer_size, 1));
+    if (GetLogicalProcessorInformationEx(RelationAll, buffer, &buffer_size) == FALSE)
+    {
+        scratch_allocator->Free(buffer);
+        return info;
+    }
+    BYTE* ptr = reinterpret_cast<BYTE*>(buffer);
+    const BYTE* end = ptr + buffer_size;
+
+    while (ptr < end)
+    {
+        PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX lp_info = reinterpret_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(ptr);
+        switch (lp_info->Relationship)
+        {
+            case RelationProcessorCore:
+            {
+                PhysicalProcessorInfo pp_info;
+                pp_info.id = static_cast<u32>(info.physical_processors.GetSize());
+                pp_info.logical_cores = BitMask<u64>(lp_info->Processor.GroupMask[0].Mask);
+                pp_info.is_hyperthreaded = lp_info->Processor.Flags == LTP_PC_SMT;
+                info.logical_cores_count += pp_info.logical_cores.GetSetBitCount();
+                info.physical_processors.PushBack(pp_info);
+                break;
+            }
+            default:
+            {
+                // Ignore other info
+                break;
+            }
+        }
+        ptr += lp_info->Size;
+    }
+
+    scratch_allocator->Free(buffer);
+    return info;
+#elif defined(OPAL_PLATFORM_LINUX)
+    throw NotImplementedException(__FUNCTION__);
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
+}
+
+void Opal::SetThreadAffinity(ThreadHandle handle, u32 logical_core_id)
+{
+    if (handle.native_handle != nullptr)
+    {
+#if defined(OPAL_PLATFORM_WINDOWS)
+        const DWORD_PTR mask = 1ULL << logical_core_id;
+        SetThreadAffinityMask(handle.native_handle, mask);
+#elif defined(OPAL_PLATFORM_LINUX)
+        cpu_set_t cpu_set;
+        CPU_ZERO(&cpu_set);
+        CPU_SET(logical_core_id, &cpu_set);
+        pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
+        pthread_setaffinity_np(native_handle, sizeof(cpu_set), &cpu_set);
+#else
+        throw NotImplementedException(__FUNCTION__);
+#endif
+    }
+}
