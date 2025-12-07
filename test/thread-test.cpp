@@ -5,6 +5,7 @@
 #include "opal/container/scope-ptr.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/rng.h"
+#include "opal/threading/channel-mpmc.h"
 #include "opal/threading/channel-spsc.h"
 #include "opal/threading/condition-variable.h"
 #include "opal/threading/mutex.h"
@@ -307,4 +308,12 @@ TEST_CASE("Condition Variable", "[Thread]")
 
     JoinThread(t);
     REQUIRE(*mutex.Lock().Deref() == true);
+}
+
+TEST_CASE("MPMC Channel", "[Thread]")
+{
+    ChannelMPMC<i32> channel(128);
+    channel.transmitter.Send(5);
+    i32 val = channel.receiver.Receive();
+    REQUIRE(val == 5);
 }

@@ -102,6 +102,8 @@ set(OPAL_FILES
         include/opal/threading/thread.h
         include/opal/threading/mutex.h
         include/opal/threading/condition-variable.h
+        include/opal/threading/channel-spsc.h
+        include/opal/threading/channel-mpmc.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})
