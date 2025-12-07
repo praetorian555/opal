@@ -6,9 +6,13 @@
 #include "pthread.h"
 #endif
 
-Opal::ConditionVariable::ConditionVariable()
+Opal::ConditionVariable::ConditionVariable(AllocatorBase* allocator)
 {
-    m_allocator = GetDefaultAllocator();
+    m_allocator = allocator;
+    if (m_allocator == nullptr)
+    {
+        m_allocator = GetDefaultAllocator();
+    }
 #if defined(OPAL_PLATFORM_WINDOWS)
     CONDITION_VARIABLE* condition_variable = New<CONDITION_VARIABLE>(m_allocator);
     InitializeConditionVariable(condition_variable);
@@ -36,6 +40,34 @@ Opal::ConditionVariable::~ConditionVariable()
 #endif
 }
 
+Opal::ConditionVariable::ConditionVariable(ConditionVariable&& other) noexcept
+{
+    if (this == &other)
+    {
+        return;
+    }
+    m_native_handle = other.m_native_handle;
+    m_allocator = other.m_allocator;
+    other.m_native_handle = nullptr;
+    other.m_allocator = nullptr;
+}
+
+Opal::ConditionVariable& Opal::ConditionVariable::operator=(ConditionVariable&& other) noexcept
+{
+    if (this == &other)
+    {
+        return *this;
+    }
+    if (m_native_handle != nullptr)
+    {
+        this->~ConditionVariable();
+    }
+    m_native_handle = other.m_native_handle;
+    m_allocator = other.m_allocator;
+    other.m_native_handle = nullptr;
+    return *this;
+}
+
 void Opal::ConditionVariable::NotifyOne()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -61,9 +93,8 @@ void Opal::ConditionVariable::NotifyAll()
 void Opal::ConditionVariable::Wait(void* native_mutex_handle)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    const BOOL result = SleepConditionVariableCS(static_cast<CONDITION_VARIABLE*>(m_native_handle),
-                                                 static_cast<CRITICAL_SECTION*>(native_mutex_handle), INFINITE);
-    OPAL_ASSERT(result == TRUE, "SleepConditionVariableCS failed!");
+    SleepConditionVariableCS(static_cast<CONDITION_VARIABLE*>(m_native_handle), static_cast<CRITICAL_SECTION*>(native_mutex_handle),
+                             INFINITE);
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_cond_wait(static_cast<pthread_cond_t*>(m_native_handle), static_cast<pthread_mutex_t*>(native_mutex_handle));
 #else

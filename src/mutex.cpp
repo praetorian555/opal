@@ -44,6 +44,27 @@ Opal::Impl::PureMutex::~PureMutex()
 #endif
 }
 
+Opal::Impl::PureMutex::PureMutex(PureMutex&& other) noexcept
+{
+    m_native_handle = other.m_native_handle;
+    m_allocator = other.m_allocator;
+    other.m_native_handle = nullptr;
+    other.m_allocator = nullptr;
+}
+
+Opal::Impl::PureMutex& Opal::Impl::PureMutex::operator=(PureMutex&& other) noexcept
+{
+    if (this == &other)
+    {
+        return *this;
+    }
+    m_native_handle = other.m_native_handle;
+    m_allocator = other.m_allocator;
+    other.m_native_handle = nullptr;
+    other.m_allocator = nullptr;
+    return *this;
+}
+
 void Opal::Impl::PureMutex::Lock()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)

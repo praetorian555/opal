@@ -6,11 +6,21 @@
 namespace Opal
 {
 
+/**
+ * Thread-safe primitive that is used to signal events between threads.
+ * Notify API should be called while associated mutex is locked but its not required.
+ */
 class OPAL_EXPORT ConditionVariable
 {
 public:
-    ConditionVariable();
+    explicit ConditionVariable(AllocatorBase* allocator = nullptr);
     ~ConditionVariable();
+
+    ConditionVariable(const ConditionVariable&) = delete;
+    ConditionVariable& operator=(const ConditionVariable&) = delete;
+
+    ConditionVariable(ConditionVariable&& other) noexcept;
+    ConditionVariable& operator=(ConditionVariable&& other) noexcept;
 
     void NotifyOne();
     void NotifyAll();
