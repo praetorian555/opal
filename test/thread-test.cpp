@@ -1,9 +1,12 @@
 #include "test-helpers.h"
 
+#include <chrono>
+
 #include "opal/container/scope-ptr.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/rng.h"
 #include "opal/threading/channel-spsc.h"
+#include "opal/threading/condition-variable.h"
 #include "opal/threading/mutex.h"
 #include "opal/threading/thread.h"
 #include "opal/time.h"
@@ -277,4 +280,31 @@ TEST_CASE("Mutex", "[Thread]")
         auto guard = mutex.Lock();
         REQUIRE(*guard.Deref() == 5);
     }
+}
+
+TEST_CASE("Condition Variable", "[Thread]")
+{
+    Mutex<bool> mutex(false);
+    ConditionVariable cond;
+
+    const ThreadHandle t = CreateThread(
+        [&]()
+        {
+            auto guard = mutex.Lock();
+            while (!*cond.Wait(guard))
+            {
+            }
+            REQUIRE(*guard.Deref() == true);
+        });
+
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(2000ms);
+    {
+        auto guard = mutex.Lock();
+        *guard.Deref() = true;
+        cond.NotifyOne();
+    }
+
+    JoinThread(t);
+    REQUIRE(*mutex.Lock().Deref() == true);
 }

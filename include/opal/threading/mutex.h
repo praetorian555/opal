@@ -18,7 +18,10 @@ struct MutexGuard
 
     T* Deref() { return m_object; }
 
+    void* GetNativeHandle() { return m_lock->GetNativeHandle(); }
+
 private:
+
     struct Mutex<T>* m_lock = nullptr;
     T* m_object = nullptr;
 };
@@ -32,6 +35,8 @@ struct OPAL_EXPORT PureMutex
 
     void Lock();
     void Unlock();
+
+    void* GetNativeHandle() { return m_native_handle; }
 
 private:
     void* m_native_handle;
@@ -56,6 +61,8 @@ struct Mutex
     }
 
     void Unlock() { m_pure_mutex.Unlock(); }
+
+    void* GetNativeHandle() { return m_pure_mutex.GetNativeHandle(); }
 
 private:
     friend struct MutexGuard<T>;

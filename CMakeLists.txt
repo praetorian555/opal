@@ -49,6 +49,7 @@ set(OPAL_FILES
         src/string.cpp
         src/thread.cpp
         src/mutex.cpp
+        src/condition-variable.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -100,6 +101,7 @@ set(OPAL_FILES
         include/opal/math/transform.h
         include/opal/threading/thread.h
         include/opal/threading/mutex.h
+        include/opal/threading/condition-variable.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})

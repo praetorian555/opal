@@ -5,6 +5,7 @@
 #endif
 
 #include "opal/defines.h"
+#include "opal/casts.h"
 
 Opal::u32 Opal::CountLeadingZeros(u32 value)
 {
@@ -55,7 +56,7 @@ Opal::u32 Opal::CountSetBits(u32 value)
 #if defined(OPAL_COMPILER_MSVC)
     return __popcnt(value);
 #elif (defined(OPAL_COMPILER_GCC) || defined(OPAL_COMPILER_CLANG))
-    return __builtin_popcount(value);
+    return Narrow<u32>(__builtin_popcount(value));
 #else
     throw NotImplementedException(__FUNCTION__)
 #endif
@@ -66,7 +67,7 @@ Opal::u64 Opal::CountSetBits(u64 value)
 #if defined(OPAL_COMPILER_MSVC)
     return __popcnt64(value);
 #elif (defined(OPAL_COMPILER_GCC) || defined(OPAL_COMPILER_CLANG))
-    return __builtin_popcountll(value);
+    return Narrow<u64>(__builtin_popcountll(value));
 #else
     throw NotImplementedException(__FUNCTION__)
 #endif
