@@ -99,5 +99,5 @@ OPAL_EXPORT Opal::u32 Opal::GetBitWidth<Opal::u64>()
 
 Opal::u64 Opal::GetNextPowerOf2(u64 value)
 {
-    return value < 1 ? 1ull : 1ull << (64ull - CountLeadingZeros(value - 1));
+    return value <= 1 ? 1ull : 1ull << (64ull - CountLeadingZeros(value - 1));
 }
