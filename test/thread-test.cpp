@@ -316,4 +316,11 @@ TEST_CASE("MPMC Channel", "[Thread]")
     channel.transmitter.Send(5);
     i32 val = channel.receiver.Receive();
     REQUIRE(val == 5);
+
+    ChannelMPMC<i32> channel2(0);
+    REQUIRE(channel2.transmitter.TrySend(5) == true);
+    REQUIRE(channel2.transmitter.TrySend(10) == false);
+    REQUIRE(channel2.receiver.TryReceive(val) == true);
+    REQUIRE(val == 5);
+    REQUIRE(channel2.receiver.TryReceive(val) == false);
 }

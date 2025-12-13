@@ -44,6 +44,40 @@ public:
         slot.turn.store(2 * turn + 1, std::memory_order_release);
     }
 
+    bool TryPush(const T& data)
+    {
+        size_t write_idx = m_write_idx.load(std::memory_order_acquire);
+        while (true)
+        {
+            size_t slot_idx = write_idx & (m_capacity - 1);
+            auto& slot = m_data[slot_idx];
+            size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
+            if (2 * turn != slot.turn.load(std::memory_order_acquire))
+            {
+                // Slot is not empty, we are most likely full
+                const size_t prev_write_idx = write_idx;
+                write_idx = m_write_idx.load(std::memory_order_acquire);
+                if (write_idx == prev_write_idx)
+                {
+                    // Nothing changed since the time we loaded the write_idx
+                    // report that we are full
+                    return false;
+                }
+            }
+            else
+            {
+                if (m_write_idx.compare_exchange_strong(write_idx, write_idx + 1))
+                {
+                    // If write_idx didn't change since last check, consume it and increment the
+                    // atomic
+                    slot.data = data;
+                    slot.turn.store(2 * turn + 1, std::memory_order_release);
+                    return true;
+                }
+            }
+        }
+    }
+
     T Pop()
     {
         size_t read_idx = m_read_idx.fetch_add(1, std::memory_order_relaxed);
@@ -56,6 +90,35 @@ public:
         T result = Move(slot.data);
         slot.turn.store(2 * turn + 2, std::memory_order_release);
         return result;
+    }
+
+    bool TryPop(T& result)
+    {
+        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
+        while (true)
+        {
+            size_t slot_idx = read_idx & (m_capacity - 1);
+            auto& slot = m_data[slot_idx];
+            size_t turn = read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
+            if (2 * turn + 1 != slot.turn.load(std::memory_order_acquire))
+            {
+                const size_t prev_read_idx = read_idx;
+                read_idx = m_read_idx.load(std::memory_order_acquire);
+                if (prev_read_idx == read_idx)
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                if (m_read_idx.compare_exchange_strong(read_idx, read_idx + 1))
+                {
+                    result = Move(slot.data);
+                    slot.turn.store(2 * turn + 2, std::memory_order_release);
+                    return true;
+                }
+            }
+        }
     }
 
 private:
@@ -163,6 +226,7 @@ struct ChannelMPMC
 
     explicit ChannelMPMC(size_t capacity, AllocatorBase* allocator = nullptr)
     {
+        capacity = GetNextPowerOf2(capacity);
         SharedPtr<Impl::QueueMPMC<T>> q(allocator, capacity, allocator);
         transmitter = TransmitterMPMC<T>(q.Clone());
         receiver = ReceiverMPMC<T>(Move(q));
