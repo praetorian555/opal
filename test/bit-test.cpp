@@ -64,3 +64,11 @@ TEST_CASE("BitMask", "[bit-mask]")
         }
     }
 }
+
+TEST_CASE("GetNextPowerOf2", "[bit-mask]")
+{
+    REQUIRE(GetNextPowerOf2(0) == 1);
+    REQUIRE(GetNextPowerOf2(1) == 1);
+    REQUIRE(GetNextPowerOf2(2) == 2);
+    REQUIRE(GetNextPowerOf2(3) == 4);
+}
