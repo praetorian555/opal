@@ -159,7 +159,7 @@ struct TransmitterMPMC
         return *this;
     }
 
-    TransmitterMPMC Clone() const { return {m_queue->Clone()}; }
+    TransmitterMPMC Clone() const { return TransmitterMPMC{m_queue.Clone()}; }
 
     bool operator==(const TransmitterMPMC& other) const { return m_queue == other.m_queue; }
 
@@ -199,7 +199,7 @@ struct ReceiverMPMC
         return *this;
     }
 
-    ReceiverMPMC Clone() const { return {m_queue->Clone()}; }
+    ReceiverMPMC Clone() const { return ReceiverMPMC{m_queue.Clone()}; }
 
     T Receive() { return m_queue->Pop(); }
     bool TryReceive(T& result) { return m_queue->TryPop(result); }
