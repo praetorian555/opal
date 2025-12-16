@@ -132,6 +132,9 @@ template <typename T>
 concept CopyAssignable = requires(T a, T b) { a = b; };
 
 template <typename T>
+concept Clonable = requires(T a) { a.Clone(); };
+
+template <typename T>
 concept MoveAssignable = requires(T a, T b) { a = Move(b); };
 
 template <typename T>
