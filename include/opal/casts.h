@@ -7,7 +7,7 @@ namespace Opal
 {
 template <typename To, typename From>
     requires IntegralOrFloatingPoint<To> && IntegralOrFloatingPoint<From>
-To Narrow(const From& from)
+constexpr To Narrow(const From& from)
 {
 #if defined(OPAL_DEBUG)
     To to = static_cast<To>(from);
