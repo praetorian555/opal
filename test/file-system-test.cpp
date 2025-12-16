@@ -158,7 +158,7 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     SECTION("Collect child contents, no recursive search")
     {
         HashSet<StringUtf8> dir_paths;
-        HashMap<StringUtf8, bool> path_types;
+        HashMapDeprecated<StringUtf8, bool> path_types;
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
@@ -197,7 +197,7 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     SECTION("Collect child contents, do recursive search")
     {
         HashSet<StringUtf8> dir_paths;
-        HashMap<StringUtf8, bool> path_types;
+        HashMapDeprecated<StringUtf8, bool> path_types;
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
@@ -236,7 +236,7 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     SECTION("Collect child contents, do recursive search, ignore directories")
     {
         HashSet<StringUtf8> dir_paths;
-        HashMap<StringUtf8, bool> path_types;
+        HashMapDeprecated<StringUtf8, bool> path_types;
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));

@@ -3687,7 +3687,7 @@ TEST_CASE("String length", "[String]")
 
 TEST_CASE("String key in map", "[String]")
 {
-    Opal::HashMap<Opal::StringUtf8, uint64_t, Opal::StringHash<Opal::StringUtf8>> map;
+    Opal::HashMapDeprecated<Opal::StringUtf8, uint64_t, Opal::StringHash<Opal::StringUtf8>> map;
     map.insert(std::make_pair("Hello", 1));
     map.insert(std::make_pair("there", 2));
 

@@ -47,7 +47,7 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         }
     }
 
-    HashMap<StringUtf8, bool> visited;
+    HashMapDeprecated<StringUtf8, bool> visited;
     for (u32 i = 0; i < names.GetSize(); ++i)
     {
         const StringUtf8& name = names[i];

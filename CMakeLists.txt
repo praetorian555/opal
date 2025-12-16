@@ -153,6 +153,7 @@ if (OPAL_BUILD_TESTS)
             test/in-place-array-test.cpp
             test/common-test.cpp
             test/hash-set-test.cpp
+            test/hash-map-test.cpp
             test/bit-test.cpp
             test/rng-test.cpp
             test/math-base-test.cpp
