@@ -9,6 +9,7 @@
 #include "opal/threading/channel-spsc.h"
 #include "opal/threading/condition-variable.h"
 #include "opal/threading/mutex.h"
+#include "opal/threading/thread-pool.h"
 #include "opal/threading/thread.h"
 #include "opal/time.h"
 
@@ -323,4 +324,16 @@ TEST_CASE("MPMC Channel", "[Thread]")
     REQUIRE(channel2.receiver.TryReceive(val) == true);
     REQUIRE(val == 5);
     REQUIRE(channel2.receiver.TryReceive(val) == false);
+}
+
+TEST_CASE("Thread pool", "[Thread]")
+{
+    ThreadPool pool(8);
+    i32 value = 5;
+    auto task = pool.AddFunctionTask([&value](Task::TransmitterType&)
+    {
+        value = 10;
+    });
+    task->WaitForCompletion();
+    REQUIRE(value == 10);
 }
