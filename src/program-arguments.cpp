@@ -3,15 +3,6 @@
 #include "opal/container/hash-map.h"
 #include "opal/hash.h"
 
-template <>
-struct std::hash<Opal::StringUtf8>
-{
-    std::size_t operator()(const Opal::StringUtf8& key) const noexcept
-    {
-        return Opal::Hash::CalcRange(key);
-    }
-};
-
 Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddProgramDescription(const StringUtf8& description)
 {
     m_program_description = description;
@@ -47,7 +38,12 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         }
     }
 
-    HashMapDeprecated<StringUtf8, bool> visited;
+    HashMap<StringUtf8, bool> visited;
+    for (u32 j = 0; j < m_argument_definitions.GetSize(); ++j)
+    {
+        ProgramArgumentDefinition* arg_def = m_argument_definitions[j];
+        visited.Insert(arg_def->name, false);
+    }
     for (u32 i = 0; i < names.GetSize(); ++i)
     {
         const StringUtf8& name = names[i];
@@ -57,16 +53,15 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
             if (arg_def->name == name)
             {
                 arg_def->SetValue(values[i]);
-                visited[arg_def->name] = true;
+                visited.Insert(arg_def->name, true);
                 break;
             }
-
         }
     }
 
     for (ProgramArgumentDefinition* def : m_argument_definitions)
     {
-        if (!def->is_optional && !visited[def->name])
+        if (!def->is_optional && !visited.GetValue(def->name))
         {
             printf("Required argument '%s' not provided, here is the information on how to use the program:\n\n", *def->name);
             ShowHelp();

@@ -972,7 +972,10 @@ CLASS_HEADER& CLASS_HEADER::operator=(String&& other) noexcept
     {
         return *this;
     }
-    Deallocate(m_data);
+    if (m_data != nullptr)
+    {
+        Deallocate(m_data);
+    }
     m_allocator = other.m_allocator;
     m_data = other.m_data;
     m_capacity = other.m_capacity;

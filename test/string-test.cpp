@@ -3687,12 +3687,12 @@ TEST_CASE("String length", "[String]")
 
 TEST_CASE("String key in map", "[String]")
 {
-    Opal::HashMapDeprecated<Opal::StringUtf8, uint64_t, Opal::StringHash<Opal::StringUtf8>> map;
-    map.insert(std::make_pair("Hello", 1));
-    map.insert(std::make_pair("there", 2));
+    Opal::HashMap<Opal::StringUtf8, uint64_t> map;
+    map.Insert("Hello", 1);
+    map.Insert("there", 2);
 
-    REQUIRE(map.find("Hello")->second == 1);
-    REQUIRE(map.find("there")->second == 2);
+    REQUIRE(map.Find("Hello").GetValue() == 1);
+    REQUIRE(map.Find("there").GetValue() == 2);
 }
 
 TEST_CASE("StartsWith", "[String]")

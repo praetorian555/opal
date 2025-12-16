@@ -158,24 +158,24 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     SECTION("Collect child contents, no recursive search")
     {
         HashSet<StringUtf8> dir_paths;
-        HashMapDeprecated<StringUtf8, bool> path_types;
+        HashMap<StringUtf8, bool> path_types;
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
         StringUtf8 first_file = Paths::Combine(path, "test-file");
         dir_paths.Insert(first_file);
-        path_types.insert(std::make_pair(first_file, false));
+        path_types.Insert(first_file, false);
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE_NOTHROW(CreateFile(first_file));
         StringUtf8 another_dir = Paths::Combine( path, "another-dir");
         dir_paths.Insert(another_dir);
-        path_types.insert(std::make_pair(another_dir, true));
+        path_types.Insert(another_dir, true);
         REQUIRE_NOTHROW(CreateDirectory(another_dir));
         REQUIRE(Opal::Exists(another_dir));
         const StringUtf8 another_file = Paths::Combine(another_dir, "another-file");
         dir_paths.Insert(another_file);
-        path_types.insert(std::make_pair(another_file, false));
+        path_types.Insert(another_file, false);
         REQUIRE_NOTHROW(CreateFile(another_file));
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
@@ -184,9 +184,9 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         for (const DirectoryEntry& e : children)
         {
             REQUIRE(dir_paths.Contains(e.path));
-            REQUIRE(path_types[e.path] == e.is_directory);
+            REQUIRE(path_types.GetValue(e.path) == e.is_directory);
             dir_paths.Erase(e.path);
-            path_types.erase(e.path);
+            path_types.Erase(e.path);
         }
         REQUIRE_NOTHROW(DeleteFile(first_file));
         REQUIRE_NOTHROW(DeleteFile(another_file));
@@ -197,24 +197,24 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     SECTION("Collect child contents, do recursive search")
     {
         HashSet<StringUtf8> dir_paths;
-        HashMapDeprecated<StringUtf8, bool> path_types;
+        HashMap<StringUtf8, bool> path_types;
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
         StringUtf8 first_file = Paths::Combine(path, "test-file");
         dir_paths.Insert(first_file);
-        path_types.insert(std::make_pair(first_file, false));
+        path_types.Insert(first_file, false);
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE_NOTHROW(CreateFile(first_file));
         StringUtf8 another_dir = Paths::Combine(path, "another-dir");
         dir_paths.Insert(another_dir);
-        path_types.insert(std::make_pair(another_dir, true));
+        path_types.Insert(another_dir, true);
         REQUIRE_NOTHROW(CreateDirectory(another_dir));
         REQUIRE(Opal::Exists(another_dir));
         const StringUtf8 another_file = Paths::Combine( another_dir, "another-file");
         dir_paths.Insert(another_file);
-        path_types.insert(std::make_pair(another_file, false));
+        path_types.Insert(another_file, false);
         REQUIRE_NOTHROW(CreateFile(another_file));
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
@@ -223,9 +223,9 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         for (const DirectoryEntry& e : children)
         {
             REQUIRE(dir_paths.Contains(e.path));
-            REQUIRE(path_types[e.path] == e.is_directory);
+            REQUIRE(path_types.GetValue(e.path) == e.is_directory);
             dir_paths.Erase(e.path);
-            path_types.erase(e.path);
+            path_types.Erase(e.path);
         }
         REQUIRE_NOTHROW(DeleteFile(first_file));
         REQUIRE_NOTHROW(DeleteFile(another_file));
@@ -236,24 +236,24 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     SECTION("Collect child contents, do recursive search, ignore directories")
     {
         HashSet<StringUtf8> dir_paths;
-        HashMapDeprecated<StringUtf8, bool> path_types;
+        HashMap<StringUtf8, bool> path_types;
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE_NOTHROW(CreateDirectory(path));
         REQUIRE(Opal::Exists(path));
         StringUtf8 first_file = Paths::Combine(path, "test-file");
         dir_paths.Insert(first_file);
-        path_types.insert(std::make_pair(first_file, false));
+        path_types.Insert(first_file, false);
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE_NOTHROW(CreateFile(first_file));
         StringUtf8 another_dir = Paths::Combine(path, "another-dir");
         dir_paths.Insert(another_dir);
-        path_types.insert(std::make_pair(another_dir, true));
+        path_types.Insert(another_dir, true);
         REQUIRE_NOTHROW(CreateDirectory(another_dir));
         REQUIRE(Opal::Exists(another_dir));
         const StringUtf8 another_file = Paths::Combine(another_dir, "another-file");
         dir_paths.Insert(another_file);
-        path_types.insert(std::make_pair(another_file, false));
+        path_types.Insert(another_file, false);
         REQUIRE_NOTHROW(CreateFile(another_file));
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
@@ -262,9 +262,9 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         for (const DirectoryEntry& e : children)
         {
             REQUIRE(dir_paths.Contains(e.path));
-            REQUIRE(path_types[e.path] == e.is_directory);
+            REQUIRE(path_types.GetValue(e.path) == e.is_directory);
             dir_paths.Erase(e.path);
-            path_types.erase(e.path);
+            path_types.Erase(e.path);
         }
         REQUIRE_NOTHROW(DeleteFile(first_file));
         REQUIRE_NOTHROW(DeleteFile(another_file));

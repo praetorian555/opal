@@ -1,7 +1,6 @@
 #pragma once
 
 #include <emmintrin.h>
-#include <unordered_map>
 
 #include "opal/allocator.h"
 #include "opal/assert.h"
@@ -12,9 +11,6 @@
 
 namespace Opal
 {
-
-template <typename Key, typename Value, typename Hash = std::hash<Key>>
-using HashMapDeprecated = std::unordered_map<Key, Value, Hash>;
 
 template <typename KeyType, typename ValueType>
 struct Pair
