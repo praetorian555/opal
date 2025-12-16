@@ -68,6 +68,15 @@ public:
         other.m_refcount = nullptr;
     }
 
+    template <typename U>
+        requires Convertible<U*, T*>
+    explicit SharedPtr(SharedPtr<U>&& other)  noexcept : m_object(static_cast<T*>(other.m_object)), m_allocator(other.m_allocator), m_refcount(other.m_refcount)
+    {
+        other.m_object = nullptr;
+        other.m_allocator = nullptr;
+        other.m_refcount = nullptr;
+    }
+
     SharedPtr& operator=(SharedPtr&& other) noexcept
     {
         if (*this == other)
@@ -125,6 +134,9 @@ public:
     T* Get() { return m_object; }
 
 private:
+    template <typename U>
+    friend class SharedPtr;
+
     T* m_object = nullptr;
     AllocatorBase* m_allocator = nullptr;
     std::atomic<size_t>* m_refcount = nullptr;
