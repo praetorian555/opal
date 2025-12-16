@@ -70,6 +70,18 @@ TEST_CASE("Create a hash map", "[HashMap]")
         REQUIRE(!map.Contains(2));
         REQUIRE(!map.Contains(5));
     }
+    SECTION("Initializer list")
+    {
+        HashMap<i32, i32> map{
+            {2, 7},
+            {5, 14}
+        };
+        REQUIRE(map.GetSize() == 2);
+        REQUIRE(map.Contains(2));
+        REQUIRE(map.GetValue(2) == 7);
+        REQUIRE(map.Contains(5));
+        REQUIRE(map.GetValue(5) == 14);
+    }
 }
 
 TEST_CASE("Hash map insert", "[HashMap]")

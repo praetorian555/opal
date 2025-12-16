@@ -146,6 +146,7 @@ public:
 
     explicit HashMap(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
     HashMap(const ArrayView<Pair<KeyType, ValueType>>& pairs, AllocatorBase* allocator = nullptr);
+    HashMap(std::initializer_list<pair_type> pairs, AllocatorBase* allocator = nullptr);
 
     HashMap(const HashMap& other) = delete;
     HashMap(HashMap&& other) noexcept;
@@ -296,6 +297,17 @@ Opal::HashMap<KeyType, ValueType>::HashMap(const ArrayView<Pair<KeyType, ValueTy
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
     Reserve(pairs.GetSize());
+    for (auto& pair : pairs)
+    {
+        Insert(pair.key, pair.value);
+    }
+}
+
+template <typename KeyType, typename ValueType>
+Opal::HashMap<KeyType, ValueType>::HashMap(std::initializer_list<pair_type> pairs, AllocatorBase* allocator)
+    : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
+{
+    Reserve(pairs.size());
     for (auto& pair : pairs)
     {
         Insert(pair.key, pair.value);
