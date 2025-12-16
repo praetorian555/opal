@@ -40,7 +40,18 @@ public:
         while (2 * turn != slot.turn.load(std::memory_order_acquire))
         {
         }
-        slot.data = data;
+        if constexpr (Opal::CopyAssignable<T>)
+        {
+            slot.data = data;
+        }
+        else if constexpr (Opal::Clonable<T>)
+        {
+            slot.data = data.Clone();
+        }
+        else
+        {
+            throw Exception("Data type can't be copied!");
+        }
         slot.turn.store(2 * turn + 1, std::memory_order_release);
     }
 
@@ -70,7 +81,18 @@ public:
                 {
                     // If write_idx didn't change since last check, consume it and increment the
                     // atomic
-                    slot.data = data;
+                    if constexpr (Opal::CopyAssignable<T>)
+                    {
+                        slot.data = data;
+                    }
+                    else if constexpr (Opal::Clonable<T>)
+                    {
+                        slot.data = data.Clone();
+                    }
+                    else
+                    {
+                        throw Exception("Data type can't be copied!");
+                    }
                     slot.turn.store(2 * turn + 1, std::memory_order_release);
                     return true;
                 }
