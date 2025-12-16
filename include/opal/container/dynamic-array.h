@@ -130,7 +130,7 @@ public:
      * Default constructor.
      * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
      */
-    explicit DynamicArray(allocator_type* allocator = nullptr);
+    DynamicArray(allocator_type* allocator = nullptr);
 
     /**
      * Construct an array with `count` default constructed elements.
