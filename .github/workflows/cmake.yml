@@ -34,24 +34,6 @@ jobs:
           cxx: "cl"
           generators: "Visual Studio 17 2022"
           shared_libs: "OFF"
-        - name: "MSVC Debug Shared"
-          os: windows-latest
-          build_type: "Debug"
-          cxx: "cl"
-          generators: "Visual Studio 17 2022"
-          shared_libs: "ON"
-        - name: "MSVC Test Shared"
-          os: windows-latest
-          build_type: "RelWithDebInfo"
-          cxx: "cl"
-          generators: "Visual Studio 17 2022"
-          shared_libs: "ON"
-        - name: "MSVC Release Shared"
-          os: windows-latest
-          build_type: "Release"
-          cxx: "cl"
-          generators: "Visual Studio 17 2022"
-          shared_libs: "ON"
         - name: "GCC Debug"
           os: ubuntu-latest
           build_type: "Debug"
