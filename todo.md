@@ -1,2 +1,2 @@
-- [ ] Implement hash map based on swiss table by Google https://abseil.io/about/design/swisstables.
+- [x] Implement hash map based on swiss table by Google https://abseil.io/about/design/swisstables.
 - [ ] Implement memory allocator based on https://github.com/mattconte/tlsf.
