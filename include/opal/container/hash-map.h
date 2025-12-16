@@ -7,6 +7,7 @@
 #include "opal/assert.h"
 #include "opal/bit.h"
 #include "opal/container/array-view.h"
+#include "opal/container/dynamic-array.h"
 #include "opal/hash.h"
 
 namespace Opal
@@ -181,6 +182,10 @@ public:
     void Erase(const_iterator it);
 
     void Clear();
+
+    DynamicArray<pair_type> ToArray() const;
+    DynamicArray<key_type> ToArrayOfKeys() const;
+    DynamicArray<value_type> ToArrayOfValues() const;
 
     iterator begin() { return FindFirstIterator(); }
     const_iterator begin() const { return FindFirstIterator(); }
@@ -623,6 +628,42 @@ void Opal::HashMap<KeyType, ValueType>::Clear()
     m_control_bytes[m_capacity] = k_control_bitmask_sentinel;
     m_growth_left = m_capacity;
     m_size = 0;
+}
+
+template <typename KeyType, typename ValueType>
+Opal::DynamicArray<Opal::Pair<KeyType, ValueType>> Opal::HashMap<KeyType, ValueType>::ToArray() const
+{
+    DynamicArray<pair_type> result;
+    result.Reserve(m_size);
+    for (auto& pair : *this)
+    {
+        result.PushBack(pair);
+    }
+    return result;
+}
+
+template <typename KeyType, typename ValueType>
+Opal::DynamicArray<KeyType> Opal::HashMap<KeyType, ValueType>::ToArrayOfKeys() const
+{
+    DynamicArray<key_type> result;
+    result.Reserve(m_size);
+    for (auto& pair : *this)
+    {
+        result.PushBack(pair.key);
+    }
+    return result;
+}
+
+template <typename KeyType, typename ValueType>
+Opal::DynamicArray<ValueType> Opal::HashMap<KeyType, ValueType>::ToArrayOfValues() const
+{
+    DynamicArray<value_type> result;
+    result.Reserve(m_size);
+    for (auto& pair : *this)
+    {
+        result.PushBack(pair.value);
+    }
+    return result;
 }
 
 template <typename KeyType, typename ValueType>

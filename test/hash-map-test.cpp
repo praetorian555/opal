@@ -122,3 +122,55 @@ TEST_CASE("Hash map erase", "[HashMap]")
         REQUIRE(map.GetSize() == 0);
     }
 }
+
+TEST_CASE("Convert to array", "[HashMap]")
+{
+    SECTION("To array")
+    {
+        HashMap<i32, i32> map;
+        map.Insert(2, 7);
+        map.Insert(5, 14);
+        auto arr = map.ToArray();
+        REQUIRE(arr.GetSize() == 2);
+        for (auto& pair : arr)
+        {
+            REQUIRE(pair.value == map.Find(pair.key).GetValue());
+            map.Erase(pair.key);
+        }
+        REQUIRE(map.GetSize() == 0);
+    }
+    SECTION("To array of keys")
+    {
+        HashMap<i32, i32> map;
+        map.Insert(2, 7);
+        map.Insert(5, 14);
+        auto arr = map.ToArrayOfKeys();
+        REQUIRE(arr.GetSize() == 2);
+        for (auto& key : arr)
+        {
+            REQUIRE(map.Contains(key));
+            map.Erase(key);
+        }
+        REQUIRE(map.GetSize() == 0);
+    }
+    SECTION("To array of values")
+    {
+        HashMap<i32, i32> map;
+        map.Insert(2, 7);
+        map.Insert(5, 14);
+        auto arr = map.ToArrayOfValues();
+        REQUIRE(arr.GetSize() == 2);
+        for (auto& value : arr)
+        {
+            for (auto& pair : map)
+            {
+                if (pair.value == value)
+                {
+                    map.Erase(pair.key);
+                    break;
+                }
+            }
+        }
+        REQUIRE(map.GetSize() == 0);
+    }
+}
