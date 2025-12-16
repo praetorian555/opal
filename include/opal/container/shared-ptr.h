@@ -36,6 +36,23 @@ public:
         m_allocator = allocator;
     }
 
+    SharedPtr(AllocatorBase* allocator, T* object)
+    {
+        if (allocator == nullptr)
+        {
+            allocator = GetDefaultAllocator();
+        }
+        if (object == nullptr)
+        {
+            return;
+        }
+        OPAL_ASSERT(allocator && allocator->IsThreadSafe(), "Allocator should be thread-safe");
+        m_object = object;
+        m_refcount = New<std::atomic<size_t>>(allocator);
+        m_refcount->store(1, std::memory_order_relaxed);
+        m_allocator = allocator;
+    }
+
     ~SharedPtr()
     {
         Reset();
