@@ -86,7 +86,7 @@ public:
 
     T* operator->() { return m_object; }
 
-    SharedPtr Clone()
+    SharedPtr Clone() const
     {
         SharedPtr clone;
         if (!IsValid())
