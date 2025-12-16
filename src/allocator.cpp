@@ -202,69 +202,92 @@ void Opal::LinearAllocator::Reset(u64 position)
 
 namespace
 {
-Opal::MallocAllocator g_malloc_allocator;
-Opal::DynamicArray<Opal::AllocatorBase*> g_default_allocators(1, &g_malloc_allocator, &g_malloc_allocator);
-Opal::LinearAllocator g_scratch_allocator("Default Scratch Allocator", {.bytes_to_reserve = OPAL_GB(4),
-                                                                        .bytes_to_initially_alloc = OPAL_MB(1),
-                                                                        .commit_step_size = OPAL_MB(2)});
-Opal::DynamicArray<Opal::LinearAllocator*> g_scratch_allocators(1, &g_scratch_allocator, &g_malloc_allocator);
+Opal::MallocAllocator* g_malloc_allocator = nullptr;
+Opal::DynamicArray<Opal::AllocatorBase*>* g_default_allocators = nullptr;
+Opal::LinearAllocator* g_scratch_allocator = nullptr;
+Opal::DynamicArray<Opal::LinearAllocator*>* g_scratch_allocators = nullptr;
+
+void SetupAllocators()
+{
+    static Opal::MallocAllocator s_malloc_allocator;
+    static Opal::DynamicArray<Opal::AllocatorBase*> s_default_allocators(1, &s_malloc_allocator, &s_malloc_allocator);
+    static Opal::LinearAllocator s_scratch_allocator(
+        "Default Scratch Allocator",
+        {.bytes_to_reserve = OPAL_GB(4), .bytes_to_initially_alloc = OPAL_MB(1), .commit_step_size = OPAL_MB(2)});
+    static Opal::DynamicArray<Opal::LinearAllocator*> s_scratch_allocators(1, &s_scratch_allocator, &s_malloc_allocator);
+    if (g_default_allocators == nullptr) [[unlikely]]
+    {
+        g_malloc_allocator = &s_malloc_allocator;
+        g_default_allocators = &s_default_allocators;
+        g_scratch_allocator = &s_scratch_allocator;
+        g_scratch_allocators = &s_scratch_allocators;
+    }
+}
+
 }  // namespace
 
 Opal::AllocatorBase* Opal::GetDefaultAllocator()
 {
-    return g_default_allocators.Back();
+    SetupAllocators();
+    return g_default_allocators->Back();
 }
 
 void Opal::PushDefaultAllocator(AllocatorBase* allocator)
 {
+    SetupAllocators();
     if (allocator == nullptr)
     {
-        g_default_allocators.PushBack(&g_malloc_allocator);
+        g_default_allocators->PushBack(g_malloc_allocator);
     }
     else
     {
-        g_default_allocators.PushBack(allocator);
+        g_default_allocators->PushBack(allocator);
     }
 }
 
 void Opal::PopDefaultAllocator()
 {
-    if (g_default_allocators.GetSize() == 1)
+    SetupAllocators();
+    if (g_default_allocators->GetSize() == 1)
     {
         return;
     }
-    g_default_allocators.PopBack();
+    g_default_allocators->PopBack();
 }
 
 Opal::LinearAllocator* Opal::GetScratchAllocator()
 {
-    return g_scratch_allocators.Back();
+    SetupAllocators();
+    return g_scratch_allocators->Back();
 }
 
 void Opal::PushScratchAllocator(LinearAllocator* allocator)
 {
+    SetupAllocators();
     if (allocator == nullptr)
     {
-        g_scratch_allocators.PushBack(&g_scratch_allocator);
+        g_scratch_allocators->PushBack(g_scratch_allocator);
     }
     else
     {
-        g_scratch_allocators.PushBack(allocator);
+        g_scratch_allocators->PushBack(allocator);
     }
 }
 
 void Opal::PopScratchAllocator()
 {
-    if (g_scratch_allocators.GetSize() == 1)
+    SetupAllocators();
+    if (g_scratch_allocators->GetSize() == 1)
     {
         return;
     }
-    g_scratch_allocators.PopBack();
+    g_scratch_allocators->PopBack();
 }
 
 void Opal::ResetScratchAllocator()
 {
-    g_scratch_allocators.Back()->Reset();
+    SetupAllocators();
+    g_scratch_allocators->Back()->Reset();
 }
 
 Opal::ScratchAsDefault::ScratchAsDefault()
