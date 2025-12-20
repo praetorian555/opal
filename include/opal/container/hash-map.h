@@ -528,7 +528,7 @@ Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>
     iterator it = Find(key);
     if (it != end())
     {
-        return it->value;
+        return it.GetValue();
     }
     throw OutOfBoundsException("Key not found");
 }
@@ -539,7 +539,7 @@ const Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, Valu
     const_iterator it = Find(key);
     if (it != cend())
     {
-        return it->value;
+        return it.GetValue();
     }
     throw OutOfBoundsException("Key not found");
 }
