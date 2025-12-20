@@ -562,6 +562,7 @@ CLASS_HEADER::DynamicArray::~DynamicArray()
             }
         }
         Deallocate(m_data);
+        m_data = nullptr;
     }
 }
 
