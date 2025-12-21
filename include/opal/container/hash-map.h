@@ -497,7 +497,8 @@ void Opal::HashMap<KeyType, ValueType>::OccupySlot(const key_type& key, const va
 {
     const u64 hash = CalculateHash(key);
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
-    m_slots[index] = {key, value};
+    m_slots[index].key = key;
+    m_slots[index].value = value;
     m_size++;
     m_growth_left--;
 }
@@ -550,7 +551,8 @@ void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, const value_
     u64 index = 0;
     if (FindIndex(key, index))
     {
-        m_slots[index] = {key, value};
+        m_slots[index].key = key;
+        m_slots[index].value = value;
         return;
     }
 
