@@ -1289,8 +1289,10 @@ T* CLASS_HEADER::Allocate(size_type count)
 TEMPLATE_HEADER
 void CLASS_HEADER::Deallocate(T* ptr)
 {
-    OPAL_ASSERT(m_allocator, "Allocator should never be null!");
-    m_allocator->Free(ptr);
+    if (m_allocator)
+    {
+        m_allocator->Free(ptr);
+    }
 }
 
 TEMPLATE_HEADER
