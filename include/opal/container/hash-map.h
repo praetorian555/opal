@@ -497,8 +497,8 @@ void Opal::HashMap<KeyType, ValueType>::OccupySlot(const key_type& key, const va
 {
     const u64 hash = CalculateHash(key);
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
-    m_slots[index].key = key;
-    m_slots[index].value = value;
+    new (&m_slots[index].key) KeyType(key);
+    new (&m_slots[index].value) ValueType(value);
     m_size++;
     m_growth_left--;
 }
@@ -508,8 +508,8 @@ void Opal::HashMap<KeyType, ValueType>::OccupySlot(key_type&& key, value_type&& 
 {
     const u64 hash = CalculateHash(key);
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
-    m_slots[index].key = Move(key);
-    m_slots[index].value = Move(value);
+    new (&m_slots[index].key) KeyType(Move(key));
+    new (&m_slots[index].value) ValueType(Move(value));
     m_size++;
     m_growth_left--;
 }
