@@ -585,7 +585,7 @@ void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, value_type&& valu
         FindIndex(key, index);
     }
 
-    OccupySlot(key, value, index);
+    OccupySlot(Move(key), Move(value), index);
 }
 
 template <typename KeyType, typename ValueType>
