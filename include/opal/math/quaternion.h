@@ -78,6 +78,9 @@ public:
 
     Quaternion operator*(T scalar) const;
     Quaternion operator/(T scalar) const;
+
+    Matrix3x3<T> ToMatrix3x3() const;
+    Matrix4x4<T> ToMatrix4x4() const;
 };
 
 template <Opal::FloatingPoint T>
@@ -538,6 +541,62 @@ Opal::Quaternion<T> Opal::Inverse(const Quaternion<T>& q)
     const T length_squared = LengthSquared(q);
     assert(length_squared != 0);
     return Conjugate(q) / length_squared;
+}
+
+template <Opal::FloatingPoint T>
+Opal::Matrix3x3<T> Opal::Quaternion<T>::ToMatrix3x3() const
+{
+    Matrix3x3<T> mat(1);
+
+    const T xx = vec.x * vec.x;
+    const T yy = vec.y * vec.y;
+    const T zz = vec.z * vec.z;
+    const T xy = vec.x * vec.y;
+    const T xz = vec.x * vec.z;
+    const T yz = vec.y * vec.z;
+    const T wx = w * vec.x;
+    const T wy = w * vec.y;
+    const T wz = w * vec.z;
+
+    mat(0, 0) = 1.0f - 2.0f * (yy + zz);
+    mat(0, 1) = 2.0f * (xy - wz);
+    mat(0, 2) = 2.0f * (xz + wy);
+    mat(1, 0) = 2.0f * (xy + wz);
+    mat(1, 1) = 1.0f - 2.0f * (xx + zz);
+    mat(1, 2) = 2.0f * (yz - wx);
+    mat(2, 0) = 2.0f * (xz - wy);
+    mat(2, 1) = 2.0f * (yz + wx);
+    mat(2, 2) = 1.0f - 2.0f * (xx + yy);
+
+    return mat;
+}
+
+template <Opal::FloatingPoint T>
+Opal::Matrix4x4<T> Opal::Quaternion<T>::ToMatrix4x4() const
+{
+    Matrix4x4<T> mat(1);
+
+    const T xx = vec.x * vec.x;
+    const T yy = vec.y * vec.y;
+    const T zz = vec.z * vec.z;
+    const T xy = vec.x * vec.y;
+    const T xz = vec.x * vec.z;
+    const T yz = vec.y * vec.z;
+    const T wx = w * vec.x;
+    const T wy = w * vec.y;
+    const T wz = w * vec.z;
+
+    mat(0, 0) = 1.0f - 2.0f * (yy + zz);
+    mat(0, 1) = 2.0f * (xy - wz);
+    mat(0, 2) = 2.0f * (xz + wy);
+    mat(1, 0) = 2.0f * (xy + wz);
+    mat(1, 1) = 1.0f - 2.0f * (xx + zz);
+    mat(1, 2) = 2.0f * (yz - wx);
+    mat(2, 0) = 2.0f * (xz - wy);
+    mat(2, 1) = 2.0f * (yz + wx);
+    mat(2, 2) = 1.0f - 2.0f * (xx + yy);
+
+    return mat;
 }
 
 template <Opal::FloatingPoint T>

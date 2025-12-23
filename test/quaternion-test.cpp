@@ -1,3 +1,4 @@
+#include "opal/math/transform.h"
 #include "test-helpers.h"
 
 using namespace Opal;
@@ -638,4 +639,12 @@ TEST_CASE("Quaternion rotate a point", "[math][quaternion]")
         CHECK(IsEqual(p2.y, 0.7071068f, k_machine_epsilon_float));
         CHECK(IsEqual(p2.z, 0.0f, k_machine_epsilon_float));
     }
+}
+
+TEST_CASE("Quaternion to matrix", "[math][quaternion]")
+{
+    const Quatf q = Quatf::FromAxisAngleDegrees(Vector3f(0, 0, 1), 45);
+    const Matrix4x4f mat = RotateZ(45.0f);
+    const Matrix4x4f mat2 = q.ToMatrix4x4();
+    CHECK(IsEqual(mat, mat2, 0.0001f));
 }
