@@ -4,6 +4,7 @@
 
 #include "opal/assert.h"
 #include "opal/common.h"
+#include "opal/exceptions.h"
 #include "opal/math-base.h"
 #include "opal/math/normal3.h"
 #include "opal/math/point3.h"
@@ -98,6 +99,9 @@ struct Matrix
     Vector3<T> operator*(const Vector3<T>& v) const;
     Vector4<T> operator*(const Vector4<T>& v) const;
     Normal3<T> operator*(const Normal3<T>& n) const;
+
+    Matrix<T, 3, 3> ToMatrix3x3() const;
+    Matrix<T, 4, 4> ToMatrix4x4() const;
 };
 
 template <typename MatrixType, IntegralOrFloatingPoint U>
@@ -403,6 +407,52 @@ Opal::Normal3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Norm
     const T y = elements[0][1] * n.x + elements[1][1] * n.y + elements[2][1] * n.z;
     const T z = elements[0][2] * n.x + elements[1][2] * n.y + elements[2][2] * n.z;
     return Normal3<T>(x, y, z);
+}
+
+template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+Opal::Matrix<T> Opal::Matrix<T, k_row_count, k_col_count>::ToMatrix4x4() const
+{
+    if constexpr (k_row_count == 3 && k_col_count == 3)
+    {
+        Matrix4x4<T> mat(1);
+        mat(0, 0) = elements[0][0];
+        mat(0, 1) = elements[0][1];
+        mat(0, 2) = elements[0][2];
+        mat(1, 0) = elements[1][0];
+        mat(1, 1) = elements[1][1];
+        mat(1, 2) = elements[1][2];
+        mat(2, 0) = elements[2][0];
+        mat(2, 1) = elements[2][1];
+        mat(2, 2) = elements[2][2];
+        return mat;
+    }
+    else
+    {
+        throw NotImplementedException("Conversion not supported");
+    }
+}
+
+template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+Opal::Matrix<T, 3, 3> Opal::Matrix<T, k_row_count, k_col_count>::ToMatrix3x3() const
+{
+    if constexpr (k_row_count == 4 && k_col_count == 4)
+    {
+        Matrix3x3<T> mat(1);
+        mat(0, 0) = elements[0][0];
+        mat(0, 1) = elements[0][1];
+        mat(0, 2) = elements[0][2];
+        mat(1, 0) = elements[1][0];
+        mat(1, 1) = elements[1][1];
+        mat(1, 2) = elements[1][2];
+        mat(2, 0) = elements[2][0];
+        mat(2, 1) = elements[2][1];
+        mat(2, 2) = elements[2][2];
+        return mat;
+    }
+    else
+    {
+        throw NotImplementedException("Conversion not supported");
+    }
 }
 
 template <typename MatrixType, Opal::IntegralOrFloatingPoint U>

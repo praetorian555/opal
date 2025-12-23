@@ -928,3 +928,23 @@ TEST_CASE("Matrix 4x4 inverse operator", "[math][matrix]")
         CHECK(m2.elements[3][3] == 1.0);
     }
 }
+
+TEST_CASE("To Matrix3x3 and Matrix4x4", "[math][matrix]")
+{
+    SECTION("To Matrix3x3")
+    {
+        Matrix3x3 m1(5.0f);
+        Matrix4x4 m2(5.0f);
+        Matrix3x3 m3 = m2.ToMatrix3x3();
+        CHECK(m1 == m3);
+    }
+    SECTION("To Matrix4x4")
+    {
+        Matrix4x4f m1(5.0f);
+        Matrix3x3<f32> m2(5.0f);
+        m1(3, 3) = 1.0f;
+        Matrix4x4f m3 = m2.ToMatrix4x4();
+        CHECK(m1 == m3);
+    }
+}
+
