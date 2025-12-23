@@ -20,9 +20,15 @@ class ScopePtr
 public:
     ScopePtr() = default;
 
+    template <typename U>
+        requires Convertible<U*, T*>
+    ScopePtr(AllocatorBase* allocator, U* object)
+        : m_ptr(static_cast<U*>(object)), m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
+    {
+    }
+
     template <typename... Args>
-    explicit ScopePtr(AllocatorBase* allocator, Args&&... args)
-        : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
+    explicit ScopePtr(AllocatorBase* allocator, Args&&... args) : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
     {
         m_ptr = New<T>(m_allocator, std::forward<Args>(args)...);
     }
@@ -30,7 +36,7 @@ public:
     ScopePtr(const ScopePtr& other) = delete;
     ScopePtr& operator=(const ScopePtr& other) = delete;
 
-    ScopePtr(ScopePtr&& other)  noexcept : m_ptr(other.m_ptr), m_allocator(other.m_allocator)
+    ScopePtr(ScopePtr&& other) noexcept : m_ptr(other.m_ptr), m_allocator(other.m_allocator)
     {
         other.m_ptr = nullptr;
         other.m_allocator = nullptr;
@@ -38,7 +44,7 @@ public:
 
     template <typename U>
         requires Convertible<U*, T*>
-    ScopePtr(ScopePtr<U>&& other)  noexcept
+    ScopePtr(ScopePtr<U>&& other) noexcept
     {
         m_ptr = static_cast<T*>(other.m_ptr);
         m_allocator = other.GetAllocator();

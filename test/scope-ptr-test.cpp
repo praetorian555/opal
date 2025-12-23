@@ -11,6 +11,13 @@ TEST_CASE("ScopePtr creation", "[ScopePtr]")
         ScopePtr<int> ptr;
         REQUIRE(ptr.Get() == nullptr);
     }
+    SECTION("Construct with object")
+    {
+        int* int_ptr = New<int>(GetDefaultAllocator(), 5);
+        ScopePtr<int> ptr(GetDefaultAllocator(), int_ptr);
+        REQUIRE(ptr.Get() != nullptr);
+        REQUIRE(*ptr.Get() == 5);
+    }
     SECTION("Construction with value")
     {
         ScopePtr<int> ptr(GetDefaultAllocator(), 42);
