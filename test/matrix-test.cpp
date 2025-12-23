@@ -696,6 +696,13 @@ TEST_CASE("Matrix 4x4 multiplication by scalar", "[math][matrix]")
     }
 }
 
+TEST_CASE("Matrix 3x3 multiplicaton by scalar")
+{
+    Matrix3x3 m(1.0f);
+    m *= 2.0f;
+    Matrix3x3 m2 = Matrix3x3<float>::Zero();
+}
+
 TEST_CASE("Matrix 4x4 division by scalar", "[math][matrix]")
 {
     SECTION("float")

@@ -175,7 +175,7 @@ constexpr Opal::Matrix<T, k_row_count, k_col_count>::Matrix(const T (&mat_elemen
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::Zero()
 {
-    return Matrix<T>(static_cast<T>(0));
+    return Matrix(static_cast<T>(0));
 }
 
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
@@ -209,7 +209,7 @@ const T& Opal::Matrix<T, k_row_count, k_col_count>::operator()(u32 row, u32 colu
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Matrix& other) const
 {
-    Matrix<T> result;
+    Matrix result;
     for (u32 i = 0; i < k_row_count; ++i)
     {
         for (u32 j = 0; j < k_col_count; ++j)
@@ -234,7 +234,7 @@ Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_co
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator+(const Matrix& other) const
 {
-    Matrix<T> result;
+    Matrix result;
     for (u32 i = 0; i < k_row_count; ++i)
     {
         for (u32 j = 0; j < k_col_count; ++j)
@@ -255,7 +255,7 @@ Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_co
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator-(const Matrix& other) const
 {
-    Matrix<T> result;
+    Matrix result;
     for (u32 i = 0; i < k_row_count; ++i)
     {
         for (u32 j = 0; j < k_col_count; ++j)
@@ -277,7 +277,7 @@ template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 template <typename U>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator*(U scalar) const
 {
-    Matrix<T> result;
+    Matrix result;
     for (u32 i = 0; i < k_row_count; ++i)
     {
         for (u32 j = 0; j < k_col_count; ++j)
@@ -300,7 +300,7 @@ template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 template <typename U>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator/(U scalar) const
 {
-    Matrix<T> result;
+    Matrix result;
     for (u32 i = 0; i < k_row_count; ++i)
     {
         for (u32 j = 0; j < k_col_count; ++j)
