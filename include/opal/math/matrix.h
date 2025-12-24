@@ -326,8 +326,8 @@ Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_co
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Point3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Point3<T>& p) const
 {
-    OPAL_ASSERT(k_col_count == 4, "Matrix must be 3x4 or 4x4.");
-    OPAL_ASSERT(k_row_count == 3 || k_row_count == 4, "Matrix must be 3x4 or 4x4.");
+    static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
+    static_assert(k_col_count == 3 || k_col_count == 4, "Matrix must have at least 3 columns!");
     const T x = elements[0][0] * p.x + elements[0][1] * p.y + elements[0][2] * p.z + elements[0][3];
     const T y = elements[1][0] * p.x + elements[1][1] * p.y + elements[1][2] * p.z + elements[1][3];
     const T z = elements[2][0] * p.x + elements[2][1] * p.y + elements[2][2] * p.z + elements[2][3];
@@ -346,8 +346,8 @@ Opal::Point3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Point
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Point4<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Point4<T>& p) const
 {
-    OPAL_ASSERT(k_col_count == 4, "Matrix must be 3x4 or 4x4.");
-    OPAL_ASSERT(k_row_count == 3 || k_row_count == 4, "Matrix must be 3x4 or 4x4.");
+    static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
+    static_assert(k_col_count == 4, "Matrix must have 4 columns!");
     const T x = elements[0][0] * p.x + elements[0][1] * p.y + elements[0][2] * p.z + elements[0][3] * p.w;
     const T y = elements[1][0] * p.x + elements[1][1] * p.y + elements[1][2] * p.z + elements[1][3] * p.w;
     const T z = elements[2][0] * p.x + elements[2][1] * p.y + elements[2][2] * p.z + elements[2][3] * p.w;
@@ -365,14 +365,8 @@ Opal::Point4<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Point
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Vector3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Vector3<T>& v) const
 {
-    OPAL_ASSERT(k_col_count == 4, "Matrix must be 3x4 or 4x4.");
-    OPAL_ASSERT(k_row_count == 3 || k_row_count == 4, "Matrix must be 3x4 or 4x4.");
-    if constexpr (k_row_count == 4)
-    {
-        OPAL_ASSERT(elements[3][0] == 0 && elements[3][1] == 0 && elements[3][2] == 0 && elements[3][3] == 1,
-                    "Fourth row of matrix must be [0, 0, 0, 1].");
-    }
-
+    static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
+    static_assert(k_col_count == 3 || k_col_count == 4, "Matrix must have at least 3 columns!");
     const T x = elements[0][0] * v.x + elements[0][1] * v.y + elements[0][2] * v.z;
     const T y = elements[1][0] * v.x + elements[1][1] * v.y + elements[1][2] * v.z;
     const T z = elements[2][0] * v.x + elements[2][1] * v.y + elements[2][2] * v.z;
@@ -382,8 +376,8 @@ Opal::Vector3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Vect
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Vector4<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Vector4<T>& v) const
 {
-    OPAL_ASSERT(k_col_count == 4, "Matrix must be 3x4 or 4x4.");
-    OPAL_ASSERT(k_row_count == 3 || k_row_count == 4, "Matrix must be 3x4 or 4x4.");
+    static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
+    static_assert(k_col_count == 4, "Matrix must have 4 columns!");
     const T x = elements[0][0] * v.x + elements[0][1] * v.y + elements[0][2] * v.z + elements[0][3] * v.w;
     const T y = elements[1][0] * v.x + elements[1][1] * v.y + elements[1][2] * v.z + elements[1][3] * v.w;
     const T z = elements[2][0] * v.x + elements[2][1] * v.y + elements[2][2] * v.z + elements[2][3] * v.w;
@@ -401,8 +395,8 @@ Opal::Vector4<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Vect
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Normal3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Normal3<T>& n) const
 {
-    OPAL_ASSERT(k_col_count == 4, "Matrix must be 3x4 or 4x4.");
-    OPAL_ASSERT(k_row_count == 3 || k_row_count == 4, "Matrix must be 3x4 or 4x4.");
+    static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
+    static_assert(k_col_count == 3 || k_col_count == 4, "Matrix must have at least 3 columns!");
     const T x = elements[0][0] * n.x + elements[1][0] * n.y + elements[2][0] * n.z;
     const T y = elements[0][1] * n.x + elements[1][1] * n.y + elements[2][1] * n.z;
     const T z = elements[0][2] * n.x + elements[1][2] * n.y + elements[2][2] * n.z;
@@ -412,47 +406,35 @@ Opal::Normal3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Norm
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T> Opal::Matrix<T, k_row_count, k_col_count>::ToMatrix4x4() const
 {
-    if constexpr (k_row_count == 3 && k_col_count == 3)
-    {
-        Matrix4x4<T> mat(1);
-        mat(0, 0) = elements[0][0];
-        mat(0, 1) = elements[0][1];
-        mat(0, 2) = elements[0][2];
-        mat(1, 0) = elements[1][0];
-        mat(1, 1) = elements[1][1];
-        mat(1, 2) = elements[1][2];
-        mat(2, 0) = elements[2][0];
-        mat(2, 1) = elements[2][1];
-        mat(2, 2) = elements[2][2];
-        return mat;
-    }
-    else
-    {
-        throw NotImplementedException("Conversion not supported");
-    }
+    static_assert(k_row_count == 3 && k_col_count == 3);
+    Matrix4x4<T> mat(1);
+    mat(0, 0) = elements[0][0];
+    mat(0, 1) = elements[0][1];
+    mat(0, 2) = elements[0][2];
+    mat(1, 0) = elements[1][0];
+    mat(1, 1) = elements[1][1];
+    mat(1, 2) = elements[1][2];
+    mat(2, 0) = elements[2][0];
+    mat(2, 1) = elements[2][1];
+    mat(2, 2) = elements[2][2];
+    return mat;
 }
 
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, 3, 3> Opal::Matrix<T, k_row_count, k_col_count>::ToMatrix3x3() const
 {
-    if constexpr (k_row_count == 4 && k_col_count == 4)
-    {
-        Matrix3x3<T> mat(1);
-        mat(0, 0) = elements[0][0];
-        mat(0, 1) = elements[0][1];
-        mat(0, 2) = elements[0][2];
-        mat(1, 0) = elements[1][0];
-        mat(1, 1) = elements[1][1];
-        mat(1, 2) = elements[1][2];
-        mat(2, 0) = elements[2][0];
-        mat(2, 1) = elements[2][1];
-        mat(2, 2) = elements[2][2];
-        return mat;
-    }
-    else
-    {
-        throw NotImplementedException("Conversion not supported");
-    }
+    static_assert(k_row_count == 4 && k_col_count == 4);
+    Matrix3x3<T> mat(1);
+    mat(0, 0) = elements[0][0];
+    mat(0, 1) = elements[0][1];
+    mat(0, 2) = elements[0][2];
+    mat(1, 0) = elements[1][0];
+    mat(1, 1) = elements[1][1];
+    mat(1, 2) = elements[1][2];
+    mat(2, 0) = elements[2][0];
+    mat(2, 1) = elements[2][1];
+    mat(2, 2) = elements[2][2];
+    return mat;
 }
 
 template <typename MatrixType, Opal::IntegralOrFloatingPoint U>
@@ -526,7 +508,7 @@ MatrixType Opal::Inverse(const MatrixType& m)
                 }
                 else if (ipiv[column] > 1)
                 {
-                    OPAL_ASSERT(false, "Singular matrix");
+                    throw Exception("Singular matrix");
                 }
             }
         }
@@ -543,7 +525,7 @@ MatrixType Opal::Inverse(const MatrixType& m)
         indxc[it] = index_column;
         if (mat_inv[index_column][index_column] == 0)
         {
-            OPAL_ASSERT(false, "Singular matrix");
+            throw Exception("Singular matrix");
         }
 
         // Set m[icol][icol] to one by scaling row _icol_ appropriately
