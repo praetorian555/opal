@@ -523,7 +523,10 @@ template <typename T>
 Opal::Vector3<T> Opal::Normalize(const Vector3<T>& vec)
 {
     double length = Length(vec);
-    assert(length > 0);
+    if (length == 0.0)
+    {
+        return vec;
+    }
     return vec / length;
 }
 

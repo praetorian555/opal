@@ -487,7 +487,10 @@ template <typename T>
 Opal::Vector4<T> Opal::Normalize(const Vector4<T>& vec)
 {
     double length = Length(vec);
-    OPAL_ASSERT(length > 0, "Can't normalize a zero vector.");
+    if (length == 0)
+    {
+        return vec;
+    }
     return vec / length;
 }
 
