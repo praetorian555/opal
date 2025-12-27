@@ -173,6 +173,8 @@ public:
 
     void Insert(const key_type& key, const value_type& value);
     void Insert(key_type&& key, value_type&& value);
+    void Insert(const key_type& key, value_type&& value);
+    void Insert(key_type&& key, const value_type& value);
 
     void Erase(const key_type& key);
     void Erase(iterator it);
@@ -225,6 +227,8 @@ private:
     bool FindIndex(const key_type& key, u64& out_index) const;
     void OccupySlot(const key_type& key, const value_type& value, u64 index);
     void OccupySlot(key_type&& key, value_type&& value, u64 index);
+    void OccupySlot(const key_type& key, value_type&& value, u64 index);
+    void OccupySlot(key_type&& key, const value_type& value, u64 index);
     void DeleteSlot(u64 index);
 
     AllocatorBase* m_allocator = nullptr;
@@ -413,7 +417,7 @@ void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
                     u64 slot_index = offset + not_full_mask.GetLowestSetBitIndex();
                     slot_index &= new_capacity;
                     SetControlByte(slot_index, GetHash2(hash), new_control_bytes, new_capacity);
-                    new_slots[slot_index] = Move(pair);
+                    new_slots[slot_index] = std::move(pair);
                     new_size++;
                     break;
                 }
@@ -458,7 +462,7 @@ bool Opal::HashMap<KeyType, ValueType>::FindIndex(const key_type& key, u64& out_
             out_index = (offset + empty_group.GetLowestSetBitIndex()) & m_capacity;
             break;
         }
-        // Move to the next group
+        // std::move to the next group
         offset = (offset + k_group_width) & m_capacity;
     }
     return false;
@@ -508,8 +512,30 @@ void Opal::HashMap<KeyType, ValueType>::OccupySlot(key_type&& key, value_type&& 
 {
     const u64 hash = CalculateHash(key);
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
-    new (&m_slots[index].key) KeyType(Move(key));
-    new (&m_slots[index].value) ValueType(Move(value));
+    new (&m_slots[index].key) KeyType(std::move(key));
+    new (&m_slots[index].value) ValueType(std::move(value));
+    m_size++;
+    m_growth_left--;
+}
+
+template <typename KeyType, typename ValueType>
+void Opal::HashMap<KeyType, ValueType>::OccupySlot(const key_type& key, value_type&& value, u64 index)
+{
+    const u64 hash = CalculateHash(key);
+    SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
+    new (&m_slots[index].key) KeyType(key);
+    new (&m_slots[index].value) ValueType(std::move(value));
+    m_size++;
+    m_growth_left--;
+}
+
+template <typename KeyType, typename ValueType>
+void Opal::HashMap<KeyType, ValueType>::OccupySlot(key_type&& key, const value_type& value, u64 index)
+{
+    const u64 hash = CalculateHash(key);
+    SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
+    new (&m_slots[index].key) KeyType(std::move(key));
+    new (&m_slots[index].value) ValueType(value);
     m_size++;
     m_growth_left--;
 }
@@ -573,8 +599,8 @@ void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, value_type&& valu
     u64 index = 0;
     if (FindIndex(key, index))
     {
-        m_slots[index].key = Move(key);
-        m_slots[index].value = Move(value);
+        m_slots[index].key = std::move(key);
+        m_slots[index].value = std::move(value);
         return;
     }
 
@@ -585,7 +611,49 @@ void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, value_type&& valu
         FindIndex(key, index);
     }
 
-    OccupySlot(Move(key), Move(value), index);
+    OccupySlot(std::move(key), std::move(value), index);
+}
+
+template <typename KeyType, typename ValueType>
+void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, value_type&& value)
+{
+    u64 index = 0;
+    if (FindIndex(key, index))
+    {
+        m_slots[index].key = key;
+        m_slots[index].value = std::move(value);
+        return;
+    }
+
+    if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
+    {
+        Reserve(m_capacity + 1);
+        // We have to get the index again since we rehashed the table
+        FindIndex(key, index);
+    }
+
+    OccupySlot(key, std::move(value), index);
+}
+
+template <typename KeyType, typename ValueType>
+void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, const value_type& value)
+{
+    u64 index = 0;
+    if (FindIndex(key, index))
+    {
+        m_slots[index].key = std::move(key);
+        m_slots[index].value = value;
+        return;
+    }
+
+    if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
+    {
+        Reserve(m_capacity + 1);
+        // We have to get the index again since we rehashed the table
+        FindIndex(key, index);
+    }
+
+    OccupySlot(std::move(key), value, index);
 }
 
 template <typename KeyType, typename ValueType>
