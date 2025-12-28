@@ -2524,3 +2524,28 @@ TEST_CASE("Remove", "[Array]")
         }
     }
 }
+
+TEST_CASE("Append multiple elements", "[Array]")
+{
+    SECTION("Append with copy from std container")
+    {
+        std::array arr = {3, 5, 6};
+        DynamicArray<i32> int_arr;
+        int_arr.Append(arr);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr[0] == 3);
+        REQUIRE(int_arr[1] == 5);
+        REQUIRE(int_arr[2] == 6);
+        REQUIRE(!arr.empty());
+    }
+    SECTION("Append with move from std container")
+    {
+        std::array arr = {3, 5, 6};
+        DynamicArray<i32> int_arr;
+        int_arr.Append(std::move(arr));
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr[0] == 3);
+        REQUIRE(int_arr[1] == 5);
+        REQUIRE(int_arr[2] == 6);
+    }
+}

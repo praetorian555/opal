@@ -1,13 +1,14 @@
 #pragma once
 
+#include <cstring>
 #include <initializer_list>
 #include <new>
-#include <cstring>
 
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/casts.h"
 #include "opal/container/expected.h"
+#include "opal/container/iterator.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
 
@@ -286,6 +287,14 @@ public:
      */
     void PushBack(const T& value);
     void PushBack(T&& value);
+
+    template <typename ContainerClass>
+        requires Range<ContainerClass>
+    void Append(const ContainerClass& container);
+
+    template <typename ContainerClass>
+        requires Range<ContainerClass>
+    void Append(ContainerClass&& container);
 
     /**
      * Remove the last element from the array.
@@ -963,6 +972,28 @@ void CLASS_HEADER::PushBack(T&& value)
     }
     new (&m_data[m_size]) T(Move(value));  // Invokes move constructor on allocated memory
     m_size++;
+}
+
+TEMPLATE_HEADER
+template <typename ContainerClass>
+    requires Opal::Range<ContainerClass>
+void CLASS_HEADER::Append(const ContainerClass& container)
+{
+    for (const auto& element : container)
+    {
+        PushBack(element);
+    }
+}
+
+TEMPLATE_HEADER
+template <typename ContainerClass>
+    requires Opal::Range<ContainerClass>
+void CLASS_HEADER::Append(ContainerClass&& container)
+{
+    for (auto& element : container)
+    {
+        PushBack(std::move(element));
+    }
 }
 
 TEMPLATE_HEADER
