@@ -196,6 +196,9 @@ public:
     [[nodiscard]] pointer GetData() { return m_data; }
     [[nodiscard]] const_pointer GetData() const { return m_data; }
 
+    [[nodiscard]] bool IsEmpty() const { return N == 0; }
+    [[nodiscard]] bool empty() const { return N == 0; }
+
     /**
      * Check if two arrays are equal. Two arrays are equal if all their elements are equal and they have the same amount of elements.
      * @param other The other array.
