@@ -405,7 +405,7 @@ Opal::Vector2<T> Opal::Vector2<T>::operator/(U scalar) const
     }
     else
     {
-        T sc = static_cast<T>(1 / scalar);
+        T sc = static_cast<T>(1) / static_cast<T>(scalar);
         return {x * sc, y * sc};
     }
 }
@@ -423,7 +423,7 @@ Opal::Vector2<T>& Opal::Vector2<T>::operator/=(U scalar)
     }
     else
     {
-        T sc = static_cast<T>(1 / scalar);
+        T sc = static_cast<T>(1) / static_cast<T>(scalar);
         x *= sc;
         y *= sc;
         return *this;
