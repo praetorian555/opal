@@ -846,7 +846,7 @@ TEST_CASE("Matrix 4x4 transpose operator", "[math][matrix]")
     SECTION("double")
     {
         f64 data[16] = {1.0, 4.0, -4.0, 5.0, 3.0, -2.0, 1.0, 10.0, 7.0, 10.0, -5.0, -3.0, -6.0, -2.0, -1.0, 9.0};
-         const Matrix4x4d m1(data);
+        const Matrix4x4d m1(data);
 
         const Matrix4x4d m2 = Transpose(m1);
         CHECK(m2(0, 0) == 1.0);
@@ -941,3 +941,12 @@ TEST_CASE("To Matrix3x3 and Matrix4x4", "[math][matrix]")
     }
 }
 
+TEST_CASE("Calculate cofactor", "[math][matrix]")
+{
+    const Matrix4x4 m = Matrix4x4f::FromRows({1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 21, 27});
+    const f32 cofactor_12 = Opal::Cofactor(m, 1, 2);
+    REQUIRE(cofactor_12 == 88);
+    const f32 cofactor_33 = Opal::Cofactor(m, 2, 2);
+    REQUIRE(cofactor_33 == -44);
+
+}

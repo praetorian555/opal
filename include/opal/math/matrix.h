@@ -71,6 +71,9 @@ struct Matrix
      */
     static Matrix Zero();
 
+    static Matrix<T, 4, 4> FromRows(const Vector4<T>& row0, const Vector4<T>& row1, const Vector4<T>& row2, const Vector4<T>& row3);
+    static Matrix<T, 4, 4> FromColumns(const Vector4<T>& column0, const Vector4<T>& column1, const Vector4<T>& column2, const Vector4<T>& column3);
+
     /** Operators **/
     T& operator()(u32 row, u32 column);
     const T& operator()(u32 row, u32 column) const;
@@ -133,6 +136,9 @@ template <typename MatrixType>
 template <typename MatrixType>
 [[nodiscard]] MatrixType Inverse(const MatrixType& m);
 
+template <typename MatrixType>
+[[nodiscard]] MatrixType::value_type Cofactor(const MatrixType& m, i32 i, i32 j);
+
 template <typename T>
 using Matrix4x4 = Matrix<T, 4, 4>;
 
@@ -180,6 +186,46 @@ template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::Zero()
 {
     return Matrix(static_cast<T>(0));
+}
+
+template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+Opal::Matrix<T, 4, 4> Opal::Matrix<T, k_row_count, k_col_count>::FromRows(const Vector4<T>& row0,
+                                                                                              const Vector4<T>& row1,
+                                                                                              const Vector4<T>& row2,
+                                                                                              const Vector4<T>& row3)
+{
+    Matrix<T, 4, 4> mat;
+    memcpy(&mat.elements[0][0], &row0.x, sizeof(Vector4<T>));
+    memcpy(&mat.elements[1][0], &row1.x, sizeof(Vector4<T>));
+    memcpy(&mat.elements[2][0], &row2.x, sizeof(Vector4<T>));
+    memcpy(&mat.elements[3][0], &row3.x, sizeof(Vector4<T>));
+    return mat;
+}
+
+template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+Opal::Matrix<T, 4, 4> Opal::Matrix<T, k_row_count, k_col_count>::FromColumns(const Vector4<T>& column0,
+                                                                                                 const Vector4<T>& column1,
+                                                                                                 const Vector4<T>& column2,
+                                                                                                 const Vector4<T>& column3)
+{
+    Matrix<T, 4, 4> mat;
+    mat.elements[0][0] = column0.x;
+    mat.elements[1][0] = column0.y;
+    mat.elements[2][0] = column0.z;
+    mat.elements[3][0] = column0.w;
+    mat.elements[0][1] = column1.x;
+    mat.elements[1][1] = column1.y;
+    mat.elements[2][1] = column1.z;
+    mat.elements[3][1] = column1.w;
+    mat.elements[0][2] = column2.x;
+    mat.elements[1][2] = column2.y;
+    mat.elements[2][2] = column2.z;
+    mat.elements[3][2] = column2.w;
+    mat.elements[3][3] = column3.x;
+    mat.elements[3][3] = column3.y;
+    mat.elements[3][3] = column3.z;
+    mat.elements[3][3] = column3.w;
+    return mat;
 }
 
 template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
@@ -564,4 +610,41 @@ MatrixType Opal::Inverse(const MatrixType& m)
     }
 
     return Matrix(mat_inv);
+}
+
+template <typename MatrixType>
+MatrixType::value_type Opal::Cofactor(const MatrixType& m, i32 i, i32 j)
+{
+    if constexpr (MatrixType::k_row_count_value == 4 && MatrixType::k_col_count_value == 4)
+    {
+        typename MatrixType::value_type sign = static_cast<MatrixType::value_type>((i + j) & 1 ? -1 : 1);
+        i32 row_idx[3];
+        i32 col_idx[3];
+        i32 next_row_slot = 0;
+        i32 next_col_slot = 0;
+        for (i32 k = 0; k < 4; k++)
+        {
+            if (k != i)
+            {
+                row_idx[next_row_slot++] = k;
+            }
+            if (k != j)
+            {
+                col_idx[next_col_slot++] = k;
+            }
+        }
+        typename MatrixType::value_type sum = 0;
+        sum += m(row_idx[0], col_idx[0]) *
+               (m(row_idx[1], col_idx[1]) * m(row_idx[2], col_idx[2]) - m(row_idx[1], col_idx[2]) * m(row_idx[2], col_idx[1]));
+        sum -= m(row_idx[0], col_idx[1]) *
+               (m(row_idx[1], col_idx[0]) * m(row_idx[2], col_idx[2]) - m(row_idx[1], col_idx[2]) * m(row_idx[2], col_idx[0]));
+        sum += m(row_idx[0], col_idx[2]) *
+               (m(row_idx[1], col_idx[0]) * m(row_idx[2], col_idx[1]) - m(row_idx[1], col_idx[1]) * m(row_idx[2], col_idx[0]));
+        sum *= sign;
+        return sum;
+    }
+    else
+    {
+        throw NotImplementedException("Cofactor not supported for matrix of this size");
+    }
 }
