@@ -50,6 +50,11 @@ public:
     [[nodiscard]] T& Get() const { return *m_ptr; }
     [[nodiscard]] T* GetPtr() const { return m_ptr; }
 
+    bool operator==(const Ref& other) const
+    {
+        return m_ptr == other.m_ptr;
+    }
+
     explicit operator bool() const { return IsValid(); }
     T& operator*() const { return Get(); }
     T* operator->() const { return GetPtr(); }
