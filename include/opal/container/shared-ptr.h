@@ -133,6 +133,10 @@ public:
     }
 
     T* Get() { return m_object; }
+    const T* Get() const { return m_object; }
+
+    Ref<T> GetRef() { return Ref<T>(m_object); }
+    Ref<const T> GetRef() const { return Ref<const T>(m_object); }
 
 private:
     template <typename U>
