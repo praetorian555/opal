@@ -94,6 +94,7 @@ public:
     }
 
     T* operator->() { return m_object; }
+    const T* operator->() const { return m_object; }
 
     SharedPtr Clone() const
     {
