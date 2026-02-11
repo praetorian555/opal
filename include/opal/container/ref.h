@@ -32,8 +32,8 @@ public:
         return *this;
     }
 
-    explicit Ref(T* ptr) : m_ptr(ptr) {}
-    explicit Ref(T& ref) : m_ptr(&ref) {}
+    Ref(T* ptr) : m_ptr(ptr) {}
+    Ref(T& ref) : m_ptr(&ref) {}
 
     Ref& operator=(T* ptr)
     {
