@@ -8,6 +8,8 @@ using namespace Opal;
 
 using Matrix4x4f = Matrix<f32, 4, 4>;
 using Matrix4x4d = Matrix<f64, 4, 4>;
+using Matrix3x3f = Matrix<f32, 3, 3>;
+using Matrix3x3d = Matrix<f64, 3, 3>;
 
 TEST_CASE("Matrix 4x4 constructor", "[math][matrix]")
 {
@@ -926,15 +928,15 @@ TEST_CASE("To Matrix3x3 and Matrix4x4", "[math][matrix]")
 {
     SECTION("To Matrix3x3")
     {
-        Matrix3x3 m1(5.0f);
-        Matrix4x4 m2(5.0f);
-        Matrix3x3 m3 = m2.ToMatrix3x3();
+        Matrix3x3f m1(5.0f);
+        Matrix4x4f m2(5.0f);
+        Matrix3x3f m3 = m2.ToMatrix3x3();
         CHECK(m1 == m3);
     }
     SECTION("To Matrix4x4")
     {
         Matrix4x4f m1(5.0f);
-        Matrix3x3<f32> m2(5.0f);
+        Matrix3x3f m2(5.0f);
         m1(3, 3) = 1.0f;
         Matrix4x4f m3 = m2.ToMatrix4x4();
         CHECK(m1 == m3);
@@ -943,10 +945,10 @@ TEST_CASE("To Matrix3x3 and Matrix4x4", "[math][matrix]")
 
 TEST_CASE("Calculate cofactor", "[math][matrix]")
 {
-    const Matrix4x4 m = Matrix4x4f::FromRows({1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 21, 27});
+    const Matrix4x4f m = Matrix4x4f::FromRows({1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 21, 27});
     const f32 cofactor_12 = Opal::Cofactor(m, 1, 2);
-    REQUIRE(cofactor_12 == 88);
+    REQUIRE(cofactor_12 == 88.0f);
     const f32 cofactor_33 = Opal::Cofactor(m, 2, 2);
-    REQUIRE(cofactor_33 == -44);
+    REQUIRE(cofactor_33 == -44.0f);
 
 }

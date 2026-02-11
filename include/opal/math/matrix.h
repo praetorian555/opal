@@ -137,7 +137,7 @@ template <typename MatrixType>
 [[nodiscard]] MatrixType Inverse(const MatrixType& m);
 
 template <typename MatrixType>
-[[nodiscard]] MatrixType::value_type Cofactor(const MatrixType& m, i32 i, i32 j);
+[[nodiscard]] MatrixType::value_type Cofactor(const MatrixType& m, u32 i, u32 j);
 
 template <typename T>
 using Matrix4x4 = Matrix<T, 4, 4>;
@@ -613,16 +613,16 @@ MatrixType Opal::Inverse(const MatrixType& m)
 }
 
 template <typename MatrixType>
-MatrixType::value_type Opal::Cofactor(const MatrixType& m, i32 i, i32 j)
+MatrixType::value_type Opal::Cofactor(const MatrixType& m, u32 i, u32 j)
 {
     if constexpr (MatrixType::k_row_count_value == 4 && MatrixType::k_col_count_value == 4)
     {
         typename MatrixType::value_type sign = static_cast<MatrixType::value_type>((i + j) & 1 ? -1 : 1);
-        i32 row_idx[3];
-        i32 col_idx[3];
-        i32 next_row_slot = 0;
-        i32 next_col_slot = 0;
-        for (i32 k = 0; k < 4; k++)
+        u32 row_idx[3];
+        u32 col_idx[3];
+        u32 next_row_slot = 0;
+        u32 next_col_slot = 0;
+        for (u32 k = 0; k < 4; k++)
         {
             if (k != i)
             {
