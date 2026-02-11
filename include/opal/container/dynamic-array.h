@@ -3,6 +3,7 @@
 #include <cstring>
 #include <initializer_list>
 #include <new>
+#include <utility>
 
 #include "opal/allocator.h"
 #include "opal/assert.h"
@@ -287,6 +288,16 @@ public:
      */
     void PushBack(const T& value);
     void PushBack(T&& value);
+
+    /**
+     * Construct a new element in-place at the end of the array. If the array is full, it will be resized.
+     * @tparam Args Types of the arguments to forward to the constructor.
+     * @param args Arguments to forward to the constructor.
+     * @return Reference to the newly constructed element.
+     * @throw OutOfMemoryException when allocator runs out of memory.
+     */
+    template <typename... Args>
+    reference EmplaceBack(Args&&... args);
 
     template <typename ContainerClass>
         requires Range<ContainerClass>
@@ -972,6 +983,20 @@ void CLASS_HEADER::PushBack(T&& value)
     }
     new (&m_data[m_size]) T(Move(value));  // Invokes move constructor on allocated memory
     m_size++;
+}
+
+TEMPLATE_HEADER
+template <typename... Args>
+typename CLASS_HEADER::reference CLASS_HEADER::EmplaceBack(Args&&... args)
+{
+    if (m_size == m_capacity)
+    {
+        const size_type new_capacity = GetNextCapacity(m_capacity);
+        Reserve(new_capacity);
+    }
+    new (&m_data[m_size]) T(std::forward<Args>(args)...);
+    m_size++;
+    return m_data[m_size - 1];
 }
 
 TEMPLATE_HEADER

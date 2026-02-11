@@ -1435,6 +1435,68 @@ TEST_CASE("Push back", "[Array]")
     }
 }
 
+TEST_CASE("Emplace back", "[Array]")
+{
+    SECTION("POD data")
+    {
+        SECTION("With enough capacity")
+        {
+            DynamicArray<i32> int_arr(3, 42);
+            i32& ref = int_arr.EmplaceBack(25);
+            REQUIRE(int_arr.GetSize() == 4);
+            REQUIRE(int_arr[3] == 25);
+            REQUIRE(ref == 25);
+        }
+        SECTION("Without enough capacity")
+        {
+            DynamicArray<i32> int_arr(4, 42);
+            i32& ref = int_arr.EmplaceBack(25);
+            REQUIRE(int_arr.GetSize() == 5);
+            REQUIRE(int_arr[4] == 25);
+            REQUIRE(ref == 25);
+        }
+    }
+    SECTION("Non-POD data")
+    {
+        SECTION("With enough capacity")
+        {
+            g_value_call_count = 0;
+            g_copy_call_count = 0;
+            g_copy_assign_call_count = 0;
+            g_destroy_call_count = 0;
+            {
+                DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
+                g_value_call_count = 0;
+                g_copy_call_count = 0;
+                NonPod& ref = non_pod_arr.EmplaceBack(25);
+                REQUIRE(non_pod_arr.GetSize() == 4);
+                REQUIRE(*non_pod_arr[3].ptr == 25);
+                REQUIRE(*ref.ptr == 25);
+                REQUIRE(g_value_call_count == 1);
+                REQUIRE(g_copy_call_count == 0);
+            }
+        }
+        SECTION("Without enough capacity")
+        {
+            g_value_call_count = 0;
+            g_copy_call_count = 0;
+            g_copy_assign_call_count = 0;
+            g_destroy_call_count = 0;
+            {
+                DynamicArray<NonPod> non_pod_arr(4, NonPod(42));
+                g_value_call_count = 0;
+                g_copy_call_count = 0;
+                NonPod& ref = non_pod_arr.EmplaceBack(25);
+                REQUIRE(non_pod_arr.GetSize() == 5);
+                REQUIRE(*non_pod_arr[4].ptr == 25);
+                REQUIRE(*ref.ptr == 25);
+                REQUIRE(g_value_call_count == 1);
+                REQUIRE(g_copy_call_count == 0);
+            }
+        }
+    }
+}
+
 TEST_CASE("Pop back", "[Array]")
 {
     SECTION("POD data")
