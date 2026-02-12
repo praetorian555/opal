@@ -175,6 +175,7 @@ if (OPAL_BUILD_TESTS)
             test/transform-test.cpp
             test/file-system-test.cpp
             test/program-arguments-test.cpp
+            test/shared-ptr-test.cpp
             test/thread-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
