@@ -45,6 +45,12 @@ RemoveReferenceType<T>&& Move(T&& value)
 }
 
 template <typename T>
+inline constexpr bool k_is_void_value = false;
+
+template <>
+inline constexpr bool k_is_void_value<void> = true;
+
+template <typename T>
 inline constexpr bool k_is_pointer_value = false;
 
 template <typename T>

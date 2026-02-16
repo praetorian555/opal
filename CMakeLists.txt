@@ -84,6 +84,7 @@ set(OPAL_FILES
         include/opal/container/hash-map.h
         include/opal/container/scope-ptr.h
         include/opal/container/ref.h
+        include/opal/delegate.h
         include/opal/sort/key-indexed-counting.h
         third-party/wyhash/include/wyhash/wyhash.h
         include/opal/math/vector2.h
@@ -177,6 +178,7 @@ if (OPAL_BUILD_TESTS)
             test/program-arguments-test.cpp
             test/shared-ptr-test.cpp
             test/thread-test.cpp
+            test/delegate-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
