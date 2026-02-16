@@ -36,6 +36,14 @@ public:
         return *this + buffer;
     }
 
+    StringEx& operator+(i32 nb)
+    {
+        constexpr i64 k_buffer_size = 64;
+        char buffer[k_buffer_size] = {};
+        snprintf(buffer, k_buffer_size - 1, "%d", nb);
+        return *this + buffer;
+    }
+
     StringEx& operator+(u64 nb)
     {
         constexpr i64 k_buffer_size = 64;
@@ -44,6 +52,13 @@ public:
         return *this + buffer;
     }
 
+    StringEx& operator+(u32 nb)
+    {
+        constexpr i64 k_buffer_size = 64;
+        char buffer[k_buffer_size] = {};
+        snprintf(buffer, k_buffer_size - 1, "%u", nb);
+        return *this + buffer;
+    }
 
     const char* operator*() const { return m_data; }
 
