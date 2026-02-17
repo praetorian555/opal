@@ -50,6 +50,7 @@ set(OPAL_FILES
         src/thread.cpp
         src/mutex.cpp
         src/condition-variable.cpp
+        src/logging.cpp
         src/thread-pool.cpp
         include/opal/defines.h
         include/opal/assert.h
@@ -101,6 +102,7 @@ set(OPAL_FILES
         include/opal/math/quaternion.h
         include/opal/math/dual-quaternion.h
         include/opal/math/transform.h
+        include/opal/logging.h
         include/opal/threading/thread.h
         include/opal/threading/mutex.h
         include/opal/threading/condition-variable.h
@@ -180,6 +182,7 @@ if (OPAL_BUILD_TESTS)
             test/shared-ptr-test.cpp
             test/thread-test.cpp
             test/delegate-test.cpp
+            test/logging-test.cpp
             test/enum-flags-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
