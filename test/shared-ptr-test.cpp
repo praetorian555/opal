@@ -349,3 +349,84 @@ TEST_CASE("SharedPtr SingleThread policy does not throw when allocator is not th
         REQUIRE_NOTHROW(SharedPtr<i32, ThreadingPolicy::SingleThread>(&allocator, raw));
     }
 }
+
+TEMPLATE_TEST_CASE("MakeShared with same type", "[SharedPtr]",
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::ThreadSafe>),
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::SingleThread>))
+{
+    constexpr ThreadingPolicy k_policy = TestType::value;
+
+    SECTION("Default construction")
+    {
+        auto ptr = MakeShared<Base, Base, k_policy>(nullptr);
+        REQUIRE(ptr.IsValid());
+        REQUIRE(ptr->value == 0);
+    }
+
+    SECTION("With nullptr allocator")
+    {
+        auto ptr = MakeShared<i32, i32, k_policy>(nullptr, 42);
+        REQUIRE(ptr.IsValid());
+        REQUIRE(*ptr.Get() == 42);
+    }
+
+    SECTION("With explicit allocator")
+    {
+        auto ptr = MakeShared<i32, i32, k_policy>(GetDefaultAllocator(), 99);
+        REQUIRE(ptr.IsValid());
+        REQUIRE(*ptr.Get() == 99);
+    }
+}
+
+TEMPLATE_TEST_CASE("MakeShared with derived type", "[SharedPtr]",
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::ThreadSafe>),
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::SingleThread>))
+{
+    constexpr ThreadingPolicy k_policy = TestType::value;
+
+    SECTION("Returns SharedPtr<Base> holding a Derived")
+    {
+        auto ptr = MakeShared<Base, Derived, k_policy>(nullptr);
+        REQUIRE(ptr.IsValid());
+        ptr->value = 42;
+        REQUIRE(ptr->value == 42);
+    }
+
+    SECTION("Derived members accessible via downcast")
+    {
+        auto ptr = MakeShared<Base, Derived, k_policy>(nullptr);
+        auto* derived = static_cast<Derived*>(ptr.Get());
+        derived->extra = 77;
+        REQUIRE(derived->extra == 77);
+        REQUIRE(derived->value == 0);
+    }
+
+    SECTION("Clone shares the same object")
+    {
+        auto ptr = MakeShared<Base, Derived, k_policy>(nullptr);
+        ptr->value = 10;
+        auto clone = ptr.Clone();
+        REQUIRE(clone.IsValid());
+        REQUIRE(clone->value == 10);
+        REQUIRE(ptr.Get() == clone.Get());
+    }
+}
+
+TEMPLATE_TEST_CASE("MakeShared with constructor arguments", "[SharedPtr]",
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::ThreadSafe>),
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::SingleThread>))
+{
+    constexpr ThreadingPolicy k_policy = TestType::value;
+
+    struct Widget
+    {
+        i32 a;
+        i32 b;
+        Widget(i32 x, i32 y) : a(x), b(y) {}
+    };
+
+    auto ptr = MakeShared<Widget, Widget, k_policy>(nullptr, 3, 7);
+    REQUIRE(ptr.IsValid());
+    REQUIRE(ptr->a == 3);
+    REQUIRE(ptr->b == 7);
+}

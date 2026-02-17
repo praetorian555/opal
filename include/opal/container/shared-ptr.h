@@ -246,4 +246,26 @@ private:
     RefCountT* m_refcount = nullptr;
 };
 
+/**
+ * Constructs an object of type Derived and returns a SharedPtr<Base>.
+ * Useful for creating shared pointers to polymorphic types without manual New/cast.
+ * @tparam Base Base type for the returned SharedPtr.
+ * @tparam Derived Derived type to construct. Must be convertible to Base*. Defaults to Base.
+ * @tparam Policy Threading policy for the SharedPtr.
+ * @param allocator Allocator used for the object and reference count. If nullptr, the default allocator is used.
+ * @param args Arguments forwarded to the constructor of Derived.
+ * @return SharedPtr<Base, Policy> owning the newly constructed Derived object.
+ */
+template <typename Base, typename Derived = Base, ThreadingPolicy Policy = ThreadingPolicy::ThreadSafe, typename... Args>
+    requires Convertible<Derived*, Base*>
+SharedPtr<Base, Policy> MakeShared(AllocatorBase* allocator, Args&&... args)
+{
+    if (allocator == nullptr)
+    {
+        allocator = GetDefaultAllocator();
+    }
+    Derived* object = New<Derived>(allocator, std::forward<Args>(args)...);
+    return SharedPtr<Base, Policy>(allocator, static_cast<Base*>(object));
+}
+
 }  // namespace Opal
