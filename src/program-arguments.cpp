@@ -41,7 +41,7 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
     HashMap<StringUtf8, bool> visited;
     for (u32 j = 0; j < m_argument_definitions.GetSize(); ++j)
     {
-        ProgramArgumentDefinition* arg_def = m_argument_definitions[j];
+        ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
         visited.Insert(arg_def->name, false);
     }
     for (u32 i = 0; i < names.GetSize(); ++i)
@@ -49,7 +49,7 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         const StringUtf8& name = names[i];
         for (u32 j = 0; j < m_argument_definitions.GetSize(); ++j)
         {
-            ProgramArgumentDefinition* arg_def = m_argument_definitions[j];
+            ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
             if (arg_def->name == name)
             {
                 arg_def->SetValue(values[i]);
@@ -59,7 +59,7 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         }
     }
 
-    for (ProgramArgumentDefinition* def : m_argument_definitions)
+    for (const auto& def : m_argument_definitions)
     {
         if (!def->is_optional && !visited.GetValue(def->name))
         {
@@ -86,7 +86,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
     if (m_has_required_argument)
     {
         printf("Required arguments:\n");
-        for (const ProgramArgumentDefinition* def : m_argument_definitions)
+        for (const auto& def : m_argument_definitions)
         {
             if (!def->is_optional)
             {
@@ -98,7 +98,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
     if (m_has_optional_argument)
     {
         printf("Optional arguments:\n");
-        for (const ProgramArgumentDefinition* def : m_argument_definitions)
+        for (const auto& def : m_argument_definitions)
         {
             if (def->is_optional)
             {

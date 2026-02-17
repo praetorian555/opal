@@ -277,6 +277,10 @@ Opal::HashSet<KeyType, AllocatorType>& Opal::HashSet<KeyType, AllocatorType>::op
 template <typename KeyType, typename AllocatorType>
 Opal::HashSet<KeyType, AllocatorType>::~HashSet()
 {
+    for (key_type& key : *this)
+    {
+        key.~key_type();
+    }
     m_allocator->Free(m_control_bytes);
 }
 

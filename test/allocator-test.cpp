@@ -92,6 +92,7 @@ TEST_CASE("Linear allocator", "[Allocator]")
     void* memory2 = allocator->Alloc(1024, 8);
     REQUIRE(memory2 != nullptr);
     REQUIRE(memory == memory2);
+    delete allocator;
 }
 
 TEST_CASE("Null allocator", "[Allocator]")
@@ -128,6 +129,7 @@ TEST_CASE("Default allocator", "[Allocator]")
     void* memory3 = allocator->Alloc(16, 16);
     REQUIRE(memory3 != nullptr);
     allocator->Free(memory3);
+    delete linear_allocator;
 }
 
 TEST_CASE("New and delete", "[Allocator]")
@@ -147,4 +149,5 @@ TEST_CASE("New and delete", "[Allocator]")
     REQUIRE(*b == 10);
     REQUIRE(reinterpret_cast<Opal::u64>(b) % 32 == 0);
     Opal::Delete(Opal::GetDefaultAllocator(), b);
+    delete allocator;
 }

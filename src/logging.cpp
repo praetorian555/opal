@@ -85,7 +85,7 @@ Opal::Logger::~Logger() = default;
 void Opal::Logger::RegisterCategory(StringViewUtf8 category, LogLevel level)
 {
     StringUtf8 key(category.GetData(), category.GetSize());
-    m_categories.Insert(Move(key), level);
+    m_categories.Insert(std::move(key), level);
 }
 
 bool Opal::Logger::IsCategoryRegistered(StringViewUtf8 category) const

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "container/scope-ptr.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/string.h"
 #include "opal/export.h"
@@ -193,8 +194,9 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
         {
             throw InvalidArgumentException(__FUNCTION__, "description of the argument can't be empty");
         }
-        ProgramArgumentDefinition* arg_def = New<TypedProgramArgumentDefinition<T>>(GetDefaultAllocator(), &field, desc);
-        m_argument_definitions.PushBack(arg_def);
+        AllocatorBase* allocator = GetDefaultAllocator();
+        ScopePtr<ProgramArgumentDefinition> arg_def(allocator, New<TypedProgramArgumentDefinition<T>>(allocator, &field, desc));
+        m_argument_definitions.PushBack(std::move(arg_def));
         if (desc.is_optional)
         {
             m_has_optional_argument = true;
@@ -213,7 +215,7 @@ private:
 
     StringUtf8 m_program_description;
     DynamicArray<StringUtf8> m_usage_examples;
-    DynamicArray<ProgramArgumentDefinition*> m_argument_definitions;
+    DynamicArray<ScopePtr<ProgramArgumentDefinition>> m_argument_definitions;
     bool m_has_required_argument = false;
     bool m_has_optional_argument = false;
 };

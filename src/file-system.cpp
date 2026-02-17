@@ -425,6 +425,7 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const St
                 }
             }
         }
+        closedir(dir);
     }
     return out_contents;
 #else
