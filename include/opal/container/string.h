@@ -2439,7 +2439,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
     }
     if (start_pos >= haystack.GetSize())
     {
-        start_pos = haystack.GetSize() - 1;
+        start_pos = haystack.GetSize();
     }
     if (needle.GetSize() > start_pos + 1)
     {
