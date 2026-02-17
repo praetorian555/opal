@@ -8,7 +8,7 @@
 namespace
 {
 
-Opal::ScopePtr<Opal::Logger> g_logger;
+Opal::Logger* g_logger = nullptr;
 
 Opal::u64 FormatTimestamp(char* buffer, Opal::u64 buffer_size)
 {
@@ -57,18 +57,18 @@ const char* Opal::LogLevelToString(LogLevel level)
 /** ConsoleSink **********************************************************************************/
 /*************************************************************************************************/
 
+Opal::ConsoleSink::ConsoleSink() : m_stdout(stdout) {}
+
 void Opal::ConsoleSink::Write(LogLevel /*level*/, StringViewUtf8 /*category*/, StringViewUtf8 formatted_message)
 {
-    m_mutex.Lock();
-    fwrite(formatted_message.GetData(), 1, formatted_message.GetSize(), stdout);
-    m_mutex.Unlock();
+    auto guard = m_stdout.Lock();
+    fwrite(formatted_message.GetData(), 1, formatted_message.GetSize(), *guard.Deref());
 }
 
 void Opal::ConsoleSink::Flush()
 {
-    m_mutex.Lock();
-    fflush(stdout);
-    m_mutex.Unlock();
+    auto guard = m_stdout.Lock();
+    fflush(*guard.Deref());
 }
 
 /*************************************************************************************************/
@@ -175,16 +175,14 @@ void Opal::Logger::HandleFatal()
 
 Opal::Logger& Opal::GetLogger()
 {
-    if (!g_logger.IsValid())
+    if (g_logger == nullptr)
     {
-        g_logger = ScopePtr<Logger>(nullptr);
-        auto console_sink = MakeShared<LogSink, ConsoleSink>(nullptr);
-        g_logger->AddSink(console_sink);
+        throw LoggerNotInitializedException();
     }
     return *g_logger;
 }
 
-void Opal::SetLogger(ScopePtr<Logger> logger)
+void Opal::SetLogger(Logger* logger)
 {
-    g_logger = Move(logger);
+    g_logger = logger;
 }

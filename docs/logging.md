@@ -9,7 +9,13 @@ A lightweight logging system with pluggable sinks and per-category level filteri
 ```cpp
 #include "opal/logging.h"
 
-// Use the global logger (comes with a ConsoleSink by default)
+// Create and register a logger before use
+Opal::Logger logger;
+auto console_sink = Opal::MakeShared<Opal::LogSink, Opal::ConsoleSink>(nullptr);
+logger.AddSink(console_sink);
+Opal::SetLogger(&logger);
+
+// Use the global logger
 Opal::GetLogger().Info("General", "Application started");
 Opal::GetLogger().Info("General", "Player {} joined at position ({}, {})", player_name, x, y);
 ```
@@ -90,14 +96,12 @@ Sinks are where log messages go. The logger can have multiple sinks. Each sink r
 
 ### Built-in: ConsoleSink
 
-Writes all output to `stdout`. Thread-safe via an internal mutex.
+Writes all output to `stdout`. Thread-safe via an internal `Mutex<FILE*>`.
 
 ```cpp
 auto console_sink = Opal::MakeShared<Opal::LogSink, Opal::ConsoleSink>(nullptr);
 logger.AddSink(console_sink);
 ```
-
-The global logger (`GetLogger()`) comes with a `ConsoleSink` by default.
 
 ### Custom Sinks
 
@@ -106,35 +110,30 @@ Implement the `LogSink` interface:
 ```cpp
 struct FileSink : public Opal::LogSink
 {
-    FILE* m_file;
-    Opal::Impl::PureMutex m_mutex;
+    Opal::Mutex<FILE*> m_file;
 
-    FileSink(const char* path)
-    {
-        m_file = fopen(path, "w");
-    }
+    FileSink(const char* path) : m_file(fopen(path, "w")) {}
 
     ~FileSink() override
     {
-        if (m_file)
+        auto guard = m_file.Lock();
+        if (*guard.Deref())
         {
-            fclose(m_file);
+            fclose(*guard.Deref());
         }
     }
 
     void Write(Opal::LogLevel level, Opal::StringViewUtf8 category,
                Opal::StringViewUtf8 formatted_message) override
     {
-        m_mutex.Lock();
-        fwrite(formatted_message.GetData(), 1, formatted_message.GetSize(), m_file);
-        m_mutex.Unlock();
+        auto guard = m_file.Lock();
+        fwrite(formatted_message.GetData(), 1, formatted_message.GetSize(), *guard.Deref());
     }
 
     void Flush() override
     {
-        m_mutex.Lock();
-        fflush(m_file);
-        m_mutex.Unlock();
+        auto guard = m_file.Lock();
+        fflush(*guard.Deref());
     }
 };
 
@@ -177,19 +176,23 @@ catch (const Opal::FatalLogException& e)
 
 ## Global Logger
 
-A single application-wide logger is accessible via free functions:
+A single application-wide logger is accessible via free functions. The global logger is not initialized automatically — you must call `SetLogger` before any call to `GetLogger`. The logger is not owned by the library; the caller is responsible for its lifetime.
 
 ```cpp
-// Get the global logger (lazily initialized with a ConsoleSink)
-Opal::Logger& logger = Opal::GetLogger();
-
-// Replace with a custom logger
-Opal::ScopePtr<Opal::Logger> custom(nullptr);
-custom->RegisterCategory("MyApp", Opal::LogLevel::Debug);
+Opal::Logger logger;
+logger.RegisterCategory("MyApp", Opal::LogLevel::Debug);
 auto sink = Opal::MakeShared<Opal::LogSink, Opal::ConsoleSink>(nullptr);
-custom->AddSink(sink);
-Opal::SetLogger(Opal::Move(custom));
+logger.AddSink(sink);
+Opal::SetLogger(&logger);
+
+// Somewhere else in the application
+Opal::GetLogger().Info("MyApp", "Ready");
+
+// Unregister when the logger goes out of scope
+Opal::SetLogger(nullptr);
 ```
+
+Calling `GetLogger()` before `SetLogger` throws `LoggerNotInitializedException`.
 
 ## Thread Safety
 
@@ -238,6 +241,6 @@ struct LogSink
 
 | Function | Description |
 |----------|-------------|
-| `GetLogger()` | Get the global logger (lazily initialized with a ConsoleSink) |
-| `SetLogger(logger)` | Replace the global logger |
+| `GetLogger()` | Get the global logger; throws `LoggerNotInitializedException` if not set |
+| `SetLogger(logger)` | Set the global logger (non-owning); pass `nullptr` to unset |
 | `LogLevelToString(level)` | Convert a LogLevel to its string representation |

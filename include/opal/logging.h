@@ -1,11 +1,11 @@
 #pragma once
 
+#include <cstdio>
 #include <format>
 
 #include "opal/assert.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/hash-map.h"
-#include "opal/container/scope-ptr.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/container/string.h"
 #include "opal/container/string-view.h"
@@ -37,16 +37,22 @@ struct OPAL_EXPORT LogSink
 class OPAL_EXPORT ConsoleSink : public LogSink
 {
 public:
+    ConsoleSink();
     void Write(LogLevel level, StringViewUtf8 category, StringViewUtf8 formatted_message) override;
     void Flush() override;
 
 private:
-    Impl::PureMutex m_mutex;
+    Mutex<FILE*> m_stdout;
 };
 
 struct FatalLogException : Exception
 {
     FatalLogException(const char* message) : Exception(StringEx("Fatal log: ") + message) {}
+};
+
+struct LoggerNotInitializedException : Exception
+{
+    LoggerNotInitializedException() : Exception("Logger not initialized; call SetLogger before GetLogger") {}
 };
 
 OPAL_EXPORT const char* LogLevelToString(LogLevel level);
@@ -98,7 +104,7 @@ private:
 };
 
 OPAL_EXPORT Logger& GetLogger();
-OPAL_EXPORT void SetLogger(ScopePtr<Logger> logger);
+OPAL_EXPORT void SetLogger(Logger* logger);
 
 /*************************************************************************************************/
 /** Template implementations *********************************************************************/

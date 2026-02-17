@@ -317,21 +317,28 @@ TEST_CASE("Global logger", "[Logging]")
 {
     SECTION("GetLogger returns a valid logger")
     {
-        Logger& logger = GetLogger();
-        REQUIRE(logger.IsCategoryRegistered("General"));
+        Logger logger;
+        SetLogger(&logger);
+        REQUIRE(GetLogger().IsCategoryRegistered("General"));
+        SetLogger(nullptr);
     }
 
     SECTION("SetLogger replaces the global logger")
     {
-        ScopePtr<Logger> custom_logger(nullptr);
-        custom_logger->RegisterCategory("Custom", LogLevel::Debug);
+        Logger custom_logger;
+        custom_logger.RegisterCategory("Custom", LogLevel::Debug);
 
-        SetLogger(Move(custom_logger));
+        SetLogger(&custom_logger);
 
         REQUIRE(GetLogger().IsCategoryRegistered("Custom"));
 
-        // Reset to default
-        SetLogger(ScopePtr<Logger>(nullptr));
+        SetLogger(nullptr);
+    }
+
+    SECTION("GetLogger throws when no logger is set")
+    {
+        SetLogger(nullptr);
+        REQUIRE_THROWS_AS(GetLogger(), LoggerNotInitializedException);
     }
 }
 
