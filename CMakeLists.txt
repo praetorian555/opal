@@ -148,6 +148,7 @@ if (OPAL_BUILD_TESTS)
             test/deque-test.cpp
             test/array-view-test.cpp
             test/string-test.cpp
+            test/string-view-test.cpp
             test/expected-test.cpp
             test/time-test.cpp
             test/sort-test.cpp
