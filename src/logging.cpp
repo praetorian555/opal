@@ -1,6 +1,8 @@
 #include "opal/logging.h"
 
+#if OPAL_PLATFORM_WINDOWS
 #include <Windows.h>
+#endif
 
 #include <chrono>
 #include <cstdio>
