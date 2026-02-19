@@ -253,6 +253,8 @@ struct LogSink
 | `IsCategoryRegistered(category)` | Check if a category is registered |
 | `SetCategoryLevel(category, level)` | Change a category's minimum level at runtime |
 | `GetCategoryLevel(category)` | Get a category's current minimum level |
+| `SetPattern(pattern)` | Set the output format pattern (see [Output Format](#output-format)) |
+| `GetPattern()` | Get the current output format pattern |
 | `AddSink(sink)` | Add a sink (clones the SharedPtr) |
 | `RemoveSink(sink)` | Remove a sink by pointer equality |
 | `ClearSinks()` | Remove all sinks |
