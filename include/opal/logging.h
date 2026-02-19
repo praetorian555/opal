@@ -56,6 +56,11 @@ struct LoggerNotInitializedException : Exception
     LoggerNotInitializedException() : Exception("Logger not initialized; call SetLogger before GetLogger") {}
 };
 
+struct UnregisteredCategoryException : Exception
+{
+    UnregisteredCategoryException(const char* category) : Exception(StringEx("Logging with unregistered category: ") + category) {}
+};
+
 OPAL_EXPORT const char* LogLevelToString(LogLevel level);
 
 class OPAL_EXPORT Logger
@@ -151,7 +156,7 @@ void Logger::Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Ar
 {
     if (!IsCategoryRegistered(category))
     {
-        return;
+        throw UnregisteredCategoryException(category.GetData());
     }
     if (level < GetCategoryLevel(category))
     {

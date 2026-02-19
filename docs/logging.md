@@ -59,7 +59,18 @@ bool registered = logger.IsCategoryRegistered("Rendering");       // true
 Opal::LogLevel level = logger.GetCategoryLevel("Rendering");      // Warning
 ```
 
-Logging to an unregistered category is silently ignored.
+Logging to an unregistered category throws `UnregisteredCategoryException`.
+
+```cpp
+try
+{
+    logger.Info("NonExistent", "This will throw");
+}
+catch (const Opal::UnregisteredCategoryException& e)
+{
+    // e.What() contains "Logging with unregistered category: NonExistent"
+}
+```
 
 ## Message Formatting
 

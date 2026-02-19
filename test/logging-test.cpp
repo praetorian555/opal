@@ -417,14 +417,29 @@ TEST_CASE("Message larger than 2048 bytes", "[Logging]")
     }
 }
 
-TEST_CASE("Unregistered category is ignored", "[Logging]")
+TEST_CASE("Unregistered category throws", "[Logging]")
 {
     Logger logger;
-    auto sink = MakeShared<LogSink, TestSink>(nullptr);
-    auto* test_sink = static_cast<TestSink*>(sink.Get());
-    logger.AddSink(sink);
 
-    logger.Info("NonExistent", "Should be ignored");
+    SECTION("Log with unregistered category throws UnregisteredCategoryException")
+    {
+        REQUIRE_THROWS_AS(logger.Info("NonExistent", "Should throw"), UnregisteredCategoryException);
+    }
 
-    REQUIRE(test_sink->m_entries.GetSize() == 0);
+    SECTION("Each log level throws for unregistered category")
+    {
+        REQUIRE_THROWS_AS(logger.Verbose("NonExistent", "msg"), UnregisteredCategoryException);
+        REQUIRE_THROWS_AS(logger.Debug("NonExistent", "msg"), UnregisteredCategoryException);
+        REQUIRE_THROWS_AS(logger.Info("NonExistent", "msg"), UnregisteredCategoryException);
+        REQUIRE_THROWS_AS(logger.Warning("NonExistent", "msg"), UnregisteredCategoryException);
+        REQUIRE_THROWS_AS(logger.Error("NonExistent", "msg"), UnregisteredCategoryException);
+        REQUIRE_THROWS_AS(logger.Fatal("NonExistent", "msg"), UnregisteredCategoryException);
+    }
+
+    SECTION("Log with registered category does not throw")
+    {
+        auto sink = MakeShared<LogSink, TestSink>(nullptr);
+        logger.AddSink(sink);
+        REQUIRE_NOTHROW(logger.Info("General", "Should not throw"));
+    }
 }
