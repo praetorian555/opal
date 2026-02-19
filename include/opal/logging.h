@@ -68,6 +68,9 @@ public:
     void SetCategoryLevel(StringViewUtf8 category, LogLevel level);
     LogLevel GetCategoryLevel(StringViewUtf8 category) const;
 
+    void SetPattern(StringViewUtf8 pattern);
+    StringViewUtf8 GetPattern() const;
+
     void AddSink(const SharedPtr<LogSink>& sink);
     void RemoveSink(const SharedPtr<LogSink>& sink);
     void ClearSinks();
@@ -101,6 +104,7 @@ private:
 
     HashMap<StringUtf8, LogLevel> m_categories;
     DynamicArray<SharedPtr<LogSink>> m_sinks;
+    StringUtf8 m_pattern;
 };
 
 OPAL_EXPORT Logger& GetLogger();

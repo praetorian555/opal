@@ -76,13 +76,41 @@ Messages are formatted into a 2048-byte stack buffer. No heap allocations occur 
 
 ## Output Format
 
-The logger produces fully formatted lines before passing them to sinks:
+The logger formats each log line according to a configurable pattern before passing it to sinks. The pattern uses `<specifier>` tags that are replaced with actual values at log time.
+
+### Available Specifiers
+
+| Specifier    | Description                              | Example value          |
+|--------------|------------------------------------------|------------------------|
+| `<date>`     | Date in `YYYY-MM-DD` format              | `2026-02-17`           |
+| `<time>`     | Time in `HH:MM:SS.mmm` format           | `14:30:05.123`         |
+| `<thread>`   | Thread ID                                | `1234`                 |
+| `<level>`    | Log level string                         | `Info`                 |
+| `<category>` | Category name                            | `Rendering`            |
+| `<message>`  | The formatted log message                | `Draw calls: 42`       |
+
+### Default Pattern
 
 ```
-[TIMESTAMP][THREAD_ID][LEVEL][CATEGORY] Message
+[<date> <time>][<thread>][<level>][<category>] <message>\n
 ```
 
-Example output:
+### Customizing the Pattern
+
+```cpp
+auto& logger = Opal::GetLogger();
+
+// Compact format with only time and message
+logger.SetPattern("[<time>][<level>] <message>\n");
+
+// Custom separators
+logger.SetPattern("<time> | <level> | <category> | <message>\n");
+
+// Query the current pattern
+Opal::StringViewUtf8 pattern = logger.GetPattern();
+```
+
+### Example Output (default pattern)
 
 ```
 [2026-02-17 14:30:05.123][1234][Info][Rendering] Draw calls: 42

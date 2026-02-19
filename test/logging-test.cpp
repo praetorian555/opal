@@ -45,6 +45,11 @@ TEST_CASE("LogLevelToString", "[Logging]")
     REQUIRE(strcmp(LogLevelToString(LogLevel::Error), "Error") == 0);
     REQUIRE(strcmp(LogLevelToString(LogLevel::Fatal), "Fatal") == 0);
     REQUIRE(strcmp(LogLevelToString(LogLevel::Off), "Off") == 0);
+
+    Logger logger;
+    auto console_sink = MakeShared<LogSink, ConsoleSink>(nullptr);
+    logger.AddSink(console_sink);
+    logger.Info("General", "This is a test message");
 }
 
 /*************************************************************************************************/
