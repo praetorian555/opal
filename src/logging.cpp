@@ -1,6 +1,6 @@
 #include "opal/logging.h"
 
-#if OPAL_PLATFORM_WINDOWS
+#ifdef OPAL_PLATFORM_WINDOWS
 #include <Windows.h>
 #endif
 
