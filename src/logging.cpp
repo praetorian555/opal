@@ -164,7 +164,7 @@ void Opal::Logger::Flush()
 
 void Opal::Logger::Emit(LogLevel level, StringViewUtf8 category, StringViewUtf8 message)
 {
-    constexpr u64 k_buffer_size = 2048;
+    constexpr u64 k_buffer_size = k_max_message_size;
     char8 buffer[k_buffer_size];
     char8* out = buffer;
     char8* out_end = buffer + k_buffer_size;

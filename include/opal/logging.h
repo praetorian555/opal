@@ -3,12 +3,13 @@
 #include <cstdio>
 #include <format>
 
+#include "container/in-place-array.h"
 #include "opal/assert.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/hash-map.h"
 #include "opal/container/shared-ptr.h"
-#include "opal/container/string.h"
 #include "opal/container/string-view.h"
+#include "opal/container/string.h"
 #include "opal/export.h"
 #include "opal/threading/mutex.h"
 #include "opal/types.h"
@@ -60,6 +61,8 @@ OPAL_EXPORT const char* LogLevelToString(LogLevel level);
 class OPAL_EXPORT Logger
 {
 public:
+    static constexpr size_t k_max_message_size = 2048;
+
     Logger();
     ~Logger();
 
@@ -114,6 +117,35 @@ OPAL_EXPORT void SetLogger(Logger* logger);
 /** Template implementations *********************************************************************/
 /*************************************************************************************************/
 
+struct BoundedFormatIterator
+{
+    using iterator_category = std::output_iterator_tag;
+    using value_type = void;
+    using difference_type = std::ptrdiff_t;
+    using pointer = void;
+    using reference = void;
+
+    BoundedFormatIterator(InPlaceArray<char8, Logger::k_max_message_size>& out_buffer, size_t& out_size) : m_buffer(out_buffer), m_size(&out_size) {}
+
+    BoundedFormatIterator& operator=(char c)
+    {
+        if (*m_size < m_buffer->GetSize())
+        {
+            m_buffer->At(*m_size).GetValue() = static_cast<char8>(c);
+            *m_size += 1;
+        }
+        return *this;
+    }
+
+    BoundedFormatIterator& operator*() { return *this; }
+    BoundedFormatIterator& operator++() { return *this; }
+    BoundedFormatIterator operator++(int) { return *this; }
+
+private:
+    Ref<InPlaceArray<char8, Logger::k_max_message_size>> m_buffer;
+    size_t* m_size;
+};
+
 template <typename... Args>
 void Logger::Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args)
 {
@@ -131,16 +163,11 @@ void Logger::Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Ar
     }
     else
     {
-        constexpr u64 k_buffer_size = 2048;
-        char8 buffer[k_buffer_size];
-        auto it = std::vformat_to(buffer, std::string_view(fmt.GetData(), fmt.GetSize()),
-                                  std::make_format_args(args...));
-        u64 length = static_cast<u64>(it - buffer);
-        if (length > k_buffer_size)
-        {
-            length = k_buffer_size;
-        }
-        Emit(level, category, StringViewUtf8(buffer, length));
+        InPlaceArray<char8, k_max_message_size> buffer;
+        size_t written = 0;
+        BoundedFormatIterator out(buffer, written);
+        std::vformat_to(out, std::string_view(fmt.GetData(), fmt.GetSize()), std::make_format_args(args...));
+        Emit(level, category, StringViewUtf8(buffer.GetData(), written));
     }
     if (level == LogLevel::Fatal)
     {

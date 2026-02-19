@@ -45,11 +45,6 @@ TEST_CASE("LogLevelToString", "[Logging]")
     REQUIRE(strcmp(LogLevelToString(LogLevel::Error), "Error") == 0);
     REQUIRE(strcmp(LogLevelToString(LogLevel::Fatal), "Fatal") == 0);
     REQUIRE(strcmp(LogLevelToString(LogLevel::Off), "Off") == 0);
-
-    Logger logger;
-    auto console_sink = MakeShared<LogSink, ConsoleSink>(nullptr);
-    logger.AddSink(console_sink);
-    logger.Info("General", "This is a test message");
 }
 
 /*************************************************************************************************/
@@ -350,6 +345,77 @@ TEST_CASE("Global logger", "[Logging]")
 /*************************************************************************************************/
 /** Unregistered category tests ******************************************************************/
 /*************************************************************************************************/
+
+TEST_CASE("Message larger than 2048 bytes", "[Logging]")
+{
+    Logger logger;
+    logger.SetPattern("<message>\n");
+    auto sink = MakeShared<LogSink, TestSink>(nullptr);
+    auto* test_sink = static_cast<TestSink*>(sink.Get());
+    logger.AddSink(sink);
+
+    SECTION("Large message without format arguments is truncated without corruption")
+    {
+        constexpr u64 k_large_size = Logger::k_max_message_size + 1000;
+        char8 raw[k_large_size];
+        memset(raw, 'A', k_large_size);
+        StringViewUtf8 large_msg(raw, k_large_size);
+
+        logger.Info("General", large_msg);
+
+        REQUIRE(test_sink->m_entries.GetSize() == 1);
+        StringViewUtf8 result(test_sink->m_entries[0].message);
+        REQUIRE(result.GetSize() == Logger::k_max_message_size);
+        std::string_view sv(result.GetData(), result.GetSize());
+        for (u64 i = 0; i < sv.size(); ++i)
+        {
+            REQUIRE(sv[i] == 'A');
+        }
+    }
+
+    SECTION("Message exactly at 2048 bytes")
+    {
+        constexpr u64 k_exact_size = Logger::k_max_message_size - 1;
+        char8 raw[k_exact_size];
+        memset(raw, 'B', k_exact_size);
+        StringViewUtf8 exact_msg(raw, k_exact_size);
+
+        logger.Info("General", exact_msg);
+
+        REQUIRE(test_sink->m_entries.GetSize() == 1);
+        StringViewUtf8 result(test_sink->m_entries[0].message);
+        REQUIRE(result.GetSize() == Logger::k_max_message_size);
+        std::string_view sv(result.GetData(), result.GetSize());
+        for (u64 i = 0; i < k_exact_size; ++i)
+        {
+            REQUIRE(sv[i] == 'B');
+        }
+        REQUIRE(sv[k_exact_size] == '\n');
+    }
+
+    SECTION("Large message with format arguments is truncated without corruption")
+    {
+        constexpr u64 k_large_size = 3000;
+        char8 raw[k_large_size];
+        memset(raw, 'C', k_large_size);
+        StringUtf8 large_str(raw, k_large_size);
+
+        logger.Info("General", "msg: {}", std::string_view(large_str.GetData(), large_str.GetSize()));
+
+        REQUIRE(test_sink->m_entries.GetSize() == 1);
+        StringViewUtf8 result(test_sink->m_entries[0].message);
+        REQUIRE(result.GetSize() == Logger::k_max_message_size);
+        REQUIRE(result[0] == 'm');
+        REQUIRE(result[1] == 's');
+        REQUIRE(result[2] == 'g');
+        REQUIRE(result[3] == ':');
+        REQUIRE(result[4] == ' ');
+        for (u64 i = 5; i < Logger::k_max_message_size; ++i)
+        {
+            REQUIRE(result[i] == 'C');
+        }
+    }
+}
 
 TEST_CASE("Unregistered category is ignored", "[Logging]")
 {
