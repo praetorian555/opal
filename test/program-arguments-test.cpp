@@ -1,11 +1,15 @@
 #include "test-helpers.h"
 
+#include "opal/logging.h"
 #include "opal/program-arguments.h"
 
 using namespace Opal;
 
 TEST_CASE("Program arguments", "[ProgramArguments]")
 {
+    Logger logger;
+    SetLogger(&logger);
+
     i32 test_i32 = 0;
     u32 test_u32 = 0;
     StringUtf8 test_str;
@@ -36,7 +40,7 @@ TEST_CASE("Program arguments", "[ProgramArguments]")
         "test_arr_str=\"Hello there,partner\"",
 
     };
-    REQUIRE(builder.Build(arguments, 8) == true);
+    builder.Build(arguments, 8);
     REQUIRE(test_i32 == -5);
     REQUIRE(test_u32 == 6);
     REQUIRE(test_str == "Hello there");
@@ -52,22 +56,32 @@ TEST_CASE("Program arguments", "[ProgramArguments]")
     REQUIRE(test_arr_str.GetSize() == 2);
     REQUIRE(test_arr_str[0] == "Hello there");
     REQUIRE(test_arr_str[1] == "partner");
+
+    SetLogger(nullptr);
 }
 
 TEST_CASE("String argument with valid possible value", "[ProgramArguments]")
 {
+    Logger logger;
+    SetLogger(&logger);
+
     StringUtf8 test_str;
 
     ProgramArgumentsBuilder builder;
     builder.AddArgumentDefinition(test_str, {.name = "test_str", .desc = "Test argument", .is_optional = false, .possible_values = {"foo", "bar"}});
 
     const char* arguments[] = {"program-name", "test_str=foo"};
-    REQUIRE(builder.Build(arguments, 2) == true);
+    builder.Build(arguments, 2);
     REQUIRE(test_str == "foo");
+
+    SetLogger(nullptr);
 }
 
 TEST_CASE("String argument with invalid possible value", "[ProgramArguments]")
 {
+    Logger logger;
+    SetLogger(&logger);
+
     StringUtf8 test_str;
 
     ProgramArgumentsBuilder builder;
@@ -75,10 +89,15 @@ TEST_CASE("String argument with invalid possible value", "[ProgramArguments]")
 
     const char* arguments[] = {"program-name", "test_str=baz"};
     REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+
+    SetLogger(nullptr);
 }
 
 TEST_CASE("Array string argument with valid possible values", "[ProgramArguments]")
 {
+    Logger logger;
+    SetLogger(&logger);
+
     DynamicArray<StringUtf8> test_arr_str;
 
     ProgramArgumentsBuilder builder;
@@ -86,14 +105,19 @@ TEST_CASE("Array string argument with valid possible values", "[ProgramArguments
         test_arr_str, {.name = "test_arr_str", .desc = "Test argument", .is_optional = false, .possible_values = {"foo", "bar", "baz"}});
 
     const char* arguments[] = {"program-name", "test_arr_str=foo,bar"};
-    REQUIRE(builder.Build(arguments, 2) == true);
+    builder.Build(arguments, 2);
     REQUIRE(test_arr_str.GetSize() == 2);
     REQUIRE(test_arr_str[0] == "foo");
     REQUIRE(test_arr_str[1] == "bar");
+
+    SetLogger(nullptr);
 }
 
 TEST_CASE("Array string argument with invalid possible value", "[ProgramArguments]")
 {
+    Logger logger;
+    SetLogger(&logger);
+
     DynamicArray<StringUtf8> test_arr_str;
 
     ProgramArgumentsBuilder builder;
@@ -102,10 +126,15 @@ TEST_CASE("Array string argument with invalid possible value", "[ProgramArgument
 
     const char* arguments[] = {"program-name", "test_arr_str=foo,invalid"};
     REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+
+    SetLogger(nullptr);
 }
 
 TEST_CASE("Required program argument is missing", "[ProgramArguments]")
 {
+    Logger logger;
+    SetLogger(&logger);
+
     i32 test_i32 = 0;
 
     ProgramArgumentsBuilder builder;
@@ -114,5 +143,7 @@ TEST_CASE("Required program argument is missing", "[ProgramArguments]")
     const char* arguments[] = {
         "program-name"
     };
-    REQUIRE(builder.Build(arguments, 1) == false);
+    REQUIRE_THROWS_AS(builder.Build(arguments, 1), InvalidArgumentException);
+
+    SetLogger(nullptr);
 }

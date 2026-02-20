@@ -22,7 +22,15 @@ int main(int argc, const char** argv)
     builder.AddArgumentDefinition(port, {.name = "port", .desc = "Server port", .is_optional = true});
     builder.AddArgumentDefinition(verbose, {.name = "verbose", .desc = "Enable verbose output", .is_optional = true});
 
-    if (!builder.Build(argv, argc))
+    try
+    {
+        builder.Build(argv, argc);
+    }
+    catch (const Opal::HelpRequestedException&)
+    {
+        return 0;
+    }
+    catch (const Opal::InvalidArgumentException&)
     {
         return 1;
     }
@@ -86,7 +94,7 @@ builder.AddArgumentDefinition(debug, {.name = "debug", .desc = "Enable debug mod
 
 ### Required vs Optional
 
-Required arguments must be present on the command line. If a required argument is missing, `Build` prints a message with the help output and returns `false`.
+Required arguments must be present on the command line. If a required argument is missing, `Build` prints help output and throws `InvalidArgumentException`.
 
 Optional arguments keep their initial value if not provided.
 
@@ -172,7 +180,7 @@ When `possible_values` is empty (the default), any value is accepted.
 
 ## Help Output
 
-Passing `help` or `--help` as any argument prints the help text and causes `Build` to return `false`.
+Passing `help` or `--help` as any argument prints the help text, flushes the logger, and throws `HelpRequestedException`.
 
 ```
 my_app help
@@ -208,13 +216,15 @@ builder.AddUsageExample("my_app config_path=dev.json");
 
 ## Error Handling
 
+All error conditions throw exceptions. `Build` returns `void`.
+
 | Scenario | Behavior |
 |----------|----------|
 | Empty argument name or description | Throws `InvalidArgumentException` at registration |
-| Required argument missing | Prints help and returns `false` |
+| Required argument missing | Prints help and throws `InvalidArgumentException` |
 | Value not in `possible_values` | Throws `InvalidArgumentException` at parse time |
 | Unsupported type `T` | Throws `NotImplementedException` at parse time |
-| `help` or `--help` passed | Prints help and returns `false` |
+| `help` or `--help` passed | Prints help and throws `HelpRequestedException` |
 
 ## API Reference
 
@@ -237,4 +247,4 @@ struct ProgramArgumentDefinitionDesc
 | `AddProgramDescription(description)` | Set the program description shown in help output |
 | `AddUsageExample(example)` | Add a usage example shown in help output |
 | `AddArgumentDefinition(field, desc)` | Register a typed argument bound to `field` |
-| `Build(arguments, count)` | Parse command-line arguments and populate bound variables |
+| `Build(arguments, count)` | Parse command-line arguments and populate bound variables. Throws on errors or help requests |

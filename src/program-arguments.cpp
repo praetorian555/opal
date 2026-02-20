@@ -1,7 +1,7 @@
 #include "opal/program-arguments.h"
 
 #include "opal/container/hash-map.h"
-#include "opal/hash.h"
+#include "opal/logging.h"
 
 Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddProgramDescription(const StringUtf8& description)
 {
@@ -15,10 +15,12 @@ Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddUsageExample(co
     return *this;
 }
 
-bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
+void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
 {
     DynamicArray<StringUtf8> names(GetScratchAllocator());
     DynamicArray<StringUtf8> values(GetScratchAllocator());
+
+    GetLogger().RegisterCategory("ProgramArguments", LogLevel::Info);
 
     for (u32 i = 1; i < count; ++i)
     {
@@ -34,7 +36,7 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         if (name == "help" || name == "--help")
         {
             ShowHelp();
-            return false;
+            throw HelpRequestedException();
         }
     }
 
@@ -63,36 +65,36 @@ bool Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
     {
         if (!def->is_optional && !visited.GetValue(def->name))
         {
-            printf("Required argument '%s' not provided, here is the information on how to use the program:\n\n", *def->name);
+            GetLogger().Error("ProgramArguments",
+                              "Required argument '%s' not provided, here is the information on how to use the program:\n\n", *def->name);
             ShowHelp();
-            return false;
+            throw InvalidArgumentException(__FUNCTION__, "required argument not provided");
         }
     }
-    return true;
 }
 
 void Opal::ProgramArgumentsBuilder::ShowHelp()
 {
-    printf("%s\n\n", *m_program_description);
+    GetLogger().Info("ProgramArguments", "%s\n\n", *m_program_description);
     if (!m_usage_examples.IsEmpty())
     {
-        printf("Usage examples:\n");
+        GetLogger().Info("ProgramArguments", "Usage examples:\n");
         for (const StringUtf8& example : m_usage_examples)
         {
-            printf("\t%s\n", *example);
+            GetLogger().Info("ProgramArguments", "\t%s\n", *example);
         }
-        printf("\n");
+        GetLogger().Info("ProgramArguments", "\n");
     }
     if (m_has_required_argument)
     {
-        printf("Required arguments:\n");
+        GetLogger().Info("ProgramArguments", "Required arguments:\n");
         for (const auto& def : m_argument_definitions)
         {
             if (!def->is_optional)
             {
                 if (def->possible_values.IsEmpty())
                 {
-                    printf("\t%-30s%s\n", *def->name, *def->description);
+                    GetLogger().Info("ProgramArguments", "\t%-30s%s\n", *def->name, *def->description);
                 }
                 else
                 {
@@ -105,22 +107,22 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                         }
                         values_str += def->possible_values[i];
                     }
-                    printf("\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
+                    GetLogger().Info("ProgramArguments", "\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
                 }
             }
         }
-        printf("\n");
+        GetLogger().Info("ProgramArguments", "\n");
     }
     if (m_has_optional_argument)
     {
-        printf("Optional arguments:\n");
+        GetLogger().Info("ProgramArguments", "Optional arguments:\n");
         for (const auto& def : m_argument_definitions)
         {
             if (def->is_optional)
             {
                 if (def->possible_values.IsEmpty())
                 {
-                    printf("\t%-30s%s\n", *def->name, *def->description);
+                    GetLogger().Info("ProgramArguments", "\t%-30s%s\n", *def->name, *def->description);
                 }
                 else
                 {
@@ -133,10 +135,10 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                         }
                         values_str += def->possible_values[i];
                     }
-                    printf("\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
+                    GetLogger().Info("ProgramArguments", "\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
                 }
             }
         }
-        printf("\n");
+        GetLogger().Info("ProgramArguments", "\n");
     }
 }

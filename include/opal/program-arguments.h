@@ -8,6 +8,11 @@
 namespace Opal
 {
 
+struct OPAL_EXPORT HelpRequestedException : Exception
+{
+    HelpRequestedException() : Exception("Help was requested") {}
+};
+
 struct OPAL_EXPORT ProgramArgumentDefinitionDesc
 {
     StringUtf8 name;
@@ -261,7 +266,7 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
         return *this;
     }
 
-    bool Build(const char** arguments, u32 count);
+    void Build(const char** arguments, u32 count);
 
 private:
     void ShowHelp();
