@@ -18,7 +18,7 @@ struct OPAL_EXPORT ProgramArgumentDefinitionDesc
     StringUtf8 name;
     StringUtf8 desc;
     bool is_optional;
-    DynamicArray<StringUtf8> possible_values;
+    DynamicArray<StringUtf8> possible_values = {};
 };
 
 struct OPAL_EXPORT ProgramArgumentDefinition
