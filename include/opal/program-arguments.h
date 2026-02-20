@@ -13,6 +13,7 @@ struct OPAL_EXPORT ProgramArgumentDefinitionDesc
     StringUtf8 name;
     StringUtf8 desc;
     bool is_optional;
+    DynamicArray<StringUtf8> possible_values;
 };
 
 struct OPAL_EXPORT ProgramArgumentDefinition
@@ -20,14 +21,31 @@ struct OPAL_EXPORT ProgramArgumentDefinition
     StringUtf8 name;
     StringUtf8 description;
     bool is_optional;
+    DynamicArray<StringUtf8> possible_values;
 
     ProgramArgumentDefinition(const ProgramArgumentDefinitionDesc& desc)
-        : name(desc.name), description(desc.desc), is_optional(desc.is_optional)
+        : name(desc.name), description(desc.desc), is_optional(desc.is_optional), possible_values(desc.possible_values)
     {
     }
 
     virtual ~ProgramArgumentDefinition() = default;
     virtual void SetValue(const StringUtf8& str) = 0;
+
+    bool IsValueAllowed(const StringUtf8& value) const
+    {
+        if (possible_values.IsEmpty())
+        {
+            return true;
+        }
+        for (const auto& pv : possible_values)
+        {
+            if (pv == value)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 };
 
 template class OPAL_EXPORT DynamicArray<ProgramArgumentDefinition*>;
@@ -62,6 +80,10 @@ struct TypedProgramArgumentDefinition<StringUtf8> final : ProgramArgumentDefinit
         {
             trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
         }
+        if (!IsValueAllowed(trimmed))
+        {
+            throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+        }
         *destination = trimmed;
     }
 };
@@ -83,7 +105,16 @@ struct TypedProgramArgumentDefinition<DynamicArray<StringUtf8>> final : ProgramA
         {
             trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
         }
-        SplitToArray<StringUtf8>(trimmed, ",", *destination);
+        DynamicArray<StringUtf8> elements(GetScratchAllocator());
+        SplitToArray<StringUtf8>(trimmed, ",", elements);
+        for (const auto& element : elements)
+        {
+            if (!IsValueAllowed(element))
+            {
+                throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+            }
+            destination->PushBack(element);
+        }
     }
 };
 
@@ -97,7 +128,14 @@ struct TypedProgramArgumentDefinition<i32> final : ProgramArgumentDefinition
     {
     }
 
-    void SetValue(const StringUtf8& str) override { *destination = StringToI32(str); }
+    void SetValue(const StringUtf8& str) override
+    {
+        if (!IsValueAllowed(str))
+        {
+            throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+        }
+        *destination = StringToI32(str);
+    }
 };
 
 template <>
@@ -121,6 +159,10 @@ struct TypedProgramArgumentDefinition<DynamicArray<i32>> final : ProgramArgument
         SplitToArray<StringUtf8>(trimmed, ",", values);
         for (const auto& value : values)
         {
+            if (!IsValueAllowed(value))
+            {
+                throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+            }
             destination->PushBack(StringToI32(value));
         }
     }
@@ -136,7 +178,14 @@ struct TypedProgramArgumentDefinition<u32> final : ProgramArgumentDefinition
     {
     }
 
-    void SetValue(const StringUtf8& str) override { *destination = StringToU32(str); }
+    void SetValue(const StringUtf8& str) override
+    {
+        if (!IsValueAllowed(str))
+        {
+            throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+        }
+        *destination = StringToU32(str);
+    }
 };
 
 template <>
@@ -160,6 +209,10 @@ struct TypedProgramArgumentDefinition<DynamicArray<u32>> final : ProgramArgument
         SplitToArray<StringUtf8>(trimmed, ",", values);
         for (const auto& value : values)
         {
+            if (!IsValueAllowed(value))
+            {
+                throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+            }
             destination->PushBack(StringToU32(value));
         }
     }

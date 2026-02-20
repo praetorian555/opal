@@ -90,7 +90,23 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         {
             if (!def->is_optional)
             {
-                printf("\t%-30s%s\n", *def->name, *def->description);
+                if (def->possible_values.IsEmpty())
+                {
+                    printf("\t%-30s%s\n", *def->name, *def->description);
+                }
+                else
+                {
+                    StringUtf8 values_str;
+                    for (u32 i = 0; i < def->possible_values.GetSize(); ++i)
+                    {
+                        if (i > 0)
+                        {
+                            values_str += ", ";
+                        }
+                        values_str += def->possible_values[i];
+                    }
+                    printf("\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
+                }
             }
         }
         printf("\n");
@@ -102,7 +118,23 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         {
             if (def->is_optional)
             {
-                printf("\t%-30s%s\n", *def->name, *def->description);
+                if (def->possible_values.IsEmpty())
+                {
+                    printf("\t%-30s%s\n", *def->name, *def->description);
+                }
+                else
+                {
+                    StringUtf8 values_str;
+                    for (u32 i = 0; i < def->possible_values.GetSize(); ++i)
+                    {
+                        if (i > 0)
+                        {
+                            values_str += ", ";
+                        }
+                        values_str += def->possible_values[i];
+                    }
+                    printf("\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
+                }
             }
         }
         printf("\n");

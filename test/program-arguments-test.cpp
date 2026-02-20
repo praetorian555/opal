@@ -54,6 +54,56 @@ TEST_CASE("Program arguments", "[ProgramArguments]")
     REQUIRE(test_arr_str[1] == "partner");
 }
 
+TEST_CASE("String argument with valid possible value", "[ProgramArguments]")
+{
+    StringUtf8 test_str;
+
+    ProgramArgumentsBuilder builder;
+    builder.AddArgumentDefinition(test_str, {.name = "test_str", .desc = "Test argument", .is_optional = false, .possible_values = {"foo", "bar"}});
+
+    const char* arguments[] = {"program-name", "test_str=foo"};
+    REQUIRE(builder.Build(arguments, 2) == true);
+    REQUIRE(test_str == "foo");
+}
+
+TEST_CASE("String argument with invalid possible value", "[ProgramArguments]")
+{
+    StringUtf8 test_str;
+
+    ProgramArgumentsBuilder builder;
+    builder.AddArgumentDefinition(test_str, {.name = "test_str", .desc = "Test argument", .is_optional = false, .possible_values = {"foo", "bar"}});
+
+    const char* arguments[] = {"program-name", "test_str=baz"};
+    REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+}
+
+TEST_CASE("Array string argument with valid possible values", "[ProgramArguments]")
+{
+    DynamicArray<StringUtf8> test_arr_str;
+
+    ProgramArgumentsBuilder builder;
+    builder.AddArgumentDefinition(
+        test_arr_str, {.name = "test_arr_str", .desc = "Test argument", .is_optional = false, .possible_values = {"foo", "bar", "baz"}});
+
+    const char* arguments[] = {"program-name", "test_arr_str=foo,bar"};
+    REQUIRE(builder.Build(arguments, 2) == true);
+    REQUIRE(test_arr_str.GetSize() == 2);
+    REQUIRE(test_arr_str[0] == "foo");
+    REQUIRE(test_arr_str[1] == "bar");
+}
+
+TEST_CASE("Array string argument with invalid possible value", "[ProgramArguments]")
+{
+    DynamicArray<StringUtf8> test_arr_str;
+
+    ProgramArgumentsBuilder builder;
+    builder.AddArgumentDefinition(
+        test_arr_str, {.name = "test_arr_str", .desc = "Test argument", .is_optional = false, .possible_values = {"foo", "bar"}});
+
+    const char* arguments[] = {"program-name", "test_arr_str=foo,invalid"};
+    REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+}
+
 TEST_CASE("Required program argument is missing", "[ProgramArguments]")
 {
     i32 test_i32 = 0;
