@@ -90,6 +90,28 @@ TEST_CASE("System memory allocator", "[Allocator]")
                           Opal::InvalidArgumentException);
         delete allocator;
     }
+    SECTION("Growing beyond initial commit")
+    {
+        Opal::SystemMemoryAllocatorDesc desc{
+            .bytes_to_reserve = OPAL_MB(10), .bytes_to_initially_alloc = OPAL_KB(4), .commit_step_size = OPAL_KB(4)};
+        Opal::SystemMemoryAllocator* allocator = nullptr;
+        REQUIRE_NOTHROW(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc));
+        REQUIRE(allocator != nullptr);
+
+        const Opal::u64 initial_committed = allocator->GetCommitedSize();
+        allocator->Commit(OPAL_KB(8));
+        REQUIRE(allocator->GetCommitedSize() > initial_committed);
+
+        // Write to memory beyond the initial commit region
+        Opal::u8* mem = static_cast<Opal::u8*>(allocator->GetMemory());
+        const Opal::u64 offset = initial_committed;
+        mem[offset] = 0xAB;
+        mem[offset + 1] = 0xCD;
+        REQUIRE(mem[offset] == 0xAB);
+        REQUIRE(mem[offset + 1] == 0xCD);
+
+        delete allocator;
+    }
     SECTION("Not enough reserved memory")
     {
         Opal::SystemMemoryAllocatorDesc desc{

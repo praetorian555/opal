@@ -53,6 +53,7 @@ struct OPAL_EXPORT SystemMemoryAllocator : public AllocatorBase
 
     u64 GetCommitedSize() const { return m_commited_size; }
     u64 GetPageSize() const { return m_page_size; }
+    void* GetMemory() const { return m_memory; }
 
 protected:
     void* m_memory = nullptr;

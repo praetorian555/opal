@@ -111,15 +111,20 @@ void Opal::SystemMemoryAllocator::Free(void*) {}
 
 void Opal::SystemMemoryAllocator::Commit(u64 size)
 {
+    if (size % m_page_size != 0)
+    {
+        size += m_page_size - (size % m_page_size);
+    }
     if (m_commited_size + size > m_reserved_size)
     {
         throw OutOfMemoryException("No more reserved memory!");
     }
+    void* commit_addr = reinterpret_cast<void*>(reinterpret_cast<u64>(m_memory) + m_commited_size);
 #if defined(OPAL_PLATFORM_WINDOWS)
-    void* commited_memory = VirtualAlloc(m_memory, size, MEM_COMMIT, PAGE_READWRITE);
+    void* commited_memory = VirtualAlloc(commit_addr, size, MEM_COMMIT, PAGE_READWRITE);
     if (commited_memory == nullptr)
 #elif defined(OPAL_PLATFORM_LINUX)
-    if (mprotect(m_memory, size, PROT_READ | PROT_WRITE) != 0)
+    if (mprotect(commit_addr, size, PROT_READ | PROT_WRITE) != 0)
 #else
     throw NotImplementedException(__FUNCTION__);
 #endif
@@ -160,9 +165,9 @@ void Opal::MallocAllocator::Free(void* ptr)
 Opal::LinearAllocator::LinearAllocator(const char* debug_name, const SystemMemoryAllocatorDesc& desc)
     : AllocatorBase(debug_name), m_system_allocator("LinearAllocator - SystemMemoryAllocator", desc)
 {
-    m_memory = m_system_allocator.Alloc(desc.bytes_to_initially_alloc, 1);
+    m_memory = m_system_allocator.GetMemory();
     m_offset = 0;
-    m_size = desc.bytes_to_initially_alloc;
+    m_size = m_system_allocator.GetCommitedSize();
     m_commit_step_size = desc.commit_step_size;
 }
 
@@ -181,8 +186,9 @@ void* Opal::LinearAllocator::Alloc(u64 size, u64 alignment)
     u64 next_address = new_address + size;
     if (next_address > reinterpret_cast<u64>(m_memory) + m_size)
     {
-        // Commit more memory
-        m_system_allocator.Alloc(size, 1);
+        u64 needed = next_address - (reinterpret_cast<u64>(m_memory) + m_size);
+        u64 commit_size = Max(needed, m_commit_step_size);
+        m_system_allocator.Commit(commit_size);
         m_size = m_system_allocator.GetCommitedSize();
     }
     m_offset = next_address - reinterpret_cast<u64>(m_memory);
