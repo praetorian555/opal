@@ -17,15 +17,16 @@ Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddUsageExample(co
 
 void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
 {
-    DynamicArray<StringUtf8> names(GetScratchAllocator());
-    DynamicArray<StringUtf8> values(GetScratchAllocator());
+    const ScratchAsDefault sd;
+    DynamicArray<StringUtf8> names;
+    DynamicArray<StringUtf8> values;
 
     GetLogger().RegisterCategory("ProgramArguments", LogLevel::Info);
 
     for (u32 i = 1; i < count; ++i)
     {
-        StringUtf8 name(GetScratchAllocator());
-        StringUtf8 value(GetScratchAllocator());
+        StringUtf8 name;
+        StringUtf8 value;
         Split<StringUtf8>(arguments[i], "=", name, value);
         names.PushBack(name);
         values.PushBack(value);
@@ -43,7 +44,7 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
     HashMap<StringUtf8, bool> visited;
     for (u32 j = 0; j < m_argument_definitions.GetSize(); ++j)
     {
-        ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
+        const ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
         visited.Insert(arg_def->name, false);
     }
     for (u32 i = 0; i < names.GetSize(); ++i)
