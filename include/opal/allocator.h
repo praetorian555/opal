@@ -187,8 +187,13 @@ OPAL_EXPORT void ResetScratchAllocator();
 
 struct OPAL_EXPORT ScratchAsDefault
 {
-    ScratchAsDefault();
+    ScratchAsDefault(bool should_reset_on_destroy = true);
     ~ScratchAsDefault();
+
+private:
+    bool m_should_reset_on_destroy = true;
+    u64 m_mark = 0;
+    LinearAllocator* m_allocator = nullptr;
 };
 
 struct OPAL_EXPORT PushDefault

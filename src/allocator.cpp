@@ -296,13 +296,21 @@ void Opal::ResetScratchAllocator()
     g_scratch_stack[g_scratch_stack_size - 1]->Reset();
 }
 
-Opal::ScratchAsDefault::ScratchAsDefault()
+Opal::ScratchAsDefault::ScratchAsDefault(bool should_reset_on_destroy) : m_should_reset_on_destroy(should_reset_on_destroy)
 {
-    PushDefaultAllocator(GetScratchAllocator());
+    m_allocator = GetScratchAllocator();
+    m_mark = m_allocator->Mark();
+    PushDefaultAllocator(m_allocator);
 }
 
 Opal::ScratchAsDefault::~ScratchAsDefault()
 {
+    AllocatorBase* current_default_allocator = GetDefaultAllocator();
+    OPAL_ASSERT(static_cast<AllocatorBase*>(m_allocator) == current_default_allocator, "Current default allocator is not the one we are trying to pop!");
+    if (m_should_reset_on_destroy)
+    {
+        m_allocator->Reset(m_mark);
+    }
     PopDefaultAllocator();
 }
 

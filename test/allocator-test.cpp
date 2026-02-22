@@ -218,6 +218,59 @@ TEST_CASE("Allocator not initialized exception", "[Allocator]")
     Opal::PopDefaultAllocator();
 }
 
+TEST_CASE("ScratchAsDefault", "[Allocator]")
+{
+    Opal::LinearAllocator* scratch = Opal::GetScratchAllocator();
+
+    SECTION("Pushes scratch as default and pops on destroy")
+    {
+        Opal::AllocatorBase* original_default = Opal::GetDefaultAllocator();
+        {
+            Opal::ScratchAsDefault sd;
+            REQUIRE(Opal::GetDefaultAllocator() == static_cast<Opal::AllocatorBase*>(scratch));
+        }
+        REQUIRE(Opal::GetDefaultAllocator() == original_default);
+    }
+    SECTION("Resets to mark on destroy by default")
+    {
+        Opal::u64 mark_before = scratch->Mark();
+        {
+            Opal::ScratchAsDefault sd;
+            Opal::GetDefaultAllocator()->Alloc(256, 8);
+            REQUIRE(scratch->Mark() > mark_before);
+        }
+        REQUIRE(scratch->Mark() == mark_before);
+    }
+    SECTION("Does not reset when should_reset_on_destroy is false")
+    {
+        Opal::u64 mark_before = scratch->Mark();
+        {
+            Opal::ScratchAsDefault sd(false);
+            Opal::GetDefaultAllocator()->Alloc(256, 8);
+            REQUIRE(scratch->Mark() > mark_before);
+        }
+        REQUIRE(scratch->Mark() > mark_before);
+        // Clean up by resetting manually
+        scratch->Reset(mark_before);
+    }
+    SECTION("Nested scopes restore correctly")
+    {
+        Opal::u64 mark_outer = scratch->Mark();
+        {
+            Opal::ScratchAsDefault sd_outer;
+            Opal::GetDefaultAllocator()->Alloc(128, 8);
+            Opal::u64 mark_inner = scratch->Mark();
+            {
+                Opal::ScratchAsDefault sd_inner;
+                Opal::GetDefaultAllocator()->Alloc(256, 8);
+                REQUIRE(scratch->Mark() > mark_inner);
+            }
+            REQUIRE(scratch->Mark() == mark_inner);
+        }
+        REQUIRE(scratch->Mark() == mark_outer);
+    }
+}
+
 struct ThreadAllocatorResult
 {
     bool threw = false;
