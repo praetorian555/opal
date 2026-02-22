@@ -2,13 +2,11 @@
 
 using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Task>>;
 using TransmitterType = Opal::TransmitterMPMC<Opal::SharedPtr<Opal::Task>>;
-static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, std::atomic<bool>& should_exit)
+static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, Opal::Ref<Opal::AllocatorBase> default_allocator,
+                           std::atomic<bool>& should_exit)
 {
-    Opal::MallocAllocator main_allocator;
-    Opal::PushDefaultAllocator(&main_allocator);
-    Opal::LinearAllocator linear_allocator("Scratch Allocator");
-    Opal::PushScratchAllocator(&linear_allocator);
-
+    OPAL_ASSERT(default_allocator->IsThreadSafe(), "Allocator must be thread safe");
+    Opal::PushDefaultAllocator(default_allocator.GetPtr());
     while (!should_exit)
     {
         Opal::SharedPtr<Opal::Task> task;
@@ -26,8 +24,8 @@ Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, Alloc
 {
     for (size_t i = 0; i < thread_count; ++i)
     {
-        const ThreadHandle thread_handle =
-            CreateThread(ThreadFunction, m_communicator.receiver.Clone(), m_communicator.transmitter.Clone(), Ref{m_should_exit});
+        const ThreadHandle thread_handle = CreateThread(ThreadFunction, m_communicator.receiver.Clone(), m_communicator.transmitter.Clone(),
+                                                        Opal::GetDefaultAllocator(), Ref{m_should_exit});
         m_threads.PushBack(thread_handle);
     }
 }
