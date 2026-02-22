@@ -27,12 +27,6 @@ public:
     {
     }
 
-    template <typename... Args>
-    explicit ScopePtr(AllocatorBase* allocator, Args&&... args) : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
-    {
-        m_ptr = New<T>(m_allocator, std::forward<Args>(args)...);
-    }
-
     ScopePtr(const ScopePtr& other) = delete;
     ScopePtr& operator=(const ScopePtr& other) = delete;
 
@@ -106,5 +100,26 @@ private:
     T* m_ptr = nullptr;
     AllocatorBase* m_allocator = nullptr;
 };
+
+/**
+ * Create a ScopePtr that owns a newly constructed object.
+ * @tparam Base Type stored in the ScopePtr.
+ * @tparam Derived Actual type to construct. Must be convertible to Base*. Defaults to Base.
+ * @tparam Args Constructor argument types.
+ * @param allocator Allocator used for the object. If nullptr, the default allocator is used.
+ * @param args Arguments forwarded to the constructor of Derived.
+ * @return ScopePtr<Base> owning the newly constructed Derived object.
+ */
+template <typename Base, typename Derived = Base, typename... Args>
+    requires Convertible<Derived*, Base*>
+ScopePtr<Base> MakeScoped(AllocatorBase* allocator, Args&&... args)
+{
+    if (allocator == nullptr)
+    {
+        allocator = GetDefaultAllocator();
+    }
+    Derived* object = New<Derived>(allocator, std::forward<Args>(args)...);
+    return ScopePtr<Base>(allocator, static_cast<Base*>(object));
+}
 
 }  // namespace Opal
