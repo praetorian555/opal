@@ -17,7 +17,6 @@ Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddUsageExample(co
 
 void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
 {
-    const ScratchAsDefault sd;
     DynamicArray<StringUtf8> names;
     DynamicArray<StringUtf8> values;
 
