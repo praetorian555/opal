@@ -4,6 +4,11 @@ using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Task>>;
 using TransmitterType = Opal::TransmitterMPMC<Opal::SharedPtr<Opal::Task>>;
 static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, std::atomic<bool>& should_exit)
 {
+    Opal::MallocAllocator main_allocator;
+    Opal::PushDefaultAllocator(&main_allocator);
+    Opal::LinearAllocator linear_allocator("Scratch Allocator");
+    Opal::PushScratchAllocator(&linear_allocator);
+
     while (!should_exit)
     {
         Opal::SharedPtr<Opal::Task> task;
