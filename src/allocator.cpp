@@ -137,9 +137,14 @@ void* Opal::MallocAllocator::Alloc(u64 size, u64 alignment)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return _aligned_malloc(size, alignment);
-#else
-    (void)alignment;
-    return malloc(size);
+#elif defined(OPAL_PLATFORM_LINUX)
+    // aligned_alloc requires size to be a multiple of alignment.
+    u64 aligned_size = size;
+    if (aligned_size % alignment != 0)
+    {
+        aligned_size += alignment - (aligned_size % alignment);
+    }
+    return aligned_alloc(alignment, aligned_size);
 #endif
 }
 
@@ -147,7 +152,7 @@ void Opal::MallocAllocator::Free(void* ptr)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     _aligned_free(ptr);
-#else
+#elif defined(OPAL_PLATFORM_LINUX)
     free(ptr);
 #endif
 }

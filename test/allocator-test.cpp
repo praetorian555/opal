@@ -7,9 +7,35 @@
 TEST_CASE("Malloc allocator", "[Allocator]")
 {
     Opal::MallocAllocator allocator;
-    void* memory = allocator.Alloc(16, 16);
-    REQUIRE(memory != nullptr);
-    allocator.Free(memory);
+
+    SECTION("Basic alloc and free")
+    {
+        void* memory = allocator.Alloc(16, 16);
+        REQUIRE(memory != nullptr);
+        allocator.Free(memory);
+    }
+    SECTION("Alignment is respected")
+    {
+        constexpr Opal::u64 alignments[] = {8, 16, 32, 64, 128, 256};
+        for (Opal::u64 alignment : alignments)
+        {
+            void* memory = allocator.Alloc(1, alignment);
+            REQUIRE(memory != nullptr);
+            REQUIRE(reinterpret_cast<Opal::u64>(memory) % alignment == 0);
+            allocator.Free(memory);
+        }
+    }
+    SECTION("Alignment with various sizes")
+    {
+        constexpr Opal::u64 sizes[] = {1, 3, 7, 13, 100, 1000};
+        for (Opal::u64 size : sizes)
+        {
+            void* memory = allocator.Alloc(size, 64);
+            REQUIRE(memory != nullptr);
+            REQUIRE(reinterpret_cast<Opal::u64>(memory) % 64 == 0);
+            allocator.Free(memory);
+        }
+    }
 }
 
 TEST_CASE("System memory allocator", "[Allocator]")
