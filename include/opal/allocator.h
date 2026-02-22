@@ -141,41 +141,46 @@ private:
 
 /**
  * Get the pointer to the default allocator. This allocator should be used for long lived data.
- * @return Pointer to the default allocator. It will never be nullptr.
+ * @return Pointer to the default allocator.
+ * @throws AllocatorNotInitializedException if no allocator has been pushed.
  */
 OPAL_EXPORT AllocatorBase* GetDefaultAllocator();
 
 /**
- * Push desired allocator to be new default allocator.
- * @param allocator Pointer to the allocator. It will never be nullptr.
+ * Push desired allocator to be new default allocator. The first call with a non-null allocator initializes the system.
+ * @param allocator Pointer to the allocator. If nullptr, pushes the root (first) allocator.
+ * @throws AllocatorNotInitializedException if allocator is nullptr and the stack is empty.
  */
 OPAL_EXPORT void PushDefaultAllocator(AllocatorBase* allocator);
 
 /**
- * Remove allocator from the top of the stack. The stack will never be empty and default allocator will be available.
+ * Remove allocator from the top of the stack. Will not pop the last (root) allocator.
  */
 OPAL_EXPORT void PopDefaultAllocator();
 
 /**
  * Get default scratch allocator. This allocator should be used for short-lived allocations, usually inside a function span. Deallocation
  * is not possible, and it can only be reset.
- * @return Pointer to a scratch allocator. It will never be nullptr.
+ * @return Pointer to a scratch allocator.
+ * @throws AllocatorNotInitializedException if no scratch allocator has been pushed.
  */
 OPAL_EXPORT LinearAllocator* GetScratchAllocator();
 
 /**
- * Push desired allocator to be new scratch allocator.
- * @param allocator New allocator.
+ * Push desired allocator to be new scratch allocator. The first call with a non-null allocator initializes the system.
+ * @param allocator New allocator. If nullptr, pushes the root (first) scratch allocator.
+ * @throws AllocatorNotInitializedException if allocator is nullptr and the stack is empty.
  */
 OPAL_EXPORT void PushScratchAllocator(LinearAllocator* allocator);
 
 /**
- * Remove allocator from top of the scratch allocator stack.
+ * Remove allocator from top of the scratch allocator stack. Will not pop the last (root) allocator.
  */
 OPAL_EXPORT void PopScratchAllocator();
 
 /**
  * Reset current scratch allocator.
+ * @throws AllocatorNotInitializedException if no scratch allocator has been pushed.
  */
 OPAL_EXPORT void ResetScratchAllocator();
 

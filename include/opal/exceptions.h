@@ -150,4 +150,12 @@ struct OutOfBoundsException : Exception
     OutOfBoundsException(const char* custom_message) : Exception(StringEx("Out of bounds: ") + custom_message) {}
 };
 
+struct AllocatorNotInitializedException : Exception
+{
+    AllocatorNotInitializedException()
+        : Exception("Allocator not initialized; call PushDefaultAllocator/PushScratchAllocator before use")
+    {
+    }
+};
+
 }  // namespace Opal

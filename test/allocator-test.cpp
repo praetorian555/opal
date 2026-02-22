@@ -2,6 +2,7 @@
 
 #include "opal/exceptions.h"
 #include "opal/allocator.h"
+#include "opal/threading/thread.h"
 
 TEST_CASE("Malloc allocator", "[Allocator]")
 {
@@ -106,6 +107,7 @@ TEST_CASE("Null allocator", "[Allocator]")
 
 TEST_CASE("Default allocator", "[Allocator]")
 {
+    // MallocAllocator is pushed in main-test.cpp before tests run.
     Opal::AllocatorBase* allocator = Opal::GetDefaultAllocator();
     REQUIRE(std::strcmp(allocator->GetName(), "MallocAllocator") == 0);
     void* memory = allocator->Alloc(16, 16);
@@ -123,6 +125,7 @@ TEST_CASE("Default allocator", "[Allocator]")
     REQUIRE(memory2 != nullptr);
     REQUIRE(memory != memory2);
 
+    // Pushing nullptr should push the root allocator (MallocAllocator from main).
     Opal::PushDefault pd2(nullptr);
     allocator = Opal::GetDefaultAllocator();
     REQUIRE(std::strcmp(allocator->GetName(), "MallocAllocator") == 0);
@@ -150,4 +153,129 @@ TEST_CASE("New and delete", "[Allocator]")
     REQUIRE(reinterpret_cast<Opal::u64>(b) % 32 == 0);
     Opal::Delete(Opal::GetDefaultAllocator(), b);
     delete allocator;
+}
+
+TEST_CASE("Allocator not initialized exception", "[Allocator]")
+{
+    // Pop until we can't pop anymore (size <= 1 is protected).
+    Opal::PopDefaultAllocator();
+
+    // GetDefaultAllocator should still work since the root is protected.
+    REQUIRE_NOTHROW(Opal::GetDefaultAllocator());
+
+    // Push a new allocator and verify it works, then pop it.
+    Opal::MallocAllocator temp_allocator;
+    Opal::PushDefaultAllocator(&temp_allocator);
+    REQUIRE(std::strcmp(Opal::GetDefaultAllocator()->GetName(), "MallocAllocator") == 0);
+    Opal::PopDefaultAllocator();
+}
+
+struct ThreadAllocatorResult
+{
+    bool threw = false;
+    Opal::AllocatorBase* allocator = nullptr;
+};
+
+TEST_CASE("Thread-local allocator stacks", "[Allocator]")
+{
+    SECTION("New thread has empty allocator stack")
+    {
+        ThreadAllocatorResult result;
+        Opal::ThreadHandle handle = Opal::CreateThread(
+            [](ThreadAllocatorResult& out)
+            {
+                try
+                {
+                    Opal::GetDefaultAllocator();
+                }
+                catch (const Opal::AllocatorNotInitializedException&)
+                {
+                    out.threw = true;
+                }
+            },
+            Opal::Ref(result));
+        Opal::JoinThread(handle);
+        REQUIRE(result.threw);
+    }
+    SECTION("Push on child thread does not affect main thread")
+    {
+        Opal::AllocatorBase* main_allocator = Opal::GetDefaultAllocator();
+
+        Opal::MallocAllocator child_allocator;
+        ThreadAllocatorResult result;
+        Opal::ThreadHandle handle = Opal::CreateThread(
+            [](Opal::MallocAllocator& alloc, ThreadAllocatorResult& out)
+            {
+                Opal::PushDefaultAllocator(&alloc);
+                out.allocator = Opal::GetDefaultAllocator();
+                Opal::PopDefaultAllocator();
+            },
+            Opal::Ref(child_allocator), Opal::Ref(result));
+        Opal::JoinThread(handle);
+
+        REQUIRE(result.allocator != nullptr);
+        REQUIRE(std::strcmp(result.allocator->GetName(), "MallocAllocator") == 0);
+        REQUIRE(Opal::GetDefaultAllocator() == main_allocator);
+    }
+    SECTION("Push on main thread does not affect child thread")
+    {
+        // Create thread before pushing LinearAllocator, since CreateThread requires a thread-safe default allocator.
+        ThreadAllocatorResult result;
+        Opal::ThreadHandle handle = Opal::CreateThread(
+            [](ThreadAllocatorResult& out)
+            {
+                try
+                {
+                    Opal::GetDefaultAllocator();
+                }
+                catch (const Opal::AllocatorNotInitializedException&)
+                {
+                    out.threw = true;
+                }
+            },
+            Opal::Ref(result));
+        Opal::JoinThread(handle);
+        REQUIRE(result.threw);
+
+        // Verify that main thread's stack is unaffected.
+        const Opal::SystemMemoryAllocatorDesc desc{
+            .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(1), .commit_step_size = OPAL_MB(1)};
+        Opal::LinearAllocator linear("Thread Test Allocator", desc);
+        Opal::PushDefault pd(&linear);
+        REQUIRE(std::strcmp(Opal::GetDefaultAllocator()->GetName(), "Thread Test Allocator") == 0);
+    }
+    SECTION("Each child thread has independent stack")
+    {
+        Opal::MallocAllocator alloc1;
+        const Opal::SystemMemoryAllocatorDesc desc{
+            .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(1), .commit_step_size = OPAL_MB(1)};
+        Opal::LinearAllocator alloc2("Child Linear Allocator", desc);
+
+        ThreadAllocatorResult result1;
+        ThreadAllocatorResult result2;
+
+        Opal::ThreadHandle handle1 = Opal::CreateThread(
+            [](Opal::MallocAllocator& alloc, ThreadAllocatorResult& out)
+            {
+                Opal::PushDefaultAllocator(&alloc);
+                out.allocator = Opal::GetDefaultAllocator();
+                Opal::PopDefaultAllocator();
+            },
+            Opal::Ref(alloc1), Opal::Ref(result1));
+
+        Opal::ThreadHandle handle2 = Opal::CreateThread(
+            [](Opal::LinearAllocator& alloc, ThreadAllocatorResult& out)
+            {
+                Opal::PushDefaultAllocator(&alloc);
+                out.allocator = Opal::GetDefaultAllocator();
+                Opal::PopDefaultAllocator();
+            },
+            Opal::Ref(alloc2), Opal::Ref(result2));
+
+        Opal::JoinThread(handle1);
+        Opal::JoinThread(handle2);
+
+        REQUIRE(result1.allocator == &alloc1);
+        REQUIRE(result2.allocator == &alloc2);
+    }
 }
