@@ -2677,19 +2677,19 @@ template <typename T>
 Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_leading_zeros)
 {
     constexpr size_t k_type_size = sizeof(T);
-    Opal::StringUtf8 out_str("%", Opal::GetScratchAllocator());
+    StringUtf8 out_str("%");
     out_str += add_leading_zeros ? "0" : "";
     if constexpr (k_type_size == 8)
     {
         switch (number_system_base)
         {
-            case Opal::NumberSystemBase::Octal:
+            case NumberSystemBase::Octal:
                 out_str += PRIo64;
                 break;
-            case Opal::NumberSystemBase::Hexadecimal:
+            case NumberSystemBase::Hexadecimal:
                 out_str += PRIX64;
                 break;
-            case Opal::NumberSystemBase::Decimal:
+            case NumberSystemBase::Decimal:
             {
                 if constexpr (Opal::SignedIntegral<T>)
                 {
@@ -2703,20 +2703,20 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
                 }
             }
             default:
-                throw Opal::NotImplementedException(__FUNCTION__);
+                throw NotImplementedException(__FUNCTION__);
         }
     }
     else if constexpr (k_type_size == 4)
     {
         switch (number_system_base)
         {
-            case Opal::NumberSystemBase::Octal:
+            case NumberSystemBase::Octal:
                 out_str += PRIo32;
                 break;
-            case Opal::NumberSystemBase::Hexadecimal:
+            case NumberSystemBase::Hexadecimal:
                 out_str += PRIX32;
                 break;
-            case Opal::NumberSystemBase::Decimal:
+            case NumberSystemBase::Decimal:
             {
                 if constexpr (Opal::SignedIntegral<T>)
                 {
@@ -2730,20 +2730,20 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
                 }
             }
             default:
-                throw Opal::NotImplementedException(__FUNCTION__);
+                throw NotImplementedException(__FUNCTION__);
         }
     }
     else if constexpr (k_type_size == 2)
     {
         switch (number_system_base)
         {
-            case Opal::NumberSystemBase::Octal:
+            case NumberSystemBase::Octal:
                 out_str += PRIo16;
                 break;
-            case Opal::NumberSystemBase::Hexadecimal:
+            case NumberSystemBase::Hexadecimal:
                 out_str += PRIX16;
                 break;
-            case Opal::NumberSystemBase::Decimal:
+            case NumberSystemBase::Decimal:
             {
                 if constexpr (Opal::SignedIntegral<T>)
                 {
@@ -2757,20 +2757,20 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
                 }
             }
             default:
-                throw Opal::NotImplementedException(__FUNCTION__);
+                throw NotImplementedException(__FUNCTION__);
         }
     }
     else if constexpr (k_type_size == 1)
     {
         switch (number_system_base)
         {
-            case Opal::NumberSystemBase::Octal:
+            case NumberSystemBase::Octal:
                 out_str += PRIo8;
                 break;
-            case Opal::NumberSystemBase::Hexadecimal:
+            case NumberSystemBase::Hexadecimal:
                 out_str += PRIX8;
                 break;
-            case Opal::NumberSystemBase::Decimal:
+            case NumberSystemBase::Decimal:
             {
                 if constexpr (Opal::SignedIntegral<T>)
                 {
@@ -2784,7 +2784,7 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
                 }
             }
             default:
-                throw Opal::NotImplementedException(__FUNCTION__);
+                throw NotImplementedException(__FUNCTION__);
         }
     }
     return out_str;
@@ -2819,7 +2819,7 @@ template <Opal::FloatingPoint T>
 Opal::StringUtf8 Opal::NumberToString(T value, i32 decimal_points)
 {
     StringUtf8 str(256, 0);
-    StringUtf8 format("%", GetScratchAllocator());
+    StringUtf8 format("%");
     format += decimal_points == -1 ? "" : "." + NumberToString(decimal_points);
     if constexpr (sizeof(T) == 8)
     {

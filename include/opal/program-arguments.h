@@ -110,7 +110,7 @@ struct TypedProgramArgumentDefinition<DynamicArray<StringUtf8>> final : ProgramA
         {
             trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
         }
-        DynamicArray<StringUtf8> elements(GetScratchAllocator());
+        DynamicArray<StringUtf8> elements;
         SplitToArray<StringUtf8>(trimmed, ",", elements);
         for (const auto& element : elements)
         {
@@ -160,7 +160,7 @@ struct TypedProgramArgumentDefinition<DynamicArray<i32>> final : ProgramArgument
         {
             trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
         }
-        DynamicArray<StringUtf8> values(GetScratchAllocator());
+        DynamicArray<StringUtf8> values;
         SplitToArray<StringUtf8>(trimmed, ",", values);
         for (const auto& value : values)
         {
@@ -210,7 +210,7 @@ struct TypedProgramArgumentDefinition<DynamicArray<u32>> final : ProgramArgument
         {
             trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
         }
-        DynamicArray<StringUtf8> values(GetScratchAllocator());
+        DynamicArray<StringUtf8> values;
         SplitToArray<StringUtf8>(trimmed, ",", values);
         for (const auto& value : values)
         {

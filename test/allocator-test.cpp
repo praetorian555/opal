@@ -1,7 +1,7 @@
 #include "test-helpers.h"
 
-#include "opal/exceptions.h"
 #include "opal/allocator.h"
+#include "opal/exceptions.h"
 #include "opal/threading/thread.h"
 
 TEST_CASE("Malloc allocator", "[Allocator]")
@@ -77,8 +77,7 @@ TEST_CASE("System memory allocator", "[Allocator]")
         Opal::SystemMemoryAllocatorDesc desc{
             .bytes_to_reserve = 0, .bytes_to_initially_alloc = OPAL_MB(100), .commit_step_size = OPAL_MB(100)};
         Opal::SystemMemoryAllocator* allocator = nullptr;
-        REQUIRE_THROWS_AS(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc),
-                          Opal::InvalidArgumentException);
+        REQUIRE_THROWS_AS(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc), Opal::InvalidArgumentException);
         delete allocator;
     }
     SECTION("Initial commit size larger than reserved size")
@@ -86,8 +85,7 @@ TEST_CASE("System memory allocator", "[Allocator]")
         Opal::SystemMemoryAllocatorDesc desc{
             .bytes_to_reserve = OPAL_MB(100), .bytes_to_initially_alloc = OPAL_MB(150), .commit_step_size = OPAL_MB(100)};
         Opal::SystemMemoryAllocator* allocator = nullptr;
-        REQUIRE_THROWS_AS(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc),
-                          Opal::InvalidArgumentException);
+        REQUIRE_THROWS_AS(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc), Opal::InvalidArgumentException);
         delete allocator;
     }
     SECTION("Growing beyond initial commit")
@@ -195,7 +193,7 @@ TEST_CASE("New and delete", "[Allocator]")
     REQUIRE(*a == 5);
     Opal::Delete(Opal::GetDefaultAllocator(), a);
 
-    int* b = Opal::New<int, 32>(Opal::GetDefaultAllocator(),10);
+    int* b = Opal::New<int, 32>(Opal::GetDefaultAllocator(), 10);
     REQUIRE(b != nullptr);
     REQUIRE(*b == 10);
     REQUIRE(reinterpret_cast<Opal::u64>(b) % 32 == 0);
@@ -279,24 +277,14 @@ struct ThreadAllocatorResult
 
 TEST_CASE("Thread-local allocator stacks", "[Allocator]")
 {
-    SECTION("New thread has empty allocator stack")
+    SECTION("New thread has same allocator as default as the current thread default")
     {
         ThreadAllocatorResult result;
+        Opal::AllocatorBase* new_allocator = nullptr;
         Opal::ThreadHandle handle = Opal::CreateThread(
-            [](ThreadAllocatorResult& out)
-            {
-                try
-                {
-                    Opal::GetDefaultAllocator();
-                }
-                catch (const Opal::AllocatorNotInitializedException&)
-                {
-                    out.threw = true;
-                }
-            },
-            Opal::Ref(result));
+            [&new_allocator](ThreadAllocatorResult&) { new_allocator = Opal::GetDefaultAllocator(); }, Opal::Ref(result));
         Opal::JoinThread(handle);
-        REQUIRE(result.threw);
+        REQUIRE(new_allocator == Opal::GetDefaultAllocator());
     }
     SECTION("Push on child thread does not affect main thread")
     {
@@ -321,28 +309,14 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
     SECTION("Push on main thread does not affect child thread")
     {
         // Create thread before pushing LinearAllocator, since CreateThread requires a thread-safe default allocator.
-        ThreadAllocatorResult result;
-        Opal::ThreadHandle handle = Opal::CreateThread(
-            [](ThreadAllocatorResult& out)
-            {
-                try
-                {
-                    Opal::GetDefaultAllocator();
-                }
-                catch (const Opal::AllocatorNotInitializedException&)
-                {
-                    out.threw = true;
-                }
-            },
-            Opal::Ref(result));
+        const Opal::ThreadHandle handle = Opal::CreateThread([]() {});
         Opal::JoinThread(handle);
-        REQUIRE(result.threw);
 
         // Verify that main thread's stack is unaffected.
         const Opal::SystemMemoryAllocatorDesc desc{
             .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(1), .commit_step_size = OPAL_MB(1)};
         Opal::LinearAllocator linear("Thread Test Allocator", desc);
-        Opal::PushDefault pd(&linear);
+        const Opal::PushDefault pd(&linear);
         REQUIRE(std::strcmp(Opal::GetDefaultAllocator()->GetName(), "Thread Test Allocator") == 0);
     }
     SECTION("Each child thread has independent stack")

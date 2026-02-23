@@ -100,14 +100,13 @@ Opal::CpuInfo Opal::GetCpuInfo()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     CpuInfo info;
-    AllocatorBase* scratch_allocator = GetScratchAllocator();
     DWORD buffer_size = 0;
     PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buffer = NULL;
     GetLogicalProcessorInformationEx(RelationAll, NULL, &buffer_size);
-    buffer = static_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(scratch_allocator->Alloc(buffer_size, 1));
+    buffer = static_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(GetDefaultAllocator()->Alloc(buffer_size, 1));
     if (GetLogicalProcessorInformationEx(RelationAll, buffer, &buffer_size) == FALSE)
     {
-        scratch_allocator->Free(buffer);
+        GetDefaultAllocator()->Free(buffer);
         return info;
     }
     BYTE* ptr = reinterpret_cast<BYTE*>(buffer);
@@ -137,7 +136,7 @@ Opal::CpuInfo Opal::GetCpuInfo()
         ptr += lp_info->Size;
     }
 
-    scratch_allocator->Free(buffer);
+    GetDefaultAllocator()->Free(buffer);
     return info;
 #elif defined(OPAL_PLATFORM_LINUX)
     CpuInfo info;

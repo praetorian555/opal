@@ -13,19 +13,14 @@
 Opal::StringUtf8 Opal::Paths::GetCurrentWorkingDirectory()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    LinearAllocator* scratch_allocator = GetScratchAllocator();
     const DWORD size_needed = GetCurrentDirectoryW(0, nullptr);
-    StringWide buffer(static_cast<StringWide::size_type>(size_needed - 1), L'\0', scratch_allocator);
-    if (buffer.GetSize() != size_needed - 1)
-    {
-        throw OutOfMemoryException(scratch_allocator->GetName(), static_cast<i64>(size_needed) - 1);
-    }
+    StringWide buffer(static_cast<StringWide::size_type>(size_needed - 1), L'\0');
     const DWORD written_size = GetCurrentDirectoryW(size_needed, buffer.GetData());
     if (written_size == 0)
     {
         throw Exception("Failed to get current working directory from the OS!");
     }
-    StringUtf8 out_path(MAX_PATH, '\0', GetDefaultAllocator());
+    StringUtf8 out_path(MAX_PATH, '\0');
     const ErrorCode err = Transcode(buffer, out_path);
     if (err != ErrorCode::Success)
     {
@@ -47,7 +42,6 @@ Opal::StringUtf8 Opal::Paths::GetCurrentWorkingDirectory()
 
 void Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path)
 {
-    ScratchAsDefault sad;
     StringUtf8 normalized_path = NormalizePath(path);
 
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -88,8 +82,7 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
         return {};
     }
 
-    AllocatorBase* scratch_allocator = GetScratchAllocator();
-    StringUtf8 original_path(path, scratch_allocator);
+    StringUtf8 original_path(path);
 
     // If path is not absolute we need to make it absolute
     if (!IsPathAbsolute(path))
@@ -130,7 +123,7 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
     }
 #endif
 
-    StringUtf8 relative(scratch_allocator);
+    StringUtf8 relative;
     // Remove redundant separators and switch to using preferred separators
     for (StringUtf8::size_type i = start; i < original_path.GetSize(); ++i)
     {
@@ -151,7 +144,7 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
         }
     }
 
-    StringUtf8 pattern(scratch_allocator);
+    StringUtf8 pattern;
     pattern.Append(k_preferred_separator);
     pattern.Append('.');
     pattern.Append(k_preferred_separator);
