@@ -38,10 +38,7 @@ struct FunctionTask : Task
 {
     explicit FunctionTask(Function function) : m_function(function) {}
 
-    void Execute(TransmitterType& transmitter) override
-    {
-        m_function(transmitter);
-    }
+    void Execute(TransmitterType& transmitter) override { m_function(transmitter); }
 
 protected:
     Function m_function;
@@ -62,6 +59,9 @@ public:
     }
 
     void Close();
+
+    [[nodiscard]] size_t GetThreadCount() const { return m_threads.GetSize(); }
+    [[nodiscard]] AllocatorBase* GetAllocator() const { return m_allocator; }
 
 private:
     AllocatorBase* m_allocator = nullptr;
