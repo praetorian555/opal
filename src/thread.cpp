@@ -20,6 +20,7 @@
 DWORD WINAPI WindowsThread(LPVOID param)
 {
     Opal::Impl::ThreadDataBase* data = static_cast<Opal::Impl::ThreadDataBase*>(param);
+    Opal::PushDefaultAllocator(data->allocator);
     data->Invoke();
     Delete(data->allocator, data);
     return 0;
@@ -28,6 +29,7 @@ DWORD WINAPI WindowsThread(LPVOID param)
 void* ThreadFunction(void* param)
 {
     Opal::Impl::ThreadDataBase* data = static_cast<Opal::Impl::ThreadDataBase*>(param);
+    Opal::PushDefaultAllocator(data->allocator);
     data->Invoke();
     Delete(data->allocator, data);
     return nullptr;
