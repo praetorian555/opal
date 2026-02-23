@@ -1,11 +1,19 @@
 #include "opal/threading/thread.h"
 
 #include "opal/container/scope-ptr.h"
+#include "opal/logging.h"
+
+#include <cstdio>
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
 #elif defined(OPAL_PLATFORM_LINUX)
 #include <pthread.h>
+
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <dirent.h>
 #endif
 
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -130,10 +138,124 @@ Opal::CpuInfo Opal::GetCpuInfo()
     scratch_allocator->Free(buffer);
     return info;
 #elif defined(OPAL_PLATFORM_LINUX)
-    throw NotImplementedException(__FUNCTION__);
+    CpuInfo info;
+
+    DIR* cpu_dir = opendir("/sys/devices/system/cpu");
+    if (cpu_dir == nullptr)
+    {
+        return info;
+    }
+
+    struct CoreAccum
+    {
+        u32 package_id;
+        u32 core_id;
+        u64 mask;
+    };
+    DynamicArray<CoreAccum> accums;
+
+    struct dirent* entry;
+    while ((entry = readdir(cpu_dir)) != nullptr)
+    {
+        // Looking for directories which names start with cpu<number>, these are logical cores
+        if (strncmp(entry->d_name, "cpu", 3) != 0 || entry->d_name[3] < '0' || entry->d_name[3] > '9')
+        {
+            continue;
+        }
+
+        // Extract logical core id from the directory name
+        u32 logical_id = static_cast<u32>(atoi(entry->d_name + 3));
+        if (logical_id >= 64)
+        {
+            continue;
+        }
+
+        char path[256];
+        char buf[32];
+
+        // Extract physical core id inside the package
+        snprintf(path, sizeof(path), "/sys/devices/system/cpu/%s/topology/core_id", entry->d_name);
+        FILE* f = fopen(path, "r");
+        if (f == nullptr)
+        {
+            continue;
+        }
+        if (fgets(buf, sizeof(buf), f) == nullptr)
+        {
+            fclose(f);
+            continue;
+        }
+        fclose(f);
+        u32 core_id = static_cast<u32>(atoi(buf));
+
+        // Extract package id
+        snprintf(path, sizeof(path), "/sys/devices/system/cpu/%s/topology/physical_package_id", entry->d_name);
+        f = fopen(path, "r");
+        if (f == nullptr)
+        {
+            continue;
+        }
+        if (fgets(buf, sizeof(buf), f) == nullptr)
+        {
+            fclose(f);
+            continue;
+        }
+        fclose(f);
+        u32 package_id = static_cast<u32>(atoi(buf));
+
+        bool found = false;
+        for (u64 i = 0; i < accums.GetSize(); ++i)
+        {
+            if (accums[i].package_id == package_id && accums[i].core_id == core_id)
+            {
+                accums[i].mask |= (1ULL << logical_id);
+                found = true;
+                break;
+            }
+        }
+        if (!found)
+        {
+            accums.PushBack({package_id, core_id, 1ULL << logical_id});
+        }
+    }
+    closedir(cpu_dir);
+
+    for (u64 i = 0; i < accums.GetSize(); ++i)
+    {
+        PhysicalCoreInfo pp_info;
+        pp_info.id = static_cast<u32>(i);
+        pp_info.logical_cores = BitMask<u64>(accums[i].mask);
+        pp_info.is_hyperthreaded = pp_info.logical_cores.GetSetBitCount() > 1;
+        info.logical_cores_count += pp_info.logical_cores.GetSetBitCount();
+        info.physical_processors.PushBack(pp_info);
+    }
+
+    return info;
 #else
     throw NotImplementedException(__FUNCTION__);
 #endif
+}
+
+void Opal::PrintCpuInfo()
+{
+    const CpuInfo info = GetCpuInfo();
+    Logger& logger = GetLogger();
+    logger.Info("General", "CPU Info:");
+    logger.Info("General", "  Logical cores count: {}", info.logical_cores_count);
+    logger.Info("General", "  Physical cores count: {}", static_cast<u32>(info.physical_processors.GetSize()));
+    for (u64 i = 0; i < info.physical_processors.GetSize(); ++i)
+    {
+        const PhysicalCoreInfo& core = info.physical_processors[i];
+        logger.Info("General", "  Physical core {}:", core.id);
+        logger.Info("General", "    Hyperthreaded: {}", core.is_hyperthreaded ? "yes" : "no");
+        char logical_cores_str[256] = {};
+        i32 offset = 0;
+        for (auto bit : core.logical_cores)
+        {
+            offset += snprintf(logical_cores_str + offset, sizeof(logical_cores_str) - offset, "%u ", bit);
+        }
+        logger.Info("General", "    Logical cores: {}", logical_cores_str);
+    }
 }
 
 void Opal::SetThreadAffinity(ThreadHandle handle, u32 logical_core_id)

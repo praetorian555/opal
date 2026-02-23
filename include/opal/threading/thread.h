@@ -14,7 +14,7 @@ namespace Opal
 namespace Impl
 {
 
-struct OPAL_EXPORT ThreadDataBase
+struct ThreadDataBase
 {
     AllocatorBase* allocator = nullptr;
 
@@ -39,7 +39,7 @@ struct ThreadData : ThreadDataBase
 
 }  // namespace Impl
 
-struct OPAL_EXPORT ThreadHandle
+struct ThreadHandle
 {
     void* native_handle = nullptr;
     void* native_id = nullptr;
@@ -49,7 +49,7 @@ struct OPAL_EXPORT ThreadHandle
 
 namespace Impl
 {
-ThreadHandle OPAL_EXPORT CreateThread(ThreadDataBase* data);
+ThreadHandle CreateThread(ThreadDataBase* data);
 }  // namespace Impl
 
 /**
@@ -81,16 +81,15 @@ ThreadHandle CreateThread(Function&& function, Args&&... args)
  * Wait for a thread to exit.
  * @param handle Handle of a thread to wait for.
  */
-void OPAL_EXPORT JoinThread(ThreadHandle handle);
+void JoinThread(ThreadHandle handle);
 
 /**
  * Get a thread handle of a current thread.
  * @return Thread handle.
  */
-ThreadHandle OPAL_EXPORT GetCurrentThreadHandle();
+ThreadHandle GetCurrentThreadHandle();
 
-template class OPAL_EXPORT BitMask<u64>;
-struct OPAL_EXPORT PhysicalCoreInfo
+struct PhysicalCoreInfo
 {
     u32 id = 0;
     BitMask<u64> logical_cores;
@@ -99,20 +98,30 @@ struct OPAL_EXPORT PhysicalCoreInfo
     [[nodiscard]] bool operator==(const PhysicalCoreInfo& other) const { return id == other.id; }
 };
 
-template class OPAL_EXPORT DynamicArray<PhysicalCoreInfo>;
-struct OPAL_EXPORT CpuInfo
+struct CpuInfo
 {
     u32 logical_cores_count = 0;
     DynamicArray<PhysicalCoreInfo> physical_processors;
 };
 
 /**
- * Get info about the physical and logical cores of the processor. It returns number of logical cores in the
- * system, as well as a list of physical cores. Each physical core also has a bit mask representing logical
- * cores that belong to it. Logical cores can be indexed starting from 0 to the number of logical cores
- * minus one.
+ * Get info about the physical and logical cores of the processor. It returns the total number of logical
+ * cores in the system, as well as a list of physical cores. Each physical core has a bit mask representing
+ * logical cores that belong to it. Logical cores are indexed starting from 0.
+ *
+ * On Windows, this uses GetLogicalProcessorInformationEx to enumerate processor cores and their
+ * SMT relationships. On Linux, this reads per-CPU topology files from sysfs
+ * (/sys/devices/system/cpu/cpuN/topology/) and groups logical CPUs by their (package_id, core_id) pair.
+ *
+ * @return CpuInfo containing the logical core count and an array of PhysicalCoreInfo entries.
+ * @note Limited to 64 logical cores due to BitMask<u64>.
  */
-CpuInfo OPAL_EXPORT GetCpuInfo();
+CpuInfo GetCpuInfo();
+
+/**
+ * Calls GetCpuInfo and prints all the gathered data using the logger with the "General" category.
+ */
+void PrintCpuInfo();
 
 /**
  * Pin the thread to a specific logical core.
@@ -120,6 +129,6 @@ CpuInfo OPAL_EXPORT GetCpuInfo();
  * @param logical_core_id Logical core id. Values always start from 0 and go to number of logical
  * cores minus one.
  */
-void OPAL_EXPORT SetThreadAffinity(ThreadHandle handle, u32 logical_core_id);
+void SetThreadAffinity(ThreadHandle handle, u32 logical_core_id);
 
 }  // namespace Opal
