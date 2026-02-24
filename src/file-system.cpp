@@ -220,7 +220,6 @@ bool Opal::Exists(const StringUtf8& path)
     {
         return false;
     }
-    const ScratchAsDefault sad;
     StringUtf8 result = Paths::NormalizePath(path);
 
 #if defined(OPAL_PLATFORM_WINDOWS)
