@@ -160,7 +160,7 @@ public:
     /**
      * Copy constructor.
      * @param other Source array.
-     * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
+     * @param allocator Allocator to be used for memory allocation. If nullptr, the allocator from the source array is used.
      */
     DynamicArray(const DynamicArray& other, allocator_type* allocator = nullptr);
 
@@ -179,6 +179,11 @@ public:
 
     ~DynamicArray();
 
+    /**
+     * Copy and move assignments. Always uses allocator from the source array.
+     * @param other Source array.
+     * @return Reference to this array.
+     */
     DynamicArray& operator=(const DynamicArray& other);
     DynamicArray& operator=(DynamicArray&& other) noexcept;
 
@@ -514,7 +519,7 @@ CLASS_HEADER::DynamicArray(const T* data, size_type count, allocator_type* alloc
 
 TEMPLATE_HEADER
 CLASS_HEADER::DynamicArray(const DynamicArray& other, allocator_type* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+    : m_allocator(allocator == nullptr ? other.m_allocator : allocator)
 {
     if (other.m_capacity == 0)
     {

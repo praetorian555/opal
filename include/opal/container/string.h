@@ -169,8 +169,8 @@ public:
 
     /**
      * Copy constructor.
-     * @param other String to copy.
-     * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     * @param other String to copy. Source string.
+     * @param allocator Allocator to use for memory management. If nullptr, the allocator from the source string is used.
      * @throw OutOfMemoryException if allocator runs out of memory.
      */
     String(const String& other, allocator_type* allocator = nullptr);
@@ -199,6 +199,11 @@ public:
 
     ~String();
 
+    /**
+     * Copy and move assignment. Always uses allocator from the source string.
+     * @param other Source string.
+     * @return Reference to this string.
+     */
     String& operator=(const String& other);
     String& operator=(String&& other) noexcept;
 
@@ -890,7 +895,7 @@ CLASS_HEADER::String(const CodeUnitType* str, allocator_type* allocator)
 
 TEMPLATE_HEADER
 CLASS_HEADER::String(const String& other, allocator_type* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_size(other.m_size), m_capacity(other.m_capacity)
+    : m_allocator(allocator == nullptr ? other.m_allocator : allocator), m_size(other.m_size), m_capacity(other.m_capacity)
 {
     if (other.m_capacity > 0)
     {
