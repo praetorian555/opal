@@ -15,6 +15,14 @@ Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddUsageExample(co
     return *this;
 }
 
+Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::SetVersion(u32 major, u32 minor, u32 patch)
+{
+    m_major_version = major;
+    m_minor_version = minor;
+    m_patch_version = patch;
+    return *this;
+}
+
 void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
 {
     DynamicArray<StringUtf8> names;
@@ -37,6 +45,11 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         {
             ShowHelp();
             throw HelpRequestedException();
+        }
+        if (name == "version" || name == "--version")
+        {
+            ShowVersion(arguments[0]);
+            throw VersionRequestedException();
         }
     }
 
@@ -141,4 +154,9 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         }
         GetLogger().Info("ProgramArguments", "\n");
     }
+}
+
+void Opal::ProgramArgumentsBuilder::ShowVersion(const char* program_name)
+{
+    Opal::GetLogger().Info("ProgramArguments", "%s v{}.{}.{}\n", program_name, m_major_version, m_minor_version, m_patch_version);
 }

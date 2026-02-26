@@ -2,18 +2,23 @@
 
 #include "container/scope-ptr.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/container/hash-map.h"
 #include "opal/container/string.h"
-#include "opal/export.h"
 
 namespace Opal
 {
 
-struct OPAL_EXPORT HelpRequestedException : Exception
+struct HelpRequestedException : Exception
 {
     HelpRequestedException() : Exception("Help was requested") {}
 };
 
-struct OPAL_EXPORT ProgramArgumentDefinitionDesc
+struct VersionRequestedException : Exception
+{
+    VersionRequestedException() : Exception("Version was requested") {}
+};
+
+struct ProgramArgumentDefinitionDesc
 {
     StringUtf8 name;
     StringUtf8 desc;
@@ -21,7 +26,7 @@ struct OPAL_EXPORT ProgramArgumentDefinitionDesc
     DynamicArray<StringUtf8> possible_values = {};
 };
 
-struct OPAL_EXPORT ProgramArgumentDefinition
+struct ProgramArgumentDefinition
 {
     StringUtf8 name;
     StringUtf8 description;
@@ -53,9 +58,6 @@ struct OPAL_EXPORT ProgramArgumentDefinition
     }
 };
 
-template class OPAL_EXPORT DynamicArray<ProgramArgumentDefinition*>;
-template class OPAL_EXPORT DynamicArray<StringUtf8>;
-
 template <typename T>
 struct TypedProgramArgumentDefinition final : ProgramArgumentDefinition
 {
@@ -66,6 +68,32 @@ struct TypedProgramArgumentDefinition final : ProgramArgumentDefinition
     }
 
     void SetValue(const StringUtf8&) override { throw NotImplementedException(__FUNCTION__); }
+};
+
+template <typename T>
+concept IsEnum = std::is_enum_v<T>;
+
+template <IsEnum T>
+struct TypedProgramArgumentDefinition<T> final : ProgramArgumentDefinition
+{
+    T* destination;
+    HashMap<StringUtf8, T> values;
+
+    TypedProgramArgumentDefinition(T* dest, const ProgramArgumentDefinitionDesc& desc, HashMap<StringUtf8, T> data_mappings)
+        : ProgramArgumentDefinition(desc), destination(dest), values(std::move(data_mappings))
+    {
+    }
+
+    void SetValue(const StringUtf8& str) override
+    {
+        auto value_it = values.Find(str);
+        if (value_it != values.end())
+        {
+            *destination = value_it->value;
+            return;
+        }
+        throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+    }
 };
 
 template <>
@@ -241,6 +269,8 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
     ProgramArgumentsBuilder& AddProgramDescription(const StringUtf8& description);
     ProgramArgumentsBuilder& AddUsageExample(const StringUtf8& example);
 
+    ProgramArgumentsBuilder& SetVersion(u32 major, u32 minor, u32 patch);
+
     template <typename T>
     ProgramArgumentsBuilder& AddArgumentDefinition(T& field, const ProgramArgumentDefinitionDesc& desc)
     {
@@ -253,7 +283,7 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
             throw InvalidArgumentException(__FUNCTION__, "description of the argument can't be empty");
         }
         AllocatorBase* allocator = GetDefaultAllocator();
-        ScopePtr<ProgramArgumentDefinition> arg_def(allocator, New<TypedProgramArgumentDefinition<T>>(allocator, &field, desc));
+        ScopePtr<ProgramArgumentDefinition> arg_def = MakeScoped<TypedProgramArgumentDefinition<T>>(allocator, &field, desc);
         m_argument_definitions.PushBack(std::move(arg_def));
         if (desc.is_optional)
         {
@@ -266,10 +296,42 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
         return *this;
     }
 
+    template <IsEnum T>
+    ProgramArgumentsBuilder& AddArgumentDefinition(T& field, const ProgramArgumentDefinitionDesc& desc, HashMap<StringUtf8, T> data_mappings)
+    {
+        if (desc.name.IsEmpty())
+        {
+            throw InvalidArgumentException(__FUNCTION__, "name of the argument can't be empty");
+        }
+        if (desc.desc.IsEmpty())
+        {
+            throw InvalidArgumentException(__FUNCTION__, "description of the argument can't be empty");
+        }
+        AllocatorBase* allocator = GetDefaultAllocator();
+        ScopePtr<ProgramArgumentDefinition> arg_def = MakeScoped<TypedProgramArgumentDefinition<T>>(allocator, &field, desc, std::move(data_mappings));
+        m_argument_definitions.PushBack(std::move(arg_def));
+
+        if (desc.is_optional)
+        {
+            m_has_optional_argument = true;
+        }
+        else
+        {
+            m_has_required_argument = true;
+        }
+
+        return *this;
+    }
+
     void Build(const char** arguments, u32 count);
 
 private:
     void ShowHelp();
+    void ShowVersion(const char* program_name);
+
+    u32 m_major_version = 0;
+    u32 m_minor_version = 0;
+    u32 m_patch_version = 0;
 
     StringUtf8 m_program_description;
     DynamicArray<StringUtf8> m_usage_examples;

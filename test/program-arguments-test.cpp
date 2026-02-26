@@ -147,3 +147,71 @@ TEST_CASE("Required program argument is missing", "[ProgramArguments]")
 
     SetLogger(nullptr);
 }
+
+TEST_CASE("Request help and version", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    SECTION("Help requested")
+    {
+        const char* arguments[] = {
+            "program-name",
+            "help"
+        };
+        ProgramArgumentsBuilder builder;
+        REQUIRE_THROWS_AS(builder.Build(arguments, 2), HelpRequestedException);
+    }
+    SECTION("Version requested")
+    {
+        const char* arguments[] = {
+            "program-name",
+            "version"
+        };
+        ProgramArgumentsBuilder builder;
+        builder.SetVersion(1, 2, 3);
+        REQUIRE_THROWS_AS(builder.Build(arguments, 2), VersionRequestedException);
+    }
+}
+
+TEST_CASE("Use enum as argument", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    enum class CppStandard
+    {
+        Cpp11,
+        Cpp14,
+        Cpp17
+    };
+
+    SECTION("Good value")
+    {
+        CppStandard standard = CppStandard::Cpp11;
+        ProgramArgumentsBuilder builder;
+        builder.AddArgumentDefinition(standard, {.name = "standard", .desc = "Standard argument", .is_optional = false}, {
+            {"c++11", CppStandard::Cpp11}, {"c++14", CppStandard::Cpp14}, {"c++17", CppStandard::Cpp17}
+        });
+        const char* arguments[] = {
+            "program-name",
+            "standard=c++14"
+        };
+        builder.Build(arguments, 2);
+        REQUIRE(standard == CppStandard::Cpp14);
+    }
+    SECTION("Invalid value")
+    {
+        CppStandard standard = CppStandard::Cpp11;
+        ProgramArgumentsBuilder builder;
+        builder.AddArgumentDefinition(standard, {.name = "standard", .desc = "Standard argument", .is_optional = false}, {
+            {"c++11", CppStandard::Cpp11}, {"c++14", CppStandard::Cpp14}, {"c++17", CppStandard::Cpp17}
+        });
+        const char* arguments[] = {
+            "program-name",
+            "standard=c++15"
+        };
+        REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+        REQUIRE(standard == CppStandard::Cpp11);
+    }
+}
