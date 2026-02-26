@@ -171,7 +171,7 @@ Opal::CpuInfo Opal::GetCpuInfo()
             continue;
         }
 
-        char path[256];
+        char path[310];
         char buf[32];
 
         // Extract physical core id inside the package
@@ -249,11 +249,12 @@ void Opal::PrintCpuInfo()
         const PhysicalCoreInfo& core = info.physical_processors[i];
         logger.Info("General", "  Physical core {}:", core.id);
         logger.Info("General", "    Hyperthreaded: {}", core.is_hyperthreaded ? "yes" : "no");
-        char logical_cores_str[256] = {};
-        i32 offset = 0;
-        for (auto bit : core.logical_cores)
+        char logical_cores_str[300] = {};
+        size_t offset = 0;
+        for (const u32 bit : core.logical_cores)
         {
-            offset += snprintf(logical_cores_str + offset, sizeof(logical_cores_str) - offset, "%u ", bit);
+            const size_t max_length = sizeof(logical_cores_str) - offset;
+            offset += static_cast<u32>(snprintf(logical_cores_str + offset, max_length, "%u ", bit));
         }
         logger.Info("General", "    Logical cores: {}", logical_cores_str);
     }
