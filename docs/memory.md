@@ -31,7 +31,8 @@ AllocatorBase (pure virtual)
 
 ### MallocAllocator
 
-General-purpose heap allocator. Thread-safe. All instances are equivalent (`operator==` returns `true`). Uses `_aligned_malloc`/`_aligned_free` on Windows, `aligned_alloc`/`free` on Linux. Typically used as the root of the default allocator stack. The debug name is always `"MallocAllocator"`.
+General-purpose heap allocator. Thread-safe. All instances are equivalent (`operator==` returns `true`). Uses `_aligned_malloc`/`_aligned_free` on Windows, `aligned_alloc`/`free` on Linux.
+In case that user doesn't provide a default stack, system provides an instance of MallocAllocator. The debug name is always `"MallocAllocator"`.
 
 ### SystemMemoryAllocator
 
@@ -104,12 +105,14 @@ Note that the scratch stack is typed to `LinearAllocator*`, not `AllocatorBase*`
 
 ### Explicit Initialization
 
-The allocator stacks require explicit initialization. The first `PushDefaultAllocator` / `PushScratchAllocator` call with a non-null allocator initializes the respective stack. Calling `GetDefaultAllocator()` or `GetScratchAllocator()` before initialization throws `AllocatorNotInitializedException`.
+Default allocator stack will implicitly be populated by MallocAllocator. Scratch allocator will not be initialized by default and it is user's responsibility to set it up.
 
 ```cpp
-// Initialize the default allocator stack
-Opal::MallocAllocator malloc_allocator;
-Opal::PushDefaultAllocator(&malloc_allocator);
+// This will implicitly initalize MallocAllocator so user doesn't have to do anything.
+AllocatorBase* allocator = GetDefaultAllocator();
+
+// This will trigger assert in debug builds and undefined behavior in optimized builds.
+LinearAllocator* scratch_allocator = GetScratchAllocator(); 
 
 // Initialize the scratch allocator stack
 Opal::LinearAllocator scratch("Scratch", {.bytes_to_reserve = OPAL_GB(4),
@@ -118,7 +121,7 @@ Opal::LinearAllocator scratch("Scratch", {.bytes_to_reserve = OPAL_GB(4),
 Opal::PushScratchAllocator(&scratch);
 ```
 
-The bottom (root) element can never be popped. Passing `nullptr` to `PushDefaultAllocator` / `PushScratchAllocator` pushes the root allocator (throws if the stack is empty). The maximum stack depth is 32.
+The bottom (root) element can never be popped. The maximum stack depth is 32.
 
 ### RAII Guards
 

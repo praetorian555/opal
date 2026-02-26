@@ -171,8 +171,8 @@ TEST_CASE("Default allocator", "[Allocator]")
     REQUIRE(memory2 != nullptr);
     REQUIRE(memory != memory2);
 
-    // Pushing nullptr should push the root allocator (MallocAllocator from main).
-    Opal::PushDefault pd2(nullptr);
+    Opal::MallocAllocator malloc_allocator;
+    Opal::PushDefault pd2(&malloc_allocator);
     allocator = Opal::GetDefaultAllocator();
     REQUIRE(std::strcmp(allocator->GetName(), "MallocAllocator") == 0);
     void* memory3 = allocator->Alloc(16, 16);
@@ -201,23 +201,10 @@ TEST_CASE("New and delete", "[Allocator]")
     delete allocator;
 }
 
-TEST_CASE("Allocator not initialized exception", "[Allocator]")
-{
-    // Pop until we can't pop anymore (size <= 1 is protected).
-    Opal::PopDefaultAllocator();
-
-    // GetDefaultAllocator should still work since the root is protected.
-    REQUIRE_NOTHROW(Opal::GetDefaultAllocator());
-
-    // Push a new allocator and verify it works, then pop it.
-    Opal::MallocAllocator temp_allocator;
-    Opal::PushDefaultAllocator(&temp_allocator);
-    REQUIRE(std::strcmp(Opal::GetDefaultAllocator()->GetName(), "MallocAllocator") == 0);
-    Opal::PopDefaultAllocator();
-}
-
 TEST_CASE("ScratchAsDefault", "[Allocator]")
 {
+    Opal::LinearAllocator linear_allocator("Linear Allocator");
+    Opal::PushScratchAllocator(&linear_allocator);
     Opal::LinearAllocator* scratch = Opal::GetScratchAllocator();
 
     SECTION("Pushes scratch as default and pops on destroy")

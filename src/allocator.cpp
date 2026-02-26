@@ -210,89 +210,69 @@ void Opal::LinearAllocator::Reset(u64 position)
     m_offset = position;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// Default and Scratch Allocator
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 namespace
 {
-constexpr Opal::u64 k_max_stack_depth = 32;
+constexpr Opal::i32 k_max_stack_depth = 32;
 
 // NOLINTBEGIN(modernize-avoid-c-arrays)
+Opal::MallocAllocator g_default_allocator;
 thread_local Opal::AllocatorBase* g_default_stack[k_max_stack_depth] = {};
-thread_local Opal::u64 g_default_stack_size = 0;
+thread_local Opal::i32 g_default_stack_size = 0;
 
 thread_local Opal::LinearAllocator* g_scratch_stack[k_max_stack_depth] = {};
-thread_local Opal::u64 g_scratch_stack_size = 0;
+thread_local Opal::i32 g_scratch_stack_size = 0;
 // NOLINTEND(modernize-avoid-c-arrays)
 }  // namespace
 
 Opal::AllocatorBase* Opal::GetDefaultAllocator()
 {
-    if (g_default_stack_size == 0) [[unlikely]]
+    if (g_default_stack_size != 0) [[likely]]
     {
-        throw AllocatorNotInitializedException();
+        return g_default_stack[g_default_stack_size - 1];
     }
-    return g_default_stack[g_default_stack_size - 1];
+    g_default_stack[g_default_stack_size++] = &g_default_allocator;
+    return &g_default_allocator;
 }
 
 void Opal::PushDefaultAllocator(AllocatorBase* allocator)
 {
-    if (allocator == nullptr)
-    {
-        if (g_default_stack_size == 0) [[unlikely]]
-        {
-            throw AllocatorNotInitializedException();
-        }
-        allocator = g_default_stack[0];
-    }
+    OPAL_ASSERT(allocator != nullptr, "Allocator is not valid");
     OPAL_ASSERT(g_default_stack_size < k_max_stack_depth, "Default allocator stack overflow!");
     g_default_stack[g_default_stack_size++] = allocator;
 }
 
 void Opal::PopDefaultAllocator()
 {
-    if (g_default_stack_size <= 1)
-    {
-        return;
-    }
+    OPAL_ASSERT(g_default_stack_size > 1, "System provided default allocator can't be popped");
     --g_default_stack_size;
 }
 
 Opal::LinearAllocator* Opal::GetScratchAllocator()
 {
-    if (g_scratch_stack_size == 0) [[unlikely]]
-    {
-        throw AllocatorNotInitializedException();
-    }
+    OPAL_ASSERT(g_scratch_stack_size != 0, "Now stack allocator provided!");
     return g_scratch_stack[g_scratch_stack_size - 1];
 }
 
 void Opal::PushScratchAllocator(LinearAllocator* allocator)
 {
-    if (allocator == nullptr)
-    {
-        if (g_scratch_stack_size == 0) [[unlikely]]
-        {
-            throw AllocatorNotInitializedException();
-        }
-        allocator = g_scratch_stack[0];
-    }
+    OPAL_ASSERT(allocator != nullptr, "Invalid linear allocator!");
     OPAL_ASSERT(g_scratch_stack_size < k_max_stack_depth, "Scratch allocator stack overflow!");
     g_scratch_stack[g_scratch_stack_size++] = allocator;
 }
 
 void Opal::PopScratchAllocator()
 {
-    if (g_scratch_stack_size <= 1)
-    {
-        return;
-    }
-    --g_scratch_stack_size;
+    OPAL_ASSERT(g_scratch_stack_size != 0, "No more scratch allocators!");
+     --g_scratch_stack_size;
 }
 
 void Opal::ResetScratchAllocator()
 {
-    if (g_scratch_stack_size == 0) [[unlikely]]
-    {
-        throw AllocatorNotInitializedException();
-    }
+    OPAL_ASSERT(g_scratch_stack_size != 0, "No scratch allocators!");
     g_scratch_stack[g_scratch_stack_size - 1]->Reset();
 }
 
