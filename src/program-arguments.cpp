@@ -105,23 +105,20 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         {
             if (!def->m_is_optional)
             {
-                // if (def->m_possible_values.IsEmpty())
-                // {
-                //     GetLogger().Info("ProgramArguments", "\t%-30s%s\n", *def->name, *def->description);
-                // }
-                // else
-                // {
-                //     StringUtf8 values_str;
-                //     for (u32 i = 0; i < def->possible_values.GetSize(); ++i)
-                //     {
-                //         if (i > 0)
-                //         {
-                //             values_str += ", ";
-                //         }
-                //         values_str += def->possible_values[i];
-                //     }
-                //     GetLogger().Info("ProgramArguments", "\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
-                // }
+                GetLogger().Info("ProgramArguments", "\t%-30s%s", *def->m_name, *def->m_description);
+                DynamicArray<StringUtf8> allowed = def->GetAllowedValues();
+                if (!allowed.IsEmpty())
+                {
+                    StringUtf8 values_str;
+                    for (u32 i = 0; i < allowed.GetSize(); ++i)
+                    {
+                        if (i > 0)
+                            values_str += ", ";
+                        values_str += allowed[i];
+                    }
+                    GetLogger().Info("ProgramArguments", " (values: %s)", *values_str);
+                }
+                GetLogger().Info("ProgramArguments", "\n");
             }
         }
         GetLogger().Info("ProgramArguments", "\n");
@@ -133,23 +130,20 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         {
             if (def->m_is_optional)
             {
-                // if (def->possible_values.IsEmpty())
-                // {
-                //     GetLogger().Info("ProgramArguments", "\t%-30s%s\n", *def->m_name, *def->m_description);
-                // }
-                // else
-                // {
-                //     StringUtf8 values_str;
-                //     for (u32 i = 0; i < def->possible_values.GetSize(); ++i)
-                //     {
-                //         if (i > 0)
-                //         {
-                //             values_str += ", ";
-                //         }
-                //         values_str += def->possible_values[i];
-                //     }
-                //     GetLogger().Info("ProgramArguments", "\t%-30s%s (values: %s)\n", *def->m_name, *def->m_description, *values_str);
-                // }
+                GetLogger().Info("ProgramArguments", "\t%-30s%s", *def->m_name, *def->m_description);
+                DynamicArray<StringUtf8> allowed = def->GetAllowedValues();
+                if (!allowed.IsEmpty())
+                {
+                    StringUtf8 values_str;
+                    for (u32 i = 0; i < allowed.GetSize(); ++i)
+                    {
+                        if (i > 0)
+                            values_str += ", ";
+                        values_str += allowed[i];
+                    }
+                    GetLogger().Info("ProgramArguments", " (values: %s)", *values_str);
+                }
+                GetLogger().Info("ProgramArguments", "\n");
             }
         }
         GetLogger().Info("ProgramArguments", "\n");

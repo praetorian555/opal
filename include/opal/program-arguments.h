@@ -8,11 +8,17 @@
 namespace Opal
 {
 
+/**
+ * @brief Exception thrown when the user passes "help" or "--help" as a program argument.
+ */
 struct HelpRequestedException : Exception
 {
     HelpRequestedException() : Exception("Help was requested") {}
 };
 
+/**
+ * @brief Exception thrown when the user passes "version" or "--version" as a program argument.
+ */
 struct VersionRequestedException : Exception
 {
     VersionRequestedException() : Exception("Version was requested") {}
@@ -20,6 +26,11 @@ struct VersionRequestedException : Exception
 
 namespace Impl
 {
+
+/**
+ * @brief Base class for all program argument definitions. Stores the argument name, description, and whether it is
+ * optional. Subclasses implement SetValue to parse and store the argument value.
+ */
 struct ProgramArgumentDefinition
 {
     StringUtf8 m_name;
@@ -40,11 +51,28 @@ struct ProgramArgumentDefinition
     }
 
     virtual ~ProgramArgumentDefinition() = default;
+
+    /**
+     * @brief Parse the string and store the result in the destination variable.
+     * @param str String representation of the argument value.
+     */
     virtual void SetValue(const StringUtf8& str) = 0;
+
+    /**
+     * @brief Return the list of allowed value strings for this argument. Used by ShowHelp to display possible values.
+     *        Returns possible values converted to strings, or mapping keys for enum/mapped arguments.
+     * @return Array of allowed value strings, or empty array if any value is accepted.
+     */
+    virtual DynamicArray<StringUtf8> GetAllowedValues() const { return {}; }
 
     static bool IsValueAllowed(const StringUtf8& value, const ArrayView<StringUtf8>& values);
 };
 
+/**
+ * @brief Typed base class for scalar program argument definitions. Stores the destination reference, possible values,
+ *        and possible value mappings. Provides common logic for value validation and mapping lookup.
+ * @tparam T Type of the argument value (e.g., i32, StringUtf8, bool, or an enum type).
+ */
 template <typename T>
 struct TypedProgramArgumentDefinitionBase : ProgramArgumentDefinition
 {
@@ -61,11 +89,19 @@ struct TypedProgramArgumentDefinitionBase : ProgramArgumentDefinition
     {
     }
 
+    /** @brief Write the parsed value to the destination variable. */
     void SetDestinationValue(const T& value) { *m_dest_value = value; }
 
+    /** @brief Check if an explicit list of possible values has been provided. */
     [[nodiscard]] bool HasPossibleValues() const { return !m_possible_values.IsEmpty(); }
+    /** @brief Check if a string-to-value mapping has been provided. */
     [[nodiscard]] bool HasPossibleValueMappings() const { return m_possible_value_mappings.GetSize() != 0; }
 
+    /**
+     * @brief Check if a value is in the list of possible values. Returns true if no possible values are set.
+     * @param value Value to check.
+     * @return True if the value is allowed.
+     */
     bool IsPossibleValue(const T& value)
     {
         if (m_possible_values.IsEmpty())
@@ -82,6 +118,12 @@ struct TypedProgramArgumentDefinitionBase : ProgramArgumentDefinition
         return false;
     }
 
+    /**
+     * @brief Look up a value by its string key in the possible value mappings.
+     * @param key String key to look up.
+     * @return Reference to the mapped value.
+     * @throws InvalidArgumentException if the key is not found in the mappings.
+     */
     const T& GetValueFromMapping(const StringUtf8& key)
     {
         const auto& it = m_possible_value_mappings.Find(key);
@@ -91,8 +133,35 @@ struct TypedProgramArgumentDefinitionBase : ProgramArgumentDefinition
         }
         throw InvalidArgumentException(__FUNCTION__, "No mapping for the given value");
     }
+
+    DynamicArray<StringUtf8> GetAllowedValues() const override
+    {
+        DynamicArray<StringUtf8> result;
+        if (!m_possible_values.IsEmpty())
+        {
+            for (const T& val : m_possible_values)
+            {
+                if constexpr (SameAs<T, StringUtf8>)
+                    result.PushBack(val);
+                else if constexpr (Integral<T>)
+                    result.PushBack(NumberToString(val));
+            }
+        }
+        else if (m_possible_value_mappings.GetSize() != 0)
+        {
+            for (const auto& pair : m_possible_value_mappings)
+                result.PushBack(pair.key);
+        }
+        return result;
+    }
 };
 
+/**
+ * @brief Primary template for typed program argument definitions. This is a fallback that throws on SetValue,
+ *        meaning the type is not directly supported. Specializations below handle bool, integral types, enums,
+ *        strings, and dynamic arrays.
+ * @tparam T Type of the argument value.
+ */
 template <typename T>
 struct TypedProgramArgumentDefinition final : TypedProgramArgumentDefinitionBase<T>
 {
@@ -106,19 +175,28 @@ struct TypedProgramArgumentDefinition final : TypedProgramArgumentDefinitionBase
     void SetValue(const StringUtf8&) override { throw InvalidArgumentException(__FUNCTION__, "Value type not supported"); }
 };
 
+/** @brief Concept that checks if T is an enum type. */
 template <typename T>
 concept IsEnum = std::is_enum_v<T>;
 
+/** @brief Helper trait to detect DynamicArray types. */
 template <typename T>
 inline constexpr bool k_is_dynamic_array_value = false;
 template <typename T>
 inline constexpr bool k_is_dynamic_array_value<DynamicArray<T>> = true;
+/** @brief Concept that checks if T is a DynamicArray instantiation. */
 template <typename T>
 concept IsDynamicArray = k_is_dynamic_array_value<T>;
 
+/** @brief Concept for types that can be elements of a DynamicArray program argument (integral, enum, or string, but not bool). */
 template <typename T>
 concept ValidDynamicArrayElement = (Integral<T> || IsEnum<T> || SameAs<T, StringUtf8>) && !SameAs<T, bool>;
 
+/**
+ * @brief Specialization for enum types. Requires a string-to-enum mapping to be provided.
+ *        SetValue looks up the string in the mapping and stores the corresponding enum value.
+ * @tparam T Enum type.
+ */
 template <IsEnum T>
 struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionBase<T>
 {
@@ -145,6 +223,11 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
     }
 };
 
+/**
+ * @brief Specialization for integral types. Parses the string to a number using StringToNumber.
+ *        Optionally validates against possible values or mappings.
+ * @tparam T Integral type (i32, u64, etc.).
+ */
 template <Integral T>
 struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionBase<T>
 {
@@ -168,6 +251,10 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
     }
 };
 
+/**
+ * @brief Specialization for bool. Acts as a flag: presence of the argument sets the value to true.
+ *        Ignores possible values and mappings.
+ */
 template <>
 struct TypedProgramArgumentDefinition<bool> final : TypedProgramArgumentDefinitionBase<bool>
 {
@@ -181,6 +268,10 @@ struct TypedProgramArgumentDefinition<bool> final : TypedProgramArgumentDefiniti
     void SetValue(const StringUtf8&) override { SetDestinationValue(true); }
 };
 
+/**
+ * @brief Specialization for StringUtf8. Strips surrounding quotes, then validates against possible values or mappings
+ *        if provided.
+ */
 template <>
 struct TypedProgramArgumentDefinition<StringUtf8> final : TypedProgramArgumentDefinitionBase<StringUtf8>
 {
@@ -222,6 +313,12 @@ struct TypedProgramArgumentDefinition<StringUtf8> final : TypedProgramArgumentDe
     }
 };
 
+/**
+ * @brief Specialization for DynamicArray arguments. Accepts a comma-separated list of values.
+ *        Each element is parsed according to its type (string, integer, or enum via mapping).
+ *        Inherits directly from ProgramArgumentDefinition since it manages its own possible values and mappings.
+ * @tparam E Element type of the array (must satisfy ValidDynamicArrayElement).
+ */
 template <ValidDynamicArrayElement E>
 struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDefinition
 {
@@ -287,6 +384,27 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
         throw InvalidArgumentException(__FUNCTION__, "No mapping for the given value");
     }
 
+    DynamicArray<StringUtf8> GetAllowedValues() const override
+    {
+        DynamicArray<StringUtf8> result;
+        if (!m_possible_values.IsEmpty())
+        {
+            for (const E& val : m_possible_values)
+            {
+                if constexpr (SameAs<E, StringUtf8>)
+                    result.PushBack(val);
+                else if constexpr (Integral<E>)
+                    result.PushBack(NumberToString(val));
+            }
+        }
+        else if (m_possible_value_mappings.GetSize() != 0)
+        {
+            for (const auto& pair : m_possible_value_mappings)
+                result.PushBack(pair.key);
+        }
+        return result;
+    }
+
     void SetValue(const StringUtf8& str) override
     {
         StringUtf8 trimmed = str;
@@ -338,41 +456,148 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
 
 }  // namespace Impl
 
+/**
+ * @brief Builder for defining and parsing command-line program arguments.
+ *
+ * Supports scalar types (bool, integers, strings, enums) and array types (DynamicArray of integers, strings, or enums).
+ * Arguments can be required or optional, and can be constrained to a set of possible values or string-to-value mappings.
+ *
+ * Built-in arguments:
+ *  - "help" / "--help": prints help text and throws HelpRequestedException.
+ *  - "version" / "--version": prints version info and throws VersionRequestedException.
+ *
+ * Usage:
+ * @code
+ *     i32 threads = 1;
+ *     StringUtf8 mode;
+ *     ProgramArgumentsBuilder builder;
+ *     builder.AddProgramDescription("My tool")
+ *            .AddArgument("threads", "Number of threads", Ref(threads), true)
+ *            .AddArgument("mode", "Operating mode", Ref(mode), false, DynamicArray<StringUtf8>{"fast", "slow"})
+ *            .Build(argv, argc);
+ * @endcode
+ */
 struct OPAL_EXPORT ProgramArgumentsBuilder
 {
+    /**
+     * @brief Set the program description displayed in help output.
+     * @param description Text describing what the program does.
+     * @return Reference to this builder for chaining.
+     */
     ProgramArgumentsBuilder& AddProgramDescription(const StringUtf8& description);
+
+    /**
+     * @brief Add a usage example displayed in help output.
+     * @param example Example command-line invocation string.
+     * @return Reference to this builder for chaining.
+     */
     ProgramArgumentsBuilder& AddUsageExample(const StringUtf8& example);
 
+    /**
+     * @brief Set the program version displayed when "--version" is passed.
+     * @param major Major version number.
+     * @param minor Minor version number.
+     * @param patch Patch version number.
+     * @return Reference to this builder for chaining.
+     */
     ProgramArgumentsBuilder& SetVersion(u32 major, u32 minor, u32 patch);
 
+    /**
+     * @brief Add a scalar argument with no value constraints.
+     * @tparam T Argument type (non-enum, non-array).
+     * @param name Argument name used on the command line (e.g., "threads").
+     * @param desc Human-readable description shown in help output.
+     * @param destination Reference to the variable where the parsed value will be stored.
+     * @param is_optional If true, the argument is not required.
+     * @return Reference to this builder for chaining.
+     */
     template <typename T>
         requires(!Impl::IsEnum<T> && !Impl::IsDynamicArray<T>)
     ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<T> destination, bool is_optional);
 
+    /**
+     * @brief Add a scalar argument constrained to a set of possible values.
+     * @tparam T Argument type (non-enum, non-array).
+     * @param name Argument name used on the command line.
+     * @param desc Human-readable description shown in help output.
+     * @param destination Reference to the variable where the parsed value will be stored.
+     * @param is_optional If true, the argument is not required.
+     * @param possible_values List of allowed values. The parsed value must be one of these.
+     * @return Reference to this builder for chaining.
+     */
     template <typename T>
         requires((!Impl::IsEnum<T> || SameAs<T, bool>) && !Impl::IsDynamicArray<T>)
     ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<T> destination, bool is_optional,
                                          DynamicArray<T> possible_values);
 
+    /**
+     * @brief Add a scalar argument with a string-to-value mapping (for enums or strings).
+     * @tparam T Argument type (enum or StringUtf8).
+     * @param name Argument name used on the command line.
+     * @param desc Human-readable description shown in help output.
+     * @param destination Reference to the variable where the parsed value will be stored.
+     * @param is_optional If true, the argument is not required.
+     * @param possible_value_mappings Map from string keys to values. The user provides a key, which is resolved to
+     *        the corresponding value.
+     * @return Reference to this builder for chaining.
+     */
     template <typename T>
         requires(Impl::IsEnum<T> || SameAs<T, StringUtf8>)
     ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<T> destination, bool is_optional,
                                          HashMap<StringUtf8, T> possible_value_mappings);
 
+    /**
+     * @brief Add an array argument with no value constraints. Values are provided as a comma-separated list.
+     * @tparam E Element type of the array (integral or StringUtf8, not bool).
+     * @param name Argument name used on the command line.
+     * @param desc Human-readable description shown in help output.
+     * @param destination Reference to the DynamicArray where parsed values will be appended.
+     * @param is_optional If true, the argument is not required.
+     * @return Reference to this builder for chaining.
+     */
     template <typename E>
         requires((Integral<E> || SameAs<E, StringUtf8>) && !SameAs<E, bool>)
     ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<E>> destination, bool is_optional);
 
+    /**
+     * @brief Add an array argument constrained to a set of possible values. Values are provided as a comma-separated
+     *        list.
+     * @tparam E Element type of the array (integral or StringUtf8, not bool).
+     * @param name Argument name used on the command line.
+     * @param desc Human-readable description shown in help output.
+     * @param destination Reference to the DynamicArray where parsed values will be appended.
+     * @param is_optional If true, the argument is not required.
+     * @param possible_values List of allowed element values.
+     * @return Reference to this builder for chaining.
+     */
     template <typename E>
         requires((Integral<E> || SameAs<E, StringUtf8>) && !SameAs<E, bool>)
     ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<E>> destination, bool is_optional,
                                          DynamicArray<E> possible_values);
 
+    /**
+     * @brief Add an array argument with a string-to-value mapping (for enums or strings). Values are provided as a
+     *        comma-separated list of mapping keys.
+     * @tparam E Element type of the array (enum or StringUtf8).
+     * @param name Argument name used on the command line.
+     * @param desc Human-readable description shown in help output.
+     * @param destination Reference to the DynamicArray where parsed values will be appended.
+     * @param is_optional If true, the argument is not required.
+     * @param possible_value_mappings Map from string keys to element values.
+     * @return Reference to this builder for chaining.
+     */
     template <typename E>
         requires(Impl::IsEnum<E> || SameAs<E, StringUtf8>)
     ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<E>> destination, bool is_optional,
                                          HashMap<StringUtf8, E> possible_value_mappings);
 
+    /**
+     * @brief Parse command-line arguments and populate all registered destination variables.
+     *        Throws HelpRequestedException or VersionRequestedException for built-in arguments.
+     *        Throws InvalidArgumentException if a required argument is missing.
+     * @param arguments Array of C-strings from main (argv).
+     * @param count Number of elements in the arguments array (argc).
+     */
     void Build(const char** arguments, u32 count);
 
 private:

@@ -2,7 +2,7 @@
 
 Header: `opal/program-arguments.h`
 
-A typed command-line argument parser that binds arguments directly to C++ variables. Arguments use `name=value` syntax, supports required and optional arguments, value validation, and auto-generated help output.
+A typed command-line argument parser that binds arguments directly to C++ variables. Arguments use `name=value` syntax, supports required and optional arguments, value validation, value mappings, enum types, and auto-generated help output.
 
 ## Quick Start
 
@@ -16,17 +16,22 @@ int main(int argc, const char** argv)
     bool verbose = false;
 
     Opal::ProgramArgumentsBuilder builder;
-    builder.AddProgramDescription("My application server");
-    builder.AddUsageExample("my_app config_path=server.json port=3000 verbose");
-    builder.AddArgumentDefinition(config_path, {.name = "config_path", .desc = "Path to config file", .is_optional = false});
-    builder.AddArgumentDefinition(port, {.name = "port", .desc = "Server port", .is_optional = true});
-    builder.AddArgumentDefinition(verbose, {.name = "verbose", .desc = "Enable verbose output", .is_optional = true});
+    builder.AddProgramDescription("My application server")
+           .AddUsageExample("my_app config_path=server.json port=3000 verbose")
+           .SetVersion(1, 0, 0)
+           .AddArgument("config_path", "Path to config file", Opal::Ref{config_path}, false)
+           .AddArgument("port", "Server port", Opal::Ref{port}, true)
+           .AddArgument("verbose", "Enable verbose output", Opal::Ref{verbose}, true);
 
     try
     {
         builder.Build(argv, argc);
     }
     catch (const Opal::HelpRequestedException&)
+    {
+        return 0;
+    }
+    catch (const Opal::VersionRequestedException&)
     {
         return 0;
     }
@@ -62,13 +67,15 @@ my_app name=value flag "quoted_arg=\"hello world\""
 
 | Type | Syntax | Example |
 |------|--------|---------|
-| `StringUtf8` | `name=value` | `mode=release` |
-| `i32` | `name=value` | `count=-5` |
-| `u32` | `name=value` | `port=8080` |
 | `bool` | `name` | `verbose` |
-| `DynamicArray<StringUtf8>` | `name=a,b,c` | `tags=fast,safe,new` |
+| `i32`, `i64` | `name=value` | `count=-5` |
+| `u32`, `u64` | `name=value` | `port=8080` |
+| `StringUtf8` | `name=value` | `mode=release` |
+| Enum types | `name=key` | `standard=c++17` |
 | `DynamicArray<i32>` | `name=a,b,c` | `offsets=-2,5,10` |
 | `DynamicArray<u32>` | `name=a,b,c` | `ids=6,8,12` |
+| `DynamicArray<StringUtf8>` | `name=a,b,c` | `tags=fast,safe,new` |
+| `DynamicArray<Enum>` | `name=a,b,c` | `colors=red,blue` |
 
 String values can be quoted to include spaces:
 
@@ -79,7 +86,7 @@ my_app names="Alice,Bob,Charlie"
 
 ## Defining Arguments
 
-Use `ProgramArgumentsBuilder` to define arguments and parse the command line. Each argument is bound to a variable by reference.
+Use `ProgramArgumentsBuilder` to define arguments and parse the command line. Each argument is bound to a variable via `Ref`.
 
 ```cpp
 Opal::i32 count = 0;
@@ -87,12 +94,14 @@ Opal::StringUtf8 name;
 bool debug = false;
 
 Opal::ProgramArgumentsBuilder builder;
-builder.AddArgumentDefinition(count, {.name = "count", .desc = "Number of iterations", .is_optional = false});
-builder.AddArgumentDefinition(name, {.name = "name", .desc = "User name", .is_optional = true});
-builder.AddArgumentDefinition(debug, {.name = "debug", .desc = "Enable debug mode", .is_optional = true});
+builder.AddArgument("count", "Number of iterations", Opal::Ref{count}, false)
+       .AddArgument("name", "User name", Opal::Ref{name}, true)
+       .AddArgument("debug", "Enable debug mode", Opal::Ref{debug}, true);
 ```
 
 ### Required vs Optional
+
+The last parameter of `AddArgument` controls whether the argument is required (`false`) or optional (`true`).
 
 Required arguments must be present on the command line. If a required argument is missing, `Build` prints help output and throws `InvalidArgumentException`.
 
@@ -104,7 +113,7 @@ Both `name` and `desc` must be non-empty. Passing an empty name or description t
 
 ```cpp
 // Throws InvalidArgumentException
-builder.AddArgumentDefinition(val, {.name = "", .desc = "Some desc", .is_optional = false});
+builder.AddArgument("", "Some desc", Opal::Ref{val}, false);
 ```
 
 ## Possible Values
@@ -113,13 +122,12 @@ Arguments can be restricted to a predefined set of allowed values. If a value no
 
 ```cpp
 Opal::StringUtf8 mode;
+Opal::DynamicArray<Opal::StringUtf8> possible_values;
+possible_values.PushBack("debug");
+possible_values.PushBack("release");
+possible_values.PushBack("test");
 
-builder.AddArgumentDefinition(mode, {
-    .name = "mode",
-    .desc = "Build mode",
-    .is_optional = false,
-    .possible_values = {"debug", "release", "test"}
-});
+builder.AddArgument("mode", "Build mode", Opal::Ref{mode}, false, std::move(possible_values));
 ```
 
 Valid:
@@ -134,19 +142,35 @@ Invalid (throws `InvalidArgumentException`):
 my_app mode=profile
 ```
 
+### Possible Values with Numeric Types
+
+For integer types, possible values are specified as their native type:
+
+```cpp
+Opal::i32 log_level = 0;
+Opal::DynamicArray<Opal::i32> possible_values;
+possible_values.PushBack(0);
+possible_values.PushBack(1);
+possible_values.PushBack(2);
+possible_values.PushBack(3);
+
+builder.AddArgument("log_level", "Log level", Opal::Ref{log_level}, false, std::move(possible_values));
+```
+
+When `possible_values` is empty (the default), any value is accepted.
+
 ### Possible Values with Arrays
 
 When used with array types, each element is validated individually.
 
 ```cpp
 Opal::DynamicArray<Opal::StringUtf8> targets;
+Opal::DynamicArray<Opal::StringUtf8> possible_values;
+possible_values.PushBack("windows");
+possible_values.PushBack("linux");
+possible_values.PushBack("macos");
 
-builder.AddArgumentDefinition(targets, {
-    .name = "targets",
-    .desc = "Build targets",
-    .is_optional = false,
-    .possible_values = {"windows", "linux", "macos"}
-});
+builder.AddArgument("targets", "Build targets", Opal::Ref{targets}, false, std::move(possible_values));
 ```
 
 Valid:
@@ -161,33 +185,93 @@ Invalid (throws `InvalidArgumentException`):
 my_app targets=windows,android
 ```
 
-### Possible Values with Numeric Types
+## Value Mappings
 
-For `i32` and `u32` types, possible values are specified as strings that match the raw input.
+Instead of restricting to a set of raw values, you can provide a mapping from string keys to arbitrary values. The user provides a key on the command line, and the corresponding mapped value is stored. This is the only way to use enum types.
+
+### String Mappings
 
 ```cpp
-Opal::i32 log_level = 0;
-
-builder.AddArgumentDefinition(log_level, {
-    .name = "log_level",
-    .desc = "Log level",
-    .is_optional = false,
-    .possible_values = {"0", "1", "2", "3"}
+Opal::StringUtf8 output_path;
+Opal::HashMap<Opal::StringUtf8, Opal::StringUtf8> mappings({
+    {"home", "/home/user"},
+    {"tmp", "/tmp"}
 });
+
+builder.AddArgument("output", "Output path", Opal::Ref{output_path}, false, std::move(mappings));
 ```
 
-When `possible_values` is empty (the default), any value is accepted.
+```
+my_app output=home    # output_path == "/home/user"
+```
+
+### Enum Arguments
+
+Enum types require a `HashMap<StringUtf8, EnumType>` mapping. Attempting to register an enum argument without mappings throws `InvalidArgumentException`.
+
+```cpp
+enum class CppStandard { Cpp11, Cpp14, Cpp17 };
+
+CppStandard standard = CppStandard::Cpp11;
+builder.AddArgument("standard", "C++ standard", Opal::Ref{standard}, false,
+                    Opal::HashMap<Opal::StringUtf8, CppStandard>({
+                        {"c++11", CppStandard::Cpp11},
+                        {"c++14", CppStandard::Cpp14},
+                        {"c++17", CppStandard::Cpp17}
+                    }));
+```
+
+```
+my_app standard=c++14
+```
+
+### Enum Array Arguments
+
+Enum arrays also use mappings:
+
+```cpp
+enum class Color { Red, Green, Blue };
+
+Opal::DynamicArray<Color> colors;
+builder.AddArgument("colors", "Color values", Opal::Ref{colors}, false,
+                    Opal::HashMap<Opal::StringUtf8, Color>({
+                        {"red", Color::Red},
+                        {"green", Color::Green},
+                        {"blue", Color::Blue}
+                    }));
+```
+
+```
+my_app colors=red,blue
+```
+
+### Constraints
+
+An argument cannot have both `possible_values` and `possible_value_mappings`. Attempting to provide both throws `InvalidArgumentException`.
+
+## Version
+
+Set a version number with `SetVersion`. Passing `version` or `--version` as any argument prints version info and throws `VersionRequestedException`.
+
+```cpp
+builder.SetVersion(1, 2, 3);
+```
+
+```
+my_app version
+my_app --version
+```
 
 ## Help Output
 
-Passing `help` or `--help` as any argument prints the help text, flushes the logger, and throws `HelpRequestedException`.
+Passing `help` or `--help` as any argument prints the help text and throws `HelpRequestedException`.
 
 ```
 my_app help
 my_app --help
 ```
 
-Help output includes the program description, usage examples, and all registered arguments grouped by required/optional. Arguments with `possible_values` show the allowed values after the description.
+Help output includes the program description, usage examples, and all registered arguments grouped by required/optional. Arguments with possible values or value mappings show the allowed values after the description.
 
 Example output:
 
@@ -200,6 +284,7 @@ Usage examples:
 Required arguments:
     config_path                   Path to config file
     mode                          Build mode (values: debug, release, test)
+    standard                      C++ standard (values: c++11, c++14, c++17)
 
 Optional arguments:
     port                          Server port
@@ -209,36 +294,27 @@ Optional arguments:
 You can set the description and usage examples with:
 
 ```cpp
-builder.AddProgramDescription("My application server");
-builder.AddUsageExample("my_app config_path=server.json port=3000 verbose");
-builder.AddUsageExample("my_app config_path=dev.json");
+builder.AddProgramDescription("My application server")
+       .AddUsageExample("my_app config_path=server.json port=3000 verbose")
+       .AddUsageExample("my_app config_path=dev.json");
 ```
 
 ## Error Handling
 
 All error conditions throw exceptions. `Build` returns `void`.
 
-| Scenario | Behavior |
-|----------|----------|
-| Empty argument name or description | Throws `InvalidArgumentException` at registration |
-| Required argument missing | Prints help and throws `InvalidArgumentException` |
-| Value not in `possible_values` | Throws `InvalidArgumentException` at parse time |
-| Unsupported type `T` | Throws `NotImplementedException` at parse time |
-| `help` or `--help` passed | Prints help and throws `HelpRequestedException` |
+| Scenario | Exception |
+|----------|-----------|
+| Empty argument name or description | `InvalidArgumentException` at registration |
+| Required argument missing | `InvalidArgumentException` (help is printed first) |
+| Value not in `possible_values` | `InvalidArgumentException` at parse time |
+| Mapping key not found | `InvalidArgumentException` at parse time |
+| Enum argument without mappings | `InvalidArgumentException` at registration |
+| Both possible values and mappings provided | `InvalidArgumentException` at registration |
+| `help` or `--help` passed | `HelpRequestedException` |
+| `version` or `--version` passed | `VersionRequestedException` |
 
 ## API Reference
-
-### ProgramArgumentDefinitionDesc
-
-```cpp
-struct ProgramArgumentDefinitionDesc
-{
-    StringUtf8 name;
-    StringUtf8 desc;
-    bool is_optional;
-    DynamicArray<StringUtf8> possible_values;
-};
-```
 
 ### ProgramArgumentsBuilder
 
@@ -246,5 +322,10 @@ struct ProgramArgumentDefinitionDesc
 |--------|-------------|
 | `AddProgramDescription(description)` | Set the program description shown in help output |
 | `AddUsageExample(example)` | Add a usage example shown in help output |
-| `AddArgumentDefinition(field, desc)` | Register a typed argument bound to `field` |
-| `Build(arguments, count)` | Parse command-line arguments and populate bound variables. Throws on errors or help requests |
+| `SetVersion(major, minor, patch)` | Set the program version shown for `--version` |
+| `AddArgument(name, desc, Ref{dest}, is_optional)` | Register a typed argument bound to `dest` |
+| `AddArgument(name, desc, Ref{dest}, is_optional, possible_values)` | Register a typed argument with allowed values |
+| `AddArgument(name, desc, Ref{dest}, is_optional, possible_value_mappings)` | Register a typed argument with string-to-value mappings |
+| `Build(arguments, count)` | Parse command-line arguments and populate bound variables |
+
+All `AddArgument` overloads return a reference to the builder for method chaining.
