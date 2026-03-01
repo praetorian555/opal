@@ -104,6 +104,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         }
         GetLogger().Info("ProgramArguments", "\n");
     }
+    // ReSharper disable once CppDFAConstantConditions
     if (m_has_required_argument)
     {
         GetLogger().Info("ProgramArguments", "Required arguments:");
@@ -111,10 +112,11 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         {
             if (!def->m_is_optional)
             {
-                GetLogger().Info("ProgramArguments", "\t{:<30}{}", SafeCStr(def->m_name), SafeCStr(def->m_description));
+                StringUtf8 format_str("\t{:<30}{}");
                 DynamicArray<StringUtf8> allowed = def->GetAllowedValues();
                 if (!allowed.IsEmpty())
                 {
+                    format_str += " (values: {})";
                     StringUtf8 values_str;
                     for (u32 i = 0; i < allowed.GetSize(); ++i)
                     {
@@ -122,12 +124,13 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                             values_str += ", ";
                         values_str += allowed[i];
                     }
-                    GetLogger().Info("ProgramArguments", " (values: {})", SafeCStr(values_str));
+                    GetLogger().Info("ProgramArguments", format_str, SafeCStr(def->m_name), SafeCStr(def->m_description), SafeCStr(values_str));
                 }
             }
         }
         GetLogger().Info("ProgramArguments", "");
     }
+    // ReSharper disable once CppDFAConstantConditions
     if (m_has_optional_argument)
     {
         GetLogger().Info("ProgramArguments", "Optional arguments:");
@@ -135,10 +138,11 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         {
             if (def->m_is_optional)
             {
-                GetLogger().Info("ProgramArguments", "\t{:<30}{}", SafeCStr(def->m_name), SafeCStr(def->m_description));
+                StringUtf8 format_str("\t{:<30}{}");
                 DynamicArray<StringUtf8> allowed = def->GetAllowedValues();
                 if (!allowed.IsEmpty())
                 {
+                    format_str += " (values: {})";
                     StringUtf8 values_str;
                     for (u32 i = 0; i < allowed.GetSize(); ++i)
                     {
@@ -146,7 +150,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                             values_str += ", ";
                         values_str += allowed[i];
                     }
-                    GetLogger().Info("ProgramArguments", " (values: {})", SafeCStr(values_str));
+                    GetLogger().Info("ProgramArguments", format_str, SafeCStr(def->m_name), SafeCStr(def->m_description), SafeCStr(values_str));
                 }
             }
         }
