@@ -3,6 +3,12 @@
 #include "opal/container/hash-map.h"
 #include "opal/logging.h"
 
+static const char* SafeCStr(const Opal::StringUtf8& str)
+{
+    const char* ptr = *str;
+    return ptr ? ptr : "";
+}
+
 Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddProgramDescription(const StringUtf8& description)
 {
     m_program_description = description;
@@ -79,7 +85,7 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         if (!def->m_is_optional && !visited.GetValue(def->m_name))
         {
             GetLogger().Error("ProgramArguments",
-                              "Required argument '%s' not provided, here is the information on how to use the program:\n\n", *def->m_name);
+                              "Required argument '{}' not provided, here is the information on how to use the program:\n\n", SafeCStr(def->m_name));
             ShowHelp();
             throw InvalidArgumentException(__FUNCTION__, "required argument not provided");
         }
@@ -88,13 +94,13 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
 
 void Opal::ProgramArgumentsBuilder::ShowHelp()
 {
-    GetLogger().Info("ProgramArguments", "%s\n\n", *m_program_description);
+    GetLogger().Info("ProgramArguments", "{}\n\n", SafeCStr(m_program_description));
     if (!m_usage_examples.IsEmpty())
     {
         GetLogger().Info("ProgramArguments", "Usage examples:\n");
         for (const StringUtf8& example : m_usage_examples)
         {
-            GetLogger().Info("ProgramArguments", "\t%s\n", *example);
+            GetLogger().Info("ProgramArguments", "\t{}\n", SafeCStr(example));
         }
         GetLogger().Info("ProgramArguments", "\n");
     }
@@ -105,7 +111,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         {
             if (!def->m_is_optional)
             {
-                GetLogger().Info("ProgramArguments", "\t%-30s%s", *def->m_name, *def->m_description);
+                GetLogger().Info("ProgramArguments", "\t{:<30}{}", SafeCStr(def->m_name), SafeCStr(def->m_description));
                 DynamicArray<StringUtf8> allowed = def->GetAllowedValues();
                 if (!allowed.IsEmpty())
                 {
@@ -116,7 +122,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                             values_str += ", ";
                         values_str += allowed[i];
                     }
-                    GetLogger().Info("ProgramArguments", " (values: %s)", *values_str);
+                    GetLogger().Info("ProgramArguments", " (values: {})", SafeCStr(values_str));
                 }
                 GetLogger().Info("ProgramArguments", "\n");
             }
@@ -130,7 +136,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         {
             if (def->m_is_optional)
             {
-                GetLogger().Info("ProgramArguments", "\t%-30s%s", *def->m_name, *def->m_description);
+                GetLogger().Info("ProgramArguments", "\t{:<30}{}", SafeCStr(def->m_name), SafeCStr(def->m_description));
                 DynamicArray<StringUtf8> allowed = def->GetAllowedValues();
                 if (!allowed.IsEmpty())
                 {
@@ -141,7 +147,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                             values_str += ", ";
                         values_str += allowed[i];
                     }
-                    GetLogger().Info("ProgramArguments", " (values: %s)", *values_str);
+                    GetLogger().Info("ProgramArguments", " (values: {})", SafeCStr(values_str));
                 }
                 GetLogger().Info("ProgramArguments", "\n");
             }
@@ -152,5 +158,5 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
 
 void Opal::ProgramArgumentsBuilder::ShowVersion(const char* program_name)
 {
-    Opal::GetLogger().Info("ProgramArguments", "%s v{}.{}.{}\n", program_name, m_major_version, m_minor_version, m_patch_version);
+    Opal::GetLogger().Info("ProgramArguments", "{} v{}.{}.{}\n", program_name, m_major_version, m_minor_version, m_patch_version);
 }
