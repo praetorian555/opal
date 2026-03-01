@@ -56,19 +56,19 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
     HashMap<StringUtf8, bool> visited;
     for (u32 j = 0; j < m_argument_definitions.GetSize(); ++j)
     {
-        const ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
-        visited.Insert(arg_def->name, false);
+        const Impl::ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
+        visited.Insert(arg_def->m_name, false);
     }
     for (u32 i = 0; i < names.GetSize(); ++i)
     {
         const StringUtf8& name = names[i];
         for (u32 j = 0; j < m_argument_definitions.GetSize(); ++j)
         {
-            ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
-            if (arg_def->name == name)
+            Impl::ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
+            if (arg_def->m_name == name)
             {
                 arg_def->SetValue(values[i]);
-                visited.Insert(arg_def->name, true);
+                visited.Insert(arg_def->m_name, true);
                 break;
             }
         }
@@ -76,10 +76,10 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
 
     for (const auto& def : m_argument_definitions)
     {
-        if (!def->is_optional && !visited.GetValue(def->name))
+        if (!def->m_is_optional && !visited.GetValue(def->m_name))
         {
             GetLogger().Error("ProgramArguments",
-                              "Required argument '%s' not provided, here is the information on how to use the program:\n\n", *def->name);
+                              "Required argument '%s' not provided, here is the information on how to use the program:\n\n", *def->m_name);
             ShowHelp();
             throw InvalidArgumentException(__FUNCTION__, "required argument not provided");
         }
@@ -103,25 +103,25 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         GetLogger().Info("ProgramArguments", "Required arguments:\n");
         for (const auto& def : m_argument_definitions)
         {
-            if (!def->is_optional)
+            if (!def->m_is_optional)
             {
-                if (def->possible_values.IsEmpty())
-                {
-                    GetLogger().Info("ProgramArguments", "\t%-30s%s\n", *def->name, *def->description);
-                }
-                else
-                {
-                    StringUtf8 values_str;
-                    for (u32 i = 0; i < def->possible_values.GetSize(); ++i)
-                    {
-                        if (i > 0)
-                        {
-                            values_str += ", ";
-                        }
-                        values_str += def->possible_values[i];
-                    }
-                    GetLogger().Info("ProgramArguments", "\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
-                }
+                // if (def->m_possible_values.IsEmpty())
+                // {
+                //     GetLogger().Info("ProgramArguments", "\t%-30s%s\n", *def->name, *def->description);
+                // }
+                // else
+                // {
+                //     StringUtf8 values_str;
+                //     for (u32 i = 0; i < def->possible_values.GetSize(); ++i)
+                //     {
+                //         if (i > 0)
+                //         {
+                //             values_str += ", ";
+                //         }
+                //         values_str += def->possible_values[i];
+                //     }
+                //     GetLogger().Info("ProgramArguments", "\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
+                // }
             }
         }
         GetLogger().Info("ProgramArguments", "\n");
@@ -131,25 +131,25 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         GetLogger().Info("ProgramArguments", "Optional arguments:\n");
         for (const auto& def : m_argument_definitions)
         {
-            if (def->is_optional)
+            if (def->m_is_optional)
             {
-                if (def->possible_values.IsEmpty())
-                {
-                    GetLogger().Info("ProgramArguments", "\t%-30s%s\n", *def->name, *def->description);
-                }
-                else
-                {
-                    StringUtf8 values_str;
-                    for (u32 i = 0; i < def->possible_values.GetSize(); ++i)
-                    {
-                        if (i > 0)
-                        {
-                            values_str += ", ";
-                        }
-                        values_str += def->possible_values[i];
-                    }
-                    GetLogger().Info("ProgramArguments", "\t%-30s%s (values: %s)\n", *def->name, *def->description, *values_str);
-                }
+                // if (def->possible_values.IsEmpty())
+                // {
+                //     GetLogger().Info("ProgramArguments", "\t%-30s%s\n", *def->m_name, *def->m_description);
+                // }
+                // else
+                // {
+                //     StringUtf8 values_str;
+                //     for (u32 i = 0; i < def->possible_values.GetSize(); ++i)
+                //     {
+                //         if (i > 0)
+                //         {
+                //             values_str += ", ";
+                //         }
+                //         values_str += def->possible_values[i];
+                //     }
+                //     GetLogger().Info("ProgramArguments", "\t%-30s%s (values: %s)\n", *def->m_name, *def->m_description, *values_str);
+                // }
             }
         }
         GetLogger().Info("ProgramArguments", "\n");

@@ -18,92 +18,182 @@ struct VersionRequestedException : Exception
     VersionRequestedException() : Exception("Version was requested") {}
 };
 
-struct ProgramArgumentDefinitionDesc
+namespace Impl
 {
-    StringUtf8 name;
-    StringUtf8 desc;
-    bool is_optional;
-    DynamicArray<StringUtf8> possible_values = {};
-};
-
 struct ProgramArgumentDefinition
 {
-    StringUtf8 name;
-    StringUtf8 description;
-    bool is_optional;
-    DynamicArray<StringUtf8> possible_values;
+    StringUtf8 m_name;
+    StringUtf8 m_description;
+    bool m_is_optional;
 
-    ProgramArgumentDefinition(const ProgramArgumentDefinitionDesc& desc)
-        : name(desc.name), description(desc.desc), is_optional(desc.is_optional), possible_values(desc.possible_values)
+    ProgramArgumentDefinition(StringUtf8 in_name, StringUtf8 in_desc, bool in_is_optional)
+        : m_name(std::move(in_name)), m_description(std::move(in_desc)), m_is_optional(in_is_optional)
     {
+        if (m_name.IsEmpty())
+        {
+            throw InvalidArgumentException(__FUNCTION__, "name of the argument can't be empty");
+        }
+        if (m_description.IsEmpty())
+        {
+            throw InvalidArgumentException(__FUNCTION__, "description of the argument can't be empty");
+        }
     }
 
     virtual ~ProgramArgumentDefinition() = default;
     virtual void SetValue(const StringUtf8& str) = 0;
 
-    bool IsValueAllowed(const StringUtf8& value) const
+    static bool IsValueAllowed(const StringUtf8& value, const ArrayView<StringUtf8>& values);
+};
+
+template <typename T>
+struct TypedProgramArgumentDefinitionBase : ProgramArgumentDefinition
+{
+    DynamicArray<T> m_possible_values;
+    HashMap<StringUtf8, T> m_possible_value_mappings;
+    Ref<T> m_dest_value;
+
+    TypedProgramArgumentDefinitionBase(StringUtf8 name, StringUtf8 desc, bool is_optional, DynamicArray<T> possible_values,
+                                       HashMap<StringUtf8, T> possible_value_mappings, Ref<T> dest_value)
+        : ProgramArgumentDefinition(std::move(name), std::move(desc), is_optional),
+          m_possible_values(std::move(possible_values)),
+          m_possible_value_mappings(std::move(possible_value_mappings)),
+          m_dest_value(std::move(dest_value))
     {
-        if (possible_values.IsEmpty())
+    }
+
+    void SetDestinationValue(const T& value) { *m_dest_value = value; }
+
+    [[nodiscard]] bool HasPossibleValues() const { return !m_possible_values.IsEmpty(); }
+    [[nodiscard]] bool HasPossibleValueMappings() const { return m_possible_value_mappings.GetSize() != 0; }
+
+    bool IsPossibleValue(const T& value)
+    {
+        if (m_possible_values.IsEmpty())
         {
             return true;
         }
-        for (const auto& pv : possible_values)
+        for (const T& possible_value : m_possible_values)
         {
-            if (pv == value)
+            if (value == possible_value)
             {
                 return true;
             }
         }
         return false;
     }
+
+    const T& GetValueFromMapping(const StringUtf8& key)
+    {
+        const auto& it = m_possible_value_mappings.Find(key);
+        if (it != m_possible_value_mappings.end())
+        {
+            return it->value;
+        }
+        throw InvalidArgumentException(__FUNCTION__, "No mapping for the given value");
+    }
 };
 
 template <typename T>
-struct TypedProgramArgumentDefinition final : ProgramArgumentDefinition
+struct TypedProgramArgumentDefinition final : TypedProgramArgumentDefinitionBase<T>
 {
-    T* destination;
-
-    TypedProgramArgumentDefinition(T* dest, const ProgramArgumentDefinitionDesc& desc) : ProgramArgumentDefinition(desc), destination(dest)
+    TypedProgramArgumentDefinition(Ref<T> dest, StringUtf8 name, StringUtf8 desc, bool is_optional, DynamicArray<T> possible_values,
+                                   HashMap<StringUtf8, T> possible_value_mappings)
+        : TypedProgramArgumentDefinitionBase<T>(std::move(name), std::move(desc), is_optional, std::move(possible_values),
+                                                std::move(possible_value_mappings), std::move(dest))
     {
     }
 
-    void SetValue(const StringUtf8&) override { throw NotImplementedException(__FUNCTION__); }
+    void SetValue(const StringUtf8&) override { throw InvalidArgumentException(__FUNCTION__, "Value type not supported"); }
 };
 
 template <typename T>
 concept IsEnum = std::is_enum_v<T>;
 
-template <IsEnum T>
-struct TypedProgramArgumentDefinition<T> final : ProgramArgumentDefinition
-{
-    T* destination;
-    HashMap<StringUtf8, T> values;
+template <typename T>
+inline constexpr bool k_is_dynamic_array_value = false;
+template <typename T>
+inline constexpr bool k_is_dynamic_array_value<DynamicArray<T>> = true;
+template <typename T>
+concept IsDynamicArray = k_is_dynamic_array_value<T>;
 
-    TypedProgramArgumentDefinition(T* dest, const ProgramArgumentDefinitionDesc& desc, HashMap<StringUtf8, T> data_mappings)
-        : ProgramArgumentDefinition(desc), destination(dest), values(std::move(data_mappings))
+template <typename T>
+concept ValidDynamicArrayElement = (Integral<T> || IsEnum<T> || SameAs<T, StringUtf8>) && !SameAs<T, bool>;
+
+template <IsEnum T>
+struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionBase<T>
+{
+    TypedProgramArgumentDefinition(Ref<T> dest, StringUtf8 name, StringUtf8 desc, bool is_optional, DynamicArray<T> possible_values,
+                                   HashMap<StringUtf8, T> possible_value_mappings)
+        : TypedProgramArgumentDefinitionBase<T>(std::move(name), std::move(desc), is_optional, std::move(possible_values),
+                                                std::move(possible_value_mappings), std::move(dest))
     {
+        if (TypedProgramArgumentDefinitionBase<T>::HasPossibleValues())
+        {
+            throw InvalidArgumentException(__FUNCTION__,
+                                           "Enum program argument needs to have populated possible_values_mapping, not possible_values");
+        }
+        if (!TypedProgramArgumentDefinitionBase<T>::HasPossibleValueMappings())
+        {
+            throw InvalidArgumentException(__FUNCTION__, "Enum program argument needs to have populated possible_values_mapping");
+        }
     }
 
     void SetValue(const StringUtf8& str) override
     {
-        auto value_it = values.Find(str);
-        if (value_it != values.end())
+        const T& value = TypedProgramArgumentDefinitionBase<T>::GetValueFromMapping(str);
+        TypedProgramArgumentDefinitionBase<T>::SetDestinationValue(value);
+    }
+};
+
+template <Integral T>
+struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionBase<T>
+{
+    using Super = TypedProgramArgumentDefinitionBase<T>;
+
+    TypedProgramArgumentDefinition(Ref<T> dest, StringUtf8 name, StringUtf8 desc, bool is_optional, DynamicArray<T> possible_values,
+                                   HashMap<StringUtf8, T> possible_value_mappings)
+        : Super(std::move(name), std::move(desc), is_optional, std::move(possible_values), std::move(possible_value_mappings),
+                std::move(dest))
+    {
+        if (Super::HasPossibleValues() && Super::HasPossibleValueMappings())
         {
-            *destination = value_it->value;
-            return;
+            throw InvalidArgumentException(__FUNCTION__, "Integer program argument can't have both possible values and possible value mappings");
         }
-        throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+    }
+
+    void SetValue(const StringUtf8& str) override
+    {
+        const T value = StringToNumber<T>(str);
+        Super::SetDestinationValue(value);
     }
 };
 
 template <>
-struct TypedProgramArgumentDefinition<StringUtf8> final : ProgramArgumentDefinition
+struct TypedProgramArgumentDefinition<bool> final : TypedProgramArgumentDefinitionBase<bool>
 {
-    StringUtf8* destination;
-
-    TypedProgramArgumentDefinition(StringUtf8* dest, const ProgramArgumentDefinitionDesc& desc)
-        : ProgramArgumentDefinition(desc), destination(dest)
+    TypedProgramArgumentDefinition(Ref<bool> dest, StringUtf8 name, StringUtf8 desc, bool is_optional, DynamicArray<bool>,
+                                   HashMap<StringUtf8, bool>)
+        : TypedProgramArgumentDefinitionBase(std::move(name), std::move(desc), is_optional, {}, HashMap<StringUtf8, bool>({}),
+                                             std::move(dest))
     {
+    }
+
+    void SetValue(const StringUtf8&) override { SetDestinationValue(true); }
+};
+
+template <>
+struct TypedProgramArgumentDefinition<StringUtf8> final : TypedProgramArgumentDefinitionBase<StringUtf8>
+{
+    TypedProgramArgumentDefinition(Ref<StringUtf8> dest, StringUtf8 name, StringUtf8 desc, bool is_optional,
+                                   DynamicArray<StringUtf8> possible_values, HashMap<StringUtf8, StringUtf8> possible_value_mappings)
+        : TypedProgramArgumentDefinitionBase(std::move(name), std::move(desc), is_optional, std::move(possible_values),
+                                             std::move(possible_value_mappings), std::move(dest))
+    {
+        if (HasPossibleValues() && HasPossibleValueMappings())
+        {
+            throw InvalidArgumentException(
+                __FUNCTION__, "String program argument has both possible values and possible value mappings, please use only one of these");
+        }
     }
 
     void SetValue(const StringUtf8& str) override
@@ -113,22 +203,88 @@ struct TypedProgramArgumentDefinition<StringUtf8> final : ProgramArgumentDefinit
         {
             trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
         }
-        if (!IsValueAllowed(trimmed))
+        if (HasPossibleValues())
         {
-            throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+            if (!IsPossibleValue(trimmed))
+            {
+                throw InvalidArgumentException(__FUNCTION__, "String program argument is not one of the possible values");
+            }
+            SetDestinationValue(trimmed);
+            return;
         }
-        *destination = trimmed;
+        if (HasPossibleValueMappings())
+        {
+            const StringUtf8& mapping = GetValueFromMapping(str);
+            SetDestinationValue(mapping);
+            return;
+        }
+        SetDestinationValue(trimmed);
     }
 };
 
-template <>
-struct TypedProgramArgumentDefinition<DynamicArray<StringUtf8>> final : ProgramArgumentDefinition
+template <ValidDynamicArrayElement E>
+struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDefinition
 {
-    DynamicArray<StringUtf8>* destination;
+    Ref<DynamicArray<E>> m_dest_value;
+    DynamicArray<E> m_possible_values;
+    HashMap<StringUtf8, E> m_possible_value_mappings;
 
-    TypedProgramArgumentDefinition(DynamicArray<StringUtf8>* dest, const ProgramArgumentDefinitionDesc& desc)
-        : ProgramArgumentDefinition(desc), destination(dest)
+    TypedProgramArgumentDefinition(Ref<DynamicArray<E>> dest, StringUtf8 name, StringUtf8 desc, bool is_optional,
+                                   DynamicArray<E> possible_values, HashMap<StringUtf8, E> possible_value_mappings)
+        : ProgramArgumentDefinition(std::move(name), std::move(desc), is_optional),
+          m_dest_value(std::move(dest)),
+          m_possible_values(std::move(possible_values)),
+          m_possible_value_mappings(std::move(possible_value_mappings))
     {
+        if constexpr (IsEnum<E>)
+        {
+            if (!m_possible_values.IsEmpty())
+            {
+                throw InvalidArgumentException(__FUNCTION__,
+                                               "Enum array program argument needs to have populated possible_values_mapping, not possible_values");
+            }
+            if (m_possible_value_mappings.GetSize() == 0)
+            {
+                throw InvalidArgumentException(__FUNCTION__, "Enum array program argument needs to have populated possible_values_mapping");
+            }
+        }
+        else
+        {
+            if (!m_possible_values.IsEmpty() && m_possible_value_mappings.GetSize() != 0)
+            {
+                throw InvalidArgumentException(__FUNCTION__,
+                                               "Array program argument can't have both possible values and possible value mappings");
+            }
+        }
+    }
+
+    [[nodiscard]] bool HasPossibleValues() const { return !m_possible_values.IsEmpty(); }
+    [[nodiscard]] bool HasPossibleValueMappings() const { return m_possible_value_mappings.GetSize() != 0; }
+
+    bool IsPossibleValue(const E& value)
+    {
+        if (m_possible_values.IsEmpty())
+        {
+            return true;
+        }
+        for (const E& possible_value : m_possible_values)
+        {
+            if (value == possible_value)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    const E& GetValueFromMapping(const StringUtf8& key)
+    {
+        const auto& it = m_possible_value_mappings.Find(key);
+        if (it != m_possible_value_mappings.end())
+        {
+            return it->value;
+        }
+        throw InvalidArgumentException(__FUNCTION__, "No mapping for the given value");
     }
 
     void SetValue(const StringUtf8& str) override
@@ -139,130 +295,48 @@ struct TypedProgramArgumentDefinition<DynamicArray<StringUtf8>> final : ProgramA
             trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
         }
         DynamicArray<StringUtf8> elements;
-        SplitToArray<StringUtf8>(trimmed, ",", elements);
+        SplitToArray<StringUtf8>(trimmed, StringUtf8(","), elements);
         for (const auto& element : elements)
         {
-            if (!IsValueAllowed(element))
+            if constexpr (SameAs<E, StringUtf8>)
             {
-                throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+                if (HasPossibleValues())
+                {
+                    if (!IsPossibleValue(element))
+                    {
+                        throw InvalidArgumentException(__FUNCTION__, "Value is not one of the possible values");
+                    }
+                    m_dest_value->PushBack(element);
+                }
+                else if (HasPossibleValueMappings())
+                {
+                    const StringUtf8& mapping = GetValueFromMapping(element);
+                    m_dest_value->PushBack(mapping);
+                }
+                else
+                {
+                    m_dest_value->PushBack(element);
+                }
             }
-            destination->PushBack(element);
-        }
-    }
-};
-
-template <>
-struct TypedProgramArgumentDefinition<i32> final : ProgramArgumentDefinition
-{
-    i32* destination;
-
-    TypedProgramArgumentDefinition(i32* dest, const ProgramArgumentDefinitionDesc& desc)
-        : ProgramArgumentDefinition(desc), destination(dest)
-    {
-    }
-
-    void SetValue(const StringUtf8& str) override
-    {
-        if (!IsValueAllowed(str))
-        {
-            throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
-        }
-        *destination = StringToI32(str);
-    }
-};
-
-template <>
-struct TypedProgramArgumentDefinition<DynamicArray<i32>> final : ProgramArgumentDefinition
-{
-    DynamicArray<i32>* destination;
-
-    TypedProgramArgumentDefinition(DynamicArray<i32>* dest, const ProgramArgumentDefinitionDesc& desc)
-        : ProgramArgumentDefinition(desc), destination(dest)
-    {
-    }
-
-    void SetValue(const StringUtf8& str) override
-    {
-        StringUtf8 trimmed = str;
-        if (!str.IsEmpty() && str[0] == '\"')
-        {
-            trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
-        }
-        DynamicArray<StringUtf8> values;
-        SplitToArray<StringUtf8>(trimmed, ",", values);
-        for (const auto& value : values)
-        {
-            if (!IsValueAllowed(value))
+            else if constexpr (IsEnum<E>)
             {
-                throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+                const E& value = GetValueFromMapping(element);
+                m_dest_value->PushBack(value);
             }
-            destination->PushBack(StringToI32(value));
-        }
-    }
-};
-
-template <>
-struct TypedProgramArgumentDefinition<u32> final : ProgramArgumentDefinition
-{
-    u32* destination;
-
-    TypedProgramArgumentDefinition(u32* dest, const ProgramArgumentDefinitionDesc& desc)
-        : ProgramArgumentDefinition(desc), destination(dest)
-    {
-    }
-
-    void SetValue(const StringUtf8& str) override
-    {
-        if (!IsValueAllowed(str))
-        {
-            throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
-        }
-        *destination = StringToU32(str);
-    }
-};
-
-template <>
-struct TypedProgramArgumentDefinition<DynamicArray<u32>> final : ProgramArgumentDefinition
-{
-    DynamicArray<u32>* destination;
-
-    TypedProgramArgumentDefinition(DynamicArray<u32>* dest, const ProgramArgumentDefinitionDesc& desc)
-        : ProgramArgumentDefinition(desc), destination(dest)
-    {
-    }
-
-    void SetValue(const StringUtf8& str) override
-    {
-        StringUtf8 trimmed = str;
-        if (!str.IsEmpty() && str[0] == '\"')
-        {
-            trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
-        }
-        DynamicArray<StringUtf8> values;
-        SplitToArray<StringUtf8>(trimmed, ",", values);
-        for (const auto& value : values)
-        {
-            if (!IsValueAllowed(value))
+            else if constexpr (Integral<E>)
             {
-                throw InvalidArgumentException(__FUNCTION__, "value is not one of the possible values");
+                const E value = StringToNumber<E>(element);
+                if (!IsPossibleValue(value))
+                {
+                    throw InvalidArgumentException(__FUNCTION__, "Value is not one of the possible values");
+                }
+                m_dest_value->PushBack(value);
             }
-            destination->PushBack(StringToU32(value));
         }
     }
 };
 
-template <>
-struct TypedProgramArgumentDefinition<bool> final : ProgramArgumentDefinition
-{
-    bool* destination;
-
-    TypedProgramArgumentDefinition(bool* dest, const ProgramArgumentDefinitionDesc& desc)
-        : ProgramArgumentDefinition(desc), destination(dest)
-    {
-    }
-
-    void SetValue(const StringUtf8&) override { *destination = true; }
-};
+}  // namespace Impl
 
 struct OPAL_EXPORT ProgramArgumentsBuilder
 {
@@ -272,56 +346,32 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
     ProgramArgumentsBuilder& SetVersion(u32 major, u32 minor, u32 patch);
 
     template <typename T>
-    ProgramArgumentsBuilder& AddArgumentDefinition(T& field, const ProgramArgumentDefinitionDesc& desc)
-    {
-        if (desc.name.IsEmpty())
-        {
-            throw InvalidArgumentException(__FUNCTION__, "name of the argument can't be empty");
-        }
-        if (desc.desc.IsEmpty())
-        {
-            throw InvalidArgumentException(__FUNCTION__, "description of the argument can't be empty");
-        }
-        AllocatorBase* allocator = GetDefaultAllocator();
-        ScopePtr<ProgramArgumentDefinition> arg_def = MakeScoped<TypedProgramArgumentDefinition<T>>(allocator, &field, desc);
-        m_argument_definitions.PushBack(std::move(arg_def));
-        if (desc.is_optional)
-        {
-            m_has_optional_argument = true;
-        }
-        else
-        {
-            m_has_required_argument = true;
-        }
-        return *this;
-    }
+        requires(!Impl::IsEnum<T> && !Impl::IsDynamicArray<T>)
+    ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<T> destination, bool is_optional);
 
-    template <IsEnum T>
-    ProgramArgumentsBuilder& AddArgumentDefinition(T& field, const ProgramArgumentDefinitionDesc& desc, HashMap<StringUtf8, T> data_mappings)
-    {
-        if (desc.name.IsEmpty())
-        {
-            throw InvalidArgumentException(__FUNCTION__, "name of the argument can't be empty");
-        }
-        if (desc.desc.IsEmpty())
-        {
-            throw InvalidArgumentException(__FUNCTION__, "description of the argument can't be empty");
-        }
-        AllocatorBase* allocator = GetDefaultAllocator();
-        ScopePtr<ProgramArgumentDefinition> arg_def = MakeScoped<TypedProgramArgumentDefinition<T>>(allocator, &field, desc, std::move(data_mappings));
-        m_argument_definitions.PushBack(std::move(arg_def));
+    template <typename T>
+        requires((!Impl::IsEnum<T> || SameAs<T, bool>) && !Impl::IsDynamicArray<T>)
+    ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<T> destination, bool is_optional,
+                                         DynamicArray<T> possible_values);
 
-        if (desc.is_optional)
-        {
-            m_has_optional_argument = true;
-        }
-        else
-        {
-            m_has_required_argument = true;
-        }
+    template <typename T>
+        requires(Impl::IsEnum<T> || SameAs<T, StringUtf8>)
+    ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<T> destination, bool is_optional,
+                                         HashMap<StringUtf8, T> possible_value_mappings);
 
-        return *this;
-    }
+    template <typename E>
+        requires((Integral<E> || SameAs<E, StringUtf8>) && !SameAs<E, bool>)
+    ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<E>> destination, bool is_optional);
+
+    template <typename E>
+        requires((Integral<E> || SameAs<E, StringUtf8>) && !SameAs<E, bool>)
+    ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<E>> destination, bool is_optional,
+                                         DynamicArray<E> possible_values);
+
+    template <typename E>
+        requires(Impl::IsEnum<E> || SameAs<E, StringUtf8>)
+    ProgramArgumentsBuilder& AddArgument(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<E>> destination, bool is_optional,
+                                         HashMap<StringUtf8, E> possible_value_mappings);
 
     void Build(const char** arguments, u32 count);
 
@@ -335,9 +385,96 @@ private:
 
     StringUtf8 m_program_description;
     DynamicArray<StringUtf8> m_usage_examples;
-    DynamicArray<ScopePtr<ProgramArgumentDefinition>> m_argument_definitions;
+    DynamicArray<ScopePtr<Impl::ProgramArgumentDefinition>> m_argument_definitions;
     bool m_has_required_argument = false;
     bool m_has_optional_argument = false;
 };
+
+template <typename T>
+    requires(!Impl::IsEnum<T> && !Impl::IsDynamicArray<T>)
+ProgramArgumentsBuilder& ProgramArgumentsBuilder::AddArgument(StringUtf8 name, StringUtf8 desc, Ref<T> destination, bool is_optional)
+{
+    AllocatorBase* allocator = GetDefaultAllocator();
+    ScopePtr<Impl::ProgramArgumentDefinition> arg_def = MakeScoped<Impl::TypedProgramArgumentDefinition<T>>(
+        allocator, std::move(destination), std::move(name), std::move(desc), is_optional, DynamicArray<T>{}, HashMap<StringUtf8, T>{});
+    m_argument_definitions.PushBack(std::move(arg_def));
+    m_has_optional_argument = is_optional;
+    m_has_required_argument = !is_optional;
+    return *this;
+}
+
+template <typename T>
+    requires((!Impl::IsEnum<T> || SameAs<T, bool>) && !Impl::IsDynamicArray<T>)
+ProgramArgumentsBuilder& ProgramArgumentsBuilder::AddArgument(StringUtf8 name, StringUtf8 desc, Ref<T> destination, bool is_optional,
+                                                              DynamicArray<T> possible_values)
+{
+    AllocatorBase* allocator = GetDefaultAllocator();
+    ScopePtr<Impl::ProgramArgumentDefinition> arg_def =
+        MakeScoped<Impl::TypedProgramArgumentDefinition<T>>(allocator, std::move(destination), std::move(name), std::move(desc),
+                                                            is_optional, std::move(possible_values), HashMap<StringUtf8, T>{});
+    m_argument_definitions.PushBack(std::move(arg_def));
+    m_has_optional_argument = is_optional;
+    m_has_required_argument = !is_optional;
+    return *this;
+}
+
+template <typename T>
+    requires(Impl::IsEnum<T> || SameAs<T, StringUtf8>)
+ProgramArgumentsBuilder& ProgramArgumentsBuilder::AddArgument(StringUtf8 name, StringUtf8 desc, Ref<T> destination, bool is_optional,
+                                                              HashMap<StringUtf8, T> possible_value_mappings)
+{
+    AllocatorBase* allocator = GetDefaultAllocator();
+    ScopePtr<Impl::ProgramArgumentDefinition> arg_def =
+        MakeScoped<Impl::TypedProgramArgumentDefinition<T>>(allocator, std::move(destination), std::move(name), std::move(desc),
+                                                            is_optional, DynamicArray<T>{}, std::move(possible_value_mappings));
+    m_argument_definitions.PushBack(std::move(arg_def));
+    m_has_optional_argument = is_optional;
+    m_has_required_argument = !is_optional;
+    return *this;
+}
+
+template <typename E>
+    requires((Integral<E> || SameAs<E, StringUtf8>) && !SameAs<E, bool>)
+ProgramArgumentsBuilder& ProgramArgumentsBuilder::AddArgument(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<E>> destination,
+                                                              bool is_optional)
+{
+    AllocatorBase* allocator = GetDefaultAllocator();
+    ScopePtr<Impl::ProgramArgumentDefinition> arg_def = MakeScoped<Impl::TypedProgramArgumentDefinition<DynamicArray<E>>>(
+        allocator, std::move(destination), std::move(name), std::move(desc), is_optional, DynamicArray<E>{}, HashMap<StringUtf8, E>{});
+    m_argument_definitions.PushBack(std::move(arg_def));
+    m_has_optional_argument = is_optional;
+    m_has_required_argument = !is_optional;
+    return *this;
+}
+
+template <typename E>
+    requires((Integral<E> || SameAs<E, StringUtf8>) && !SameAs<E, bool>)
+ProgramArgumentsBuilder& ProgramArgumentsBuilder::AddArgument(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<E>> destination,
+                                                              bool is_optional, DynamicArray<E> possible_values)
+{
+    AllocatorBase* allocator = GetDefaultAllocator();
+    ScopePtr<Impl::ProgramArgumentDefinition> arg_def = MakeScoped<Impl::TypedProgramArgumentDefinition<DynamicArray<E>>>(
+        allocator, std::move(destination), std::move(name), std::move(desc), is_optional, std::move(possible_values),
+        HashMap<StringUtf8, E>{});
+    m_argument_definitions.PushBack(std::move(arg_def));
+    m_has_optional_argument = is_optional;
+    m_has_required_argument = !is_optional;
+    return *this;
+}
+
+template <typename E>
+    requires(Impl::IsEnum<E> || SameAs<E, StringUtf8>)
+ProgramArgumentsBuilder& ProgramArgumentsBuilder::AddArgument(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<E>> destination,
+                                                              bool is_optional, HashMap<StringUtf8, E> possible_value_mappings)
+{
+    AllocatorBase* allocator = GetDefaultAllocator();
+    ScopePtr<Impl::ProgramArgumentDefinition> arg_def = MakeScoped<Impl::TypedProgramArgumentDefinition<DynamicArray<E>>>(
+        allocator, std::move(destination), std::move(name), std::move(desc), is_optional, DynamicArray<E>{},
+        std::move(possible_value_mappings));
+    m_argument_definitions.PushBack(std::move(arg_def));
+    m_has_optional_argument = is_optional;
+    m_has_required_argument = !is_optional;
+    return *this;
+}
 
 }  // namespace Opal
