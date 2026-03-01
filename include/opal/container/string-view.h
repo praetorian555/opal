@@ -199,6 +199,8 @@ public:
     const_iterator cbegin() const { return const_iterator(m_data); }
     const_iterator cend() const { return const_iterator(m_data + m_size); }
 
+    [[nodiscard]] static constexpr size_type Min(size_type a, size_type b) { return a > b ? b : a; }
+
 private:
     const CodeUnitType* m_data = nullptr;
     size_type m_size = 0;
