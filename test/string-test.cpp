@@ -3,6 +3,7 @@
 #include "test-helpers.h"
 
 #include "opal/container/string.h"
+#include "opal/container/string-view.h"
 #include "opal/container/hash-map.h"
 #include "opal/container/string-hash.h"
 
@@ -4054,16 +4055,54 @@ TEST_CASE("Make string from floating point", "[String]")
     }
 }
 
-TEST_CASE("Make i32 from string", "[String]")
+TEST_CASE("StringToNumber signed", "[String]")
 {
-    i32 val = StringToI32("-5");
-    REQUIRE(val == -5);
-    val = StringToI32("0343");
-    REQUIRE(val == 227);
+    REQUIRE(StringToNumber<i32>("-5") == -5);
+    REQUIRE(StringToNumber<i32>("0343") == 227);
+    REQUIRE(StringToNumber<i64>("2147483648") == 2147483648LL);
+    REQUIRE(StringToNumber<i16>("255") == 255);
+    REQUIRE(StringToNumber<i8>("127") == 127);
 }
 
-TEST_CASE("Make u32 from string", "[String]")
+TEST_CASE("StringToNumber unsigned", "[String]")
 {
-    REQUIRE(5 == StringToU32("5"));
-    REQUIRE(255 == StringToU32("0xFF"));
+    REQUIRE(StringToNumber<u32>("5") == 5);
+    REQUIRE(StringToNumber<u32>("0xFF") == 255);
+    REQUIRE(StringToNumber<u64>("4294967296") == 4294967296ULL);
+    REQUIRE(StringToNumber<u16>("65535") == 65535);
+    REQUIRE(StringToNumber<u8>("200") == 200);
+}
+
+TEST_CASE("StringToNumber with explicit base", "[String]")
+{
+    REQUIRE(StringToNumber<u32>("FF", 16) == 255);
+    REQUIRE(StringToNumber<u32>("11111111", 2) == 255);
+    REQUIRE(StringToNumber<u32>("377", 8) == 255);
+    REQUIRE(StringToNumber<i32>("-10", 10) == -10);
+}
+
+TEST_CASE("StringToNumber with StringUtf8", "[String]")
+{
+    const StringUtf8 negative("-5");
+    const StringUtf8 octal("0343");
+    const StringUtf8 hex("0xFF");
+    const StringUtf8 large("4294967296");
+    REQUIRE(StringToNumber<i32>(negative) == -5);
+    REQUIRE(StringToNumber<i32>(octal) == 227);
+    REQUIRE(StringToNumber<u32>(hex) == 255);
+    REQUIRE(StringToNumber<u64>(large) == 4294967296ULL);
+    REQUIRE(StringToNumber<u32>(StringUtf8("FF"), 16) == 255);
+}
+
+TEST_CASE("StringToNumber with StringViewUtf8", "[String]")
+{
+    const StringUtf8 source("-5 0343 0xFF 4294967296");
+    const StringViewUtf8 negative(*source, 2);
+    const StringViewUtf8 octal(*source + 3, 4);
+    const StringViewUtf8 hex(*source + 8, 4);
+    const StringViewUtf8 large(*source + 13, 10);
+    REQUIRE(StringToNumber<i32>(negative) == -5);
+    REQUIRE(StringToNumber<i32>(octal) == 227);
+    REQUIRE(StringToNumber<u32>(hex) == 255);
+    REQUIRE(StringToNumber<u64>(large) == 4294967296ULL);
 }

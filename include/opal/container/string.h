@@ -3,6 +3,7 @@
 #include <cinttypes>
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
 
 #include "dynamic-array.h"
 #include "opal/allocator.h"
@@ -821,8 +822,18 @@ StringUtf8 NumberToString(T value, NumberSystemBase base = NumberSystemBase::Dec
 template <FloatingPoint T>
 StringUtf8 NumberToString(T value, i32 decimal_points = -1);
 
-u32 OPAL_EXPORT StringToU32(const StringUtf8& str);
-i32 OPAL_EXPORT StringToI32(const StringUtf8& str);
+/**
+ * Converts a string to an integral type.
+ * @tparam T Integral type to convert to.
+ * @tparam StringClass String-like type that supports operator* returning a const char pointer (e.g. StringUtf8, StringViewUtf8).
+ * @param str String to convert.
+ * @param base Number base system used. If 0, the base is auto-detected from the string prefix (0x for hex, 0 for octal, etc.).
+ * @return Converted value.
+ */
+template <Integral T, typename StringClass>
+T StringToNumber(const StringClass& str, i32 base = 0);
+template <Integral T>
+T StringToNumber(const char8* str, i32 base = 0);
 
 };  // namespace Opal
 
@@ -2845,4 +2856,32 @@ Opal::StringUtf8 Opal::NumberToString(T value, i32 decimal_points)
 #endif
     str.Trim();
     return str;
+}
+
+template <Opal::Integral T, typename StringClass>
+T Opal::StringToNumber(const StringClass& str, i32 base)
+{
+    char* end = const_cast<char*>(*str + str.GetSize());
+    if constexpr (SignedIntegral<T>)
+    {
+        return Narrow<T>(strtoll(*str, &end, base));
+    }
+    else
+    {
+        return Narrow<T>(strtoull(*str, &end, base));
+    }
+}
+
+template <Opal::Integral T>
+T Opal::StringToNumber(const char8* str, i32 base)
+{
+    char* end = nullptr;
+    if constexpr (SignedIntegral<T>)
+    {
+        return Narrow<T>(strtoll(str, &end, base));
+    }
+    else
+    {
+        return Narrow<T>(strtoull(str, &end, base));
+    }
 }
