@@ -94,19 +94,19 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
 
 void Opal::ProgramArgumentsBuilder::ShowHelp()
 {
-    GetLogger().Info("ProgramArguments", "{}\n\n", SafeCStr(m_program_description));
+    GetLogger().Info("ProgramArguments", "{}", SafeCStr(m_program_description));
     if (!m_usage_examples.IsEmpty())
     {
-        GetLogger().Info("ProgramArguments", "Usage examples:\n");
+        GetLogger().Info("ProgramArguments", "Usage examples:");
         for (const StringUtf8& example : m_usage_examples)
         {
-            GetLogger().Info("ProgramArguments", "\t{}\n", SafeCStr(example));
+            GetLogger().Info("ProgramArguments", "\t{}", SafeCStr(example));
         }
         GetLogger().Info("ProgramArguments", "\n");
     }
     if (m_has_required_argument)
     {
-        GetLogger().Info("ProgramArguments", "Required arguments:\n");
+        GetLogger().Info("ProgramArguments", "Required arguments:");
         for (const auto& def : m_argument_definitions)
         {
             if (!def->m_is_optional)
@@ -124,14 +124,13 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                     }
                     GetLogger().Info("ProgramArguments", " (values: {})", SafeCStr(values_str));
                 }
-                GetLogger().Info("ProgramArguments", "\n");
             }
         }
-        GetLogger().Info("ProgramArguments", "\n");
+        GetLogger().Info("ProgramArguments", "");
     }
     if (m_has_optional_argument)
     {
-        GetLogger().Info("ProgramArguments", "Optional arguments:\n");
+        GetLogger().Info("ProgramArguments", "Optional arguments:");
         for (const auto& def : m_argument_definitions)
         {
             if (def->m_is_optional)
@@ -149,14 +148,12 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                     }
                     GetLogger().Info("ProgramArguments", " (values: {})", SafeCStr(values_str));
                 }
-                GetLogger().Info("ProgramArguments", "\n");
             }
         }
-        GetLogger().Info("ProgramArguments", "\n");
     }
 }
 
 void Opal::ProgramArgumentsBuilder::ShowVersion(const char* program_name)
 {
-    Opal::GetLogger().Info("ProgramArguments", "{} v{}.{}.{}\n", program_name, m_major_version, m_minor_version, m_patch_version);
+    Opal::GetLogger().Info("ProgramArguments", "{} v{}.{}.{}", program_name, m_major_version, m_minor_version, m_patch_version);
 }
