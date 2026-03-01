@@ -102,7 +102,6 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
         {
             GetLogger().Info("ProgramArguments", "\t{}", SafeCStr(example));
         }
-        GetLogger().Info("ProgramArguments", "\n");
     }
     // ReSharper disable once CppDFAConstantConditions
     if (m_has_required_argument)
@@ -116,7 +115,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                 DynamicArray<StringUtf8> allowed = def->GetAllowedValues();
                 if (!allowed.IsEmpty())
                 {
-                    format_str += " (values: {})";
+                    format_str += " (allowed values: {})";
                     StringUtf8 values_str;
                     for (u32 i = 0; i < allowed.GetSize(); ++i)
                     {
@@ -125,6 +124,10 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                         values_str += allowed[i];
                     }
                     GetLogger().Info("ProgramArguments", format_str, SafeCStr(def->m_name), SafeCStr(def->m_description), SafeCStr(values_str));
+                }
+                else
+                {
+                    GetLogger().Info("ProgramArguments", format_str, SafeCStr(def->m_name), SafeCStr(def->m_description));
                 }
             }
         }
@@ -142,7 +145,7 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                 DynamicArray<StringUtf8> allowed = def->GetAllowedValues();
                 if (!allowed.IsEmpty())
                 {
-                    format_str += " (values: {})";
+                    format_str += " (allowed values: {})";
                     StringUtf8 values_str;
                     for (u32 i = 0; i < allowed.GetSize(); ++i)
                     {
@@ -151,6 +154,10 @@ void Opal::ProgramArgumentsBuilder::ShowHelp()
                         values_str += allowed[i];
                     }
                     GetLogger().Info("ProgramArguments", format_str, SafeCStr(def->m_name), SafeCStr(def->m_description), SafeCStr(values_str));
+                }
+                else
+                {
+                    GetLogger().Info("ProgramArguments", format_str, SafeCStr(def->m_name), SafeCStr(def->m_description));
                 }
             }
         }
