@@ -19,13 +19,12 @@ namespace Opal
 
 enum class LogLevel : u8
 {
-    Verbose,
-    Debug,
-    Info,
-    Warning,
-    Error,
+    Off = 0,
     Fatal,
-    Off,
+    Error,
+    Warning,
+    Info,
+    Verbose,
 };
 
 struct OPAL_EXPORT LogSink
@@ -79,6 +78,8 @@ public:
     void SetPattern(StringViewUtf8 pattern);
     StringViewUtf8 GetPattern() const;
 
+    void SetLogLevel(LogLevel level) { m_log_level = level; }
+
     void AddSink(const SharedPtr<LogSink>& sink);
     void RemoveSink(const SharedPtr<LogSink>& sink);
     void ClearSinks();
@@ -90,9 +91,6 @@ public:
 
     template <typename... Args>
     void Verbose(StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args);
-
-    template <typename... Args>
-    void Debug(StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args);
 
     template <typename... Args>
     void Info(StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args);
@@ -110,6 +108,7 @@ private:
     void Emit(LogLevel level, StringViewUtf8 category, StringViewUtf8 message);
     void HandleFatal();
 
+    LogLevel m_log_level;
     HashMap<StringUtf8, LogLevel> m_categories;
     DynamicArray<SharedPtr<LogSink>> m_sinks;
     StringUtf8 m_pattern;
@@ -154,6 +153,10 @@ private:
 template <typename... Args>
 void Logger::Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args)
 {
+    if (level < m_log_level)
+    {
+        return;
+    }
     if (!IsCategoryRegistered(category))
     {
         throw UnregisteredCategoryException(category.GetData());

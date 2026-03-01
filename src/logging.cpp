@@ -90,7 +90,7 @@ void Opal::ConsoleSink::Flush()
 /** Logger ***************************************************************************************/
 /*************************************************************************************************/
 
-Opal::Logger::Logger() : m_pattern("[<date> <time>][<thread>][<level>][<category>] <message>\n")
+Opal::Logger::Logger() : m_log_level(LogLevel::Info), m_pattern("[<date> <time>][<thread>][<level>][<category>] <message>\n")
 {
     RegisterCategory("General", LogLevel::Info);
 }
