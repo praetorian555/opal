@@ -52,8 +52,6 @@ const char* Opal::LogLevelToString(LogLevel level)
     {
         case LogLevel::Verbose:
             return "Verbose";
-        case LogLevel::Debug:
-            return "Debug";
         case LogLevel::Info:
             return "Info";
         case LogLevel::Warning:

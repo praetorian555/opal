@@ -190,12 +190,6 @@ void Logger::Verbose(StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args
 }
 
 template <typename... Args>
-void Logger::Debug(StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args)
-{
-    Log(LogLevel::Debug, category, fmt, std::forward<Args>(args)...);
-}
-
-template <typename... Args>
 void Logger::Info(StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args)
 {
     Log(LogLevel::Info, category, fmt, std::forward<Args>(args)...);

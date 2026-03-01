@@ -39,7 +39,6 @@ struct TestSink : public LogSink
 TEST_CASE("LogLevelToString", "[Logging]")
 {
     REQUIRE(strcmp(LogLevelToString(LogLevel::Verbose), "Verbose") == 0);
-    REQUIRE(strcmp(LogLevelToString(LogLevel::Debug), "Debug") == 0);
     REQUIRE(strcmp(LogLevelToString(LogLevel::Info), "Info") == 0);
     REQUIRE(strcmp(LogLevelToString(LogLevel::Warning), "Warning") == 0);
     REQUIRE(strcmp(LogLevelToString(LogLevel::Error), "Error") == 0);
@@ -63,9 +62,9 @@ TEST_CASE("Categories", "[Logging]")
 
     SECTION("Register custom category")
     {
-        logger.RegisterCategory("Rendering", LogLevel::Debug);
+        logger.RegisterCategory("Rendering", LogLevel::Verbose);
         REQUIRE(logger.IsCategoryRegistered("Rendering"));
-        REQUIRE(logger.GetCategoryLevel("Rendering") == LogLevel::Debug);
+        REQUIRE(logger.GetCategoryLevel("Rendering") == LogLevel::Verbose);
     }
 
     SECTION("Register category with default level")
@@ -153,7 +152,6 @@ TEST_CASE("Level filtering", "[Logging]")
         logger.RegisterCategory("Rendering", LogLevel::Warning);
 
         logger.Verbose("Rendering", "Verbose message");
-        logger.Debug("Rendering", "Debug message");
         logger.Info("Rendering", "Info message");
         logger.Warning("Rendering", "Warning message");
         logger.Error("Rendering", "Error message");
@@ -168,7 +166,6 @@ TEST_CASE("Level filtering", "[Logging]")
         logger.RegisterCategory("Silent", LogLevel::Off);
 
         logger.Verbose("Silent", "msg");
-        logger.Debug("Silent", "msg");
         logger.Info("Silent", "msg");
         logger.Warning("Silent", "msg");
         logger.Error("Silent", "msg");
@@ -181,7 +178,6 @@ TEST_CASE("Level filtering", "[Logging]")
         logger.RegisterCategory("Verbose", LogLevel::Verbose);
 
         logger.Verbose("Verbose", "msg");
-        logger.Debug("Verbose", "msg");
         logger.Info("Verbose", "msg");
         logger.Warning("Verbose", "msg");
         logger.Error("Verbose", "msg");
@@ -326,7 +322,7 @@ TEST_CASE("Global logger", "[Logging]")
     SECTION("SetLogger replaces the global logger")
     {
         Logger custom_logger;
-        custom_logger.RegisterCategory("Custom", LogLevel::Debug);
+        custom_logger.RegisterCategory("Custom", LogLevel::Info);
 
         SetLogger(&custom_logger);
 
@@ -429,7 +425,6 @@ TEST_CASE("Unregistered category throws", "[Logging]")
     SECTION("Each log level throws for unregistered category")
     {
         REQUIRE_THROWS_AS(logger.Verbose("NonExistent", "msg"), UnregisteredCategoryException);
-        REQUIRE_THROWS_AS(logger.Debug("NonExistent", "msg"), UnregisteredCategoryException);
         REQUIRE_THROWS_AS(logger.Info("NonExistent", "msg"), UnregisteredCategoryException);
         REQUIRE_THROWS_AS(logger.Warning("NonExistent", "msg"), UnregisteredCategoryException);
         REQUIRE_THROWS_AS(logger.Error("NonExistent", "msg"), UnregisteredCategoryException);
