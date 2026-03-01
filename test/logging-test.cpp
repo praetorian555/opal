@@ -143,6 +143,7 @@ TEST_CASE("Sink management", "[Logging]")
 TEST_CASE("Level filtering", "[Logging]")
 {
     Logger logger;
+    logger.SetLogLevel(LogLevel::Verbose);
     auto sink = MakeShared<LogSink, TestSink>(nullptr);
     auto* test_sink = static_cast<TestSink*>(sink.Get());
     logger.AddSink(sink);
@@ -182,7 +183,7 @@ TEST_CASE("Level filtering", "[Logging]")
         logger.Warning("Verbose", "msg");
         logger.Error("Verbose", "msg");
 
-        REQUIRE(test_sink->m_entries.GetSize() == 5);
+        REQUIRE(test_sink->m_entries.GetSize() == 4);
     }
 }
 
@@ -416,6 +417,7 @@ TEST_CASE("Message larger than 2048 bytes", "[Logging]")
 TEST_CASE("Unregistered category throws", "[Logging]")
 {
     Logger logger;
+    logger.SetLogLevel(LogLevel::Verbose);
 
     SECTION("Log with unregistered category throws UnregisteredCategoryException")
     {

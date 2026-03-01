@@ -153,7 +153,7 @@ private:
 template <typename... Args>
 void Logger::Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args)
 {
-    if (level < m_log_level)
+    if (level > m_log_level)
     {
         return;
     }
@@ -161,7 +161,7 @@ void Logger::Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Ar
     {
         throw UnregisteredCategoryException(category.GetData());
     }
-    if (level < GetCategoryLevel(category))
+    if (level > GetCategoryLevel(category))
     {
         return;
     }
