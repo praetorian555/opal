@@ -14,30 +14,9 @@
 
 using namespace Opal;
 
-void PrintCpuInfo(const Opal::CpuInfo& info)
-{
-    printf("Logical cores count: %u\n", info.logical_cores_count);
-    printf("Physical processors: %llu\n", static_cast<unsigned long long>(info.physical_processors.GetSize()));
-    for (u64 i = 0; i < info.physical_processors.GetSize(); ++i)
-    {
-        const Opal::PhysicalCoreInfo& core = info.physical_processors[i];
-        printf("  Physical core %u:\n", core.id);
-        printf("    Hyperthreaded: %s\n", core.is_hyperthreaded ? "yes" : "no");
-        printf("    Logical cores:");
-        for (auto bit : core.logical_cores)
-        {
-            printf(" %u", bit);
-        }
-        printf("\n");
-    }
-}
-
 
 TEST_CASE("Create a thread", "[Thread]")
 {
-    auto info = GetCpuInfo();
-    PrintCpuInfo(info);
-
     int n = 5;
     ThreadHandle handle = CreateThread(
         [](int nn)
