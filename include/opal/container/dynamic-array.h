@@ -169,7 +169,7 @@ public:
      * @param init_list Initializer list.
      * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
      */
-    DynamicArray(const std::initializer_list<T>& init_list, allocator_type* allocator = nullptr);
+    DynamicArray(std::initializer_list<T> init_list, allocator_type* allocator = nullptr);
 
     /**
      * Create a deep copy of this array. Unlike the copy constructor, Clone allows specifying a different allocator for
@@ -529,7 +529,7 @@ CLASS_HEADER::DynamicArray(DynamicArray&& other) noexcept
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(const std::initializer_list<T>& init_list, allocator_type* allocator)
+CLASS_HEADER::DynamicArray(std::initializer_list<T> init_list, allocator_type* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     size_type count = init_list.size();
@@ -547,7 +547,7 @@ CLASS_HEADER::DynamicArray(const std::initializer_list<T>& init_list, allocator_
     {
         for (size_type i = 0; i < m_size; i++)
         {
-            new (&m_data[i]) T(*(init_list.begin() + i));  // Invokes copy constructor on allocated memory
+            new (&m_data[i]) T((init_list.begin() + i)->Clone());  // Invokes copy constructor on allocated memory
         }
     }
 }

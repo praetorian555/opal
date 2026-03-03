@@ -1,3 +1,4 @@
+#include "opal/container/string.h"
 #include "opal/defines.h"
 
 OPAL_START_DISABLE_WARNINGS
@@ -5,6 +6,7 @@ OPAL_DISABLE_WARNING("-Wnon-virtual-dtor")
 #include "catch2/catch2.hpp"
 OPAL_END_DISABLE_WARNINGS
 
+#include "opal/clonable-base.h"
 #include "opal/container/dynamic-array.h"
 
 using namespace Opal;
@@ -2377,3 +2379,23 @@ TEST_CASE("Clone", "[Array]")
         REQUIRE(clone[0] == 1);
     }
 }
+
+TEST_CASE("Clonable interface for arrays", "[Array]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        DynamicArray<StringUtf8> a;
+        i32 b;
+
+        Data(DynamicArray<StringUtf8> aa, i32 bb) : a(std::move(aa)), b(bb) {}
+
+        OPAL_CLONE_FIELDS(a, b);
+    };
+
+    Data first({"Hello", "There"}, 5);
+    Data second = first.Clone();
+    REQUIRE(second.a[0] == "Hello");
+    REQUIRE(second.a[1] == "There");
+    REQUIRE(second.b == 5);
+}
+

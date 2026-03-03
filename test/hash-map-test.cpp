@@ -3,6 +3,8 @@
 #include "opal/container/array-view.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/hash-map.h"
+
+#include "opal/clonable-base.h"
 #include "opal/container/string.h"
 
 using namespace Opal;
@@ -216,4 +218,33 @@ TEST_CASE("Convert to array", "[HashMap]")
         }
         REQUIRE(map.GetSize() == 0);
     }
+}
+
+TEST_CASE("Clonable interface for pair", "[HashMap]")
+{
+    enum class Color
+    {
+        Red,
+        Green,
+        Blue
+    };
+
+    struct Data : ClonableBase<Data>
+    {
+        Pair<i32, i32> a;
+        i32 b;
+        DynamicArray<Pair<Color, i32>> c;
+
+        Data(Pair<i32, i32> aa, i32 bb, DynamicArray<Pair<Color, i32>> cc) : a(aa), b(bb), c(std::move(cc)) {}
+
+    OPAL_CLONE_FIELDS(a, b, c);
+    };
+
+    Data first({1, 2}, 3, { {Color::Red, 5} });
+    Data second = first.Clone();
+    REQUIRE(second.a.key == 1);
+    REQUIRE(second.a.value == 2);
+    REQUIRE(second.b == 3);
+    REQUIRE(second.c[0].key == Color::Red);
+    REQUIRE(second.c[0].value == 5);
 }
