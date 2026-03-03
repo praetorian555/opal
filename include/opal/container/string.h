@@ -521,6 +521,31 @@ private:
     size_type m_capacity = 0;
 };
 
+template class OPAL_EXPORT String<char8, EncodingUtf8<char8>>;
+
+// Forward declare StringView so the StringLike concept can reference it.
+template <typename CodeUnitType, typename EncodingType>
+class StringView;
+
+template <typename T>
+inline constexpr bool k_is_string_value = false;
+
+template <typename CodeUnitType, typename EncodingType>
+inline constexpr bool k_is_string_value<String<CodeUnitType, EncodingType>> = true;
+
+template <typename T>
+inline constexpr bool k_is_string_view_value = false;
+
+template <typename CodeUnitType, typename EncodingType>
+inline constexpr bool k_is_string_view_value<StringView<CodeUnitType, EncodingType>> = true;
+
+/**
+ * @brief Concept that checks if a type is an instantiation of String or StringView.
+ * @tparam T The type to be evaluated.
+ */
+template <typename T>
+concept StringLike = k_is_string_value<T> || k_is_string_view_value<T>;
+
 /**
  * @brief Compare two strings lexicographically.
  * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
@@ -528,7 +553,7 @@ private:
  * @param second Second string to compare.
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 Expected<i32, ErrorCode> Compare(const StringClass& first, const StringClass& second);
 
 /**
@@ -542,7 +567,7 @@ Expected<i32, ErrorCode> Compare(const StringClass& first, const StringClass& se
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
                                  const StringClass& second);
 
@@ -560,7 +585,7 @@ Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass:
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string or pos2 is greater than the size of the second string.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
                                  const StringClass& second, typename StringClass::size_type pos2, typename StringClass::size_type count2);
 
@@ -576,7 +601,7 @@ Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass:
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
                                  const typename StringClass::value_type* second);
 
@@ -594,23 +619,23 @@ Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass:
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
  * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
                                  const typename StringClass::value_type* second, typename StringClass::size_type count2);
 
-template <typename StringClass>
+template <StringLike StringClass>
 StringClass operator+(const StringClass& lhs, const StringClass& rhs);
 
-template <typename StringClass>
+template <StringLike StringClass>
 StringClass operator+(const StringClass& lhs, const typename StringClass::value_type* rhs);
 
-template <typename StringClass>
+template <StringLike StringClass>
 StringClass operator+(const StringClass& lhs, typename StringClass::value_type ch);
 
-template <typename StringClass>
+template <StringLike StringClass>
 StringClass operator+(const typename StringClass::value_type* lhs, const StringClass& rhs);
 
-template <typename StringClass>
+template <StringLike StringClass>
 StringClass operator+(typename StringClass::value_type ch, const StringClass& rhs);
 
 /**
@@ -624,7 +649,7 @@ StringClass operator+(typename StringClass::value_type ch, const StringClass& rh
  * of the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns
  * StringClass::k_npos.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 typename StringClass::size_type Find(const StringClass& haystack, const StringClass& needle, typename StringClass::size_type start_pos = 0);
 
 /**
@@ -640,7 +665,7 @@ typename StringClass::size_type Find(const StringClass& haystack, const StringCl
  * of the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns
  * StringClass::k_npos.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 typename StringClass::size_type Find(const StringClass& haystack, const typename StringClass::value_type* needle,
                                      typename StringClass::size_type start_pos = 0,
                                      typename StringClass::size_type needle_count = StringClass::k_npos);
@@ -654,7 +679,7 @@ typename StringClass::size_type Find(const StringClass& haystack, const typename
  * @return Position of the first occurrence of the character in the haystack. If the character is not found, returns StringClass::k_npos. If
  * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If haystack is empty, returns StringClass::k_npos.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 typename StringClass::size_type Find(const StringClass& haystack, const typename StringClass::value_type& ch,
                                      typename StringClass::size_type start_pos = 0);
 
@@ -668,7 +693,7 @@ typename StringClass::size_type Find(const StringClass& haystack, const typename
  * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If needle
  * is empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 typename StringClass::size_type ReverseFind(const StringClass& haystack, const StringClass& needle,
                                             typename StringClass::size_type start_pos = StringClass::k_npos);
 
@@ -684,7 +709,7 @@ typename StringClass::size_type ReverseFind(const StringClass& haystack, const S
  * @return Position of the last occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If needle
  * is empty, returns start_pos or if start_pos is larger than or equal to the size of the string the size of haystack will be returned.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 typename StringClass::size_type ReverseFind(const StringClass& haystack, const typename StringClass::value_type* needle,
                                             typename StringClass::size_type start_pos = StringClass::k_npos,
                                             typename StringClass::size_type needle_count = StringClass::k_npos);
@@ -699,7 +724,7 @@ typename StringClass::size_type ReverseFind(const StringClass& haystack, const t
  * @return Position of the last occurrence of the character in the haystack. If the character is not found, returns StringClass::k_npos. If
  * haystack is empty, returns StringClass::k_npos.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 typename StringClass::size_type ReverseFind(const StringClass& haystack, const typename StringClass::value_type& ch,
                                             typename StringClass::size_type start_pos = StringClass::k_npos);
 
@@ -727,7 +752,7 @@ ErrorCode Transcode(const InputStringClass& input, OutputStringClass& output);
  * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
  * @return Substring in case of a success. ErrorCode::OutOfBounds if start_pos is greater than the size of the string.
  */
-template <typename StringClass, typename Allocator = AllocatorBase>
+template <StringLike StringClass, typename Allocator = AllocatorBase>
 Expected<StringClass, ErrorCode> GetSubString(const StringClass& str, typename StringClass::size_type start_pos = 0,
                                               typename StringClass::size_type count = StringClass::k_npos, Allocator* allocator = nullptr);
 
@@ -747,7 +772,7 @@ u64 GetStringLength(const CodeUnitType* str);
  * @param prefix Prefix which to use.
  * @return Returns true if str starts with prefix, false otherwise.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 bool StartsWith(const StringClass& str, const StringClass& prefix);
 
 /**
@@ -757,7 +782,7 @@ bool StartsWith(const StringClass& str, const StringClass& prefix);
  * @param suffix Suffix which to use.
  * @return Returns true if str ends with suffix, false otherwise.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 bool EndsWith(const StringClass& str, const StringClass& suffix);
 
 /**
@@ -770,7 +795,7 @@ bool EndsWith(const StringClass& str, const StringClass& suffix);
  * @return Returns true if delimiter is found and there are no errors extracting two parts of the string,
  * false otherwise.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 bool Split(const StringClass& str, const StringClass& delimiter, StringClass& first, StringClass& second);
 
 /**
@@ -783,7 +808,7 @@ bool Split(const StringClass& str, const StringClass& delimiter, StringClass& fi
  * @return Returns true if delimiter is found at least once and there are no errors extracting two parts
  * of the string, false otherwise.
  */
-template <typename StringClass>
+template <StringLike StringClass>
 bool SplitToArray(const StringClass& str, const StringClass& delimiter, DynamicArray<StringClass>& result);
 
 /*************************************************************************************************/
@@ -794,8 +819,6 @@ using StringUtf8 = String<char8, EncodingUtf8<char8>>;
 using StringUtf32 = String<uchar32, EncodingUtf32LE<uchar32>>;
 using StringLocale = String<char8, EncodingLocale>;
 using StringWide = String<char16, EncodingUtf16LE<char16>>;
-
-template class OPAL_EXPORT String<char8, EncodingUtf8<char8>>;
 
 /*************************************************************************************************/
 /** Useful functions not implemented for all string classes. *************************************/
@@ -823,7 +846,7 @@ StringUtf8 NumberToString(T value, i32 decimal_points = -1);
  * @param base Number base system used. If 0, the base is auto-detected from the string prefix (0x for hex, 0 for octal, etc.).
  * @return Converted value.
  */
-template <Integral T, typename StringClass>
+template <Integral T, StringLike StringClass>
 T StringToNumber(const StringClass& str, i32 base = 0);
 template <Integral T>
 T StringToNumber(const char8* str, i32 base = 0);
@@ -2143,20 +2166,20 @@ CLASS_HEADER Opal::operator+(typename StringConstIterator<StringClass>::differen
 #undef TEMPLATE_HEADER
 #undef CLASS_HEADER
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, const StringClass& second)
 {
     return Compare(first, 0, first.GetSize(), second, 0, second.GetSize());
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
                                                          typename StringClass::size_type count1, const StringClass& second)
 {
     return Compare(first, pos1, count1, second, 0, second.GetSize());
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
                                                          typename StringClass::size_type count1, const StringClass& second,
                                                          typename StringClass::size_type pos2, typename StringClass::size_type count2)
@@ -2212,7 +2235,7 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& firs
     return ReturnType(0);
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
                                                          typename StringClass::size_type count1,
                                                          const typename StringClass::value_type* second)
@@ -2261,7 +2284,7 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& firs
     return ReturnType(0);
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& first, typename StringClass::size_type pos1,
                                                          typename StringClass::size_type count1,
                                                          const typename StringClass::value_type* second,
@@ -2319,7 +2342,7 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& firs
     return ReturnType(0);
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 StringClass Opal::operator+(const StringClass& lhs, const StringClass& rhs)
 {
     StringClass result = lhs.Clone();
@@ -2327,7 +2350,7 @@ StringClass Opal::operator+(const StringClass& lhs, const StringClass& rhs)
     return result;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 StringClass Opal::operator+(const StringClass& lhs, const typename StringClass::value_type* rhs)
 {
     StringClass result = lhs.Clone();
@@ -2335,7 +2358,7 @@ StringClass Opal::operator+(const StringClass& lhs, const typename StringClass::
     return result;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 StringClass Opal::operator+(const StringClass& lhs, typename StringClass::value_type ch)
 {
     StringClass result = lhs.Clone();
@@ -2343,7 +2366,7 @@ StringClass Opal::operator+(const StringClass& lhs, typename StringClass::value_
     return result;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 StringClass Opal::operator+(const typename StringClass::value_type* lhs, const StringClass& rhs)
 {
     StringClass result;
@@ -2352,7 +2375,7 @@ StringClass Opal::operator+(const typename StringClass::value_type* lhs, const S
     return result;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 StringClass Opal::operator+(typename StringClass::value_type ch, const StringClass& rhs)
 {
     StringClass result;
@@ -2361,7 +2384,7 @@ StringClass Opal::operator+(typename StringClass::value_type ch, const StringCla
     return result;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 typename StringClass::size_type Opal::Find(const StringClass& haystack, const StringClass& needle,
                                            typename StringClass::size_type start_pos)
 {
@@ -2376,7 +2399,7 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const St
     return Find(haystack, needle.GetData(), start_pos, needle.GetSize());
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 typename StringClass::size_type Opal::Find(const StringClass& haystack, const typename StringClass::value_type* needle,
                                            typename StringClass::size_type start_pos, typename StringClass::size_type needle_count)
 {
@@ -2424,7 +2447,7 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const ty
     return StringClass::k_npos;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 typename StringClass::size_type Opal::Find(const StringClass& haystack, const typename StringClass::value_type& ch,
                                            typename StringClass::size_type start_pos)
 {
@@ -2446,7 +2469,7 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const ty
     return StringClass::k_npos;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const StringClass& needle,
                                                   typename StringClass::size_type start_pos)
 {
@@ -2481,7 +2504,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
     return StringClass::k_npos;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const typename StringClass::value_type* needle,
                                                   typename StringClass::size_type start_pos, typename StringClass::size_type needle_count)
 {
@@ -2528,7 +2551,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
     return StringClass::k_npos;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, const typename StringClass::value_type& ch,
                                                   typename StringClass::size_type start_pos)
 {
@@ -2550,7 +2573,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
     return StringClass::k_npos;
 }
 
-template <typename StringClass, typename Allocator>
+template <Opal::StringLike StringClass, typename Allocator>
 Opal::Expected<StringClass, Opal::ErrorCode> Opal::GetSubString(const StringClass& str, typename StringClass::size_type start_pos,
                                                                 typename StringClass::size_type count, Allocator* allocator)
 {
@@ -2579,7 +2602,7 @@ Opal::u64 Opal::GetStringLength(const CodeUnitType* str)
     return length;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 bool Opal::StartsWith(const StringClass& str, const StringClass& prefix)
 {
     if (prefix.GetSize() > str.GetSize())
@@ -2596,7 +2619,7 @@ bool Opal::StartsWith(const StringClass& str, const StringClass& prefix)
     return true;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 bool Opal::EndsWith(const StringClass& str, const StringClass& suffix)
 {
     if (suffix.GetSize() > str.GetSize())
@@ -2613,7 +2636,7 @@ bool Opal::EndsWith(const StringClass& str, const StringClass& suffix)
     return true;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 bool Opal::Split(const StringClass& str, const StringClass& delimiter, StringClass& first, StringClass& second)
 {
     typename StringClass::size_type pos = Opal::Find(str, delimiter);
@@ -2637,7 +2660,7 @@ bool Opal::Split(const StringClass& str, const StringClass& delimiter, StringCla
     return true;
 }
 
-template <typename StringClass>
+template <Opal::StringLike StringClass>
 bool Opal::SplitToArray(const StringClass& str, const StringClass& delimiter, DynamicArray<StringClass>& result)
 {
     typename StringClass::size_type start_pos = 0;
@@ -2859,7 +2882,7 @@ Opal::StringUtf8 Opal::NumberToString(T value, i32 decimal_points)
     return str;
 }
 
-template <Opal::Integral T, typename StringClass>
+template <Opal::Integral T, Opal::StringLike StringClass>
 T Opal::StringToNumber(const StringClass& str, i32 base)
 {
     char* end = const_cast<char*>(*str + str.GetSize());
