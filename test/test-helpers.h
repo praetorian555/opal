@@ -66,10 +66,6 @@ std::ostream& operator<<(std::ostream& os, const Opal::DualQuaternion<T>& value)
 // clang-format off
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_WARNING("-Wnon-virtual-dtor")
-OPAL_DISABLE_WARNING("-Wimplicit-int-float-conversion")
-OPAL_DISABLE_WARNING("-Wimplicit-fallthrough")
-OPAL_DISABLE_WARNING("-Wsign-conversion")
-OPAL_DISABLE_WARNING("-Wdouble-promotion")
 #include "catch2/catch2.hpp"
 OPAL_END_DISABLE_WARNINGS
 // clang-format on

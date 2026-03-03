@@ -36,7 +36,7 @@ protected:
 template <typename Function>
 struct FunctionTask : Task
 {
-    explicit FunctionTask(Function function) : m_function(function) {}
+    explicit FunctionTask(Function function) : m_function(std::move(function)) {}
 
     void Execute(TransmitterType& transmitter) override { m_function(transmitter); }
 
@@ -53,9 +53,9 @@ public:
     template <typename Function>
     SharedPtr<Task> AddFunctionTask(Function function)
     {
-        SharedPtr<FunctionTask<Function>> task(m_allocator, function);
+        SharedPtr<FunctionTask<Function>> task(m_allocator, std::move(function));
         m_communicator.transmitter.Send(SharedPtr<Task>{task.Clone()});
-        return SharedPtr<Task>{Move(task)};
+        return SharedPtr<Task>{std::move(task)};
     }
 
     void Close();

@@ -4,6 +4,7 @@
 
 #include "opal/container/scope-ptr.h"
 #include "opal/container/shared-ptr.h"
+#include "opal/container/string.h"
 #include "opal/rng.h"
 #include "opal/threading/channel-mpmc.h"
 #include "opal/threading/channel-spsc.h"
@@ -13,7 +14,6 @@
 #include "opal/threading/thread.h"
 
 using namespace Opal;
-
 
 TEST_CASE("Create a thread", "[Thread]")
 {
@@ -328,10 +328,16 @@ TEST_CASE("Thread pool", "[Thread]")
 {
     ThreadPool pool(8);
     i32 value = 5;
-    auto task = pool.AddFunctionTask([&value](Task::TransmitterType&)
-    {
-        value = 10;
-    });
+    auto task = pool.AddFunctionTask([&value](Task::TransmitterType&) { value = 10; });
     task->WaitForCompletion();
     REQUIRE(value == 10);
+}
+
+TEST_CASE("Thread pool captures string", "[Thread]")
+{
+    ThreadPool pool(8);
+    StringUtf8 value = "Hello";
+    auto task = pool.AddFunctionTask([moved_value = value.Clone()](Task::TransmitterType&) { REQUIRE(moved_value == "Hello"); });
+    task->WaitForCompletion();
+    REQUIRE(value == "Hello");
 }
