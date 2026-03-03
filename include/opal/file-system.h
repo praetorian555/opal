@@ -93,6 +93,6 @@ struct DirectoryEntry
  * @throw PathNotFoundException when path does not exist.
  * @throw NotDirectoryException if a given path is not to a directory.
  */
-DynamicArray<DirectoryEntry> OPAL_EXPORT CollectDirectoryContents(const StringUtf8& path, const DirectoryContentsDesc& desc = {});
+DynamicArray<DirectoryEntry> OPAL_EXPORT CollectDirectoryContents(StringUtf8 path, const DirectoryContentsDesc& desc = {});
 
 }  // namespace Opal

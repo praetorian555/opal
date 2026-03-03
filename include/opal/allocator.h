@@ -216,7 +216,14 @@ T* New(AllocatorBase* allocator, Args&&... args)
         throw Exception("Allocator can't be null");
     }
     void* memory = allocator->Alloc(sizeof(T), alignof(T));
-    return new (memory) T(std::forward<Args>(args)...);
+    try
+    {
+        return new (memory) T(std::forward<Args>(args)...);
+    } catch (const Exception&)
+    {
+        allocator->Free(memory);
+        throw;
+    }
 }
 
 template <typename T, u32 Alignment, class... Args>
@@ -227,7 +234,14 @@ T* New(AllocatorBase* allocator, Args&&... args)
         throw Exception("Allocator can't be null");
     }
     void* memory = allocator->Alloc(sizeof(T), Alignment);
-    return new (memory) T(std::forward<Args>(args)...);
+    try
+    {
+        return new (memory) T(std::forward<Args>(args)...);
+    } catch (const Exception&)
+    {
+        allocator->Free(memory);
+        throw;
+    }
 }
 
 template <typename T>

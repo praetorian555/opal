@@ -1,6 +1,7 @@
 #pragma once
 
 #include "container/scope-ptr.h"
+#include "opal/common.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/hash-map.h"
 #include "opal/container/string.h"
@@ -90,7 +91,7 @@ struct TypedProgramArgumentDefinitionBase : ProgramArgumentDefinition
     }
 
     /** @brief Write the parsed value to the destination variable. */
-    void SetDestinationValue(const T& value) { *m_dest_value = value; }
+    void SetDestinationValue(T value) { *m_dest_value = std::move(value); }
 
     /** @brief Check if an explicit list of possible values has been provided. */
     [[nodiscard]] bool HasPossibleValues() const { return !m_possible_values.IsEmpty(); }
@@ -142,15 +143,21 @@ struct TypedProgramArgumentDefinitionBase : ProgramArgumentDefinition
             for (const T& val : m_possible_values)
             {
                 if constexpr (SameAs<T, StringUtf8>)
-                    result.PushBack(val);
+                {
+                    result.PushBack(Clone(val));
+                }
                 else if constexpr (Integral<T>)
+                {
                     result.PushBack(NumberToString(val));
+                }
             }
         }
         else if (m_possible_value_mappings.GetSize() != 0)
         {
             for (const auto& pair : m_possible_value_mappings)
-                result.PushBack(pair.key);
+            {
+                result.PushBack(Clone(pair.key));
+            }
         }
         return result;
     }
@@ -219,7 +226,7 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
     void SetValue(const StringUtf8& str) override
     {
         const T& value = TypedProgramArgumentDefinitionBase<T>::GetValueFromMapping(str);
-        TypedProgramArgumentDefinitionBase<T>::SetDestinationValue(value);
+        TypedProgramArgumentDefinitionBase<T>::SetDestinationValue(Opal::Clone(value));
     }
 };
 
@@ -240,7 +247,8 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
     {
         if (Super::HasPossibleValues() && Super::HasPossibleValueMappings())
         {
-            throw InvalidArgumentException(__FUNCTION__, "Integer program argument can't have both possible values and possible value mappings");
+            throw InvalidArgumentException(__FUNCTION__,
+                                           "Integer program argument can't have both possible values and possible value mappings");
         }
     }
 
@@ -260,7 +268,7 @@ struct TypedProgramArgumentDefinition<bool> final : TypedProgramArgumentDefiniti
 {
     TypedProgramArgumentDefinition(Ref<bool> dest, StringUtf8 name, StringUtf8 desc, bool is_optional, DynamicArray<bool>,
                                    HashMap<StringUtf8, bool>)
-        : TypedProgramArgumentDefinitionBase(std::move(name), std::move(desc), is_optional, {}, HashMap<StringUtf8, bool>({}),
+        : TypedProgramArgumentDefinitionBase(std::move(name), std::move(desc), is_optional, {}, HashMap<StringUtf8, bool>(),
                                              std::move(dest))
     {
     }
@@ -289,10 +297,10 @@ struct TypedProgramArgumentDefinition<StringUtf8> final : TypedProgramArgumentDe
 
     void SetValue(const StringUtf8& str) override
     {
-        StringUtf8 trimmed = str;
+        StringUtf8 trimmed = str.Clone();
         if (!str.IsEmpty() && str[0] == '\"')
         {
-            trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
+            trimmed = std::move(GetSubString(str, 1, str.GetSize() - 2).GetValue());
         }
         if (HasPossibleValues())
         {
@@ -300,16 +308,16 @@ struct TypedProgramArgumentDefinition<StringUtf8> final : TypedProgramArgumentDe
             {
                 throw InvalidArgumentException(__FUNCTION__, "String program argument is not one of the possible values");
             }
-            SetDestinationValue(trimmed);
+            SetDestinationValue(std::move(trimmed));
             return;
         }
         if (HasPossibleValueMappings())
         {
             const StringUtf8& mapping = GetValueFromMapping(str);
-            SetDestinationValue(mapping);
+            SetDestinationValue(Clone(mapping));
             return;
         }
-        SetDestinationValue(trimmed);
+        SetDestinationValue(std::move(trimmed));
     }
 };
 
@@ -337,8 +345,8 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
         {
             if (!m_possible_values.IsEmpty())
             {
-                throw InvalidArgumentException(__FUNCTION__,
-                                               "Enum array program argument needs to have populated possible_values_mapping, not possible_values");
+                throw InvalidArgumentException(
+                    __FUNCTION__, "Enum array program argument needs to have populated possible_values_mapping, not possible_values");
             }
             if (m_possible_value_mappings.GetSize() == 0)
             {
@@ -392,7 +400,7 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
             for (const E& val : m_possible_values)
             {
                 if constexpr (SameAs<E, StringUtf8>)
-                    result.PushBack(val);
+                    result.PushBack(Opal::Clone(val));
                 else if constexpr (Integral<E>)
                     result.PushBack(NumberToString(val));
             }
@@ -400,17 +408,17 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
         else if (m_possible_value_mappings.GetSize() != 0)
         {
             for (const auto& pair : m_possible_value_mappings)
-                result.PushBack(pair.key);
+                result.PushBack(Opal::Clone(pair.key));
         }
         return result;
     }
 
     void SetValue(const StringUtf8& str) override
     {
-        StringUtf8 trimmed = str;
+        StringUtf8 trimmed = str.Clone();
         if (!str.IsEmpty() && str[0] == '\"')
         {
-            trimmed = GetSubString(str, 1, str.GetSize() - 2).GetValue();
+            trimmed = std::move(GetSubString(str, 1, str.GetSize() - 2).GetValue());
         }
         DynamicArray<StringUtf8> elements;
         SplitToArray<StringUtf8>(trimmed, StringUtf8(","), elements);
@@ -424,22 +432,22 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
                     {
                         throw InvalidArgumentException(__FUNCTION__, "Value is not one of the possible values");
                     }
-                    m_dest_value->PushBack(element);
+                    m_dest_value->PushBack(Opal::Clone(element));
                 }
                 else if (HasPossibleValueMappings())
                 {
                     const StringUtf8& mapping = GetValueFromMapping(element);
-                    m_dest_value->PushBack(mapping);
+                    m_dest_value->PushBack(Opal::Clone(mapping));
                 }
                 else
                 {
-                    m_dest_value->PushBack(element);
+                    m_dest_value->PushBack(Opal::Clone(element));
                 }
             }
             else if constexpr (IsEnum<E>)
             {
                 const E& value = GetValueFromMapping(element);
-                m_dest_value->PushBack(value);
+                m_dest_value->PushBack(Opal::Clone(value));
             }
             else if constexpr (Integral<E>)
             {
@@ -448,7 +456,7 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
                 {
                     throw InvalidArgumentException(__FUNCTION__, "Value is not one of the possible values");
                 }
-                m_dest_value->PushBack(value);
+                m_dest_value->PushBack(Opal::Clone(value));
             }
         }
     }
@@ -484,14 +492,14 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
      * @param description Text describing what the program does.
      * @return Reference to this builder for chaining.
      */
-    ProgramArgumentsBuilder& AddProgramDescription(const StringUtf8& description);
+    ProgramArgumentsBuilder& AddProgramDescription(StringUtf8 description);
 
     /**
      * @brief Add a usage example displayed in help output.
      * @param example Example command-line invocation string.
      * @return Reference to this builder for chaining.
      */
-    ProgramArgumentsBuilder& AddUsageExample(const StringUtf8& example);
+    ProgramArgumentsBuilder& AddUsageExample(StringUtf8 example);
 
     /**
      * @brief Set the program version displayed when "--version" is passed.

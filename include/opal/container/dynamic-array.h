@@ -8,6 +8,7 @@
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/casts.h"
+#include "opal/common.h"
 #include "opal/container/expected.h"
 #include "opal/container/iterator.h"
 #include "opal/error-codes.h"
@@ -158,13 +159,6 @@ public:
     DynamicArray(const T* data, size_type count, allocator_type* allocator = nullptr);
 
     /**
-     * Copy constructor.
-     * @param other Source array.
-     * @param allocator Allocator to be used for memory allocation. If nullptr, the allocator from the source array is used.
-     */
-    DynamicArray(const DynamicArray& other, allocator_type* allocator = nullptr);
-
-    /**
      * Move constructor.
      * @param other Source array.
      */
@@ -177,6 +171,14 @@ public:
      */
     DynamicArray(const std::initializer_list<T>& init_list, allocator_type* allocator = nullptr);
 
+    /**
+     * Create a deep copy of this array. Unlike the copy constructor, Clone allows specifying a different allocator for
+     * the new array. The cloned array will have the same capacity and elements as the source array.
+     * @param allocator Allocator to be used for the cloned array. If nullptr, the source array's allocator will be used.
+     * @return A new DynamicArray that is a deep copy of this array.
+     */
+    DynamicArray Clone(AllocatorBase* allocator = nullptr) const;
+
     ~DynamicArray();
 
     /**
@@ -184,7 +186,6 @@ public:
      * @param other Source array.
      * @return Reference to this array.
      */
-    DynamicArray& operator=(const DynamicArray& other);
     DynamicArray& operator=(DynamicArray&& other) noexcept;
 
     bool operator==(const DynamicArray& other) const;
@@ -291,7 +292,8 @@ public:
      * @param value Value of the new element.
      * @throw OutOfMemoryException when allocator runs out of memory.
      */
-    void PushBack(const T& value);
+    void PushBack(const T& value)
+        requires IsPOD<T>;
     void PushBack(T&& value);
 
     /**
@@ -489,7 +491,7 @@ CLASS_HEADER::DynamicArray(size_type count, const T& default_value, allocator_ty
     m_size = count;
     for (size_type i = 0; i < m_size; i++)
     {
-        new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
+        new (&m_data[i]) T(Opal::Clone(default_value));  // Invokes copy constructor on allocated memory
     }
 }
 
@@ -513,30 +515,6 @@ CLASS_HEADER::DynamicArray(const T* data, size_type count, allocator_type* alloc
         for (size_type i = 0; i < m_size; i++)
         {
             new (&m_data[i]) T(data[i]);  // Invokes copy constructor on allocated memory
-        }
-    }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(const DynamicArray& other, allocator_type* allocator)
-    : m_allocator(allocator == nullptr ? other.m_allocator : allocator)
-{
-    if (other.m_capacity == 0)
-    {
-        return;
-    }
-    m_data = Allocate(other.m_capacity);
-    m_capacity = other.m_capacity;
-    m_size = other.m_size;
-    if constexpr (IsPOD<T>)
-    {
-        memcpy(m_data, other.m_data, m_size * sizeof(T));
-    }
-    else
-    {
-        for (size_type i = 0; i < m_size; i++)
-        {
-            new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
         }
     }
 }
@@ -574,6 +552,16 @@ CLASS_HEADER::DynamicArray(const std::initializer_list<T>& init_list, allocator_
     }
 }
 
+template <typename T>
+Opal::DynamicArray<T> Opal::DynamicArray<T>::Clone(AllocatorBase* allocator) const
+{
+    allocator = allocator == nullptr ? m_allocator : allocator;
+    DynamicArray clone(allocator);
+    clone.Reserve(m_capacity);
+    clone.Append(*this);
+    return clone;
+}
+
 TEMPLATE_HEADER
 CLASS_HEADER::DynamicArray::~DynamicArray()
 {
@@ -589,55 +577,6 @@ CLASS_HEADER::DynamicArray::~DynamicArray()
         Deallocate(m_data);
         m_data = nullptr;
     }
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator=(const DynamicArray& other)
-{
-    if (this == &other)
-    {
-        return *this;
-    }
-    if (m_data != nullptr)
-    {
-        if constexpr (!IsPOD<T>)
-        {
-            for (size_type i = 0; i < m_size; i++)
-            {
-                m_data[i].~T();  // Invokes destructor on allocated memory
-            }
-        }
-    }
-    if (m_allocator != other.m_allocator)
-    {
-        Deallocate(m_data);
-        m_data = nullptr;
-        m_capacity = 0;
-        m_size = 0;
-        m_allocator = other.m_allocator;
-    }
-    if (m_capacity < other.m_size)
-    {
-        Deallocate(m_data);
-        m_capacity = other.m_size;
-        m_data = Allocate(m_capacity);
-    }
-    m_size = other.m_size;
-    if constexpr (IsPOD<T>)
-    {
-        if (m_size > 0)
-        {
-            memcpy(m_data, other.m_data, m_size * sizeof(T));
-        }
-    }
-    else
-    {
-        for (size_type i = 0; i < m_size; i++)
-        {
-            new (&m_data[i]) T(other.m_data[i]);  // Invokes copy constructor on allocated memory
-        }
-    }
-    return *this;
 }
 
 TEMPLATE_HEADER
@@ -758,7 +697,7 @@ void CLASS_HEADER::Assign(size_type count, const T& value)
     m_size = count;
     for (size_type i = 0; i < m_size; i++)
     {
-        new (&m_data[i]) T(value);  // Invokes copy constructor on allocated memory
+        new (&m_data[i]) T(Opal::Clone(value));  // Invokes copy constructor on allocated memory
     }
 }
 
@@ -946,7 +885,7 @@ void CLASS_HEADER::Resize(DynamicArray::size_type new_size, const T& default_val
         }
         for (size_type i = m_size; i < new_size; i++)
         {
-            new (&m_data[i]) T(default_value);  // Invokes copy constructor on allocated memory
+            new (&m_data[i]) T(Opal::Clone(default_value));  // Invokes copy constructor on allocated memory
         }
         m_size = new_size;
     }
@@ -968,6 +907,7 @@ void CLASS_HEADER::Clear()
 
 TEMPLATE_HEADER
 void CLASS_HEADER::PushBack(const T& value)
+    requires IsPOD<T>
 {
     if (m_size == m_capacity)
     {
@@ -1011,7 +951,7 @@ void CLASS_HEADER::Append(const ContainerClass& container)
 {
     for (const auto& element : container)
     {
-        PushBack(element);
+        PushBack(Opal::Clone(element));
     }
 }
 

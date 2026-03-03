@@ -13,8 +13,7 @@ namespace
 {
 i32 g_default_call_count = 0;
 i32 g_value_call_count = 0;
-i32 g_copy_call_count = 0;
-i32 g_copy_assign_call_count = 0;
+i32 g_clone_call_count = 0;
 i32 g_destroy_call_count = 0;
 struct NonPod
 {
@@ -28,21 +27,6 @@ struct NonPod
     {
         ptr = new i32(value);
         g_value_call_count++;
-    }
-    NonPod(const NonPod& other)
-    {
-        ptr = new i32(*other.ptr);
-        g_copy_call_count++;
-    }
-    NonPod& operator=(const NonPod& other)
-    {
-        if (this != &other)
-        {
-            delete ptr;
-            ptr = new i32(*other.ptr);
-        }
-        g_copy_assign_call_count++;
-        return *this;
     }
     NonPod(NonPod&& other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }
     NonPod& operator=(NonPod&& other) noexcept
@@ -59,6 +43,13 @@ struct NonPod
     {
         delete ptr;
         g_destroy_call_count++;
+    }
+    NonPod Clone(AllocatorBase* = nullptr) const
+    {
+        g_clone_call_count++;
+        NonPod value;
+        *value.ptr = *ptr;
+        return value;
     }
 
     bool operator==(const NonPod& other) const { return *ptr == *other.ptr; }
@@ -159,45 +150,6 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[2] == 44);
         REQUIRE(int_arr.GetAllocator() == &allocator);
     }
-    SECTION("Copy constructor")
-    {
-        DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32> int_arr_copy(int_arr);
-        REQUIRE(int_arr.GetCapacity() == 3);
-        REQUIRE(int_arr.GetSize() == 3);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 42);
-        REQUIRE(int_arr.GetData()[1] == 42);
-        REQUIRE(int_arr.GetData()[2] == 42);
-        REQUIRE(int_arr.GetAllocator() == Opal::GetDefaultAllocator());
-        REQUIRE(int_arr_copy.GetCapacity() == 3);
-        REQUIRE(int_arr_copy.GetSize() == 3);
-        REQUIRE(int_arr_copy.GetData() != nullptr);
-        REQUIRE(int_arr_copy.GetData()[0] == 42);
-        REQUIRE(int_arr_copy.GetData()[1] == 42);
-        REQUIRE(int_arr_copy.GetData()[2] == 42);
-        REQUIRE(int_arr_copy.GetAllocator() == Opal::GetDefaultAllocator());
-    }
-    SECTION("Copy constructor with allocator")
-    {
-        MallocAllocator allocator;
-        DynamicArray<i32> int_arr(3, 42);
-        DynamicArray<i32> int_arr_copy(int_arr, &allocator);
-        REQUIRE(int_arr.GetCapacity() == 3);
-        REQUIRE(int_arr.GetSize() == 3);
-        REQUIRE(int_arr.GetData() != nullptr);
-        REQUIRE(int_arr.GetData()[0] == 42);
-        REQUIRE(int_arr.GetData()[1] == 42);
-        REQUIRE(int_arr.GetData()[2] == 42);
-        REQUIRE(int_arr.GetAllocator() == Opal::GetDefaultAllocator());
-        REQUIRE(int_arr_copy.GetCapacity() == 3);
-        REQUIRE(int_arr_copy.GetSize() == 3);
-        REQUIRE(int_arr_copy.GetData() != nullptr);
-        REQUIRE(int_arr_copy.GetData()[0] == 42);
-        REQUIRE(int_arr_copy.GetData()[1] == 42);
-        REQUIRE(int_arr_copy.GetData()[2] == 42);
-        REQUIRE(int_arr_copy.GetAllocator() == &allocator);
-    }
     SECTION("Move constructor")
     {
         MallocAllocator allocator;
@@ -286,8 +238,7 @@ TEST_CASE("Construction with non-POD data", "[Array]")
     SECTION("Size and default value constructor")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             NonPod default_value(42);
@@ -299,43 +250,14 @@ TEST_CASE("Construction with non-POD data", "[Array]")
             REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
             REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
             REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 3);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
-    }
-    SECTION("Copy constructor")
-    {
-        g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
-        g_destroy_call_count = 0;
-        {
-            DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
-            DynamicArray<NonPod> non_pod_arr_copy(non_pod_arr);
-            REQUIRE(non_pod_arr.GetCapacity() == 3);
-            REQUIRE(non_pod_arr.GetSize() == 3);
-            REQUIRE(non_pod_arr.GetData() != nullptr);
-            REQUIRE(*non_pod_arr.GetData()[0].ptr == 42);
-            REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
-            REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
-            REQUIRE(non_pod_arr_copy.GetCapacity() == 3);
-            REQUIRE(non_pod_arr_copy.GetSize() == 3);
-            REQUIRE(non_pod_arr_copy.GetData() != nullptr);
-            REQUIRE(*non_pod_arr_copy.GetData()[0].ptr == 42);
-            REQUIRE(*non_pod_arr_copy.GetData()[1].ptr == 42);
-            REQUIRE(*non_pod_arr_copy.GetData()[2].ptr == 42);
-            REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 6);
-            REQUIRE(g_copy_assign_call_count == 0);
-        }
-        REQUIRE(g_destroy_call_count == 7);
     }
     SECTION("Move constructor")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -350,192 +272,9 @@ TEST_CASE("Construction with non-POD data", "[Array]")
             REQUIRE(*non_pod_arr_copy.GetData()[1].ptr == 42);
             REQUIRE(*non_pod_arr_copy.GetData()[2].ptr == 42);
             REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 3);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
-    }
-}
-
-TEST_CASE("Copy assignment", "[Array]")
-{
-    SECTION("POD type")
-    {
-        SECTION("Copy into itself")
-        {
-            DynamicArray<i32> int_arr(3, 42);
-            OPAL_START_DISABLE_WARNINGS
-#if defined(OPAL_COMPILER_CLANG)
-            OPAL_DISABLE_WARNING("-Wself-assign-overloaded")
-#endif
-            int_arr = int_arr;
-            OPAL_END_DISABLE_WARNINGS
-            REQUIRE(int_arr.GetCapacity() == 3);
-            REQUIRE(int_arr.GetSize() == 3);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr.GetData()[0] == 42);
-            REQUIRE(int_arr.GetData()[1] == 42);
-            REQUIRE(int_arr.GetData()[2] == 42);
-        }
-        SECTION("Copy default array")
-        {
-            DynamicArray<i32> int_arr;
-            DynamicArray<i32> int_arr_copy;
-            int_arr_copy = int_arr;
-            REQUIRE(int_arr.GetCapacity() == 0);
-            REQUIRE(int_arr.GetSize() == 0);
-            REQUIRE(int_arr.GetData() == nullptr);
-            REQUIRE(int_arr_copy.GetCapacity() == 0);
-            REQUIRE(int_arr_copy.GetSize() == 0);
-            REQUIRE(int_arr_copy.GetData() == nullptr);
-        }
-        SECTION("Receiver array has less allocated memory")
-        {
-            DynamicArray<i32> int_arr(5, 25);
-            DynamicArray<i32> int_arr_copy(3, 42);
-            int_arr_copy = int_arr;
-            REQUIRE(int_arr.GetCapacity() == 5);
-            REQUIRE(int_arr.GetSize() == 5);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr.GetData()[0] == 25);
-            REQUIRE(int_arr.GetData()[1] == 25);
-            REQUIRE(int_arr.GetData()[2] == 25);
-            REQUIRE(int_arr.GetData()[3] == 25);
-            REQUIRE(int_arr.GetData()[4] == 25);
-            REQUIRE(int_arr_copy.GetCapacity() == 5);
-            REQUIRE(int_arr_copy.GetSize() == 5);
-            REQUIRE(int_arr_copy.GetData() != nullptr);
-            REQUIRE(int_arr_copy.GetData()[0] == 25);
-            REQUIRE(int_arr_copy.GetData()[1] == 25);
-            REQUIRE(int_arr_copy.GetData()[2] == 25);
-            REQUIRE(int_arr_copy.GetData()[3] == 25);
-            REQUIRE(int_arr_copy.GetData()[4] == 25);
-        }
-        SECTION("Receiver array has more allocated memory")
-        {
-            DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32> int_arr_copy(5, 25);
-            int_arr_copy = int_arr;
-            REQUIRE(int_arr.GetCapacity() == 3);
-            REQUIRE(int_arr.GetSize() == 3);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr.GetData()[0] == 42);
-            REQUIRE(int_arr.GetData()[1] == 42);
-            REQUIRE(int_arr.GetData()[2] == 42);
-            REQUIRE(int_arr_copy.GetCapacity() == 5);
-            REQUIRE(int_arr_copy.GetSize() == 3);
-            REQUIRE(int_arr_copy.GetData() != nullptr);
-            REQUIRE(int_arr_copy.GetData()[0] == 42);
-            REQUIRE(int_arr_copy.GetData()[1] == 42);
-            REQUIRE(int_arr_copy.GetData()[2] == 42);
-        }
-        SECTION("Different allocators")
-        {
-            MallocAllocator allocator1;
-            LinearAllocator allocator2("Linear allocator");
-            DynamicArray<i32> int_arr(3, 42, &allocator1);
-            DynamicArray<i32> int_arr_copy(5, 25, &allocator2);
-            int_arr_copy = int_arr;
-            REQUIRE(int_arr.GetCapacity() == 3);
-            REQUIRE(int_arr.GetSize() == 3);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr.GetData()[0] == 42);
-            REQUIRE(int_arr.GetData()[1] == 42);
-            REQUIRE(int_arr.GetData()[2] == 42);
-            REQUIRE(int_arr.GetAllocator() == &allocator1);
-            REQUIRE(int_arr_copy.GetCapacity() == 3);
-            REQUIRE(int_arr_copy.GetSize() == 3);
-            REQUIRE(int_arr_copy.GetData() != nullptr);
-            REQUIRE(int_arr_copy.GetData()[0] == 42);
-            REQUIRE(int_arr_copy.GetData()[1] == 42);
-            REQUIRE(int_arr_copy.GetData()[2] == 42);
-            REQUIRE(int_arr_copy.GetAllocator() == &allocator1);
-        }
-    }
-    SECTION("Non-POD type")
-    {
-        SECTION("Copy default array")
-        {
-            g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
-            g_destroy_call_count = 0;
-            {
-                DynamicArray<NonPod> non_pod_arr;
-                DynamicArray<NonPod> non_pod_arr_copy;
-                non_pod_arr_copy = non_pod_arr;
-                REQUIRE(non_pod_arr.GetCapacity() == 0);
-                REQUIRE(non_pod_arr.GetSize() == 0);
-                REQUIRE(non_pod_arr.GetData() == nullptr);
-                REQUIRE(non_pod_arr_copy.GetCapacity() == 0);
-                REQUIRE(non_pod_arr_copy.GetSize() == 0);
-                REQUIRE(non_pod_arr_copy.GetData() == nullptr);
-                REQUIRE(g_value_call_count == 0);
-                REQUIRE(g_copy_call_count == 0);
-                REQUIRE(g_copy_assign_call_count == 0);
-            }
-            REQUIRE(g_destroy_call_count == 0);
-        }
-        SECTION("Receiver array has less allocated memory")
-        {
-            g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
-            g_destroy_call_count = 0;
-            {
-                DynamicArray<NonPod> non_pod_arr(5, NonPod(42));
-                DynamicArray<NonPod> non_pod_arr_copy(3, NonPod(24));
-                non_pod_arr_copy = non_pod_arr;
-                REQUIRE(non_pod_arr.GetCapacity() == 5);
-                REQUIRE(non_pod_arr.GetSize() == 5);
-                REQUIRE(non_pod_arr.GetData() != nullptr);
-                REQUIRE(*non_pod_arr.GetData()[0].ptr == 42);
-                REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
-                REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
-                REQUIRE(*non_pod_arr.GetData()[3].ptr == 42);
-                REQUIRE(*non_pod_arr.GetData()[4].ptr == 42);
-                REQUIRE(non_pod_arr_copy.GetCapacity() == 5);
-                REQUIRE(non_pod_arr_copy.GetSize() == 5);
-                REQUIRE(non_pod_arr_copy.GetData() != nullptr);
-                REQUIRE(*non_pod_arr_copy.GetData()[0].ptr == 42);
-                REQUIRE(*non_pod_arr_copy.GetData()[1].ptr == 42);
-                REQUIRE(*non_pod_arr_copy.GetData()[2].ptr == 42);
-                REQUIRE(*non_pod_arr_copy.GetData()[3].ptr == 42);
-                REQUIRE(*non_pod_arr_copy.GetData()[4].ptr == 42);
-                REQUIRE(g_value_call_count == 2);
-                REQUIRE(g_copy_call_count == 13);
-                REQUIRE(g_copy_assign_call_count == 0);
-            }
-            REQUIRE(g_destroy_call_count == 15);
-        }
-        SECTION("Receiver has more allocated memory")
-        {
-            g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
-            g_destroy_call_count = 0;
-            {
-                DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
-                DynamicArray<NonPod> non_pod_arr_copy(5, NonPod(24));
-                non_pod_arr_copy = non_pod_arr;
-                REQUIRE(non_pod_arr.GetCapacity() == 3);
-                REQUIRE(non_pod_arr.GetSize() == 3);
-                REQUIRE(non_pod_arr.GetData() != nullptr);
-                REQUIRE(*non_pod_arr.GetData()[0].ptr == 42);
-                REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
-                REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
-                REQUIRE(non_pod_arr_copy.GetCapacity() == 5);
-                REQUIRE(non_pod_arr_copy.GetSize() == 3);
-                REQUIRE(non_pod_arr_copy.GetData() != nullptr);
-                REQUIRE(*non_pod_arr_copy.GetData()[0].ptr == 42);
-                REQUIRE(*non_pod_arr_copy.GetData()[1].ptr == 42);
-                REQUIRE(*non_pod_arr_copy.GetData()[2].ptr == 42);
-                REQUIRE(g_value_call_count == 2);
-                REQUIRE(g_copy_call_count == 11);
-                REQUIRE(g_copy_assign_call_count == 0);
-            }
-            REQUIRE(g_destroy_call_count == 13);
-        }
     }
 }
 
@@ -595,8 +334,7 @@ TEST_CASE("Move assignment", "[Array]")
         SECTION("Move empty array")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr;
@@ -609,16 +347,14 @@ TEST_CASE("Move assignment", "[Array]")
                 REQUIRE(non_pod_arr_copy.GetSize() == 0);
                 REQUIRE(non_pod_arr_copy.GetData() == nullptr);
                 REQUIRE(g_value_call_count == 0);
-                REQUIRE(g_copy_call_count == 0);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 0);
             }
             REQUIRE(g_destroy_call_count == 0);
         }
         SECTION("Move non-empty array")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -634,8 +370,7 @@ TEST_CASE("Move assignment", "[Array]")
                 REQUIRE(*non_pod_arr_copy.GetData()[1].ptr == 42);
                 REQUIRE(*non_pod_arr_copy.GetData()[2].ptr == 42);
                 REQUIRE(g_value_call_count == 2);
-                REQUIRE(g_copy_call_count == 8);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 8);
             }
             REQUIRE(g_destroy_call_count == 10);
         }
@@ -657,8 +392,7 @@ TEST_CASE("Compare", "[Array]")
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr1(3, NonPod(42));
@@ -669,8 +403,7 @@ TEST_CASE("Compare", "[Array]")
             REQUIRE(non_pod_arr1 != non_pod_arr3);
             REQUIRE(non_pod_arr1 != non_pod_arr4);
             REQUIRE(g_value_call_count == 4);
-            REQUIRE(g_copy_call_count == 11);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 11);
         }
         REQUIRE(g_destroy_call_count == 15);
     }
@@ -770,8 +503,7 @@ TEST_CASE("Assign with non-POD data", "[Array]")
     SECTION("Assign count less then current size")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(5, NonPod(42));
@@ -783,16 +515,14 @@ TEST_CASE("Assign with non-POD data", "[Array]")
             REQUIRE(*non_pod_arr.GetData()[1].ptr == 24);
             REQUIRE(*non_pod_arr.GetData()[2].ptr == 24);
             REQUIRE(g_value_call_count == 2);
-            REQUIRE(g_copy_call_count == 8);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 8);
         }
         REQUIRE(g_destroy_call_count == 10);
     }
     SECTION("Assign count larger then current size")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -806,8 +536,7 @@ TEST_CASE("Assign with non-POD data", "[Array]")
             REQUIRE(*non_pod_arr.GetData()[3].ptr == 24);
             REQUIRE(*non_pod_arr.GetData()[4].ptr == 24);
             REQUIRE(g_value_call_count == 2);
-            REQUIRE(g_copy_call_count == 8);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 8);
         }
         REQUIRE(g_destroy_call_count == 10);
     }
@@ -834,8 +563,7 @@ TEST_CASE("Access element with At", "[Array]")
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -844,8 +572,7 @@ TEST_CASE("Access element with At", "[Array]")
             REQUIRE(*non_pod_arr.At(2).ptr == 42);
             REQUIRE_THROWS_AS(non_pod_arr.At(3), OutOfBoundsException);
             REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 3);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
     }
@@ -866,8 +593,7 @@ TEST_CASE("Change element using At access", "[Array]")
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -878,8 +604,7 @@ TEST_CASE("Change element using At access", "[Array]")
             REQUIRE(*non_pod_arr.At(1).ptr == 25);
             REQUIRE(*non_pod_arr.At(2).ptr == 26);
             REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 3);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
     }
@@ -897,8 +622,7 @@ TEST_CASE("Access element with operator[]", "[Array]")
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -906,8 +630,7 @@ TEST_CASE("Access element with operator[]", "[Array]")
             REQUIRE(*non_pod_arr[1].ptr == 42);
             REQUIRE(*non_pod_arr[2].ptr == 42);
             REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 3);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
     }
@@ -928,8 +651,7 @@ TEST_CASE("Change value using operator[] access", "[Array]")
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -940,8 +662,7 @@ TEST_CASE("Change value using operator[] access", "[Array]")
             REQUIRE(*non_pod_arr[1].ptr == 25);
             REQUIRE(*non_pod_arr[2].ptr == 26);
             REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 3);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
     }
@@ -958,16 +679,14 @@ TEST_CASE("Access element with Front", "[Array]")
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
             *non_pod_arr[0].ptr = 25;
             REQUIRE(*non_pod_arr.Front().ptr == 25);
             REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 3);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
     }
@@ -984,16 +703,14 @@ TEST_CASE("Access element with Back", "[Array]")
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
             *non_pod_arr[2].ptr = 25;
             REQUIRE(*non_pod_arr.Back().ptr == 25);
             REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 3);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
     }
@@ -1047,8 +764,7 @@ TEST_CASE("Reserve", "[Array]")
         SECTION("Less then current capacity")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(5, NonPod(42));
@@ -1062,16 +778,14 @@ TEST_CASE("Reserve", "[Array]")
                 REQUIRE(*non_pod_arr.GetData()[3].ptr == 42);
                 REQUIRE(*non_pod_arr.GetData()[4].ptr == 42);
                 REQUIRE(g_value_call_count == 1);
-                REQUIRE(g_copy_call_count == 5);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 5);
             }
             REQUIRE(g_destroy_call_count == 6);
         }
         SECTION("More then current capacity")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -1083,8 +797,7 @@ TEST_CASE("Reserve", "[Array]")
                 REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
                 REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
                 REQUIRE(g_value_call_count == 1);
-                REQUIRE(g_copy_call_count == 3);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 3);
             }
             REQUIRE(g_destroy_call_count == 4);
         }
@@ -1150,8 +863,7 @@ TEST_CASE("Resize", "[Array]")
         SECTION("To new size which is same as old size")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -1163,16 +875,14 @@ TEST_CASE("Resize", "[Array]")
                 REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
                 REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
                 REQUIRE(g_value_call_count == 1);
-                REQUIRE(g_copy_call_count == 3);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 3);
             }
             REQUIRE(g_destroy_call_count == 5);
         }
         SECTION("To new size which is less then old size")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(5, NonPod(42));
@@ -1184,16 +894,14 @@ TEST_CASE("Resize", "[Array]")
                 REQUIRE(*non_pod_arr.GetData()[1].ptr == 42);
                 REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
                 REQUIRE(g_value_call_count == 1);
-                REQUIRE(g_copy_call_count == 5);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 5);
             }
             REQUIRE(g_destroy_call_count == 7);
         }
         SECTION("To new size which is greater then old size and smaller then capacity")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -1207,16 +915,14 @@ TEST_CASE("Resize", "[Array]")
                 REQUIRE(*non_pod_arr.GetData()[2].ptr == 42);
                 REQUIRE(*non_pod_arr.GetData()[3].ptr == 5);
                 REQUIRE(g_value_call_count == 1);
-                REQUIRE(g_copy_call_count == 4);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 4);
             }
             REQUIRE(g_destroy_call_count == 6);
         }
         SECTION("To new size which is greater then capacity")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -1231,8 +937,7 @@ TEST_CASE("Resize", "[Array]")
                 REQUIRE(*non_pod_arr.GetData()[4].ptr == 5);
                 REQUIRE(*non_pod_arr.GetData()[5].ptr == 5);
                 REQUIRE(g_value_call_count == 1);
-                REQUIRE(g_copy_call_count == 6);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 6);
             }
             REQUIRE(g_destroy_call_count == 8);
         }
@@ -1252,8 +957,7 @@ TEST_CASE("Clear", "[Array]")
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
-        g_copy_call_count = 0;
-        g_copy_assign_call_count = 0;
+        g_clone_call_count = 0;
         g_destroy_call_count = 0;
         {
             DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -1262,8 +966,7 @@ TEST_CASE("Clear", "[Array]")
             REQUIRE(non_pod_arr.GetSize() == 0);
             REQUIRE(non_pod_arr.GetData() != nullptr);
             REQUIRE(g_value_call_count == 1);
-            REQUIRE(g_copy_call_count == 3);
-            REQUIRE(g_copy_assign_call_count == 0);
+            REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
     }
@@ -1339,13 +1042,12 @@ TEST_CASE("Push back", "[Array]")
             SECTION("With enough capacity")
             {
                 g_value_call_count = 0;
-                g_copy_call_count = 0;
-                g_copy_assign_call_count = 0;
+                g_clone_call_count = 0;
                 g_destroy_call_count = 0;
                 {
                     DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
-                    const NonPod val(25);
-                    non_pod_arr.PushBack(val);
+                    NonPod val(25);
+                    non_pod_arr.PushBack(std::move(val));
                     REQUIRE(non_pod_arr.GetCapacity() == 5);
                     REQUIRE(non_pod_arr.GetSize() == 4);
                     REQUIRE(non_pod_arr.GetData() != nullptr);
@@ -1354,21 +1056,19 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(*non_pod_arr[2].ptr == 42);
                     REQUIRE(*non_pod_arr[3].ptr == 25);
                     REQUIRE(g_value_call_count == 2);
-                    REQUIRE(g_copy_call_count == 4);
-                    REQUIRE(g_copy_assign_call_count == 0);
+                    REQUIRE(g_clone_call_count == 3);
                 }
                 REQUIRE(g_destroy_call_count == 6);
             }
             SECTION("Without enough capacity")
             {
                 g_value_call_count = 0;
-                g_copy_call_count = 0;
-                g_copy_assign_call_count = 0;
+                g_clone_call_count = 0;
                 g_destroy_call_count = 0;
                 {
                     DynamicArray<NonPod> non_pod_arr(4, NonPod(42));
-                    const NonPod val(25);
-                    non_pod_arr.PushBack(val);
+                    NonPod val(25);
+                    non_pod_arr.PushBack(std::move(val));
                     REQUIRE(non_pod_arr.GetCapacity() == 7);
                     REQUIRE(non_pod_arr.GetSize() == 5);
                     REQUIRE(non_pod_arr.GetData() != nullptr);
@@ -1378,8 +1078,7 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(*non_pod_arr[3].ptr == 42);
                     REQUIRE(*non_pod_arr[4].ptr == 25);
                     REQUIRE(g_value_call_count == 2);
-                    REQUIRE(g_copy_call_count == 5);
-                    REQUIRE(g_copy_assign_call_count == 0);
+                    REQUIRE(g_clone_call_count == 4);
                 }
                 REQUIRE(g_destroy_call_count == 7);
             }
@@ -1389,8 +1088,7 @@ TEST_CASE("Push back", "[Array]")
             SECTION("With enough capacity")
             {
                 g_value_call_count = 0;
-                g_copy_call_count = 0;
-                g_copy_assign_call_count = 0;
+                g_clone_call_count = 0;
                 g_destroy_call_count = 0;
                 {
                     DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -1403,16 +1101,14 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(*non_pod_arr[2].ptr == 42);
                     REQUIRE(*non_pod_arr[3].ptr == 25);
                     REQUIRE(g_value_call_count == 2);
-                    REQUIRE(g_copy_call_count == 3);
-                    REQUIRE(g_copy_assign_call_count == 0);
+                    REQUIRE(g_clone_call_count == 3);
                 }
                 REQUIRE(g_destroy_call_count == 6);
             }
             SECTION("Without enough capacity")
             {
                 g_value_call_count = 0;
-                g_copy_call_count = 0;
-                g_copy_assign_call_count = 0;
+                g_clone_call_count = 0;
                 g_destroy_call_count = 0;
                 {
                     DynamicArray<NonPod> non_pod_arr(4, NonPod(42));
@@ -1426,8 +1122,7 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(*non_pod_arr[3].ptr == 42);
                     REQUIRE(*non_pod_arr[4].ptr == 25);
                     REQUIRE(g_value_call_count == 2);
-                    REQUIRE(g_copy_call_count == 4);
-                    REQUIRE(g_copy_assign_call_count == 0);
+                    REQUIRE(g_clone_call_count == 4);
                 }
                 REQUIRE(g_destroy_call_count == 7);
             }
@@ -1461,37 +1156,35 @@ TEST_CASE("Emplace back", "[Array]")
         SECTION("With enough capacity")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
                 g_value_call_count = 0;
-                g_copy_call_count = 0;
+                g_clone_call_count = 0;
                 NonPod& ref = non_pod_arr.EmplaceBack(25);
                 REQUIRE(non_pod_arr.GetSize() == 4);
                 REQUIRE(*non_pod_arr[3].ptr == 25);
                 REQUIRE(*ref.ptr == 25);
                 REQUIRE(g_value_call_count == 1);
-                REQUIRE(g_copy_call_count == 0);
+                REQUIRE(g_clone_call_count == 0);
             }
         }
         SECTION("Without enough capacity")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(4, NonPod(42));
                 g_value_call_count = 0;
-                g_copy_call_count = 0;
+                g_clone_call_count = 0;
                 NonPod& ref = non_pod_arr.EmplaceBack(25);
                 REQUIRE(non_pod_arr.GetSize() == 5);
                 REQUIRE(*non_pod_arr[4].ptr == 25);
                 REQUIRE(*ref.ptr == 25);
                 REQUIRE(g_value_call_count == 1);
-                REQUIRE(g_copy_call_count == 0);
+                REQUIRE(g_clone_call_count == 0);
             }
         }
     }
@@ -1525,8 +1218,7 @@ TEST_CASE("Pop back", "[Array]")
         SECTION("Empty array")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr;
@@ -1535,16 +1227,14 @@ TEST_CASE("Pop back", "[Array]")
                 REQUIRE(non_pod_arr.GetSize() == 0);
                 REQUIRE(non_pod_arr.GetData() == nullptr);
                 REQUIRE(g_value_call_count == 0);
-                REQUIRE(g_copy_call_count == 0);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 0);
             }
             REQUIRE(g_destroy_call_count == 0);
         }
         SECTION("Non-empty array")
         {
             g_value_call_count = 0;
-            g_copy_call_count = 0;
-            g_copy_assign_call_count = 0;
+            g_clone_call_count = 0;
             g_destroy_call_count = 0;
             {
                 DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
@@ -1555,8 +1245,7 @@ TEST_CASE("Pop back", "[Array]")
                 REQUIRE(*non_pod_arr[0].ptr == 42);
                 REQUIRE(*non_pod_arr[1].ptr == 42);
                 REQUIRE(g_value_call_count == 1);
-                REQUIRE(g_copy_call_count == 3);
-                REQUIRE(g_copy_assign_call_count == 0);
+                REQUIRE(g_clone_call_count == 3);
                 REQUIRE(g_destroy_call_count == 2);
             }
             REQUIRE(g_destroy_call_count == 4);
@@ -2609,5 +2298,82 @@ TEST_CASE("Append multiple elements", "[Array]")
         REQUIRE(int_arr[0] == 3);
         REQUIRE(int_arr[1] == 5);
         REQUIRE(int_arr[2] == 6);
+    }
+}
+
+TEST_CASE("Clone", "[Array]")
+{
+    SECTION("Clone empty array with nullptr allocator")
+    {
+        DynamicArray<i32> src;
+        DynamicArray<i32> clone = src.Clone(nullptr);
+        REQUIRE(clone.GetSize() == 0);
+        REQUIRE(clone.GetAllocator() == src.GetAllocator());
+    }
+    SECTION("Clone POD array with nullptr allocator")
+    {
+        DynamicArray<i32> src = {1, 2, 3};
+        DynamicArray<i32> clone = src.Clone(nullptr);
+        REQUIRE(clone.GetSize() == 3);
+        REQUIRE(clone[0] == 1);
+        REQUIRE(clone[1] == 2);
+        REQUIRE(clone[2] == 3);
+        REQUIRE(clone.GetCapacity() == src.GetCapacity());
+        REQUIRE(clone.GetAllocator() == src.GetAllocator());
+        REQUIRE(clone.GetData() != src.GetData());
+    }
+    SECTION("Clone POD array with different allocator")
+    {
+        MallocAllocator allocator;
+        DynamicArray<i32> src = {10, 20, 30};
+        DynamicArray<i32> clone = src.Clone(&allocator);
+        REQUIRE(clone.GetSize() == 3);
+        REQUIRE(clone[0] == 10);
+        REQUIRE(clone[1] == 20);
+        REQUIRE(clone[2] == 30);
+        REQUIRE(clone.GetCapacity() == src.GetCapacity());
+        REQUIRE(clone.GetAllocator() == &allocator);
+        REQUIRE(clone.GetAllocator() != src.GetAllocator());
+    }
+    SECTION("Clone non-POD array with nullptr allocator")
+    {
+        DynamicArray<NonPod> src;
+        src.PushBack(NonPod(1));
+        src.PushBack(NonPod(2));
+        DynamicArray<NonPod> clone = src.Clone(nullptr);
+        REQUIRE(clone.GetSize() == 2);
+        REQUIRE(*clone[0].ptr == 1);
+        REQUIRE(*clone[1].ptr == 2);
+        REQUIRE(clone.GetCapacity() == src.GetCapacity());
+        REQUIRE(clone.GetAllocator() == src.GetAllocator());
+        REQUIRE(clone.GetData() != src.GetData());
+    }
+    SECTION("Clone non-POD array with different allocator")
+    {
+        MallocAllocator allocator;
+        DynamicArray<NonPod> src;
+        src.PushBack(NonPod(3));
+        src.PushBack(NonPod(4));
+        DynamicArray<NonPod> clone = src.Clone(&allocator);
+        REQUIRE(clone.GetSize() == 2);
+        REQUIRE(*clone[0].ptr == 3);
+        REQUIRE(*clone[1].ptr == 4);
+        REQUIRE(clone.GetAllocator() == &allocator);
+    }
+    SECTION("Modifying clone does not affect source")
+    {
+        DynamicArray<i32> src = {1, 2, 3};
+        DynamicArray<i32> clone = src.Clone(nullptr);
+        clone[0] = 99;
+        REQUIRE(src[0] == 1);
+        REQUIRE(clone[0] == 99);
+    }
+    SECTION("Modifying source does not affect clone")
+    {
+        DynamicArray<i32> src = {1, 2, 3};
+        DynamicArray<i32> clone = src.Clone(nullptr);
+        src[0] = 99;
+        REQUIRE(src[0] == 99);
+        REQUIRE(clone[0] == 1);
     }
 }

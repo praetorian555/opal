@@ -124,7 +124,7 @@ Opal::CpuInfo Opal::GetCpuInfo()
                 pp_info.logical_cores = BitMask<u64>(lp_info->Processor.GroupMask[0].Mask);
                 pp_info.is_hyperthreaded = lp_info->Processor.Flags == LTP_PC_SMT;
                 info.logical_cores_count += pp_info.logical_cores.GetSetBitCount();
-                info.physical_processors.PushBack(pp_info);
+                info.physical_processors.PushBack(std::move(pp_info));
                 break;
             }
             default:
@@ -228,7 +228,7 @@ Opal::CpuInfo Opal::GetCpuInfo()
         pp_info.logical_cores = BitMask<u64>(accums[i].mask);
         pp_info.is_hyperthreaded = pp_info.logical_cores.GetSetBitCount() > 1;
         info.logical_cores_count += pp_info.logical_cores.GetSetBitCount();
-        info.physical_processors.PushBack(pp_info);
+        info.physical_processors.PushBack(std::move(pp_info));
     }
 
     return info;

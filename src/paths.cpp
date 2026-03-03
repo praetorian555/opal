@@ -82,7 +82,7 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
         return {};
     }
 
-    StringUtf8 original_path(path);
+    StringUtf8 original_path = path.Clone();
 
     // If path is not absolute we need to make it absolute
     if (!IsPathAbsolute(path))
@@ -225,7 +225,8 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
         const StringUtf8::size_type erase_count = erase_end + 1;
         relative.Erase(0, erase_count);
     }
-    return root + relative;
+    root += relative;
+    return root;
 }
 
 bool Opal::Paths::IsPathAbsolute(const StringUtf8& path)
@@ -268,7 +269,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetFileName(const
     }
     if (last_separator == StringUtf8::k_npos)
     {
-        return Expected<StringUtf8, ErrorCode>(StringUtf8(path, allocator));
+        return Expected<StringUtf8, ErrorCode>(path.Clone(allocator));
     }
     if (last_separator == path.GetSize() - 1)
     {
@@ -280,7 +281,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetFileName(const
     {
         return Expected<StringUtf8, ErrorCode>(err);
     }
-    return Expected<StringUtf8, ErrorCode>(result);
+    return Expected<StringUtf8, ErrorCode>(std::move(result));
 }
 
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetStem(const StringUtf8& path, AllocatorBase* allocator)
@@ -294,7 +295,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetStem(const Str
     if (last_dot == StringUtf8::k_npos || last_dot == 0 ||
         (last_dot == 1 && file_name.GetValue()[0] == '.' && file_name.GetValue().GetSize() == 2))
     {
-        return Expected<StringUtf8, ErrorCode>(file_name.GetValue());
+        return Expected<StringUtf8, ErrorCode>(std::move(file_name.GetValue()));
     }
     StringUtf8 result(allocator);
     const ErrorCode err = result.Append(file_name.GetValue(), 0, last_dot);
@@ -302,7 +303,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetStem(const Str
     {
         return Expected<StringUtf8, ErrorCode>(err);
     }
-    return Expected<StringUtf8, ErrorCode>(result);
+    return Expected<StringUtf8, ErrorCode>(std::move(result));
 }
 
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExtension(const StringUtf8& path, AllocatorBase* allocator)
@@ -324,7 +325,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExtension(cons
     {
         return Expected<StringUtf8, ErrorCode>(err);
     }
-    return Expected<StringUtf8, ErrorCode>(result);
+    return Expected<StringUtf8, ErrorCode>(std::move(result));
 }
 
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(const StringUtf8& path, AllocatorBase* allocator)
@@ -345,11 +346,11 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(con
     }
     if (last_separator == 0)
     {
-        return Expected<StringUtf8, ErrorCode>(StringUtf8(path, allocator));
+        return Expected<StringUtf8, ErrorCode>(path.Clone(allocator));
     }
     if (last_separator == 2 && path[1] == ':')
     {
-        return Expected<StringUtf8, ErrorCode>(StringUtf8(path, allocator));
+        return Expected<StringUtf8, ErrorCode>(path.Clone(allocator));
     }
     StringUtf8 result(allocator);
     const ErrorCode err = result.Append(path, 0, last_separator);
@@ -357,5 +358,5 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(con
     {
         return Expected<StringUtf8, ErrorCode>(err);
     }
-    return Expected<StringUtf8, ErrorCode>(result);
+    return Expected<StringUtf8, ErrorCode>(std::move(result));
 }

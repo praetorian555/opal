@@ -53,7 +53,7 @@ TEST_CASE("Set current working directory", "[Paths]")
         REQUIRE_NOTHROW(cwd = Paths::GetCurrentWorkingDirectory());
         REQUIRE(cwd.GetSize() > 0);
 
-        auto new_path = cwd;
+        auto new_path = std::move(cwd);
         new_path.Append("\\..");
         REQUIRE_NOTHROW(Paths::SetCurrentWorkingDirectory(new_path));
 

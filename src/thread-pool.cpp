@@ -24,9 +24,9 @@ Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, Alloc
 {
     for (size_t i = 0; i < thread_count; ++i)
     {
-        const ThreadHandle thread_handle = CreateThread(ThreadFunction, m_communicator.receiver.Clone(), m_communicator.transmitter.Clone(),
+        ThreadHandle thread_handle = CreateThread(ThreadFunction, m_communicator.receiver.Clone(), m_communicator.transmitter.Clone(),
                                                         Opal::GetDefaultAllocator(), Ref{m_should_exit});
-        m_threads.PushBack(thread_handle);
+        m_threads.PushBack(std::move(thread_handle));
     }
 }
 

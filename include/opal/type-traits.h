@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "types.h"
 
 namespace Opal
@@ -83,8 +85,17 @@ inline constexpr bool k_is_convertible_value = false;
 template <typename From, typename To>
 inline constexpr bool k_is_convertible_value<From, To, decltype(void(static_cast<To>(From{})))> = true;
 
+template <typename From, typename To, typename = void>
+inline constexpr bool k_is_constructible_value = false;
+
+template <typename From, typename To>
+inline constexpr bool k_is_constructible_value<From, To, decltype(void(To{std::declval<From>()}))> = true;
+
 template <typename From, typename To>
 concept Convertible = k_is_convertible_value<From, To>;
+
+template <typename From, typename To>
+concept Constructible = k_is_constructible_value<From, To>;
 
 template <bool k_test, typename T1, typename T2>
 struct Conditional

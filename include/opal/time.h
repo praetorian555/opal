@@ -1,6 +1,6 @@
 #pragma once
 
-#include "container/string.h"
+#include "opal/container/string.h"
 #include "opal/export.h"
 #include "opal/types.h"
 

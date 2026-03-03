@@ -5,6 +5,7 @@
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/bit.h"
+#include "opal/common.h"
 #include "opal/container/array-view.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/hash.h"
@@ -171,10 +172,13 @@ public:
     value_type& GetValue(const key_type& key);
     const value_type& GetValue(const key_type& key) const;
 
-    void Insert(const key_type& key, const value_type& value);
+    void Insert(const key_type& key, const value_type& value)
+        requires(IsPOD<key_type> && IsPOD<value_type>);
     void Insert(key_type&& key, value_type&& value);
-    void Insert(const key_type& key, value_type&& value);
-    void Insert(key_type&& key, const value_type& value);
+    void Insert(const key_type& key, value_type&& value)
+        requires IsPOD<key_type>;
+    void Insert(key_type&& key, const value_type& value)
+        requires IsPOD<value_type>;
 
     void Erase(const key_type& key);
     void Erase(iterator it);
@@ -225,10 +229,13 @@ private:
     void SetControlByte(u64 index, i8 hash2, i8* control_bytes, u64 capacity);
     static u64 GetGrowthThreshold(u64 capacity) { return (capacity * 7) / 8; }
     bool FindIndex(const key_type& key, u64& out_index) const;
-    void OccupySlot(const key_type& key, const value_type& value, u64 index);
+    void OccupySlot(const key_type& key, const value_type& value, u64 index)
+        requires(IsPOD<key_type> && IsPOD<value_type>);
     void OccupySlot(key_type&& key, value_type&& value, u64 index);
-    void OccupySlot(const key_type& key, value_type&& value, u64 index);
-    void OccupySlot(key_type&& key, const value_type& value, u64 index);
+    void OccupySlot(const key_type& key, value_type&& value, u64 index)
+        requires IsPOD<key_type>;
+    void OccupySlot(key_type&& key, const value_type& value, u64 index)
+        requires IsPOD<value_type>;
     void DeleteSlot(u64 index);
 
     AllocatorBase* m_allocator = nullptr;
@@ -312,9 +319,9 @@ Opal::HashMap<KeyType, ValueType>::HashMap(std::initializer_list<pair_type> pair
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
     Reserve(pairs.size());
-    for (auto& pair : pairs)
+    for (const auto& pair : pairs)
     {
-        Insert(pair.key, pair.value);
+        Insert(Opal::Clone(pair.key), Opal::Clone(pair.value));
     }
 }
 
@@ -503,6 +510,7 @@ bool Opal::HashMap<KeyType, ValueType>::Contains(const key_type& key) const
 
 template <typename KeyType, typename ValueType>
 void Opal::HashMap<KeyType, ValueType>::OccupySlot(const key_type& key, const value_type& value, u64 index)
+    requires(IsPOD<key_type> && IsPOD<value_type>)
 {
     const u64 hash = CalculateHash(key);
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
@@ -525,6 +533,7 @@ void Opal::HashMap<KeyType, ValueType>::OccupySlot(key_type&& key, value_type&& 
 
 template <typename KeyType, typename ValueType>
 void Opal::HashMap<KeyType, ValueType>::OccupySlot(const key_type& key, value_type&& value, u64 index)
+    requires IsPOD<key_type>
 {
     const u64 hash = CalculateHash(key);
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
@@ -536,6 +545,7 @@ void Opal::HashMap<KeyType, ValueType>::OccupySlot(const key_type& key, value_ty
 
 template <typename KeyType, typename ValueType>
 void Opal::HashMap<KeyType, ValueType>::OccupySlot(key_type&& key, const value_type& value, u64 index)
+    requires IsPOD<value_type>
 {
     const u64 hash = CalculateHash(key);
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
@@ -578,6 +588,7 @@ const Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, Valu
 
 template <typename KeyType, typename ValueType>
 void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, const value_type& value)
+    requires(IsPOD<key_type> && IsPOD<value_type>)
 {
     u64 index = 0;
     if (FindIndex(key, index))
@@ -621,6 +632,7 @@ void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, value_type&& valu
 
 template <typename KeyType, typename ValueType>
 void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, value_type&& value)
+    requires IsPOD<key_type>
 {
     u64 index = 0;
     if (FindIndex(key, index))
@@ -642,6 +654,7 @@ void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, value_type&&
 
 template <typename KeyType, typename ValueType>
 void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, const value_type& value)
+    requires IsPOD<value_type>
 {
     u64 index = 0;
     if (FindIndex(key, index))

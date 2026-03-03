@@ -1,13 +1,13 @@
 #pragma once
 
 #include <cinttypes>
-#include <cstring>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 
-#include "dynamic-array.h"
 #include "opal/allocator.h"
 #include "opal/container/array-view.h"
+#include "opal/container/dynamic-array.h"
 #include "opal/container/string-encoding.h"
 #include "opal/error-codes.h"
 #include "opal/type-traits.h"
@@ -169,14 +169,6 @@ public:
     String(const CodeUnitType* str, allocator_type* allocator = nullptr);
 
     /**
-     * Copy constructor.
-     * @param other String to copy. Source string.
-     * @param allocator Allocator to use for memory management. If nullptr, the allocator from the source string is used.
-     * @throw OutOfMemoryException if allocator runs out of memory.
-     */
-    String(const String& other, allocator_type* allocator = nullptr);
-
-    /**
      * @brief Construct a string using a substring of another string.
      * @param other String to copy from.
      * @param pos Position in the other string to start copying from.
@@ -198,14 +190,15 @@ public:
         requires RandomAccessIterator<InputIt>
     String(InputIt start, InputIt end, allocator_type* allocator = nullptr);
 
+    String Clone(AllocatorBase* allocator = nullptr) const;
+
     ~String();
 
     /**
-     * Copy and move assignment. Always uses allocator from the source string.
+     * Move assignment. Always uses allocator from the source string.
      * @param other Source string.
      * @return Reference to this string.
      */
-    String& operator=(const String& other);
     String& operator=(String&& other) noexcept;
 
     bool operator==(const String& other) const;
@@ -503,18 +496,18 @@ public:
     // Iterators
     iterator Begin() { return iterator(m_data); }
     iterator End() { return iterator(m_data + m_size); }
-    const_iterator Begin() const { return const_iterator(m_data); }
-    const_iterator End() const { return const_iterator(m_data + m_size); }
-    const_iterator ConstBegin() const { return const_iterator(m_data); }
-    const_iterator ConstEnd() const { return const_iterator(m_data + m_size); }
+    [[nodiscard]] const_iterator Begin() const { return const_iterator(m_data); }
+    [[nodiscard]] const_iterator End() const { return const_iterator(m_data + m_size); }
+    [[nodiscard]] const_iterator ConstBegin() const { return const_iterator(m_data); }
+    [[nodiscard]] const_iterator ConstEnd() const { return const_iterator(m_data + m_size); }
 
     // Compatible with std::begin and std::end
     iterator begin() { return iterator(m_data); }
     iterator end() { return iterator(m_data + m_size); }
-    const_iterator begin() const { return const_iterator(m_data); }
-    const_iterator end() const { return const_iterator(m_data + m_size); }
-    const_iterator cbegin() const { return const_iterator(m_data); }
-    const_iterator cend() const { return const_iterator(m_data + m_size); }
+    [[nodiscard]] const_iterator begin() const { return const_iterator(m_data); }
+    [[nodiscard]] const_iterator end() const { return const_iterator(m_data + m_size); }
+    [[nodiscard]] const_iterator cbegin() const { return const_iterator(m_data); }
+    [[nodiscard]] const_iterator cend() const { return const_iterator(m_data + m_size); }
 
     [[nodiscard]] static constexpr size_type Min(size_type a, size_type b) { return a > b ? b : a; }
 
@@ -904,22 +897,22 @@ CLASS_HEADER::String(const CodeUnitType* str, allocator_type* allocator)
     }
 }
 
-TEMPLATE_HEADER
-CLASS_HEADER::String(const String& other, allocator_type* allocator)
-    : m_allocator(allocator == nullptr ? other.m_allocator : allocator), m_size(other.m_size), m_capacity(other.m_capacity)
-{
-    if (other.m_capacity > 0)
-    {
-        m_data = Allocate(other.m_capacity);
-        m_size = other.m_size;
-        m_capacity = other.m_capacity;
-        for (size_type i = 0; i < m_size; i++)
-        {
-            m_data[i] = other.GetData()[i];
-        }
-        m_data[m_size] = 0;
-    }
-}
+// TEMPLATE_HEADER
+// CLASS_HEADER::String(const String& other, allocator_type* allocator)
+//     : m_allocator(allocator == nullptr ? other.m_allocator : allocator), m_size(other.m_size), m_capacity(other.m_capacity)
+// {
+//     if (other.m_capacity > 0)
+//     {
+//         m_data = Allocate(other.m_capacity);
+//         m_size = other.m_size;
+//         m_capacity = other.m_capacity;
+//         for (size_type i = 0; i < m_size; i++)
+//         {
+//             m_data[i] = other.GetData()[i];
+//         }
+//         m_data[m_size] = 0;
+//     }
+// }
 
 TEMPLATE_HEADER
 CLASS_HEADER::String(String&& other) noexcept
@@ -938,6 +931,14 @@ CLASS_HEADER::String(InputIt start, InputIt end, allocator_type* allocator) : St
 }
 
 TEMPLATE_HEADER
+Opal::String<CodeUnitType, EncodingType> CLASS_HEADER::Clone(AllocatorBase* allocator) const
+{
+    allocator = allocator == nullptr ? m_allocator : allocator;
+    String out(m_data, m_size, allocator);
+    return out;
+}
+
+TEMPLATE_HEADER
 CLASS_HEADER::String::~String()
 {
     if (m_data != nullptr)
@@ -949,37 +950,37 @@ CLASS_HEADER::String::~String()
     m_size = 0;
 }
 
-TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator=(const String& other)
-{
-    // If the strings are the same, return early
-    if (this == &other)
-    {
-        return *this;
-    }
-
-    if (m_allocator != other.m_allocator)
-    {
-        if (m_allocator != nullptr)
-        {
-            Deallocate(m_data);
-        }
-        m_data = nullptr;
-        m_capacity = 0;
-        m_size = 0;
-        m_allocator = other.m_allocator;
-    }
-    if (m_capacity < other.m_size + 1)
-    {
-        Deallocate(m_data);
-        m_capacity = other.m_capacity;
-        m_data = Allocate(m_capacity);
-    }
-    m_size = other.m_size;
-    memcpy(m_data, other.m_data, m_size * sizeof(CodeUnitType));
-    m_data[m_size] = 0;
-    return *this;
-}
+// TEMPLATE_HEADER
+// CLASS_HEADER& CLASS_HEADER::operator=(const String& other)
+// {
+//     // If the strings are the same, return early
+//     if (this == &other)
+//     {
+//         return *this;
+//     }
+//
+//     if (m_allocator != other.m_allocator)
+//     {
+//         if (m_allocator != nullptr)
+//         {
+//             Deallocate(m_data);
+//         }
+//         m_data = nullptr;
+//         m_capacity = 0;
+//         m_size = 0;
+//         m_allocator = other.m_allocator;
+//     }
+//     if (m_capacity < other.m_size + 1)
+//     {
+//         Deallocate(m_data);
+//         m_capacity = other.m_capacity;
+//         m_data = Allocate(m_capacity);
+//     }
+//     m_size = other.m_size;
+//     memcpy(m_data, other.m_data, m_size * sizeof(CodeUnitType));
+//     m_data[m_size] = 0;
+//     return *this;
+// }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator=(String&& other) noexcept
@@ -2321,7 +2322,7 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& firs
 template <typename StringClass>
 StringClass Opal::operator+(const StringClass& lhs, const StringClass& rhs)
 {
-    StringClass result = lhs;
+    StringClass result = lhs.Clone();
     result += rhs;
     return result;
 }
@@ -2329,7 +2330,7 @@ StringClass Opal::operator+(const StringClass& lhs, const StringClass& rhs)
 template <typename StringClass>
 StringClass Opal::operator+(const StringClass& lhs, const typename StringClass::value_type* rhs)
 {
-    StringClass result = lhs;
+    StringClass result = lhs.Clone();
     result += rhs;
     return result;
 }
@@ -2337,7 +2338,7 @@ StringClass Opal::operator+(const StringClass& lhs, const typename StringClass::
 template <typename StringClass>
 StringClass Opal::operator+(const StringClass& lhs, typename StringClass::value_type ch)
 {
-    StringClass result = lhs;
+    StringClass result = lhs.Clone();
     result += ch;
     return result;
 }
@@ -2618,7 +2619,7 @@ bool Opal::Split(const StringClass& str, const StringClass& delimiter, StringCla
     typename StringClass::size_type pos = Opal::Find(str, delimiter);
     if (pos == StringClass::k_npos)
     {
-        first = str;
+        first = str.Clone();
         return false;
     }
     auto first_it = Opal::GetSubString(str, 0, pos);
@@ -2626,13 +2627,13 @@ bool Opal::Split(const StringClass& str, const StringClass& delimiter, StringCla
     {
         return false;
     }
-    first = first_it.GetValue();
+    first = std::move(first_it.GetValue());
     auto second_it = Opal::GetSubString(str, pos + 1, Opal::StringUtf8::k_npos);
     if (!second_it.HasValue())
     {
         return false;
     }
-    second = second_it.GetValue();
+    second = std::move(second_it.GetValue());
     return true;
 }
 
@@ -2650,7 +2651,7 @@ bool Opal::SplitToArray(const StringClass& str, const StringClass& delimiter, Dy
             {
                 return false;
             }
-            result.PushBack(it.GetValue());
+            result.PushBack(std::move(it.GetValue()));
             return start_pos != 0;
         }
         auto it = GetSubString(str, start_pos, pos - start_pos);
@@ -2658,7 +2659,7 @@ bool Opal::SplitToArray(const StringClass& str, const StringClass& delimiter, Dy
         {
             return false;
         }
-        result.PushBack(it.GetValue());
+        result.PushBack(std::move(it.GetValue()));
         start_pos = pos + 1;
     }
 }
@@ -2839,7 +2840,7 @@ Opal::StringUtf8 Opal::NumberToString(T value, i32 decimal_points)
     format += decimal_points == -1 ? "" : "." + NumberToString(decimal_points);
     if constexpr (sizeof(T) == 8)
     {
-        format +=  "lf";
+        format += "lf";
     }
     else
     {

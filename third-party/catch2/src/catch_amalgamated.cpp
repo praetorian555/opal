@@ -13,7 +13,17 @@
 //  You probably shouldn't edit it directly.
 //  ----------------------------------------------------------
 
-#include "catch2.hpp"
+#include "opal/defines.h"
+
+// clang-format off
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_WARNING("-Wnon-virtual-dtor")
+OPAL_DISABLE_WARNING("-Wimplicit-int-float-conversion")
+OPAL_DISABLE_WARNING("-Wimplicit-fallthrough")
+OPAL_DISABLE_WARNING("-Wsign-conversion")
+OPAL_DISABLE_WARNING("-Wdouble-promotion")
+#include "catch2/catch2.hpp"
+// clang-format on
 
 
 #ifndef CATCH_WINDOWS_H_PROXY_HPP_INCLUDED
@@ -11518,3 +11528,5 @@ namespace Catch {
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif
+
+OPAL_END_DISABLE_WARNINGS

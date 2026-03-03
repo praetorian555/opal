@@ -1,5 +1,6 @@
 #pragma once
 
+#include "opal/container/string-view.h"
 #include "opal/container/string.h"
 
 namespace Opal::Paths
@@ -17,7 +18,7 @@ StringUtf8 OPAL_EXPORT GetCurrentWorkingDirectory();
  * @brief Set current working directory.
  * @note Not thread-safe.
  * @param path Path to the new working directory. This must be an existing directory.
-* @throw OutOfMemoryException when memory allocation is needed in the scratch allocator but there is not enough space.
+ * @throw OutOfMemoryException when memory allocation is needed in the scratch allocator but there is not enough space.
  * @throw Exception when there is an issue setting the value from the OS.
  */
 void OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
@@ -82,23 +83,26 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetParentPath(const StringUtf8& path
  * @return Returns combined path.
  */
 template <typename... Args>
-StringUtf8 Combine(Args... args);
+    requires(Opal::Constructible<Args, Opal::StringViewUtf8> && ...)
+StringUtf8 Combine(Args&&... args);
 
 }  // namespace Opal::Paths
 
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_WARNING("-Wunused-value")
 template <typename... Args>
-Opal::StringUtf8 Opal::Paths::Combine(Args... args)
+    requires(Opal::Constructible<Args, Opal::StringViewUtf8> && ...)
+Opal::StringUtf8 Opal::Paths::Combine(Args&&... args)
 {
-    StringUtf8 result(GetDefaultAllocator());
+    StringUtf8 result;
 
     OPAL_DISABLE_WARNING("-Wunused-but-set-variable")
     auto append = [&result](const auto& part)
     {
+        StringViewUtf8 part_view(part);
         if (result.IsEmpty())
         {
-            result.Append(part);
+            result.Append(part_view.GetData(), part_view.GetSize());
         }
         else
         {
@@ -113,7 +117,7 @@ Opal::StringUtf8 Opal::Paths::Combine(Args... args)
 #endif
                 result.Append(k_separator);
             }
-            result.Append(part);
+            result.Append(part_view.GetData(), part_view.GetSize());
         }
     };
 

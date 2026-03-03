@@ -51,4 +51,18 @@ void Swap(T& lhs, T& rhs)
     }
 };
 
+template <typename T>
+T Clone(const T& source)
+{
+    if constexpr (IsPOD<T>)
+    {
+        return source;
+    }
+    else
+    {
+        return source.Clone();
+    }
+}
+
+
 }  // namespace Opal

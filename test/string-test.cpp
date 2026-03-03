@@ -95,27 +95,6 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(str.GetData()[3] == 'l');
             REQUIRE(str.GetData()[4] == 'o');
         }
-        SECTION("Copy")
-        {
-            StringLocale first(ref);
-            StringLocale second(first);
-            REQUIRE(second.GetCapacity() == 12);
-            REQUIRE(second.GetSize() == 11);
-            REQUIRE(first.GetData() != second.GetData());
-            REQUIRE(&first.GetAllocator() == &second.GetAllocator());
-            REQUIRE(strcmp(ref, second.GetData()) == 0);
-        }
-        SECTION("Copy with allocator")
-        {
-            MallocAllocator da;
-            StringLocale first(ref);
-            StringLocale second(first, &da);
-            REQUIRE(second.GetCapacity() == 12);
-            REQUIRE(second.GetSize() == 11);
-            REQUIRE(first.GetData() != second.GetData());
-            REQUIRE(&first.GetAllocator() != &second.GetAllocator());
-            REQUIRE(strcmp(ref, second.GetData()) == 0);
-        }
         SECTION("Copy substring")
         {
             MallocAllocator da;
@@ -224,27 +203,6 @@ TEST_CASE("Construction", "[String]")
                 REQUIRE(ref[i] == str.GetData()[i]);
             }
         }
-        SECTION("Copy")
-        {
-            StringLocale first(ref);
-            StringLocale second(first);
-            REQUIRE(second.GetCapacity() == 575);
-            REQUIRE(second.GetSize() == 574);
-            REQUIRE(first.GetData() != second.GetData());
-            REQUIRE(&first.GetAllocator() == &second.GetAllocator());
-            REQUIRE(strcmp(ref, second.GetData()) == 0);
-        }
-        SECTION("Copy with allocator")
-        {
-            MallocAllocator da;
-            StringLocale first(ref);
-            StringLocale second(first, &da);
-            REQUIRE(second.GetCapacity() == 575);
-            REQUIRE(second.GetSize() == 574);
-            REQUIRE(first.GetData() != second.GetData());
-            REQUIRE(&first.GetAllocator() != &second.GetAllocator());
-            REQUIRE(strcmp(ref, second.GetData()) == 0);
-        }
         SECTION("Copy substring")
         {
             MallocAllocator da;
@@ -292,55 +250,6 @@ TEST_CASE("Assignment", "[String]")
 {
     SECTION("Short string")
     {
-        SECTION("Copy")
-        {
-            SECTION("Destination string empty")
-            {
-                const char ref[] = "Hello there";
-                StringLocale str1(ref);
-                StringLocale str2;
-                str2 = str1;
-                REQUIRE(strcmp(str2.GetData(), ref) == 0);
-                REQUIRE(str1.GetData() != str2.GetData());
-                REQUIRE(str2.GetSize() == 11);
-                REQUIRE(str2.GetCapacity() == 12);
-            }
-            SECTION("Destination string not empty, same allocator, not enough space in destination")
-            {
-                const char ref[] = "Hello there";
-                StringLocale str1(ref);
-                StringLocale str2(5, 'd');
-                str2 = str1;
-                REQUIRE(strcmp(str2.GetData(), ref) == 0);
-                REQUIRE(str1.GetData() != str2.GetData());
-                REQUIRE(str2.GetSize() == 11);
-                REQUIRE(str2.GetCapacity() == 12);
-            }
-            SECTION("Destination string not empty, same allocator, enough space in destination")
-            {
-                const char ref[] = "Hello there";
-                StringLocale str1(ref);
-                StringLocale str2(20, 'd');
-                str2 = str1;
-                REQUIRE(strcmp(str2.GetData(), ref) == 0);
-                REQUIRE(str1.GetData() != str2.GetData());
-                REQUIRE(str2.GetSize() == 11);
-                REQUIRE(str2.GetCapacity() == 21);
-            }
-            SECTION("Destination string not empty, different allocators, enough space in destination")
-            {
-                const char ref[] = "Hello there";
-                MallocAllocator da1;
-                LinearAllocator da2("Linalloc");
-                StringLocale str1(ref, &da1);
-                StringLocale str2(20, 'd', static_cast<AllocatorBase*>(&da2));
-                str2 = str1;
-                REQUIRE(strcmp(str2.GetData(), ref) == 0);
-                REQUIRE(str1.GetData() != str2.GetData());
-                REQUIRE(str2.GetSize() == 11);
-                REQUIRE(str2.GetCapacity() == 12);
-            }
-        }
         SECTION("Move")
         {
             const char ref[] = "Hello there";
@@ -364,51 +273,6 @@ TEST_CASE("Assignment", "[String]")
             "has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was "
             "popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop "
             "publishing software like Aldus PageMaker including versions of Lorem Ipsum.";
-        SECTION("Copy")
-        {
-            SECTION("Destination string empty")
-            {
-                StringLocale str1(ref);
-                StringLocale str2;
-                str2 = str1;
-                REQUIRE(strcmp(str2.GetData(), ref) == 0);
-                REQUIRE(str1.GetData() != str2.GetData());
-                REQUIRE(str2.GetSize() == 574);
-                REQUIRE(str2.GetCapacity() == 575);
-            }
-            SECTION("Destination string not empty, same allocator, not enough space in destination")
-            {
-                StringLocale str1(ref);
-                StringLocale str2(5, 'd');
-                str2 = str1;
-                REQUIRE(strcmp(str2.GetData(), ref) == 0);
-                REQUIRE(str1.GetData() != str2.GetData());
-                REQUIRE(str2.GetSize() == 574);
-                REQUIRE(str2.GetCapacity() == 575);
-            }
-            SECTION("Destination string not empty, same allocator, enough space in destination")
-            {
-                StringLocale str1(ref);
-                StringLocale str2(600, 'd');
-                str2 = str1;
-                REQUIRE(strcmp(str2.GetData(), ref) == 0);
-                REQUIRE(str1.GetData() != str2.GetData());
-                REQUIRE(str2.GetSize() == 574);
-                REQUIRE(str2.GetCapacity() == 601);
-            }
-            SECTION("Destination string not empty, different allocators, enough space in destination")
-            {
-                MallocAllocator da1;
-                LinearAllocator da2("linalloc");
-                StringLocale str1(ref, &da1);
-                StringLocale str2(600, 'd', static_cast<AllocatorBase*>(&da2));
-                str2 = str1;
-                REQUIRE(strcmp(str2.GetData(), ref) == 0);
-                REQUIRE(str1.GetData() != str2.GetData());
-                REQUIRE(str2.GetSize() == 574);
-                REQUIRE(str2.GetCapacity() == 575);
-            }
-        }
         SECTION("Move")
         {
             StringLocale str1(ref);

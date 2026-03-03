@@ -64,23 +64,6 @@ TEST_CASE("Hash Set", "[hash-set]")
     REQUIRE(sum == 4950);
 }
 
-TEST_CASE("Hash set copy constructor", "[hash-set]")
-{
-    HashSet<i32> set(4);
-    set.Insert(5);
-    set.Insert(10);
-    REQUIRE(set.GetSize() == 2);
-
-    const HashSet<i32> set_copy(set);
-    REQUIRE(set_copy.GetSize() == 2);
-    REQUIRE(set_copy.Contains(5));
-    REQUIRE(set_copy.Contains(10));
-
-    REQUIRE(set.GetSize() == 2);
-    REQUIRE(set.Contains(5));
-    REQUIRE(set.Contains(10));
-}
-
 TEST_CASE("Hash set move constructor", "[hash-set]")
 {
     HashSet<i32> set(4);
@@ -96,25 +79,6 @@ TEST_CASE("Hash set move constructor", "[hash-set]")
     REQUIRE(set.GetSize() == 0);
     REQUIRE(!set.Contains(5));
     REQUIRE(!set.Contains(10));
-}
-
-TEST_CASE("Hash set copy assignment", "[hash-set]")
-{
-    HashSet<i32> set(4);
-    set.Insert(5);
-    set.Insert(10);
-
-    HashSet<i32> set_copy(4);
-    set_copy.Insert(6);
-
-    set_copy = set;
-    REQUIRE(set_copy.GetSize() == 2);
-    REQUIRE(!set_copy.Contains(6));
-    REQUIRE(set_copy.Contains(5));
-    REQUIRE(set_copy.Contains(10));
-    REQUIRE(set.GetSize() == 2);
-    REQUIRE(set.Contains(5));
-    REQUIRE(set.Contains(10));
 }
 
 TEST_CASE("Hash set move assignment", "[hash-set]")
@@ -299,20 +263,29 @@ struct SomeType
     }
     ~SomeType() { delete a; }
 
-    SomeType(const SomeType& other)
+    SomeType(SomeType&& other) noexcept : a(other.a), b(other.b)
     {
-        a = new i32();
-        *a = *other.a;
-        b = other.b;
+        other.a = nullptr;
     }
 
-    SomeType& operator=(const SomeType& other)
+    SomeType& operator=(SomeType&& other) noexcept
     {
-        delete a;
-        a = new i32();
-        *a = *other.a;
-        b = other.b;
+        if (this != &other)
+        {
+            delete a;
+            a = other.a;
+            b = other.b;
+            other.a = nullptr;
+        }
         return *this;
+    }
+
+    SomeType Clone(AllocatorBase* = nullptr)
+    {
+        SomeType other;
+        other.a = new i32(*a);
+        other.b = b;
+        return other;
     }
 
     bool operator==(const SomeType& other)

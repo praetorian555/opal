@@ -296,7 +296,7 @@ bool Opal::IsFile(const StringUtf8& path)
 #endif
 }
 
-Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const StringUtf8& path, const DirectoryContentsDesc& desc)
+Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUtf8 path, const DirectoryContentsDesc& desc)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0');
@@ -351,11 +351,11 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const St
             const bool is_directory = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
             if (is_directory && desc.include_directories)
             {
-                out_contents.PushBack({.path = child_path, .is_directory = true});
+                out_contents.PushBack({.path = std::move(child_path), .is_directory = true});
             }
             if (!is_directory)
             {
-                out_contents.PushBack({.path = child_path, .is_directory = false});
+                out_contents.PushBack({.path = std::move(child_path), .is_directory = false});
             }
             if (desc.recursive && is_directory)
             {
@@ -366,13 +366,13 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const St
     return out_contents;
 #elif defined(OPAL_PLATFORM_LINUX)
     DynamicArray<StringUtf8> directories;
-    directories.PushBack(path);
+    directories.PushBack(std::move(path));
 
     DynamicArray<DirectoryEntry> out_contents;
 
     while (!directories.IsEmpty())
     {
-        StringUtf8 dir_path = directories.Back();
+        StringUtf8 dir_path = std::move(directories.Back());
         directories.PopBack();
         DIR* dir = opendir(*dir_path);
         if (dir == nullptr)
@@ -394,7 +394,7 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const St
         struct dirent* entry;
         while ((entry = readdir(dir)) != nullptr)
         {
-            StringUtf8 entry_name(entry->d_name);
+            StringViewUtf8 entry_name(entry->d_name);
             if (entry_name == "." || entry_name == "..")
             {
                 continue;
@@ -406,17 +406,17 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(const St
             {
                 if (S_ISREG(statbuf.st_mode))
                 {
-                    out_contents.PushBack({.path = entry_path, .is_directory = false});
+                    out_contents.PushBack({.path = std::move(entry_path), .is_directory = false});
                 }
                 else if (S_ISDIR(statbuf.st_mode))
                 {
                     if (desc.include_directories)
                     {
-                        out_contents.PushBack({.path = entry_path, .is_directory = true});
+                        out_contents.PushBack({.path = entry_path.Clone(), .is_directory = true});
                     }
                     if (desc.recursive)
                     {
-                        directories.PushBack(Move(entry_path));
+                        directories.PushBack(std::move(entry_path));
                     }
                 }
             }

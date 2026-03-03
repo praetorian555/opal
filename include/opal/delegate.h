@@ -78,7 +78,7 @@ struct MultiDelegate<void(Args...)>
     DelegateHandle Bind(Function functor)
     {
         const DelegateHandle handle = m_handle_generator++;
-        m_functors.Insert(handle, functor);
+        m_functors.Insert(handle, std::move(functor));
         return handle;
     }
 

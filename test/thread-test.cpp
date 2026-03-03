@@ -123,12 +123,10 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
         Data() = default;
         Data(i64 v) : value(v) {}
 
-        Data(const Data& other) : value(other.value) {}
-
-        Data& operator=(const Data& other)
+        Data Clone(AllocatorBase* = nullptr) const
         {
-            value = other.value;
-            return *this;
+            Data data(value);
+            return data;
         }
 
         Data(Data&& other) : value(other.value) { other.value = 0; }
@@ -157,7 +155,7 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
             size_t count = 0;
             while (count < k_capacity)
             {
-                const Data value = in_data[count];
+                const Data& value = in_data[count];
                 const Data queued_value = in_queue.Pop();
                 REQUIRE(queued_value.value == value.value);
                 count++;
@@ -165,7 +163,7 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
         },
         Ref(queue), Ref(data));
 
-    const DynamicArray<Data> data_for_init = data;
+    const DynamicArray<Data> data_for_init = data.Clone();
     for (Data& value : data_for_init)
     {
         queue.Push(Move(value));

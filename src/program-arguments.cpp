@@ -9,15 +9,15 @@ static const char* SafeCStr(const Opal::StringUtf8& str)
     return ptr ? ptr : "";
 }
 
-Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddProgramDescription(const StringUtf8& description)
+Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddProgramDescription(StringUtf8 description)
 {
-    m_program_description = description;
+    m_program_description = std::move(description);
     return *this;
 }
 
-Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddUsageExample(const StringUtf8& example)
+Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddUsageExample(StringUtf8 example)
 {
-    m_usage_examples.PushBack(example);
+    m_usage_examples.PushBack(std::move(example));
     return *this;
 }
 
@@ -41,8 +41,8 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         StringUtf8 name;
         StringUtf8 value;
         Split<StringUtf8>(arguments[i], "=", name, value);
-        names.PushBack(name);
-        values.PushBack(value);
+        names.PushBack(std::move(name));
+        values.PushBack(std::move(value));
     }
 
     for (const auto& name : names)
@@ -63,7 +63,7 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
     for (u32 j = 0; j < m_argument_definitions.GetSize(); ++j)
     {
         const Impl::ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
-        visited.Insert(arg_def->m_name, false);
+        visited.Insert(arg_def->m_name.Clone(), false);
     }
     for (u32 i = 0; i < names.GetSize(); ++i)
     {
@@ -74,7 +74,7 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
             if (arg_def->m_name == name)
             {
                 arg_def->SetValue(values[i]);
-                visited.Insert(arg_def->m_name, true);
+                visited.Insert(arg_def->m_name.Clone(), true);
                 break;
             }
         }

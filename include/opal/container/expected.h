@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "opal/assert.h"
 #include "opal/type-traits.h"
 
@@ -11,14 +13,12 @@ class Expected
 {
 public:
     Expected();
-    explicit Expected(const T& value);
-    explicit Expected(const E& error);
-    Expected(const Expected& other);
+    explicit Expected(T value);
+    explicit Expected(E error);
     Expected(Expected&& other) noexcept;
 
     ~Expected();
 
-    Expected& operator=(const Expected& other);
     Expected& operator=(Expected&& other) noexcept;
 
     [[nodiscard]] bool HasValue() const;
@@ -44,13 +44,11 @@ class Expected<T&, E>
 public:
     Expected() = delete;
     explicit Expected(T& value);
-    explicit Expected(const E& error);
-    Expected(const Expected& other);
+    explicit Expected(E error);
     Expected(Expected&& other) noexcept;
 
     ~Expected();
 
-    Expected& operator=(const Expected& other);
     Expected& operator=(Expected&& other) noexcept;
 
     [[nodiscard]] bool HasValue() const;
@@ -80,7 +78,12 @@ Opal::Expected<T, E>::Expected() : m_value(), m_has_value(true)
 }
 
 template <typename T, typename E>
-Opal::Expected<T, E>::Expected(const T& value) : m_value(value), m_has_value(true)
+Opal::Expected<T, E>::Expected(T value) : m_value(std::move(value)), m_has_value(true)
+{
+}
+
+template <typename T, typename E>
+Opal::Expected<T, E>::Expected(E error) : m_error(std::move(error)), m_has_value(false)
 {
 }
 
@@ -90,39 +93,8 @@ Opal::Expected<T&, E>::Expected(T& value) : m_value(&value), m_has_value(true)
 }
 
 template <typename T, typename E>
-Opal::Expected<T, E>::Expected(const E& error) : m_error(error), m_has_value(false)
+Opal::Expected<T&, E>::Expected(E error) : m_error(std::move(error)), m_has_value(false)
 {
-}
-
-template <typename T, typename E>
-Opal::Expected<T&, E>::Expected(const E& error) : m_error(error), m_has_value(false)
-{
-}
-
-template <typename T, typename E>
-Opal::Expected<T, E>::Expected(const Expected& other) : m_has_value(other.m_has_value)
-{
-    if (other.m_has_value)
-    {
-        m_value = other.m_value;
-    }
-    else
-    {
-        m_error = other.m_error;
-    }
-}
-
-template <typename T, typename E>
-Opal::Expected<T&, E>::Expected(const Expected& other) : m_has_value(other.m_has_value)
-{
-    if (other.m_has_value)
-    {
-        m_value = other.m_value;
-    }
-    else
-    {
-        m_error = other.m_error;
-    }
 }
 
 template <typename T, typename E>
@@ -172,67 +144,6 @@ Opal::Expected<T&, E>::Expected::~Expected()
     {
         m_error.~E();
     }
-}
-
-template <typename T, typename E>
-Opal::Expected<T, E>& Opal::Expected<T, E>::operator=(const Expected& other)
-{
-    if (other.m_has_value)
-    {
-        if (m_has_value)
-        {
-            m_value = other.m_value;
-        }
-        else
-        {
-            m_error.~E();
-            new (&m_value) T(other.m_value);
-        }
-    }
-    else
-    {
-        if (m_has_value)
-        {
-            m_value.~T();
-            new (&m_error) E(other.m_error);
-        }
-        else
-        {
-            m_error = other.m_error;
-        }
-    }
-    m_has_value = other.m_has_value;
-    return *this;
-}
-
-template <typename T, typename E>
-Opal::Expected<T&, E>& Opal::Expected<T&, E>::operator=(const Expected& other)
-{
-    if (other.m_has_value)
-    {
-        if (m_has_value)
-        {
-            m_value = other.m_value;
-        }
-        else
-        {
-            m_error.~E();
-            m_value = other.m_value;
-        }
-    }
-    else
-    {
-        if (m_has_value)
-        {
-            new (&m_error) E(other.m_error);
-        }
-        else
-        {
-            m_error = other.m_error;
-        }
-    }
-    m_has_value = other.m_has_value;
-    return *this;
 }
 
 template <typename T, typename E>
