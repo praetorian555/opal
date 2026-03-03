@@ -3,9 +3,11 @@
 #include "test-helpers.h"
 
 #include "opal/container/string.h"
-#include "opal/container/string-view.h"
+
+#include "opal/clonable-base.h"
 #include "opal/container/hash-map.h"
 #include "opal/container/string-hash.h"
+#include "opal/container/string-view.h"
 
 using namespace Opal;
 
@@ -683,7 +685,7 @@ TEST_CASE("Assign", "[String]")
             SECTION("Resize fails")
             {
                 NullAllocator null_allocator;
-                StringUtf8 str( &null_allocator);
+                StringUtf8 str(&null_allocator);
                 REQUIRE_THROWS_AS(str.Assign(50, 'd'), OutOfMemoryException);
             }
         }
@@ -3969,4 +3971,162 @@ TEST_CASE("StringToNumber with StringViewUtf8", "[String]")
     REQUIRE(StringToNumber<i32>(octal) == 227);
     REQUIRE(StringToNumber<u32>(hex) == 255);
     REQUIRE(StringToNumber<u64>(large) == 4294967296ULL);
+}
+
+TEST_CASE("Clonable interface", "[String]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        StringUtf8 a;
+        StringUtf8 b;
+        i32 c;
+
+        Data(StringUtf8 aa, StringUtf8 bb, i32 cc) : a(std::move(aa)), b(std::move(bb)), c(cc) {}
+
+        OPAL_CLONE_FIELDS(a, b, c);
+    };
+
+    Data first("Hello", "World", 5);
+    Data second = first.Clone();
+    REQUIRE(second.a == "Hello");
+    REQUIRE(second.b == "World");
+    REQUIRE(second.c == 5);
+}
+
+TEST_CASE("Clonable clone is a deep copy", "[String]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        StringUtf8 a;
+        i32 b;
+
+        Data(StringUtf8 aa, i32 bb) : a(std::move(aa)), b(bb) {}
+
+        OPAL_CLONE_FIELDS(a, b);
+    };
+
+    Data original("Hello", 10);
+    Data cloned = original.Clone();
+
+    // Mutating the original should not affect the clone.
+    original.a = "Changed";
+    original.b = 99;
+
+    REQUIRE(cloned.a == "Hello");
+    REQUIRE(cloned.b == 10);
+    REQUIRE(original.a == "Changed");
+    REQUIRE(original.b == 99);
+}
+
+TEST_CASE("Clonable with single field", "[String]")
+{
+    struct Single : ClonableBase<Single>
+    {
+        StringUtf8 value;
+
+        Single(StringUtf8 v) : value(std::move(v)) {}
+
+        OPAL_CLONE_FIELDS(value);
+    };
+
+    Single original("OnlyField");
+    Single cloned = original.Clone();
+    REQUIRE(cloned.value == "OnlyField");
+}
+
+TEST_CASE("Clonable with POD-only fields", "[String]")
+{
+    struct PodOnly : ClonableBase<PodOnly>
+    {
+        i32 x;
+        f32 y;
+        bool z;
+
+        PodOnly(i32 xx, f32 yy, bool zz) : x(xx), y(yy), z(zz) {}
+
+        OPAL_CLONE_FIELDS(x, y, z);
+    };
+
+    PodOnly original(42, 3.14f, true);
+    PodOnly cloned = original.Clone();
+    REQUIRE(cloned.x == 42);
+    REQUIRE(cloned.y == 3.14f);
+    REQUIRE(cloned.z == true);
+}
+
+TEST_CASE("Clonable with nested clonable", "[String]")
+{
+    struct Inner : ClonableBase<Inner>
+    {
+        StringUtf8 text;
+        i32 num;
+
+        Inner(StringUtf8 t, i32 n) : text(std::move(t)), num(n) {}
+
+        OPAL_CLONE_FIELDS(text, num);
+    };
+
+    struct Outer : ClonableBase<Outer>
+    {
+        Inner inner;
+        StringUtf8 name;
+
+        Outer(Inner i, StringUtf8 n) : inner(std::move(i)), name(std::move(n)) {}
+
+        OPAL_CLONE_FIELDS(inner, name);
+    };
+
+    Outer original(Inner("nested", 7), "outer");
+    Outer cloned = original.Clone();
+
+    REQUIRE(cloned.inner.text == "nested");
+    REQUIRE(cloned.inner.num == 7);
+    REQUIRE(cloned.name == "outer");
+
+    // Verify it's a deep copy.
+    original.inner.text = "modified";
+    original.name = "changed";
+    REQUIRE(cloned.inner.text == "nested");
+    REQUIRE(cloned.name == "outer");
+}
+
+TEST_CASE("Clonable with empty strings", "[String]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        StringUtf8 a;
+        StringUtf8 b;
+
+        Data(StringUtf8 aa, StringUtf8 bb) : a(std::move(aa)), b(std::move(bb)) {}
+
+        OPAL_CLONE_FIELDS(a, b);
+    };
+
+    Data original("", "");
+    Data cloned = original.Clone();
+    REQUIRE(cloned.a == "");
+    REQUIRE(cloned.b == "");
+}
+
+TEST_CASE("Clonable move semantics", "[String]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        StringUtf8 a;
+        i32 b;
+
+        Data(StringUtf8 aa, i32 bb) : a(std::move(aa)), b(bb) {}
+
+        OPAL_CLONE_FIELDS(a, b);
+    };
+
+    Data first("Hello", 5);
+    Data second = std::move(first);
+    REQUIRE(second.a == "Hello");
+    REQUIRE(second.b == 5);
+
+    Data third("World", 10);
+    third = std::move(second);
+    REQUIRE(third.a == "Hello");
+    REQUIRE(third.b == 5);
 }

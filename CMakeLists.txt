@@ -109,6 +109,7 @@ set(OPAL_FILES
         include/opal/threading/channel-spsc.h
         include/opal/threading/channel-mpmc.h
         include/opal/threading/thread-pool.h
+        include/opal/clonable-base.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
 )
 add_library(opal ${OPAL_FILES})

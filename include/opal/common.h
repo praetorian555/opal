@@ -1,5 +1,6 @@
 #pragma once
 
+#include "allocator.h"
 #include "opal/type-traits.h"
 #include "opal/types.h"
 
@@ -52,7 +53,7 @@ void Swap(T& lhs, T& rhs)
 };
 
 template <typename T>
-T Clone(const T& source)
+T Clone(const T& source, AllocatorBase* allocator = nullptr)
 {
     if constexpr (IsPOD<T>)
     {
@@ -60,7 +61,7 @@ T Clone(const T& source)
     }
     else
     {
-        return source.Clone();
+        return source.Clone(allocator);
     }
 }
 
