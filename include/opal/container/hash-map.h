@@ -745,7 +745,14 @@ Opal::DynamicArray<KeyType> Opal::HashMap<KeyType, ValueType>::ToArrayOfKeys() c
     result.Reserve(m_size);
     for (auto& pair : *this)
     {
-        result.PushBack(pair.key);
+        if constexpr (IsPOD<KeyType>)
+        {
+            result.PushBack(pair.key);
+        }
+        else
+        {
+            result.PushBack(pair.key.Clone());
+        }
     }
     return result;
 }
@@ -757,7 +764,14 @@ Opal::DynamicArray<ValueType> Opal::HashMap<KeyType, ValueType>::ToArrayOfValues
     result.Reserve(m_size);
     for (auto& pair : *this)
     {
+        if constexpr (IsPOD<ValueType>)
+        {
         result.PushBack(pair.value);
+        }
+        else
+        {
+            result.PushBack(pair.value.Clone());
+        }
     }
     return result;
 }

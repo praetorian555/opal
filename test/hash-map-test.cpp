@@ -1,9 +1,9 @@
 #include "test-helpers.h"
 
-#include "opal/container/hash-map.h"
-
 #include "opal/container/array-view.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/container/hash-map.h"
+#include "opal/container/string.h"
 
 using namespace Opal;
 
@@ -72,10 +72,7 @@ TEST_CASE("Create a hash map", "[HashMap]")
     }
     SECTION("Initializer list")
     {
-        HashMap<i32, i32> map{
-            {2, 7},
-            {5, 14}
-        };
+        HashMap<i32, i32> map{{2, 7}, {5, 14}};
         REQUIRE(map.GetSize() == 2);
         REQUIRE(map.Contains(2));
         REQUIRE(map.GetValue(2) == 7);
@@ -165,11 +162,45 @@ TEST_CASE("Convert to array", "[HashMap]")
         }
         REQUIRE(map.GetSize() == 0);
     }
-    SECTION("To array of values")
+    SECTION("To array of keys - string")
     {
         HashMap<i32, i32> map;
         map.Insert(2, 7);
         map.Insert(5, 14);
+        auto arr = map.ToArrayOfKeys();
+        REQUIRE(arr.GetSize() == 2);
+        for (auto& key : arr)
+        {
+            REQUIRE(map.Contains(key));
+            map.Erase(key);
+        }
+        REQUIRE(map.GetSize() == 0);
+    }
+    SECTION("To array of values")
+    {
+        HashMap<StringUtf8, StringUtf8> map;
+        map.Insert("Hello", "World");
+        map.Insert("name", "Marko");
+        auto arr = map.ToArrayOfKeys();
+        REQUIRE(arr.GetSize() == 2);
+        for (auto& value : arr)
+        {
+            for (auto& pair : map)
+            {
+                if (pair.key == value)
+                {
+                    map.Erase(pair.key);
+                    break;
+                }
+            }
+        }
+        REQUIRE(map.GetSize() == 0);
+    }
+    SECTION("To array of values - strings")
+    {
+        HashMap<StringUtf8, StringUtf8> map;
+        map.Insert("Hello", "World");
+        map.Insert("name", "Marko");
         auto arr = map.ToArrayOfValues();
         REQUIRE(arr.GetSize() == 2);
         for (auto& value : arr)
