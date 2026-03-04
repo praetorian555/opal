@@ -143,7 +143,7 @@ struct BoundedFormatIterator
 
     BoundedFormatIterator& operator*() { return *this; }
     BoundedFormatIterator& operator++() { return *this; }
-    BoundedFormatIterator operator++(int) { return *this; }
+    BoundedFormatIterator operator++(int) { return {m_buffer.Get(), *m_size}; }
 
 private:
     Ref<InPlaceArray<char8, Logger::k_max_message_size>> m_buffer;
@@ -174,7 +174,7 @@ void Logger::Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Ar
         InPlaceArray<char8, k_max_message_size> buffer;
         size_t written = 0;
         BoundedFormatIterator out(buffer, written);
-        std::vformat_to(out, std::string_view(fmt.GetData(), fmt.GetSize()), std::make_format_args(args...));
+        std::vformat_to(std::move(out), std::string_view(fmt.GetData(), fmt.GetSize()), std::make_format_args(args...));
         Emit(level, category, StringViewUtf8(buffer.GetData(), written));
     }
     if (level == LogLevel::Fatal)

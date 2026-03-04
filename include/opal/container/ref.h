@@ -17,8 +17,8 @@ public:
     Ref() = default;
     ~Ref() = default;
 
-    Ref(const Ref& other) = default;
-    Ref& operator=(const Ref& other) = default;
+    Ref(const Ref& other) = delete;
+    Ref& operator=(const Ref& other) = delete;
 
     Ref(Ref&& other) noexcept : m_ptr(other.m_ptr) { other.m_ptr = nullptr; }
     Ref& operator=(Ref&& other) noexcept
@@ -45,6 +45,8 @@ public:
         m_ptr = &ref;
         return *this;
     }
+
+    Ref Clone(struct AllocatorBase* = nullptr) const { return m_ptr; }
 
     [[nodiscard]] bool IsValid() const { return m_ptr != nullptr; }
     [[nodiscard]] T& Get() const { return *m_ptr; }
