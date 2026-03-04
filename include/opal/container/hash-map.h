@@ -5,6 +5,7 @@
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/bit.h"
+#include "opal/clonable-base.h"
 #include "opal/common.h"
 #include "opal/container/array-view.h"
 #include "opal/container/dynamic-array.h"
@@ -18,6 +19,11 @@ struct Pair
 {
     KeyType key;
     ValueType value;
+
+    Pair Clone(AllocatorBase* allocator = nullptr) const
+    {
+        return Pair{Opal::Clone(key, allocator), Opal::Clone(value, allocator)};
+    }
 };
 
 template <typename HashMapClass>

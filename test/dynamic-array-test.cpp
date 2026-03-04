@@ -2385,17 +2385,71 @@ TEST_CASE("Clonable interface for arrays", "[Array]")
     struct Data : ClonableBase<Data>
     {
         DynamicArray<StringUtf8> a;
-        i32 b;
-
-        Data(DynamicArray<StringUtf8> aa, i32 bb) : a(std::move(aa)), b(bb) {}
+        i32 b = 0;
 
         OPAL_CLONE_FIELDS(a, b);
     };
 
-    Data first({"Hello", "There"}, 5);
+    Data first;
+    first.a = {"Hello", "There"};
+    first.b = 5;
     Data second = first.Clone();
     REQUIRE(second.a[0] == "Hello");
     REQUIRE(second.a[1] == "There");
     REQUIRE(second.b == 5);
+}
+
+TEST_CASE("Clonable deep copy for arrays", "[Array]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        DynamicArray<StringUtf8> a;
+        i32 b = 0;
+
+        OPAL_CLONE_FIELDS(a, b);
+    };
+
+    Data original;
+    original.a = {"Hello", "There"};
+    original.b = 5;
+    Data cloned = original.Clone();
+
+    // Mutating the original should not affect the clone.
+    original.a[0] = "Changed";
+    original.b = 99;
+
+    REQUIRE(cloned.a[0] == "Hello");
+    REQUIRE(cloned.a[1] == "There");
+    REQUIRE(cloned.b == 5);
+    REQUIRE(original.a[0] == "Changed");
+    REQUIRE(original.b == 99);
+}
+
+TEST_CASE("Clonable with user-defined constructor for arrays", "[Array]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        DynamicArray<StringUtf8> items;
+        i32 count = 0;
+
+        Data() = default;
+        explicit Data(DynamicArray<StringUtf8> in_items)
+            : items(std::move(in_items)), count(static_cast<i32>(this->items.GetSize()))
+        {
+        }
+
+        OPAL_CLONE_FIELDS(items, count);
+    };
+
+    Data original(DynamicArray<StringUtf8>{"A", "B", "C"});
+    Data cloned = original.Clone();
+    REQUIRE(cloned.items[0] == "A");
+    REQUIRE(cloned.items[1] == "B");
+    REQUIRE(cloned.items[2] == "C");
+    REQUIRE(cloned.count == 3);
+
+    // Verify deep copy.
+    original.items[0] = "Changed";
+    REQUIRE(cloned.items[0] == "A");
 }
 

@@ -3979,14 +3979,15 @@ TEST_CASE("Clonable interface", "[String]")
     {
         StringUtf8 a;
         StringUtf8 b;
-        i32 c;
-
-        Data(StringUtf8 aa, StringUtf8 bb, i32 cc) : a(std::move(aa)), b(std::move(bb)), c(cc) {}
+        i32 c = 0;
 
         OPAL_CLONE_FIELDS(a, b, c);
     };
 
-    Data first("Hello", "World", 5);
+    Data first;
+    first.a = "Hello";
+    first.b = "World";
+    first.c = 5;
     Data second = first.Clone();
     REQUIRE(second.a == "Hello");
     REQUIRE(second.b == "World");
@@ -3998,14 +3999,14 @@ TEST_CASE("Clonable clone is a deep copy", "[String]")
     struct Data : ClonableBase<Data>
     {
         StringUtf8 a;
-        i32 b;
-
-        Data(StringUtf8 aa, i32 bb) : a(std::move(aa)), b(bb) {}
+        i32 b = 0;
 
         OPAL_CLONE_FIELDS(a, b);
     };
 
-    Data original("Hello", 10);
+    Data original;
+    original.a = "Hello";
+    original.b = 10;
     Data cloned = original.Clone();
 
     // Mutating the original should not affect the clone.
@@ -4024,12 +4025,11 @@ TEST_CASE("Clonable with single field", "[String]")
     {
         StringUtf8 value;
 
-        Single(StringUtf8 v) : value(std::move(v)) {}
-
         OPAL_CLONE_FIELDS(value);
     };
 
-    Single original("OnlyField");
+    Single original;
+    original.value = "OnlyField";
     Single cloned = original.Clone();
     REQUIRE(cloned.value == "OnlyField");
 }
@@ -4038,16 +4038,17 @@ TEST_CASE("Clonable with POD-only fields", "[String]")
 {
     struct PodOnly : ClonableBase<PodOnly>
     {
-        i32 x;
-        f32 y;
-        bool z;
-
-        PodOnly(i32 xx, f32 yy, bool zz) : x(xx), y(yy), z(zz) {}
+        i32 x = 0;
+        f32 y = 0.0f;
+        bool z = false;
 
         OPAL_CLONE_FIELDS(x, y, z);
     };
 
-    PodOnly original(42, 3.14f, true);
+    PodOnly original;
+    original.x = 42;
+    original.y = 3.14f;
+    original.z = true;
     PodOnly cloned = original.Clone();
     REQUIRE(cloned.x == 42);
     REQUIRE(cloned.y == 3.14f);
@@ -4059,9 +4060,7 @@ TEST_CASE("Clonable with nested clonable", "[String]")
     struct Inner : ClonableBase<Inner>
     {
         StringUtf8 text;
-        i32 num;
-
-        Inner(StringUtf8 t, i32 n) : text(std::move(t)), num(n) {}
+        i32 num = 0;
 
         OPAL_CLONE_FIELDS(text, num);
     };
@@ -4071,12 +4070,13 @@ TEST_CASE("Clonable with nested clonable", "[String]")
         Inner inner;
         StringUtf8 name;
 
-        Outer(Inner i, StringUtf8 n) : inner(std::move(i)), name(std::move(n)) {}
-
         OPAL_CLONE_FIELDS(inner, name);
     };
 
-    Outer original(Inner("nested", 7), "outer");
+    Outer original;
+    original.inner.text = "nested";
+    original.inner.num = 7;
+    original.name = "outer";
     Outer cloned = original.Clone();
 
     REQUIRE(cloned.inner.text == "nested");
@@ -4097,12 +4097,10 @@ TEST_CASE("Clonable with empty strings", "[String]")
         StringUtf8 a;
         StringUtf8 b;
 
-        Data(StringUtf8 aa, StringUtf8 bb) : a(std::move(aa)), b(std::move(bb)) {}
-
         OPAL_CLONE_FIELDS(a, b);
     };
 
-    Data original("", "");
+    Data original;
     Data cloned = original.Clone();
     REQUIRE(cloned.a == "");
     REQUIRE(cloned.b == "");
@@ -4115,18 +4113,45 @@ TEST_CASE("Clonable move semantics", "[String]")
         StringUtf8 a;
         i32 b;
 
-        Data(StringUtf8 aa, i32 bb) : a(std::move(aa)), b(bb) {}
-
         OPAL_CLONE_FIELDS(a, b);
     };
 
-    Data first("Hello", 5);
+    Data first;
+    first.a = "Hello";
+    first.b = 5;
     Data second = std::move(first);
     REQUIRE(second.a == "Hello");
     REQUIRE(second.b == 5);
 
-    Data third("World", 10);
+    Data third;
+    third.a = "World";
+    third.b = 10;
     third = std::move(second);
     REQUIRE(third.a == "Hello");
     REQUIRE(third.b == 5);
+}
+
+TEST_CASE("Clonable with user-defined constructor", "[String]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        StringUtf8 a;
+        StringUtf8 b;
+        i32 c = 0;
+
+        Data() = default;
+        Data(StringUtf8 in_a, StringUtf8 in_b, i32 in_c) : a(std::move(in_a)), b(std::move(in_b)), c(in_c) {}
+
+        OPAL_CLONE_FIELDS(a, b, c);
+    };
+
+    Data original("Hello", "World", 42);
+    Data cloned = original.Clone();
+    REQUIRE(cloned.a == "Hello");
+    REQUIRE(cloned.b == "World");
+    REQUIRE(cloned.c == 42);
+
+    // Verify deep copy.
+    original.a = "Changed";
+    REQUIRE(cloned.a == "Hello");
 }

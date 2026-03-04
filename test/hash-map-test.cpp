@@ -222,7 +222,7 @@ TEST_CASE("Convert to array", "[HashMap]")
 
 TEST_CASE("Clonable interface for pair", "[HashMap]")
 {
-    enum class Color
+    enum class Color : u8
     {
         Red,
         Green,
@@ -232,19 +232,69 @@ TEST_CASE("Clonable interface for pair", "[HashMap]")
     struct Data : ClonableBase<Data>
     {
         Pair<i32, i32> a;
-        i32 b;
+        i32 b = 0;
         DynamicArray<Pair<Color, i32>> c;
 
-        Data(Pair<i32, i32> aa, i32 bb, DynamicArray<Pair<Color, i32>> cc) : a(aa), b(bb), c(std::move(cc)) {}
-
-    OPAL_CLONE_FIELDS(a, b, c);
+        OPAL_CLONE_FIELDS(a, b, c);
     };
 
-    Data first({1, 2}, 3, { {Color::Red, 5} });
+    Data first;
+    first.a = {1, 2};
+    first.b = 3;
+    first.c = {{Color::Red, 5}};
     Data second = first.Clone();
     REQUIRE(second.a.key == 1);
     REQUIRE(second.a.value == 2);
     REQUIRE(second.b == 3);
     REQUIRE(second.c[0].key == Color::Red);
     REQUIRE(second.c[0].value == 5);
+}
+
+TEST_CASE("Clonable deep copy for pair", "[HashMap]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        Pair<StringUtf8, i32> a;
+        DynamicArray<Pair<StringUtf8, i32>> b;
+
+        OPAL_CLONE_FIELDS(a, b);
+    };
+
+    Data original;
+    original.a = {"Hello", 1};
+    original.b = {{"World", 2}, {"Foo", 3}};
+    Data cloned = original.Clone();
+
+    // Mutating the original should not affect the clone.
+    original.a.key = "Changed";
+    original.b[0].key = "Changed";
+
+    REQUIRE(cloned.a.key == "Hello");
+    REQUIRE(cloned.a.value == 1);
+    REQUIRE(cloned.b[0].key == "World");
+    REQUIRE(cloned.b[1].key == "Foo");
+}
+
+TEST_CASE("Clonable with user-defined constructor for pair", "[HashMap]")
+{
+    struct Data : ClonableBase<Data>
+    {
+        StringUtf8 name;
+        Pair<i32, i32> dimensions;
+
+        Data() = default;
+        Data(StringUtf8 in_name, i32 width, i32 height) : name(std::move(in_name)), dimensions{width, height} {}
+
+        OPAL_CLONE_FIELDS(name, dimensions);
+    };
+
+    Data original("Rectangle", 10, 20);
+    Data cloned = original.Clone();
+    REQUIRE(cloned.name == "Rectangle");
+    REQUIRE(cloned.dimensions.key == 10);
+    REQUIRE(cloned.dimensions.value == 20);
+
+    // Verify deep copy.
+    original.name = "Changed";
+    REQUIRE(cloned.name == "Rectangle");
 }
