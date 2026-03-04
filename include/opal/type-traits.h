@@ -382,7 +382,7 @@ template <typename T>
 concept IntegralOrFloatingPoint = Integral<T> || FloatingPoint<T>;
 
 template <typename T>
-concept IsTrivial = __is_trivial(T);
+concept IsTrivial = __is_trivially_copyable(T);
 
 template <typename T>
 concept IsStandardLayout = __is_standard_layout(T);
