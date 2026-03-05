@@ -254,12 +254,12 @@ Opal::Logger& Opal::GetLogger()
     {
         return *g_logger;
     }
-    static Logger s_default_logger;
-    s_default_logger.RegisterCategory("General");
+    // Here we intentionally leak, letting the OS reclaim the memory since it needs to live until the program dies.
+    g_default_logger = new Logger();
+    g_default_logger->RegisterCategory("General");
     auto console_sink = MakeShared<LogSink, ConsoleSink>(nullptr);
-    s_default_logger.AddSink(console_sink);
-    g_logger = &s_default_logger;
-    g_default_logger = &s_default_logger;
+    g_default_logger->AddSink(console_sink);
+    g_logger = g_default_logger;
     return *g_logger;
 }
 
