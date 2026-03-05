@@ -252,7 +252,7 @@ template <typename T, typename E>
 T&& Opal::Expected<T, E>::GetValue() &&
 {
     OPAL_ASSERT(m_has_value, "Expected does not have a value");
-    return m_value;
+    return std::move(m_value);
 }
 
 template <typename T, typename E>
