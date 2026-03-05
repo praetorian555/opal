@@ -22,8 +22,9 @@ public:
     Expected& operator=(Expected&& other) noexcept;
 
     [[nodiscard]] bool HasValue() const;
-    T& GetValue();
-    const T& GetValue() const;
+    T& GetValue() &;
+    const T& GetValue() const &;
+    T&& GetValue() &&;
     T GetValueOr(const T& default_value) const;
 
     E& GetError();
@@ -220,7 +221,7 @@ bool Opal::Expected<T&, E>::HasValue() const
 }
 
 template <typename T, typename E>
-T& Opal::Expected<T, E>::GetValue()
+T& Opal::Expected<T, E>::GetValue() &
 {
     OPAL_ASSERT(m_has_value, "Expected does not have a value");
     return m_value;
@@ -234,7 +235,7 @@ T& Opal::Expected<T&, E>::GetValue()
 }
 
 template <typename T, typename E>
-const T& Opal::Expected<T, E>::GetValue() const
+const T& Opal::Expected<T, E>::GetValue() const &
 {
     OPAL_ASSERT(m_has_value, "Expected does not have a value");
     return m_value;
@@ -245,6 +246,13 @@ const T& Opal::Expected<T&, E>::GetValue() const
 {
     OPAL_ASSERT(m_has_value, "Expected does not have a value");
     return *m_value;
+}
+
+template <typename T, typename E>
+T&& Opal::Expected<T, E>::GetValue() &&
+{
+    OPAL_ASSERT(m_has_value, "Expected does not have a value");
+    return m_value;
 }
 
 template <typename T, typename E>
