@@ -307,17 +307,131 @@ TEST_CASE("Multiple sinks", "[Logging]")
 }
 
 /*************************************************************************************************/
+/** Sink removal tests ***************************************************************************/
+/*************************************************************************************************/
+
+TEST_CASE("Remove sink", "[Logging]")
+{
+    Logger logger;
+    auto sink1 = MakeShared<LogSink, TestSink>(nullptr);
+    auto sink2 = MakeShared<LogSink, TestSink>(nullptr);
+    auto* test_sink1 = static_cast<TestSink*>(sink1.Get());
+    auto* test_sink2 = static_cast<TestSink*>(sink2.Get());
+
+    logger.AddSink(sink1);
+    logger.AddSink(sink2);
+
+    logger.RemoveSink(sink1);
+    logger.Info("General", "After removal");
+
+    REQUIRE(test_sink1->m_entries.GetSize() == 0);
+    REQUIRE(test_sink2->m_entries.GetSize() == 1);
+}
+
+/*************************************************************************************************/
+/** Pattern tests ********************************************************************************/
+/*************************************************************************************************/
+
+TEST_CASE("Pattern", "[Logging]")
+{
+    Logger logger;
+    auto sink = MakeShared<LogSink, TestSink>(nullptr);
+    auto* test_sink = static_cast<TestSink*>(sink.Get());
+    logger.AddSink(sink);
+
+    SECTION("Default pattern")
+    {
+        StringViewUtf8 pattern = logger.GetPattern();
+        std::string_view sv(pattern.GetData(), pattern.GetSize());
+        REQUIRE(sv.find("<date>") != std::string_view::npos);
+        REQUIRE(sv.find("<time>") != std::string_view::npos);
+        REQUIRE(sv.find("<level>") != std::string_view::npos);
+        REQUIRE(sv.find("<category>") != std::string_view::npos);
+        REQUIRE(sv.find("<message>") != std::string_view::npos);
+    }
+
+    SECTION("SetPattern changes output format")
+    {
+        logger.SetPattern("<level>: <message>\n");
+        logger.Info("General", "Hello");
+
+        StringViewUtf8 result(test_sink->m_entries[0].message);
+        std::string_view sv(result.GetData(), result.GetSize());
+        REQUIRE(sv == "Info: Hello\n");
+    }
+
+    SECTION("GetPattern returns current pattern")
+    {
+        logger.SetPattern("<message>\n");
+        StringViewUtf8 pattern = logger.GetPattern();
+        std::string_view sv(pattern.GetData(), pattern.GetSize());
+        REQUIRE(sv == "<message>\n");
+    }
+}
+
+/*************************************************************************************************/
+/** Global log level tests ***********************************************************************/
+/*************************************************************************************************/
+
+TEST_CASE("Global log level filtering", "[Logging]")
+{
+    Logger logger;
+    auto sink = MakeShared<LogSink, TestSink>(nullptr);
+    auto* test_sink = static_cast<TestSink*>(sink.Get());
+    logger.AddSink(sink);
+
+    SECTION("Default log level is Info")
+    {
+        logger.RegisterCategory("Test", LogLevel::Verbose);
+
+        logger.Verbose("Test", "msg");
+        logger.Info("Test", "msg");
+
+        REQUIRE(test_sink->m_entries.GetSize() == 1);
+        REQUIRE(test_sink->m_entries[0].level == LogLevel::Info);
+    }
+
+    SECTION("SetLogLevel filters below global level")
+    {
+        logger.SetLogLevel(LogLevel::Warning);
+        logger.RegisterCategory("Test", LogLevel::Verbose);
+
+        logger.Verbose("Test", "msg");
+        logger.Info("Test", "msg");
+        logger.Warning("Test", "msg");
+        logger.Error("Test", "msg");
+
+        REQUIRE(test_sink->m_entries.GetSize() == 2);
+        REQUIRE(test_sink->m_entries[0].level == LogLevel::Warning);
+        REQUIRE(test_sink->m_entries[1].level == LogLevel::Error);
+    }
+
+    SECTION("Global level Off disables all logging")
+    {
+        logger.SetLogLevel(LogLevel::Off);
+
+        logger.Info("General", "msg");
+        logger.Warning("General", "msg");
+        logger.Error("General", "msg");
+
+        REQUIRE(test_sink->m_entries.GetSize() == 0);
+    }
+}
+
+/*************************************************************************************************/
 /** Global logger tests **************************************************************************/
 /*************************************************************************************************/
 
 TEST_CASE("Global logger", "[Logging]")
 {
-    SECTION("GetLogger returns a valid logger")
+    SECTION("GetLogger returns a valid logger without calling SetLogger")
     {
-        Logger logger;
-        SetLogger(&logger);
         REQUIRE(GetLogger().IsCategoryRegistered("General"));
-        SetLogger(nullptr);
+    }
+
+    SECTION("Default logger supports logging")
+    {
+        REQUIRE_NOTHROW(GetLogger().Info("General", "Default logger works"));
     }
 
     SECTION("SetLogger replaces the global logger")
@@ -326,16 +440,21 @@ TEST_CASE("Global logger", "[Logging]")
         custom_logger.RegisterCategory("Custom", LogLevel::Info);
 
         SetLogger(&custom_logger);
-
         REQUIRE(GetLogger().IsCategoryRegistered("Custom"));
-
         SetLogger(nullptr);
     }
 
-    SECTION("GetLogger throws when no logger is set")
+    SECTION("SetLogger with nullptr restores the default logger")
     {
+        Logger custom_logger;
+        custom_logger.RegisterCategory("Temporary", LogLevel::Info);
+
+        SetLogger(&custom_logger);
+        REQUIRE(GetLogger().IsCategoryRegistered("Temporary"));
+
         SetLogger(nullptr);
-        REQUIRE_THROWS_AS(GetLogger(), LoggerNotInitializedException);
+        REQUIRE(GetLogger().IsCategoryRegistered("General"));
+        REQUIRE_FALSE(GetLogger().IsCategoryRegistered("Temporary"));
     }
 }
 

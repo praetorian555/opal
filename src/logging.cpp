@@ -14,6 +14,7 @@ namespace
 {
 
 Opal::Logger* g_logger = nullptr;
+Opal::Logger* g_default_logger = nullptr;
 
 struct TimeParts
 {
@@ -249,14 +250,25 @@ void Opal::Logger::HandleFatal()
 
 Opal::Logger& Opal::GetLogger()
 {
-    if (g_logger == nullptr)
+    if (g_logger != nullptr) [[likely]]
     {
-        throw LoggerNotInitializedException();
+        return *g_logger;
     }
+    static Logger s_default_logger;
+    s_default_logger.RegisterCategory("General");
+    auto console_sink = MakeShared<LogSink, ConsoleSink>(nullptr);
+    s_default_logger.AddSink(console_sink);
+    g_logger = &s_default_logger;
+    g_default_logger = &s_default_logger;
     return *g_logger;
 }
 
 void Opal::SetLogger(Logger* logger)
 {
+    if (logger == nullptr)
+    {
+        g_logger = g_default_logger;
+        return;
+    }
     g_logger = logger;
 }

@@ -9,15 +9,20 @@ A lightweight logging system with pluggable sinks and per-category level filteri
 ```cpp
 #include "opal/logging.h"
 
-// Create and register a logger before use
+// GetLogger() returns a default logger with a ConsoleSink, ready to use.
+Opal::GetLogger().Info("General", "Application started");
+Opal::GetLogger().Info("General", "Player {} joined at position ({}, {})", player_name, x, y);
+```
+
+To use a custom logger instead:
+
+```cpp
 Opal::Logger logger;
 auto console_sink = Opal::MakeShared<Opal::LogSink, Opal::ConsoleSink>(nullptr);
 logger.AddSink(console_sink);
 Opal::SetLogger(&logger);
 
-// Use the global logger
-Opal::GetLogger().Info("General", "Application started");
-Opal::GetLogger().Info("General", "Player {} joined at position ({}, {})", player_name, x, y);
+Opal::GetLogger().Info("General", "Using custom logger");
 ```
 
 ## Log Levels
@@ -27,12 +32,13 @@ Levels are ordered by severity. A category's minimum level filters out anything 
 | Level     | Purpose                                      |
 |-----------|----------------------------------------------|
 | `Verbose` | Detailed tracing, high-frequency events      |
-| `Debug`   | Diagnostic information for development       |
 | `Info`    | General operational messages                 |
 | `Warning` | Unexpected situations that are recoverable   |
 | `Error`   | Failures that affect functionality            |
 | `Fatal`   | Unrecoverable errors, throws after logging   |
 | `Off`     | Disables all logging for a category          |
+
+The logger also has a global log level (`SetLogLevel`) that acts as an additional filter on top of per-category levels. Only messages at or above both the global level and the category level are emitted. The default global level is `Info`.
 
 ## Categories
 
@@ -42,14 +48,14 @@ Each log message belongs to a category. Categories must be registered before use
 auto& logger = Opal::GetLogger();
 
 // Register categories with specific levels
-logger.RegisterCategory("Rendering", Opal::LogLevel::Debug);
+logger.RegisterCategory("Rendering", Opal::LogLevel::Verbose);
 logger.RegisterCategory("Physics", Opal::LogLevel::Warning);
 logger.RegisterCategory("Audio");  // Defaults to LogLevel::Info
 
 // Log to a category
-logger.Debug("Rendering", "Draw calls: {}", draw_call_count);    // Passes (Debug >= Debug)
-logger.Debug("Physics", "Tick");                                  // Filtered (Debug < Warning)
-logger.Warning("Physics", "Body {} exceeded velocity", body_id);  // Passes (Warning >= Warning)
+logger.Verbose("Rendering", "Draw calls: {}", draw_call_count);    // Passes (Verbose >= Verbose)
+logger.Verbose("Physics", "Tick");                                  // Filtered (Verbose < Warning)
+logger.Warning("Physics", "Body {} exceeded velocity", body_id);    // Passes (Warning >= Warning)
 
 // Change level at runtime
 logger.SetCategoryLevel("Rendering", Opal::LogLevel::Warning);
@@ -215,23 +221,27 @@ catch (const Opal::FatalLogException& e)
 
 ## Global Logger
 
-A single application-wide logger is accessible via free functions. The global logger is not initialized automatically — you must call `SetLogger` before any call to `GetLogger`. The logger is not owned by the library; the caller is responsible for its lifetime.
+A single application-wide logger is accessible via free functions. On the first call to `GetLogger()`, a default logger is lazily created with a `ConsoleSink` and the `"General"` category registered. This means logging works out of the box without any setup.
+
+To use a custom logger, call `SetLogger` with a pointer to your own `Logger` instance. The library does not own the logger; the caller is responsible for its lifetime. Passing `nullptr` to `SetLogger` restores the default logger.
 
 ```cpp
+// Works immediately, no setup needed.
+Opal::GetLogger().Info("General", "Using the default logger");
+
+// Replace with a custom logger.
 Opal::Logger logger;
-logger.RegisterCategory("MyApp", Opal::LogLevel::Debug);
+logger.RegisterCategory("MyApp", Opal::LogLevel::Verbose);
 auto sink = Opal::MakeShared<Opal::LogSink, Opal::ConsoleSink>(nullptr);
 logger.AddSink(sink);
 Opal::SetLogger(&logger);
 
-// Somewhere else in the application
-Opal::GetLogger().Info("MyApp", "Ready");
+Opal::GetLogger().Info("MyApp", "Using a custom logger");
 
-// Unregister when the logger goes out of scope
+// Restore the default logger.
 Opal::SetLogger(nullptr);
+Opal::GetLogger().Info("General", "Back to default");
 ```
-
-Calling `GetLogger()` before `SetLogger` throws `LoggerNotInitializedException`.
 
 ## Thread Safety
 
@@ -242,7 +252,7 @@ The `Logger` itself is not synchronized. Thread safety is delegated to individua
 ### LogLevel
 
 ```cpp
-enum class LogLevel : u8 { Verbose, Debug, Info, Warning, Error, Fatal, Off };
+enum class LogLevel : u8 { Off, Fatal, Error, Warning, Info, Verbose };
 ```
 
 ### LogSink
@@ -264,6 +274,7 @@ struct LogSink
 | `IsCategoryRegistered(category)` | Check if a category is registered |
 | `SetCategoryLevel(category, level)` | Change a category's minimum level at runtime |
 | `GetCategoryLevel(category)` | Get a category's current minimum level |
+| `SetLogLevel(level)` | Set the global minimum log level (default: `Info`) |
 | `SetPattern(pattern)` | Set the output format pattern (see [Output Format](#output-format)) |
 | `GetPattern()` | Get the current output format pattern |
 | `AddSink(sink)` | Add a sink (clones the SharedPtr) |
@@ -272,7 +283,6 @@ struct LogSink
 | `Flush()` | Flush all sinks |
 | `Log(level, category, fmt, args...)` | Log with explicit level |
 | `Verbose(category, fmt, args...)` | Log at Verbose level |
-| `Debug(category, fmt, args...)` | Log at Debug level |
 | `Info(category, fmt, args...)` | Log at Info level |
 | `Warning(category, fmt, args...)` | Log at Warning level |
 | `Error(category, fmt, args...)` | Log at Error level |
@@ -282,6 +292,6 @@ struct LogSink
 
 | Function | Description |
 |----------|-------------|
-| `GetLogger()` | Get the global logger; throws `LoggerNotInitializedException` if not set |
-| `SetLogger(logger)` | Set the global logger (non-owning); pass `nullptr` to unset |
+| `GetLogger()` | Get the global logger. Creates a default logger with a ConsoleSink on first call |
+| `SetLogger(logger)` | Set the global logger (non-owning). Pass `nullptr` to restore the default logger |
 | `LogLevelToString(level)` | Convert a LogLevel to its string representation |
