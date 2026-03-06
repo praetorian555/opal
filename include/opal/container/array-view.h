@@ -155,7 +155,7 @@ public:
      */
     template <typename Container>
         requires Range<Container> && (Opal::SameAs<T, typename Opal::ValueTypeGetter<Container>::Type> ||
-                                      Opal::SameAs<typename Opal::RemoveConst<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
+                                      Opal::SameAs<typename Opal::RemoveConstVolatile<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
     ArrayView(Container& container);
 
     ArrayView(const ArrayView& other) = default;
@@ -332,7 +332,7 @@ CLASS_HEADER::ArrayView(T (&array)[N]) : m_data(array), m_size(N)
 TEMPLATE_HEADER
 template <typename Container>
     requires Opal::Range<Container> && (Opal::SameAs<T, typename Opal::ValueTypeGetter<Container>::Type> ||
-                                        Opal::SameAs<typename Opal::RemoveConst<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
+                                        Opal::SameAs<typename Opal::RemoveConstVolatile<T>::Type, typename Opal::ValueTypeGetter<Container>::Type>)
 CLASS_HEADER::ArrayView(Container& container)
 {
     // TODO: Check if underlying array is contiguous

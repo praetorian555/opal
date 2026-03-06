@@ -6,7 +6,6 @@
 
 namespace Opal
 {
-
 // ------------------------------------------------------------------------------------------------
 // Reference and const removal utilities.
 // ------------------------------------------------------------------------------------------------
@@ -30,15 +29,27 @@ struct RemoveReference<T&&>
     using Type = T;
 };
 
-/** Strips top-level const qualifier from T. */
+/** Strips top-level const and volatile qualifiers from T. */
 template <typename T>
-struct RemoveConst
+struct RemoveConstVolatile
 {
     using Type = T;
 };
 
 template <typename T>
-struct RemoveConst<const T>
+struct RemoveConstVolatile<const T>
+{
+    using Type = T;
+};
+
+template <typename T>
+struct RemoveConstVolatile<volatile T>
+{
+    using Type = T;
+};
+
+template <typename T>
+struct RemoveConstVolatile<const volatile T>
 {
     using Type = T;
 };
@@ -56,6 +67,63 @@ RemoveReferenceType<T>&& Move(T&& value)
 {
     return static_cast<RemoveReferenceType<T>&&>(value);
 }
+
+// ------------------------------------------------------------------------------------------------
+// Raw array utilities.
+// ------------------------------------------------------------------------------------------------
+
+/** True if T is a raw C array (bounded T[N] or unbounded T[]). */
+template <typename T>
+static constexpr bool k_is_raw_array = false;
+
+template <typename T>
+static constexpr bool k_is_raw_array<T[]> = true;
+
+template <typename T, std::size_t N>
+static constexpr bool k_is_raw_array<T[N]> = true;
+
+/** Concept: T is a raw C array (bounded or unbounded). */
+template <typename T>
+concept RawArray = k_is_raw_array<T>;
+
+/** Returns the number of elements in a bounded raw array. */
+template <typename T, std::size_t N>
+std::size_t GetRawArraySize(const T (&)[N]) { return N; }
+
+/** Strips one array dimension from a raw array type. For T[N] or T[], yields T. */
+template <typename T>
+struct RemoveExtent
+{
+    using Type = T;
+};
+
+template <typename T>
+struct RemoveExtent<T[]>
+{
+    using Type = T;
+};
+
+template <typename T, std::size_t N>
+struct RemoveExtent<T[N]>
+{
+    using Type = T;
+};
+
+/**
+ * Performs type decay: strips const/volatile qualifiers from non-array types,
+ * and converts raw arrays to pointers to their element type.
+ */
+template <typename T>
+struct Decay
+{
+    using Type = RemoveConstVolatile<T>::Type;
+};
+
+template <RawArray T>
+struct Decay<T>
+{
+    using Type = RemoveExtent<T>::Type*;
+};
 
 // ------------------------------------------------------------------------------------------------
 // Compile-time type property checks.
@@ -111,7 +179,7 @@ template <typename From, typename To, typename = void>
 inline constexpr bool k_is_constructible_value = false;
 
 template <typename From, typename To>
-inline constexpr bool k_is_constructible_value<From, To, decltype(void(To{std::declval<From>()}))> = true;
+inline constexpr bool k_is_constructible_value<From, To, decltype(void(To(std::declval<From>())))> = true;
 
 /** Concept: From is implicitly convertible to To. */
 template <typename From, typename To>
