@@ -1,8 +1,24 @@
 #include "test-helpers.h"
 
+#include "opal/clonable-base.h"
 #include "opal/container/in-place-array.h"
+#include "opal/container/string.h"
 
 using namespace Opal;
+
+namespace
+{
+struct ClonableData : ClonableBase<ClonableData>
+{
+    StringUtf8 name;
+    i32 value = 0;
+
+    OPAL_CLONE_FIELDS(name, value);
+
+    bool operator==(const ClonableData& other) const { return name == other.name && value == other.value; }
+    bool operator!=(const ClonableData& other) const { return !(*this == other); }
+};
+}  // namespace
 
 TEST_CASE("Construction", "[InPlaceArray][Constructor]")
 {
@@ -36,6 +52,21 @@ TEST_CASE("Construction", "[InPlaceArray][Constructor]")
         REQUIRE(array3[2] == 0);
         REQUIRE(array3[3] == 0);
         REQUIRE(array3[4] == 0);
+    }
+    SECTION("Initializer list with clonable type")
+    {
+        InPlaceArray<StringUtf8, 3> array{"Hello", "There", "World"};
+        REQUIRE(array[0] == "Hello");
+        REQUIRE(array[1] == "There");
+        REQUIRE(array[2] == "World");
+    }
+    SECTION("Initializer list with clonable type and not enough members")
+    {
+        InPlaceArray<StringUtf8, 4> array{"Hello", "There", "World"};
+        REQUIRE(array[0] == "Hello");
+        REQUIRE(array[1] == "There");
+        REQUIRE(array[2] == "World");
+        REQUIRE(array[3] == "");
     }
 }
 
@@ -441,4 +472,159 @@ TEST_CASE("Const iterator", "[InPlaceArray]")
         }
         REQUIRE(sum == 129);
     }
+}
+
+TEST_CASE("Clone with POD elements", "[InPlaceArray][Clone]")
+{
+    InPlaceArray<i32, 3> original = {10, 20, 30};
+    InPlaceArray<i32, 3> cloned = original.Clone();
+    REQUIRE(cloned[0] == 10);
+    REQUIRE(cloned[1] == 20);
+    REQUIRE(cloned[2] == 30);
+}
+
+TEST_CASE("Clone is a deep copy with Clonable elements", "[InPlaceArray][Clone]")
+{
+    InPlaceArray<ClonableData, 2> original;
+    original[0].name = "Alice";
+    original[0].value = 1;
+    original[1].name = "Bob";
+    original[1].value = 2;
+
+    InPlaceArray<ClonableData, 2> cloned = original.Clone();
+    REQUIRE(cloned[0].name == "Alice");
+    REQUIRE(cloned[0].value == 1);
+    REQUIRE(cloned[1].name == "Bob");
+    REQUIRE(cloned[1].value == 2);
+
+    original[0].name = "Modified";
+    original[0].value = 99;
+    REQUIRE(cloned[0].name == "Alice");
+    REQUIRE(cloned[0].value == 1);
+}
+
+TEST_CASE("Default construction with Clonable elements", "[InPlaceArray][Constructor]")
+{
+    InPlaceArray<ClonableData, 2> array;
+    REQUIRE(array.GetSize() == 2);
+}
+
+TEST_CASE("Move construction with Clonable elements", "[InPlaceArray][Constructor]")
+{
+    InPlaceArray<ClonableData, 2> original;
+    original[0].name = "Hello";
+    original[0].value = 42;
+
+    InPlaceArray<ClonableData, 2> moved(Move(original));
+    REQUIRE(moved[0].name == "Hello");
+    REQUIRE(moved[0].value == 42);
+}
+
+TEST_CASE("Move assignment with Clonable elements", "[InPlaceArray][Constructor]")
+{
+    InPlaceArray<ClonableData, 2> original;
+    original[0].name = "Hello";
+    original[0].value = 42;
+
+    InPlaceArray<ClonableData, 2> assigned;
+    assigned = Move(original);
+    REQUIRE(assigned[0].name == "Hello");
+    REQUIRE(assigned[0].value == 42);
+}
+
+TEST_CASE("Access with Clonable elements", "[InPlaceArray]")
+{
+    InPlaceArray<ClonableData, 3> array;
+    array[0].name = "A";
+    array[0].value = 1;
+    array[1].name = "B";
+    array[1].value = 2;
+    array[2].name = "C";
+    array[2].value = 3;
+
+    REQUIRE(array[0].name == "A");
+    REQUIRE(array[1].name == "B");
+    REQUIRE(array[2].name == "C");
+
+    REQUIRE(array.At(0).GetValue().name == "A");
+    REQUIRE(array.At(1).GetValue().name == "B");
+    REQUIRE(array.At(2).GetValue().name == "C");
+    REQUIRE(array.At(3).HasValue() == false);
+
+    REQUIRE(array.Front().name == "A");
+    REQUIRE(array.Back().name == "C");
+}
+
+TEST_CASE("Fill with Clonable elements", "[InPlaceArray]")
+{
+    ClonableData fill_value;
+    fill_value.name = "Filled";
+    fill_value.value = 7;
+
+    InPlaceArray<ClonableData, 3> array;
+    array.Fill(fill_value);
+    REQUIRE(array[0].name == "Filled");
+    REQUIRE(array[0].value == 7);
+    REQUIRE(array[1].name == "Filled");
+    REQUIRE(array[1].value == 7);
+    REQUIRE(array[2].name == "Filled");
+    REQUIRE(array[2].value == 7);
+}
+
+TEST_CASE("Swap with Clonable elements", "[InPlaceArray][Swap]")
+{
+    InPlaceArray<ClonableData, 2> a;
+    a[0].name = "A0";
+    a[0].value = 1;
+    a[1].name = "A1";
+    a[1].value = 2;
+
+    InPlaceArray<ClonableData, 2> b;
+    b[0].name = "B0";
+    b[0].value = 3;
+    b[1].name = "B1";
+    b[1].value = 4;
+
+    Opal::Swap(a, b);
+    REQUIRE(a[0].name == "B0");
+    REQUIRE(a[0].value == 3);
+    REQUIRE(a[1].name == "B1");
+    REQUIRE(a[1].value == 4);
+    REQUIRE(b[0].name == "A0");
+    REQUIRE(b[0].value == 1);
+    REQUIRE(b[1].name == "A1");
+    REQUIRE(b[1].value == 2);
+}
+
+TEST_CASE("Comparison with Clonable elements", "[InPlaceArray][Comparison]")
+{
+    InPlaceArray<ClonableData, 2> a;
+    a[0].name = "X";
+    a[0].value = 1;
+    a[1].name = "Y";
+    a[1].value = 2;
+
+    InPlaceArray<ClonableData, 2> b = a.Clone();
+    REQUIRE(a == b);
+
+    b[0].value = 99;
+    REQUIRE(a != b);
+}
+
+TEST_CASE("Iterator with Clonable elements", "[InPlaceArray]")
+{
+    InPlaceArray<ClonableData, 3> array;
+    array[0].name = "A";
+    array[0].value = 1;
+    array[1].name = "B";
+    array[1].value = 2;
+    array[2].name = "C";
+    array[2].value = 3;
+
+    i32 sum = 0;
+    for (const auto& item : array)
+    {
+        sum += item.value;
+    }
+    REQUIRE(sum == 6);
 }

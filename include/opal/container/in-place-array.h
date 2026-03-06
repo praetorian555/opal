@@ -182,12 +182,25 @@ public:
      */
     InPlaceArray() = default;
 
+    InPlaceArray(const InPlaceArray&) = delete;
+    InPlaceArray& operator=(const InPlaceArray&) = delete;
+    InPlaceArray(InPlaceArray&& other) noexcept = default;
+    InPlaceArray& operator=(InPlaceArray&& other) noexcept = default;
+
     /**
      * Construct an array with the given initializer list. If the size of the list is less than N, the remaining
      * elements are default initialized.
      * @param list The initializer list.
      */
     constexpr InPlaceArray(std::initializer_list<T> list);
+
+    /**
+     * Create a deep copy of this array. For POD types, elements are copied directly. For non-POD types,
+     * elements are cloned via their own Clone() method.
+     * @param allocator Optional allocator to pass to the Clone() call of each non-POD element.
+     * @return A new InPlaceArray that is a deep copy of this array.
+     */
+    InPlaceArray Clone(AllocatorBase* allocator = nullptr) const;
 
     ~InPlaceArray() = default;
 
@@ -297,11 +310,11 @@ constexpr Opal::InPlaceArray<T, N>::InPlaceArray(std::initializer_list<T> list)
 
     for (u64 i = 0; i < size; ++i)
     {
-        m_data[i] = start[i];
+        m_data[i] = Opal::Clone(start[i]);
     }
     for (u64 i = size; i < N; ++i)
     {
-        m_data[i] = T();
+        m_data[i] = std::move(T());
     }
 }
 
@@ -386,10 +399,21 @@ void Opal::Swap(InPlaceArray<T, N>& lhs, InPlaceArray<T, N>& rhs)
 }
 
 template <typename T, Opal::u64 N>
+Opal::InPlaceArray<T, N> Opal::InPlaceArray<T, N>::Clone(AllocatorBase* allocator) const
+{
+    InPlaceArray result;
+    for (u64 i = 0; i < N; ++i)
+    {
+        result.m_data[i] = Opal::Clone(m_data[i], allocator);
+    }
+    return result;
+}
+
+template <typename T, Opal::u64 N>
 void Opal::InPlaceArray<T, N>::Fill(const T& value)
 {
     for (u64 i = 0; i < N; ++i)
     {
-        m_data[i] = value;
+        m_data[i] = Opal::Clone(value);
     }
 }
