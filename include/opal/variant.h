@@ -200,6 +200,7 @@ public:
     template <std::size_t Index>
     const auto& Get() const
     {
+        
         if (Index != m_index)
         {
             throw InvalidArgumentException(__FUNCTION__, "Index", static_cast<u64>(Index));
@@ -219,8 +220,12 @@ public:
      * @param allocator Optional allocator to pass to the Clone() call of non-POD alternatives.
      * @return A new Variant holding a clone of the currently active alternative.
      */
+    /**
+     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     */
     Variant Clone(AllocatorBase* allocator = nullptr) const
     {
+        ThrowIfEmpty();
         Variant result;
         result.Destroy();
         result.CloneFrom(*this, allocator);
@@ -234,16 +239,23 @@ public:
      * @param visitor A callable (or Overloaded set of callables) to invoke.
      * @return The value returned by the visitor.
      */
+    /**
+     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     */
     template <typename Visitor>
     auto Visit(Visitor&& visitor)
     {
+        ThrowIfEmpty();
         return VisitDispatch(std::forward<Visitor>(visitor), std::make_index_sequence<sizeof...(Ts)>{});
     }
 
-    /** @copydoc Visit */
+    /**
+     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     */
     template <typename Visitor>
     auto Visit(Visitor&& visitor) const
     {
+        ThrowIfEmpty();
         return VisitDispatch(std::forward<Visitor>(visitor), std::make_index_sequence<sizeof...(Ts)>{});
     }
 
@@ -356,6 +368,14 @@ private:
         using VisitConstFn = ReturnType (*)(Visitor&&, const Storage&);
         const VisitConstFn table[] = {&ConstVisitAt<Indices, ReturnType, Visitor>...};
         return table[m_index](std::forward<Visitor>(visitor), m_storage);
+    }
+
+    void ThrowIfEmpty() const
+    {
+        if (m_index >= sizeof...(Ts))
+        {
+            throw InvalidArgumentException(__FUNCTION__, "Variant is in a moved-from state");
+        }
     }
 
     Storage m_storage;

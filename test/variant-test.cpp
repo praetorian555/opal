@@ -464,3 +464,29 @@ TEST_CASE("Variant Visit void return", "[Variant]")
     v.Visit([&out](auto& val) { out = static_cast<i32>(val); });
     REQUIRE(out == 42);
 }
+
+// ------------------------------------------------------------------------------------------------
+// Moved-from state.
+// ------------------------------------------------------------------------------------------------
+
+TEST_CASE("Variant Get throws on moved-from variant", "[Variant]")
+{
+    Variant<i32, f32> v(42);
+    Variant<i32, f32> v2(Move(v));
+    REQUIRE_THROWS_AS(v.Get<i32>(), InvalidArgumentException);
+    REQUIRE_THROWS_AS(v.Get<0>(), InvalidArgumentException);
+}
+
+TEST_CASE("Variant Clone throws on moved-from variant", "[Variant]")
+{
+    Variant<i32, f32> v(42);
+    Variant<i32, f32> v2(Move(v));
+    REQUIRE_THROWS_AS(v.Clone(), InvalidArgumentException);
+}
+
+TEST_CASE("Variant Visit throws on moved-from variant", "[Variant]")
+{
+    Variant<i32, f32> v(42);
+    Variant<i32, f32> v2(Move(v));
+    REQUIRE_THROWS_AS(v.Visit([](auto&) {}), InvalidArgumentException);
+}
