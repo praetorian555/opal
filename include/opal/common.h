@@ -53,7 +53,7 @@ void Swap(T& lhs, T& rhs)
 };
 
 template <typename T>
-T Clone(const T& source, AllocatorBase* allocator = nullptr)
+constexpr T Clone(const T& source, AllocatorBase* allocator = nullptr)
 {
     if constexpr (IsPOD<T>)
     {
