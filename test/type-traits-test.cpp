@@ -163,6 +163,9 @@ TEST_CASE("Decay", "[TypeTraits]")
     STATIC_REQUIRE(k_is_same_value<Decay<const i32>::Type, i32>);
     STATIC_REQUIRE(k_is_same_value<Decay<volatile i32>::Type, i32>);
     STATIC_REQUIRE(k_is_same_value<Decay<const volatile i32>::Type, i32>);
+    STATIC_REQUIRE(k_is_same_value<Decay<i32&>::Type, i32>);
+    STATIC_REQUIRE(k_is_same_value<Decay<i32&&>::Type, i32>);
+    STATIC_REQUIRE(k_is_same_value<Decay<const i32&>::Type, i32>);
     STATIC_REQUIRE(k_is_same_value<Decay<i32[3]>::Type, i32*>);
     STATIC_REQUIRE(k_is_same_value<Decay<i32[]>::Type, i32*>);
 }

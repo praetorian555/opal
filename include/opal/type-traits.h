@@ -110,13 +110,13 @@ struct RemoveExtent<T[N]>
 };
 
 /**
- * Performs type decay: strips const/volatile qualifiers from non-array types,
- * and converts raw arrays to pointers to their element type.
+ * Performs type decay: strips references, then strips const/volatile qualifiers
+ * from non-array types, and converts raw arrays to pointers to their element type.
  */
 template <typename T>
 struct Decay
 {
-    using Type = RemoveConstVolatile<T>::Type;
+    using Type = RemoveConstVolatile<RemoveReferenceType<T>>::Type;
 };
 
 template <RawArray T>
