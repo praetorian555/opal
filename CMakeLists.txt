@@ -111,6 +111,7 @@ set(OPAL_FILES
         include/opal/threading/thread-pool.h
         include/opal/clonable-base.h
         ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
+        include/opal/variant.h
 )
 add_library(opal ${OPAL_FILES})
 target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
@@ -186,6 +187,7 @@ if (OPAL_BUILD_TESTS)
             test/logging-test.cpp
             test/enum-flags-test.cpp
             test/type-traits-test.cpp
+            test/variant-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
