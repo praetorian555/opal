@@ -81,7 +81,7 @@ struct TypeIndex<T, First, Rest...>
 /**
  * A type-safe tagged union that holds exactly one value from the alternative types Ts.
  *
- * The default constructor initializes the first alternative. Copy is deleted;
+ * The default constructor initializes the first alternative. Copy is deleted, use Clone for that;
  * only move semantics are supported. Throws InvalidArgumentException on
  * type-mismatched access.
  *
@@ -200,7 +200,7 @@ public:
     template <std::size_t Index>
     const auto& Get() const
     {
-        
+
         if (Index != m_index)
         {
             throw InvalidArgumentException(__FUNCTION__, "Index", static_cast<u64>(Index));
