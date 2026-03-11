@@ -219,7 +219,6 @@ namespace
 constexpr Opal::i32 k_max_stack_depth = 32;
 
 // NOLINTBEGIN(modernize-avoid-c-arrays)
-Opal::MallocAllocator g_default_allocator;
 thread_local Opal::AllocatorBase* g_default_stack[k_max_stack_depth] = {};
 thread_local Opal::i32 g_default_stack_size = 0;
 
@@ -234,8 +233,9 @@ Opal::AllocatorBase* Opal::GetDefaultAllocator()
     {
         return g_default_stack[g_default_stack_size - 1];
     }
-    g_default_stack[g_default_stack_size++] = &g_default_allocator;
-    return &g_default_allocator;
+    static MallocAllocator s_default_allocator;
+    g_default_stack[g_default_stack_size++] = &s_default_allocator;
+    return &s_default_allocator;
 }
 
 void Opal::PushDefaultAllocator(AllocatorBase* allocator)
