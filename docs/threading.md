@@ -50,6 +50,20 @@ Opal::JoinThread(t);
 
 The default allocator must be thread-safe when creating threads. The library asserts this at thread creation time and pushes the caller's default allocator onto the new thread's allocator stack.
 
+### Detaching Threads
+
+`DetachThread` allows a thread to run independently without requiring a join. The thread cleans up its own resources when it finishes. After detaching, the handle should not be used with `JoinThread`.
+
+```cpp
+Opal::ThreadHandle t = Opal::CreateThread([]()
+{
+    // This thread runs independently
+    // Resources are cleaned up automatically when it finishes
+});
+Opal::DetachThread(t);
+// No need to call JoinThread
+```
+
 ### Thread ID
 
 Each thread has a `ThreadId` (`u64`) that maps to the platform's native thread identifier. On Windows this is the value from `GetCurrentThreadId()`. On Linux this is the kernel thread ID from `gettid()`, which is the value shown by tools like `htop` and `strace`.
@@ -134,6 +148,25 @@ Opal::ThreadHandle t = Opal::CreateThread([](Opal::Mutex<GameState>& state)
 Opal::JoinThread(t);
 ```
 
+### TryLock
+
+`TryLock()` attempts to acquire the lock without blocking. Returns `Expected<MutexGuard<T>, bool>` — on success you get a guard with RAII unlock, on failure you get `false`.
+
+```cpp
+Opal::Mutex<int> counter(0);
+
+auto result = counter.TryLock();
+if (result.HasValue())
+{
+    *result.GetValue().Deref() += 1;
+    // Mutex is unlocked when result goes out of scope
+}
+else
+{
+    // Lock is held by another thread
+}
+```
+
 Platform implementation: `CRITICAL_SECTION` on Windows, `pthread_mutex_t` on Linux.
 
 ### API Reference
@@ -143,6 +176,7 @@ Platform implementation: `CRITICAL_SECTION` on Windows, `pthread_mutex_t` on Lin
 | `Mutex<T>` | `Mutex(T&& object)` | Construct with a moved value |
 | `Mutex<T>` | `Mutex(Args&&... args)` | Construct T in place |
 | `Mutex<T>` | `Lock()` | Acquire the lock, returns `MutexGuard<T>` |
+| `Mutex<T>` | `TryLock()` | Non-blocking lock attempt, returns `Expected<MutexGuard<T>, bool>` |
 | `Mutex<T>` | `Unlock()` | Release the lock manually |
 | `MutexGuard<T>` | `Deref()` | Returns `T*` to the protected data |
 
@@ -339,14 +373,6 @@ parent->WaitForCompletion();
 | `ThreadPool` | `AddFunctionTask` is thread-safe via internal MPMC channel |
 
 ## Planned Improvements
-
-### Thread Detach
-
-Currently every thread must be joined. A `DetachThread(ThreadHandle)` function would allow fire-and-forget threads. The underlying platforms support this (`CloseHandle` on Windows without waiting, `pthread_detach` on Linux).
-
-### Mutex TryLock
-
-`Mutex<T>` currently only supports blocking `Lock()`. A `TryLock()` returning `Expected<MutexGuard<T>, ErrorCode>` would enable non-blocking locking patterns. The underlying platforms support this (`TryEnterCriticalSection` on Windows, `pthread_mutex_trylock` on Linux).
 
 ### Timed Wait on Condition Variable
 

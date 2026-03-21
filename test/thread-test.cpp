@@ -282,6 +282,32 @@ TEST_CASE("Mutex", "[Thread]")
     }
 }
 
+TEST_CASE("Mutex TryLock", "[Thread]")
+{
+    SECTION("Succeeds when not locked")
+    {
+        Mutex<i32> mutex(42);
+        auto result = mutex.TryLock();
+        REQUIRE(result.HasValue());
+        REQUIRE(*result.GetValue().Deref() == 42);
+    }
+    SECTION("Fails when already locked")
+    {
+        Mutex<i32> mutex(42);
+        auto guard = mutex.Lock();
+        bool try_lock_failed = false;
+        const ThreadHandle t = CreateThread(
+            [](Mutex<i32>& m, bool& failed)
+            {
+                auto result = m.TryLock();
+                failed = !result.HasValue();
+            },
+            Ref(mutex), Ref(try_lock_failed));
+        JoinThread(t);
+        REQUIRE(try_lock_failed);
+    }
+}
+
 TEST_CASE("Condition Variable", "[Thread]")
 {
     Mutex<bool> mutex(false);

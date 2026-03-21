@@ -1,6 +1,7 @@
 #pragma once
 
 #include "opal/allocator.h"
+#include "opal/container/expected.h"
 #include "opal/export.h"
 
 namespace Opal
@@ -18,7 +19,13 @@ template <typename T>
 struct MutexGuard
 {
     MutexGuard(struct Mutex<T>* lock, T* object) : m_lock(lock), m_object(object) {}
-    ~MutexGuard() { m_lock->Unlock(); }
+    ~MutexGuard()
+    {
+        if (m_lock != nullptr)
+        {
+            m_lock->Unlock();
+        }
+    }
 
     MutexGuard(const MutexGuard&) = delete;
     MutexGuard& operator=(const MutexGuard&) = delete;
@@ -64,6 +71,7 @@ struct OPAL_EXPORT PureMutex
     PureMutex& operator=(PureMutex&& other) noexcept;
 
     void Lock();
+    bool TryLock();
     void Unlock();
 
     void* GetNativeHandle() { return m_native_handle; }
@@ -108,6 +116,15 @@ struct Mutex
     {
         m_pure_mutex.Lock();
         return {this, &m_object};
+    }
+
+    Expected<MutexGuard<T>, bool> TryLock()
+    {
+        if (m_pure_mutex.TryLock())
+        {
+            return Expected<MutexGuard<T>, bool>(MutexGuard<T>{this, &m_object});
+        }
+        return Expected<MutexGuard<T>, bool>(false);
     }
 
     void Unlock() { m_pure_mutex.Unlock(); }

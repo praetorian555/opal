@@ -65,6 +65,27 @@ Opal::Impl::PureMutex& Opal::Impl::PureMutex::operator=(PureMutex&& other) noexc
     return *this;
 }
 
+bool Opal::Impl::PureMutex::TryLock()
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    if (m_native_handle != nullptr)
+    {
+        LPCRITICAL_SECTION critical_section = reinterpret_cast<LPCRITICAL_SECTION>(m_native_handle);
+        return TryEnterCriticalSection(critical_section) != 0;
+    }
+    return false;
+#elif defined(OPAL_PLATFORM_LINUX)
+    if (m_native_handle != nullptr)
+    {
+        pthread_mutex_t* mutex = reinterpret_cast<pthread_mutex_t*>(m_native_handle);
+        return pthread_mutex_trylock(mutex) == 0;
+    }
+    return false;
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
+}
+
 void Opal::Impl::PureMutex::Lock()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
