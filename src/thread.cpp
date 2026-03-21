@@ -89,6 +89,21 @@ void Opal::JoinThread(ThreadHandle handle)
     }
 }
 
+void Opal::DetachThread(ThreadHandle handle)
+{
+    if (handle.native_handle != nullptr)
+    {
+#if defined(OPAL_PLATFORM_WINDOWS)
+        ::CloseHandle(handle.native_handle);
+#elif defined(OPAL_PLATFORM_LINUX)
+        pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
+        pthread_detach(native_handle);
+#else
+        throw NotImplementedException(__FUNCTION__);
+#endif
+    }
+}
+
 Opal::ThreadHandle Opal::GetCurrentThreadHandle()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)

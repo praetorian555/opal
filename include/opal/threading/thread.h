@@ -98,6 +98,13 @@ ThreadHandle CreateThread(Function&& function, Args&&... args)
 void JoinThread(ThreadHandle handle);
 
 /**
+ * Detach a thread, allowing it to run independently. The thread will clean up its own resources
+ * when it finishes. After detaching, the handle should not be used with JoinThread.
+ * @param handle Handle of a thread to detach.
+ */
+void DetachThread(ThreadHandle handle);
+
+/**
  * Get a thread handle of a current thread.
  * @return Thread handle.
  */
