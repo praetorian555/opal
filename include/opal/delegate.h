@@ -74,6 +74,8 @@ struct MultiDelegate<void(Args...)>
 {
     using Function = std::function<void(Args...)>;
 
+    MultiDelegate(AllocatorBase* allocator = nullptr) : m_functors(HashMap<DelegateHandle, Function>::k_default_capacity, allocator) {}
+
     /** Bind a callable and return a handle that can be used to unbind it later. */
     DelegateHandle Bind(Function functor)
     {
