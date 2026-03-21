@@ -171,7 +171,7 @@ void Opal::Logger::Emit(LogLevel level, StringViewUtf8 category, StringViewUtf8 
     const TimeParts time_parts = GetTimeParts();
     const char* level_str = LogLevelToString(level);
     ;
-    const u64 thread_id = reinterpret_cast<u64>(GetCurrentThreadHandle().native_id);
+    const u64 thread_id = GetCurrentThreadHandle().id;
     constexpr size_t k_thread_id_size = 16;
     char thread_id_str[k_thread_id_size] = "";
     snprintf(thread_id_str, k_thread_id_size, "%llu", thread_id);

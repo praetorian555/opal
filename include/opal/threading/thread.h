@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <thread>
 #include <tuple>
 #include <type_traits>
@@ -17,6 +18,7 @@ namespace Impl
 struct ThreadDataBase
 {
     AllocatorBase* allocator = nullptr;
+    std::atomic<u64> thread_id{0};
 
     ThreadDataBase(AllocatorBase* a) : allocator(a) {}
     virtual ~ThreadDataBase() = default;
@@ -39,13 +41,25 @@ struct ThreadData : ThreadDataBase
 
 }  // namespace Impl
 
+using ThreadId = u64;
+static constexpr ThreadId k_invalid_thread_id = 0;
+
 struct ThreadHandle
 {
     void* native_handle = nullptr;
-    void* native_id = nullptr;
+    ThreadId id = k_invalid_thread_id;
 
     bool operator==(const ThreadHandle& other) const;
 };
+
+/**
+ * Get the thread id from a thread handle. This is a numeric value that can be printed and compared.
+ * On Windows, this is the value returned by GetThreadId / GetCurrentThreadId.
+ * On Linux, this is the value returned by gettid.
+ * @param handle Thread handle.
+ * @return Thread id.
+ */
+ThreadId GetThreadId(const ThreadHandle& handle);
 
 namespace Impl
 {

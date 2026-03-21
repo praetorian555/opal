@@ -9,6 +9,8 @@
 #include "Windows.h"
 #elif defined(OPAL_PLATFORM_LINUX)
 #include <pthread.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -29,6 +31,7 @@ DWORD WINAPI WindowsThread(LPVOID param)
 void* ThreadFunction(void* param)
 {
     Opal::Impl::ThreadDataBase* data = static_cast<Opal::Impl::ThreadDataBase*>(param);
+    data->thread_id.store(static_cast<Opal::u64>(syscall(SYS_gettid)), std::memory_order_release);
     Opal::PushDefaultAllocator(data->allocator);
     data->Invoke();
     Delete(data->allocator, data);
@@ -45,11 +48,15 @@ Opal::ThreadHandle Opal::Impl::CreateThread(ThreadDataBase* data)
     {
         throw Exception("Failed to create thread!");
     }
-    return {.native_handle = thread_handle, .native_id = reinterpret_cast<void*>(static_cast<u64>(thread_id))};
+    return {.native_handle = thread_handle, .id = static_cast<u64>(thread_id)};
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_t native_handle;
     pthread_create(&native_handle, nullptr, ThreadFunction, data);
-    ThreadHandle handle = {.native_handle = reinterpret_cast<void*>(native_handle)};
+    // Spin until the thread has stored its kernel thread ID.
+    while (data->thread_id.load(std::memory_order_acquire) == 0)
+    {
+    }
+    ThreadHandle handle = {.native_handle = reinterpret_cast<void*>(native_handle), .id = data->thread_id.load(std::memory_order_relaxed)};
     return handle;
 #else
     throw NotImplementedException(__FUNCTION__);
@@ -58,13 +65,12 @@ Opal::ThreadHandle Opal::Impl::CreateThread(ThreadDataBase* data)
 
 bool Opal::ThreadHandle::operator==(const ThreadHandle& other) const
 {
-#if defined(OPAL_PLATFORM_WINDOWS)
-    return native_id == other.native_id;
-#elif defined(OPAL_PLATFORM_LINUX)
-    return native_handle == other.native_handle;
-#else
-    throw NotImplementedException(__FUNCTION__);
-#endif
+    return id == other.id;
+}
+
+Opal::ThreadId Opal::GetThreadId(const ThreadHandle& handle)
+{
+    return handle.id;
 }
 
 void Opal::JoinThread(ThreadHandle handle)
@@ -87,10 +93,11 @@ Opal::ThreadHandle Opal::GetCurrentThreadHandle()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     const DWORD thread_id = ::GetCurrentThreadId();
-    return {.native_id = reinterpret_cast<void*>(static_cast<u64>(thread_id))};
+    return {.native_handle = ::GetCurrentThread(), .id = static_cast<u64>(thread_id)};
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_t thread_handle = pthread_self();
-    return {.native_handle = reinterpret_cast<void*>(thread_handle)};
+    const u64 tid = static_cast<u64>(syscall(SYS_gettid));
+    return {.native_handle = reinterpret_cast<void*>(thread_handle), .id = tid};
 #else
     throw NotImplementedException(__FUNCTION__);
 #endif
