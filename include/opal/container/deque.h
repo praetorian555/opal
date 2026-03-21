@@ -2,6 +2,7 @@
 
 #include "opal/allocator.h"
 #include "opal/casts.h"
+#include "opal/common.h"
 #include "opal/container/expected.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
@@ -104,7 +105,7 @@ DequeConstIterator<MyDeque> operator+(typename DequeConstIterator<MyDeque>::Diff
  *
  * Capacity will always be a power of 2.
  */
-template <typename T, typename Allocator = MallocAllocator>
+template <typename T>
 class Deque
 {
 public:
@@ -113,29 +114,32 @@ public:
     using ConstReferenceType = const T&;
     using PointerType = T*;
     using SizeType = u64;
-    using AllocatorType = Allocator;
+    using AllocatorType = AllocatorBase;
     using DifferenceType = i64;
-    using IteratorType = DequeIterator<Deque<T, Allocator>>;
-    using ConstIteratorType = DequeConstIterator<Deque<T, Allocator>>;
+    using IteratorType = DequeIterator<Deque<T>>;
+    using ConstIteratorType = DequeConstIterator<Deque<T>>;
 
     static_assert(!k_is_reference_value<ValueType>, "Value type must not be a reference");
     static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
 
-    Deque();
-    explicit Deque(const AllocatorType& allocator);
-    explicit Deque(AllocatorType&& allocator);
-    explicit Deque(SizeType count);
-    Deque(SizeType count, const AllocatorType& allocator);
-    Deque(SizeType count, AllocatorType&& allocator);
-    Deque(SizeType count, const T& value);
-    Deque(SizeType count, const T& value, const AllocatorType& allocator);
-    Deque(SizeType count, const T& value, AllocatorType&& allocator);
-    Deque(const Deque& other);
+    Deque(AllocatorType* allocator = nullptr);
+    explicit Deque(SizeType count, AllocatorType* allocator = nullptr);
+    Deque(SizeType count, const T& value, AllocatorType* allocator = nullptr);
+
+    Deque(const Deque& other) = delete;
+    Deque& operator=(const Deque& other) = delete;
     Deque(Deque&& other) noexcept;
+
+    /**
+     * Create a deep copy of this deque. For POD types, elements are copied directly. For non-POD types,
+     * elements are cloned via their own Clone() method.
+     * @param allocator Allocator to be used for the cloned deque. If nullptr, the source deque's allocator will be used.
+     * @return A new Deque that is a deep copy of this deque.
+     */
+    Deque Clone(AllocatorBase* allocator = nullptr) const;
 
     ~Deque();
 
-    Deque& operator=(const Deque& other);
     Deque& operator=(Deque&& other) noexcept;
 
     bool operator==(const Deque& other) const;
@@ -322,6 +326,8 @@ public:
     ConstIteratorType begin() const { return ConstIteratorType(m_data, m_capacity, m_first, 0); }
     ConstIteratorType end() const { return ConstIteratorType(m_data, m_capacity, m_first, m_size); }
 
+    AllocatorType* GetAllocator() const { return m_allocator; }
+
 private:
     void Initialize(const T& value);
 
@@ -358,7 +364,7 @@ private:
 
     constexpr static SizeType k_default_capacity = 0;
 
-    AllocatorType m_allocator;
+    AllocatorType* m_allocator = nullptr;
     SizeType m_capacity = 0;
     SizeType m_size = 0;
     SizeType m_first = 0;
@@ -367,83 +373,57 @@ private:
 
 }  // namespace Opal
 
-#define TEMPLATE_HEADER template <typename T, typename Allocator>
-#define CLASS_HEADER Opal::Deque<T, Allocator>
+#define TEMPLATE_HEADER template <typename T>
+#define CLASS_HEADER Opal::Deque<T>
 
 TEMPLATE_HEADER
-CLASS_HEADER::Deque() : m_capacity(k_default_capacity)
+CLASS_HEADER::Deque(AllocatorType* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(k_default_capacity)
 {
     Initialize(T());
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Deque(const AllocatorType& allocator) : m_allocator(allocator), m_capacity(k_default_capacity)
+CLASS_HEADER::Deque(SizeType count, AllocatorType* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+    , m_capacity(Max(k_default_capacity, NextPowerOf2(count)))
+    , m_size(count)
 {
     Initialize(T());
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Deque(AllocatorType&& allocator) : m_allocator(Move(allocator)), m_capacity(k_default_capacity)
-{
-    Initialize(T());
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Deque(SizeType count) : m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
-{
-    Initialize(T());
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Deque(SizeType count, const AllocatorType& allocator)
-    : m_allocator(allocator), m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
-{
-    Initialize(T());
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Deque(SizeType count, AllocatorType&& allocator)
-    : m_allocator(allocator), m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
-{
-    Initialize(T());
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Deque(SizeType count, const T& value) : m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
+CLASS_HEADER::Deque(SizeType count, const T& value, AllocatorType* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+    , m_capacity(Max(k_default_capacity, NextPowerOf2(count)))
+    , m_size(count)
 {
     Initialize(value);
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::Deque(SizeType count, const T& value, const AllocatorType& allocator)
-    : m_allocator(allocator), m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
+CLASS_HEADER Opal::Deque<T>::Clone(AllocatorBase* allocator) const
 {
-    Initialize(value);
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Deque(SizeType count, const T& value, AllocatorType&& allocator)
-    : m_allocator(Move(allocator)), m_capacity(Max(k_default_capacity, NextPowerOf2(count))), m_size(count)
-{
-    Initialize(value);
-}
-
-TEMPLATE_HEADER
-CLASS_HEADER::Deque(const Deque& other)
-    : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_first(other.m_first)
-{
-    m_data = Allocate(m_capacity);
+    allocator = allocator == nullptr ? m_allocator : allocator;
+    Deque clone(allocator);
+    if (m_size == 0)
+    {
+        return clone;
+    }
+    clone.Reserve(m_capacity);
     for (SizeType i = m_first, count = 0; count < m_size; count++)
     {
-        new (m_data + i) T(other.m_data[i]);
+        new (clone.m_data + count) T(Opal::Clone(m_data[i], allocator));
         ++i;
         i &= (m_capacity - 1);
     }
+    clone.m_size = m_size;
+    return clone;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER::Deque(Deque&& other) noexcept
-    : m_allocator(Move(other.m_allocator)), m_capacity(other.m_capacity), m_size(other.m_size), m_first(other.m_first), m_data(other.m_data)
+    : m_allocator(other.m_allocator), m_capacity(other.m_capacity), m_size(other.m_size), m_first(other.m_first), m_data(other.m_data)
 {
     other.m_capacity = 0;
     other.m_size = 0;
@@ -470,38 +450,6 @@ CLASS_HEADER::~Deque()
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator=(const Deque& other)
-{
-    if (this != &other)
-    {
-        for (SizeType i = m_first, count = 0; count < m_size; count++)
-        {
-            m_data[i].~T();
-            ++i;
-            i &= (m_capacity - 1);
-        }
-        if (m_capacity != other.m_capacity)
-        {
-            Deallocate(m_data);
-        }
-
-        m_allocator = other.m_allocator;
-        m_capacity = other.m_capacity;
-        m_size = other.m_size;
-        m_first = other.m_first;
-
-        m_data = Allocate(m_capacity);
-        for (SizeType i = m_first, count = 0; count < m_size; count++)
-        {
-            new (m_data + i) T(other.m_data[i]);
-            ++i;
-            i &= (m_capacity - 1);
-        }
-    }
-    return *this;
-}
-
-TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator=(Deque&& other) noexcept
 {
     if (this != &other)
@@ -517,7 +465,7 @@ CLASS_HEADER& CLASS_HEADER::operator=(Deque&& other) noexcept
             Deallocate(m_data);
         }
 
-        m_allocator = Move(other.m_allocator);
+        m_allocator = other.m_allocator;
         m_capacity = other.m_capacity;
         m_size = other.m_size;
         m_first = other.m_first;
@@ -1177,13 +1125,17 @@ void CLASS_HEADER::Initialize(const T& value)
 TEMPLATE_HEADER
 T* CLASS_HEADER::Allocate(SizeType count)
 {
-    return static_cast<T*>(m_allocator.Alloc(count * sizeof(T), alignof(T)));
+    OPAL_ASSERT(m_allocator, "Allocator should never be null!");
+    return static_cast<T*>(m_allocator->Alloc(count * sizeof(T), alignof(T)));
 }
 
 TEMPLATE_HEADER
 void CLASS_HEADER::Deallocate(T* data)
 {
-    m_allocator.Free(data);
+    if (m_allocator)
+    {
+        m_allocator->Free(data);
+    }
 }
 
 #undef TEMPLATE_HEADER

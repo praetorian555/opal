@@ -47,14 +47,7 @@ TEST_CASE("Constructor", "[Deque]")
     SECTION("Default constructor with allocator")
     {
         MallocAllocator allocator;
-        Deque<i32> deque(allocator);
-        REQUIRE(deque.GetCapacity() == 0);
-        REQUIRE(deque.GetSize() == 0);
-    }
-    SECTION("Default constructor with move allocator")
-    {
-        MallocAllocator allocator;
-        Deque<i32> deque(Move(allocator));
+        Deque<i32> deque(&allocator);
         REQUIRE(deque.GetCapacity() == 0);
         REQUIRE(deque.GetSize() == 0);
     }
@@ -72,19 +65,7 @@ TEST_CASE("Constructor", "[Deque]")
     SECTION("Constructor with count and allocator")
     {
         MallocAllocator allocator;
-        Deque<i32> deque(5, allocator);
-        REQUIRE(deque.GetCapacity() == 8);
-        REQUIRE(deque.GetSize() == 5);
-        REQUIRE(deque[0] == 0);
-        REQUIRE(deque[1] == 0);
-        REQUIRE(deque[2] == 0);
-        REQUIRE(deque[3] == 0);
-        REQUIRE(deque[4] == 0);
-    }
-    SECTION("Constructor with count and move allocator")
-    {
-        MallocAllocator allocator;
-        Deque<i32> deque(5, Move(allocator));
+        Deque<i32> deque(5, &allocator);
         REQUIRE(deque.GetCapacity() == 8);
         REQUIRE(deque.GetSize() == 5);
         REQUIRE(deque[0] == 0);
@@ -107,7 +88,7 @@ TEST_CASE("Constructor", "[Deque]")
     SECTION("Constructor with count, default value and allocator")
     {
         MallocAllocator allocator;
-        Deque<i32> deque(5, 10, allocator);
+        Deque<i32> deque(5, 10, &allocator);
         REQUIRE(deque.GetCapacity() == 8);
         REQUIRE(deque.GetSize() == 5);
         REQUIRE(deque[0] == 10);
@@ -116,22 +97,10 @@ TEST_CASE("Constructor", "[Deque]")
         REQUIRE(deque[3] == 10);
         REQUIRE(deque[4] == 10);
     }
-    SECTION("Constructor with count, default value and move allocator")
-    {
-        MallocAllocator allocator;
-        Deque<i32> deque(5, 10, Move(allocator));
-        REQUIRE(deque.GetCapacity() == 8);
-        REQUIRE(deque.GetSize() == 5);
-        REQUIRE(deque[0] == 10);
-        REQUIRE(deque[1] == 10);
-        REQUIRE(deque[2] == 10);
-        REQUIRE(deque[3] == 10);
-        REQUIRE(deque[4] == 10);
-    }
-    SECTION("Copy constructor")
+    SECTION("Clone")
     {
         Deque<i32> deque(5, 10);
-        Deque<i32> copy(deque);
+        Deque<i32> copy = deque.Clone();
         REQUIRE(copy.GetCapacity() == 8);
         REQUIRE(copy.GetSize() == 5);
         REQUIRE(copy[0] == 10);
@@ -139,6 +108,26 @@ TEST_CASE("Constructor", "[Deque]")
         REQUIRE(copy[2] == 10);
         REQUIRE(copy[3] == 10);
         REQUIRE(copy[4] == 10);
+    }
+    SECTION("Clone with allocator")
+    {
+        MallocAllocator allocator;
+        Deque<i32> deque(5, 10);
+        Deque<i32> copy = deque.Clone(&allocator);
+        REQUIRE(copy.GetCapacity() == 8);
+        REQUIRE(copy.GetSize() == 5);
+        REQUIRE(copy[0] == 10);
+        REQUIRE(copy[1] == 10);
+        REQUIRE(copy[2] == 10);
+        REQUIRE(copy[3] == 10);
+        REQUIRE(copy[4] == 10);
+    }
+    SECTION("Clone empty")
+    {
+        Deque<i32> deque;
+        Deque<i32> copy = deque.Clone();
+        REQUIRE(copy.GetCapacity() == 0);
+        REQUIRE(copy.GetSize() == 0);
     }
     SECTION("Move constructor")
     {
@@ -157,18 +146,17 @@ TEST_CASE("Constructor", "[Deque]")
 
 TEST_CASE("Assignment", "[Deque]")
 {
-    SECTION("Copy assignment")
+    SECTION("Clone after push")
     {
-        Deque<i32> deque(5, 10);
-        Deque<i32> copy;
-        copy = deque;
-        REQUIRE(copy.GetCapacity() == 8);
-        REQUIRE(copy.GetSize() == 5);
-        REQUIRE(copy[0] == 10);
-        REQUIRE(copy[1] == 10);
-        REQUIRE(copy[2] == 10);
-        REQUIRE(copy[3] == 10);
-        REQUIRE(copy[4] == 10);
+        Deque<i32> deque;
+        deque.PushBack(1);
+        deque.PushBack(2);
+        deque.PushBack(3);
+        Deque<i32> copy = deque.Clone();
+        REQUIRE(copy.GetSize() == 3);
+        REQUIRE(copy[0] == 1);
+        REQUIRE(copy[1] == 2);
+        REQUIRE(copy[2] == 3);
     }
     SECTION("Move assignment")
     {
