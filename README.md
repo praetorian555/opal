@@ -303,6 +303,7 @@ Opal::Visit(value, [](const auto& v) { /* handle each type */ });
 
 | Header | Description |
 |--------|-------------|
+| `opal/casts.h` | Checked narrow cast for integral and floating-point conversions |
 | `opal/type-traits.h` | Compile-time type traits and C++20 concepts |
 | `opal/common.h` | `Swap`, `Clone`, `GetArraySize` |
 | `opal/clonable-base.h` | CRTP base for automatic deep cloning via `OPAL_CLONE_FIELDS` macro |
@@ -316,6 +317,23 @@ Opal::Visit(value, [](const auto& v) { /* handle each type */ });
 | `opal/hash.h` | Hash functions (wyhash) |
 | `opal/rng.h` | Random number generation |
 | `opal/source-location.h` | Source code location information |
+
+### Narrow Cast
+
+`Opal::Narrow` is the preferred way to cast between integral and floating-point types instead of `static_cast`. In debug builds, it validates that the conversion is lossless by round-tripping the value and throws `Exception` if data is lost. In release builds, it compiles down to a plain `static_cast`.
+
+```cpp
+#include "opal/casts.h"
+
+Opal::i32 big = 300;
+Opal::u8 small = Opal::Narrow<Opal::u8>(big);   // Throws in debug (300 > 255)
+
+Opal::f64 pi = 3.14159265358979;
+Opal::f32 pi_f = Opal::Narrow<Opal::f32>(pi);   // OK, no precision loss in this case
+
+Opal::i64 value = 42;
+Opal::i32 safe = Opal::Narrow<Opal::i32>(value); // OK, 42 fits in i32
+```
 
 ## License
 
