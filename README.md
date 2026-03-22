@@ -196,6 +196,8 @@ Opal::DynamicArray<int> arr;           // Uses default allocator
 Opal::DynamicArray<int> arr(&alloc);   // Uses explicit allocator
 ```
 
+See [docs/containers.md](docs/containers.md) for the full guide.
+
 ### Math
 
 Linear algebra types for 2D/3D applications.
