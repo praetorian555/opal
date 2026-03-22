@@ -320,3 +320,38 @@ TEST_CASE("Non-POD type")
     HashSet<SomeType> set;
     set.Insert(SomeType(5, 10));
 }
+
+TEST_CASE("HashSet ToArray", "[hash-set]")
+{
+    SECTION("POD type")
+    {
+        HashSet<i32> set;
+        set.Insert(1);
+        set.Insert(2);
+        set.Insert(3);
+        DynamicArray<i32> arr = set.ToArray();
+        REQUIRE(arr.GetSize() == 3);
+        for (u64 i = 0; i < arr.GetSize(); i++)
+        {
+            REQUIRE(set.Contains(arr[i]));
+        }
+    }
+    SECTION("Empty set")
+    {
+        HashSet<i32> set;
+        DynamicArray<i32> arr = set.ToArray();
+        REQUIRE(arr.GetSize() == 0);
+    }
+    SECTION("Non-POD type")
+    {
+        HashSet<StringUtf8> set;
+        set.Insert("Hello");
+        set.Insert("World");
+        DynamicArray<StringUtf8> arr = set.ToArray();
+        REQUIRE(arr.GetSize() == 2);
+        for (u64 i = 0; i < arr.GetSize(); i++)
+        {
+            REQUIRE(set.Contains(arr[i]));
+        }
+    }
+}

@@ -5,6 +5,7 @@
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/bit.h"
+#include "opal/container/dynamic-array.h"
 #include "opal/error-codes.h"
 #include "opal/hash.h"
 #include "opal/common.h"
@@ -155,6 +156,8 @@ public:
     ErrorCode Erase(const_iterator first, const_iterator last);
 
     void Clear();
+
+    DynamicArray<key_type> ToArray() const;
 
     iterator begin() { return FindFirstIterator(); }
     const_iterator begin() const { return FindFirstIterator(); }
@@ -711,4 +714,23 @@ const typename Opal::HashSet<KeyType>::key_type& Opal::HashSet<KeyType>::GetKey(
 {
     OPAL_ASSERT(IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index];
+}
+
+template <typename KeyType>
+Opal::DynamicArray<KeyType> Opal::HashSet<KeyType>::ToArray() const
+{
+    DynamicArray<key_type> result;
+    result.Reserve(m_size);
+    for (const key_type& key : *this)
+    {
+        if constexpr (IsPOD<KeyType>)
+        {
+            result.PushBack(key);
+        }
+        else
+        {
+            result.PushBack(key.Clone());
+        }
+    }
+    return result;
 }
