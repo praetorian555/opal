@@ -3,6 +3,7 @@
 #include <utility>
 
 #include "opal/allocator.h"
+#include "opal/container/ref.h"
 #include "opal/type-traits.h"
 
 namespace Opal
@@ -74,6 +75,11 @@ public:
     T& operator*() const { return *m_ptr; }
     T* Get() const { return m_ptr; }
     [[nodiscard]] AllocatorBase* GetAllocator() const { return m_allocator; }
+
+    /** Returns a non-owning Ref wrapper around the managed object. */
+    Ref<T> ToRef() { return Ref<T>(m_ptr); }
+    /** Returns a non-owning const Ref wrapper around the managed object. */
+    Ref<const T> ToRef() const { return Ref<const T>(m_ptr); }
 
     void Reset()
     {

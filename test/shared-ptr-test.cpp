@@ -276,6 +276,43 @@ TEMPLATE_TEST_CASE("SharedPtr GetRef", "[SharedPtr]",
     REQUIRE(const_ref.GetPtr() == ptr.Get());
 }
 
+TEMPLATE_TEST_CASE("SharedPtr ToRef", "[SharedPtr]",
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::ThreadSafe>),
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::SingleThread>))
+{
+    constexpr ThreadingPolicy k_policy = TestType::value;
+
+    SECTION("Non-const ToRef")
+    {
+        SharedPtr<i32, k_policy> ptr(GetDefaultAllocator(), 11);
+        Ref<i32> ref = ptr.ToRef();
+        REQUIRE(ref.IsValid());
+        REQUIRE(ref.Get() == 11);
+        REQUIRE(ref.GetPtr() == ptr.Get());
+    }
+    SECTION("Const ToRef")
+    {
+        SharedPtr<i32, k_policy> ptr(GetDefaultAllocator(), 11);
+        const SharedPtr<i32, k_policy>& cref = ptr;
+        Ref<const i32> ref = cref.ToRef();
+        REQUIRE(ref.IsValid());
+        REQUIRE(ref.Get() == 11);
+        REQUIRE(ref.GetPtr() == ptr.Get());
+    }
+    SECTION("ToRef on invalid SharedPtr")
+    {
+        SharedPtr<i32, k_policy> ptr;
+        Ref<i32> ref = ptr.ToRef();
+        REQUIRE_FALSE(ref.IsValid());
+    }
+    SECTION("Const ToRef on invalid SharedPtr")
+    {
+        const SharedPtr<i32, k_policy> ptr;
+        Ref<const i32> ref = ptr.ToRef();
+        REQUIRE_FALSE(ref.IsValid());
+    }
+}
+
 TEMPLATE_TEST_CASE("SharedPtr destructor releases resources", "[SharedPtr]",
                     (std::integral_constant<ThreadingPolicy, ThreadingPolicy::ThreadSafe>),
                     (std::integral_constant<ThreadingPolicy, ThreadingPolicy::SingleThread>))

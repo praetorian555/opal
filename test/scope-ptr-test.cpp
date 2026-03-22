@@ -1,5 +1,6 @@
 #include "test-helpers.h"
 
+#include "opal/container/ref.h"
 #include "opal/container/scope-ptr.h"
 
 using namespace Opal;
@@ -73,5 +74,38 @@ TEST_CASE("MakeScoped", "[ScopePtr]")
         ScopePtr<Base> ptr = MakeScoped<Base, Derived>(GetDefaultAllocator(), 99);
         REQUIRE(ptr.IsValid());
         REQUIRE(ptr->GetValue() == 99);
+    }
+}
+
+TEST_CASE("ScopePtr ToRef", "[ScopePtr]")
+{
+    SECTION("Non-const ToRef")
+    {
+        ScopePtr<int> ptr = MakeScoped<int>(GetDefaultAllocator(), 42);
+        Ref<int> ref = ptr.ToRef();
+        REQUIRE(ref.IsValid());
+        REQUIRE(ref.Get() == 42);
+        REQUIRE(ref.GetPtr() == ptr.Get());
+    }
+    SECTION("Const ToRef")
+    {
+        ScopePtr<int> ptr = MakeScoped<int>(GetDefaultAllocator(), 42);
+        const ScopePtr<int>& cref = ptr;
+        Ref<const int> ref = cref.ToRef();
+        REQUIRE(ref.IsValid());
+        REQUIRE(ref.Get() == 42);
+        REQUIRE(ref.GetPtr() == ptr.Get());
+    }
+    SECTION("ToRef on invalid ScopePtr")
+    {
+        ScopePtr<int> ptr;
+        Ref<int> ref = ptr.ToRef();
+        REQUIRE_FALSE(ref.IsValid());
+    }
+    SECTION("Const ToRef on invalid ScopePtr")
+    {
+        const ScopePtr<int> ptr;
+        Ref<const int> ref = ptr.ToRef();
+        REQUIRE_FALSE(ref.IsValid());
     }
 }

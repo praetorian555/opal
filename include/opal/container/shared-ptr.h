@@ -237,6 +237,11 @@ public:
     /** Returns a const Ref wrapper around the managed object. */
     Ref<const T> GetRef() const { return Ref<const T>(m_object); }
 
+    /** Returns a non-owning Ref wrapper around the managed object. */
+    Ref<T> ToRef() { return Ref<T>(m_object); }
+    /** Returns a non-owning const Ref wrapper around the managed object. */
+    Ref<const T> ToRef() const { return Ref<const T>(m_object); }
+
 private:
     template <typename U, ThreadingPolicy P>
     friend class SharedPtr;
