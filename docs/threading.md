@@ -1,6 +1,6 @@
 # Threading
 
-Headers: `opal/threading/thread.h`, `opal/threading/mutex.h`, `opal/threading/condition-variable.h`, `opal/threading/channel-spsc.h`, `opal/threading/channel-mpmc.h`, `opal/threading/thread-pool.h`
+Headers: `opal/threading/thread.h`, `opal/threading/mutex.h`, `opal/threading/condition-variable.h`, `opal/threading/signal.h`, `opal/threading/channel-spsc.h`, `opal/threading/channel-mpmc.h`, `opal/threading/thread-pool.h`
 
 Cross-platform threading primitives for Windows and Linux. Includes threads, mutexes, condition variables, lock-free channels, and a task-based thread pool.
 
@@ -222,6 +222,76 @@ Opal::JoinThread(t);
 
 Platform implementation: `CONDITION_VARIABLE` on Windows, `pthread_cond_t` on Linux.
 
+## Signal
+
+`Signal` is a lightweight synchronization primitive that allows threads to wait for state changes without requiring a mutex or an allocator. Uses `WaitOnAddress` on Windows and `futex` on Linux. Internally uses a monotonic `u32` counter to avoid lost notifications.
+
+```cpp
+#include "opal/threading/signal.h"
+
+Opal::Signal signal;
+
+// Worker thread waits for state to change from 0
+Opal::ThreadHandle t = Opal::CreateThread([&]()
+{
+    signal.Wait(0);  // Blocks while state == 0
+    // State has changed, do work
+});
+
+// Main thread notifies (advances state and wakes)
+signal.NotifyOne();
+
+Opal::JoinThread(t);
+```
+
+### Polling Loop
+
+Use `GetState` and `Wait` together for a polling loop that efficiently blocks between changes.
+
+```cpp
+Opal::Signal signal;
+
+Opal::ThreadHandle t = Opal::CreateThread([&]()
+{
+    Opal::u32 state = signal.GetState();
+    while (running)
+    {
+        signal.Wait(state);        // Block until state changes
+        state = signal.GetState(); // Read new state
+        // React to changes...
+    }
+});
+
+// Producer notifies whenever there is new work
+signal.NotifyAll();
+```
+
+### Timed Wait
+
+```cpp
+Opal::Signal signal;
+
+// Wait up to 100ms for state to change from 0
+bool changed = signal.WaitFor(0, 100);
+if (!changed)
+{
+    // Timed out, state is still 0
+}
+```
+
+### API Reference
+
+| Method | Description |
+|--------|-------------|
+| `Signal()` | Construct with initial state 0 |
+| `GetState()` | Returns current state with acquire semantics |
+| `Wait(u32 expected_state)` | Block while state equals expected_state |
+| `WaitFor(u32 expected_state, u64 timeout_ms)` | Timed wait, returns `false` on timeout |
+| `NotifyOne()` | Advance state and wake one waiting thread |
+| `NotifyAll()` | Advance state and wake all waiting threads |
+
+Platform implementation: `WaitOnAddress` / `WakeByAddressSingle` / `WakeByAddressAll` on Windows, `futex` syscall on Linux.
+
 ## Channels
 
 Channels provide thread-safe, one-way communication between threads using a bounded queue. Data is sent through a `Transmitter` and received through a `Receiver`.
@@ -368,6 +438,7 @@ parent->WaitForCompletion();
 | `CreateThread` / `JoinThread` | Yes |
 | `Mutex<T>` | Yes (that's its purpose) |
 | `ConditionVariable` | Yes (when used with Mutex) |
+| `Signal` | Yes |
 | `ChannelSPSC` | Yes (one producer, one consumer) |
 | `ChannelMPMC` | Yes (multiple producers, multiple consumers) |
 | `ThreadPool` | `AddFunctionTask` is thread-safe via internal MPMC channel |

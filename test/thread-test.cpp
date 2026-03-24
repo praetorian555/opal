@@ -9,6 +9,7 @@
 #include "opal/threading/channel-mpmc.h"
 #include "opal/threading/channel-spsc.h"
 #include "opal/threading/condition-variable.h"
+#include "opal/threading/signal.h"
 #include "opal/threading/mutex.h"
 #include "opal/threading/thread-pool.h"
 #include "opal/threading/thread.h"
@@ -366,4 +367,134 @@ TEST_CASE("Thread pool captures string", "[Thread]")
     auto task = pool.AddFunctionTask([moved_value = value.Clone()](Task::TransmitterType&) { REQUIRE(moved_value == "Hello"); });
     task->WaitForCompletion();
     REQUIRE(value == "Hello");
+}
+
+TEST_CASE("Signal initial state", "[Thread]")
+{
+    Signal signal;
+    REQUIRE(signal.GetState() == 0);
+}
+
+TEST_CASE("Signal NotifyOne wakes waiting thread", "[Thread]")
+{
+    Signal signal;
+    std::atomic<bool> thread_woke_up{false};
+
+    const ThreadHandle t = CreateThread(
+        [](Signal& sig, std::atomic<bool>& woke_up)
+        {
+            sig.Wait(0);
+            woke_up.store(true);
+        },
+        Ref(signal), Ref(thread_woke_up));
+
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(100ms);
+    REQUIRE(thread_woke_up.load() == false);
+
+    signal.NotifyOne();
+
+    JoinThread(t);
+    REQUIRE(thread_woke_up.load() == true);
+    REQUIRE(signal.GetState() == 1);
+}
+
+TEST_CASE("Signal NotifyAll wakes all waiting threads", "[Thread]")
+{
+    Signal signal;
+    std::atomic<i32> woken_count{0};
+
+    const ThreadHandle t1 = CreateThread(
+        [](Signal& sig, std::atomic<i32>& count)
+        {
+            sig.Wait(0);
+            count.fetch_add(1);
+        },
+        Ref(signal), Ref(woken_count));
+
+    const ThreadHandle t2 = CreateThread(
+        [](Signal& sig, std::atomic<i32>& count)
+        {
+            sig.Wait(0);
+            count.fetch_add(1);
+        },
+        Ref(signal), Ref(woken_count));
+
+    using namespace std::chrono_literals;
+    std::this_thread::sleep_for(100ms);
+    REQUIRE(woken_count.load() == 0);
+
+    signal.NotifyAll();
+
+    JoinThread(t1);
+    JoinThread(t2);
+    REQUIRE(woken_count.load() == 2);
+}
+
+TEST_CASE("Signal WaitFor returns false on timeout", "[Thread]")
+{
+    Signal signal;
+    bool result = signal.WaitFor(0, 50);
+    REQUIRE(result == false);
+}
+
+TEST_CASE("Signal WaitFor returns true when state changes", "[Thread]")
+{
+    Signal signal;
+
+    const ThreadHandle t = CreateThread(
+        [](Signal& sig)
+        {
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(50ms);
+            sig.NotifyOne();
+        },
+        Ref(signal));
+
+    bool result = signal.WaitFor(0, 5000);
+    REQUIRE(result == true);
+    REQUIRE(signal.GetState() == 1);
+
+    JoinThread(t);
+}
+
+TEST_CASE("Signal move constructor", "[Thread]")
+{
+    Signal signal;
+    signal.NotifyOne();
+    REQUIRE(signal.GetState() == 1);
+
+    Signal moved_signal(Move(signal));
+    REQUIRE(moved_signal.GetState() == 1);
+    REQUIRE(signal.GetState() == 0);
+}
+
+TEST_CASE("Signal move assignment", "[Thread]")
+{
+    Signal signal;
+    signal.NotifyOne();
+    REQUIRE(signal.GetState() == 1);
+
+    Signal other;
+    other = Move(signal);
+    REQUIRE(other.GetState() == 1);
+    REQUIRE(signal.GetState() == 0);
+}
+
+TEST_CASE("Signal multiple notify calls", "[Thread]")
+{
+    Signal signal;
+    signal.NotifyOne();
+    signal.NotifyOne();
+    signal.NotifyAll();
+    REQUIRE(signal.GetState() == 3);
+}
+
+TEST_CASE("Signal wait returns immediately when state already changed", "[Thread]")
+{
+    Signal signal;
+    signal.NotifyOne();
+    // State is now 1, waiting on 0 should return immediately
+    signal.Wait(0);
+    REQUIRE(signal.GetState() == 1);
 }

@@ -50,6 +50,7 @@ set(OPAL_FILES
         src/thread.cpp
         src/mutex.cpp
         src/condition-variable.cpp
+        src/signal.cpp
         src/logging.cpp
         src/thread-pool.cpp
         include/opal/defines.h
@@ -106,6 +107,7 @@ set(OPAL_FILES
         include/opal/threading/thread.h
         include/opal/threading/mutex.h
         include/opal/threading/condition-variable.h
+        include/opal/threading/signal.h
         include/opal/threading/channel-spsc.h
         include/opal/threading/channel-mpmc.h
         include/opal/threading/thread-pool.h
@@ -119,6 +121,9 @@ target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_
 target_include_directories(opal PUBLIC $<INSTALL_INTERFACE:include>)
 target_link_libraries(opal PRIVATE opal_warnings)
 target_link_libraries(opal PRIVATE opal_options)
+if (WIN32)
+    target_link_libraries(opal PRIVATE synchronization)
+endif ()
 target_compile_features(opal PUBLIC cxx_std_20)
 set_target_properties(opal PROPERTIES VERSION ${OPAL_VERSION} SOVERSION ${OPAL_VERSION_MAJOR})
 
