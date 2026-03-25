@@ -233,9 +233,29 @@ Cross-platform threading primitives and concurrency utilities.
 | `opal/threading/thread.h` | Thread wrapper |
 | `opal/threading/mutex.h` | Mutex with value-based RAII locking |
 | `opal/threading/condition-variable.h` | Condition variable |
+| `opal/threading/signal.h` | Lightweight signaling primitive (WaitOnAddress/futex) |
 | `opal/threading/channel-spsc.h` | Single-producer, single-consumer channel |
 | `opal/threading/channel-mpmc.h` | Multi-producer, multi-consumer channel |
 | `opal/threading/thread-pool.h` | Task-based thread pool |
+| `opal/threading/wait-policy.h` | Wait policies for channels (`SpinWaitPolicy`, `SignalWaitPolicy`) |
+| `opal/threading/cpu-pause.h` | CPU pause/yield hint for spin-wait loops |
+
+SPSC and MPMC channels split into a `Transmitter` (producer) and `Receiver` (consumer) that can be moved to separate threads. SPSC channels accept a `WaitPolicy` template parameter that controls how blocking operations wait:
+
+- **`SignalWaitPolicy`** (default) — blocks via the `Signal` primitive (WaitOnAddress/futex), freeing the CPU while waiting.
+- **`SpinWaitPolicy`** — busy-waits using a CPU pause instruction, lowest latency but consumes CPU.
+
+```cpp
+#include "opal/threading/channel-spsc.h"
+
+// Default: uses SignalWaitPolicy
+Opal::ChannelSPSC<int> channel(128);
+channel.transmitter.Send(42);
+int val = channel.receiver.Receive();
+
+// Explicit: use SpinWaitPolicy for lowest latency
+Opal::ChannelSPSC<int, Opal::SpinWaitPolicy> fast_channel(128);
+```
 
 ```cpp
 #include "opal/threading/mutex.h"

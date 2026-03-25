@@ -8,6 +8,7 @@
 #include "opal/rng.h"
 #include "opal/threading/channel-mpmc.h"
 #include "opal/threading/channel-spsc.h"
+#include "opal/threading/wait-policy.h"
 #include "opal/threading/condition-variable.h"
 #include "opal/threading/signal.h"
 #include "opal/threading/mutex.h"
@@ -260,6 +261,71 @@ TEST_CASE("SPSC channel", "[Thread]")
 
         const ThreadHandle t = CreateThread(
             [](ReceiverSPSC<i32> receiver)
+            {
+                REQUIRE(receiver.IsValid());
+                const i32 val = receiver.Receive();
+                REQUIRE(val == 5);
+            },
+            Move(channel.receiver));
+
+        REQUIRE(!channel.receiver.IsValid());
+        channel.transmitter.Send(5);
+
+        JoinThread(t);
+    }
+}
+
+TEST_CASE("SPSC queue basic Push and Pop with SpinWaitPolicy", "[Thread]")
+{
+    DynamicArray<i64> data;
+    constexpr size_t k_capacity = 1024;
+    Opal::RNG rng;
+    for (size_t i = 0; i < k_capacity; ++i)
+    {
+        i64 value = static_cast<i64>(rng.RandomI32()) << 32 | rng.RandomI32();
+        data.PushBack(value);
+    }
+    Impl::QueueSPSC<i64, SpinWaitPolicy> queue(32);
+
+    const ThreadHandle handle = CreateThread(
+        [](Impl::QueueSPSC<i64, SpinWaitPolicy>& in_queue, Opal::DynamicArray<i64>& in_data)
+        {
+            size_t count = 0;
+            while (count < k_capacity)
+            {
+                const i64 value = in_data[count];
+                const i64 queued_value = in_queue.Pop();
+                REQUIRE(queued_value == value);
+                count++;
+            }
+        },
+        Ref(queue), Ref(data));
+
+    for (const i64& value : data)
+    {
+        queue.Push(value);
+    }
+    JoinThread(handle);
+}
+
+TEST_CASE("SPSC channel with SpinWaitPolicy", "[Thread]")
+{
+    SECTION("Basic usage")
+    {
+        ChannelSPSC<i32, SpinWaitPolicy> channel(128);
+        channel.transmitter.Send(5);
+        REQUIRE(channel.transmitter.TrySend(10));
+        i32 val = channel.receiver.Receive();
+        REQUIRE(val == 5);
+        REQUIRE(channel.receiver.TryReceive(val));
+        REQUIRE(val == 10);
+    }
+    SECTION("With different threads")
+    {
+        ChannelSPSC<i32, SpinWaitPolicy> channel(128);
+
+        const ThreadHandle t = CreateThread(
+            [](ReceiverSPSC<i32, SpinWaitPolicy> receiver)
             {
                 REQUIRE(receiver.IsValid());
                 const i32 val = receiver.Receive();

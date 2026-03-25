@@ -2,6 +2,7 @@
 
 #include <atomic>
 
+#include "opal/defines.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -12,7 +13,9 @@ namespace Opal
  * Uses WaitOnAddress on Windows and futex on Linux. Does not require a mutex or an allocator.
  * Internally uses a monotonic u32 counter to avoid lost notifications.
  */
-class Signal
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_MSVC_WARNING(4324)
+class alignas(OPAL_CACHE_LINE_SIZE) Signal
 {
 public:
     Signal();
@@ -58,5 +61,6 @@ public:
 private:
     std::atomic<u32> m_state{0};
 };
+OPAL_END_DISABLE_WARNINGS
 
 }  // namespace Opal
