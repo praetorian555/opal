@@ -300,6 +300,13 @@ Channels provide thread-safe, one-way communication between threads using a boun
 
 Single-producer, single-consumer. The transmitter and receiver are move-only. Lock-free using atomics with cache-line aligned indices to prevent false sharing.
 
+Both SPSC and MPMC channels accept a `bool UseSignaling` template parameter:
+
+- **`true`** — blocking operations use `std::atomic::wait/notify` (WaitOnAddress/futex), freeing the CPU while waiting.
+- **`false`** — blocking operations busy-wait using a CPU pause instruction, lowest latency but consumes CPU.
+
+SPSC defaults to `true` (signaling). MPMC defaults to `false` (spin).
+
 ```cpp
 #include "opal/threading/channel-spsc.h"
 
@@ -324,6 +331,9 @@ channel.transmitter.Send(42);                 // Blocks if full
 channel.transmitter.TrySend(43);              // Non-blocking, returns false if full
 
 Opal::JoinThread(t);
+
+// Use spin-waiting for lowest latency
+Opal::ChannelSPSC<int, false> fast_channel(128);
 ```
 
 ### MPMC Channel
@@ -378,7 +388,7 @@ SPSC transmitters and receivers are move-only. MPMC transmitters and receivers s
 
 ## Thread Pool
 
-A task-based thread pool that distributes work across a fixed number of worker threads using an MPMC channel internally.
+A task-based thread pool that distributes work across a fixed number of worker threads using a signaling MPMC channel internally. Worker threads block when idle and wake on task submission, consuming no CPU while waiting. Shutdown is handled by sending sentinel values through the channel to unblock and terminate each worker.
 
 ```cpp
 #include "opal/threading/thread-pool.h"
@@ -422,13 +432,13 @@ parent->WaitForCompletion();
 |--------|-------------|
 | `ThreadPool(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)` | Create pool with N workers |
 | `AddFunctionTask(Function)` | Submit a callable, returns `SharedPtr<Task>` |
-| `Close()` | Signal workers to exit and join all threads |
+| `Close()` | Send sentinel tasks to unblock workers, then join all threads. Safe to call multiple times |
 | `GetThreadCount()` | Number of worker threads |
 | `GetAllocator()` | Allocator used by the pool |
 
 | Task Method | Description |
 |-------------|-------------|
-| `WaitForCompletion()` | Busy-wait until the task finishes |
+| `WaitForCompletion()` | Block until the task finishes (uses OS signaling, not busy-waiting) |
 | `IsCompleted()` | Check if the task has finished |
 
 ## Thread Safety Summary
@@ -451,8 +461,4 @@ parent->WaitForCompletion();
 
 ### Channel Close
 
-Channels currently have no way to signal "no more data". A `Close()` method on the transmitter side would make `Receive()` return an error or empty value, enabling clean shutdown patterns without external atomics like the thread pool's `m_should_exit`.
-
-### Thread Pool Blocking Wait
-
-Worker threads currently busy-wait with `TryReceive()` in a tight loop, which wastes CPU when idle. Switching to a blocking `Receive()` or using a condition variable internally would reduce CPU usage when the pool has no work.
+Channels currently have no way to signal "no more data". A `Close()` method on the transmitter side would make `Receive()` return an error or empty value, enabling clean shutdown patterns without sentinel values.
