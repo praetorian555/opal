@@ -6,6 +6,7 @@
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/shared-ptr.h"
+#include "opal/threading/cpu-pause.h"
 #include "opal/type-traits.h"
 
 namespace Opal
@@ -24,7 +25,13 @@ struct QueueMPMCSlot
     OPAL_END_DISABLE_WARNINGS
 };
 
-template <typename T>
+/**
+ * Lock-free multiple-producer multiple-consumer bounded queue.
+ * @tparam T Type of data stored in the queue. Must be default constructable.
+ * @tparam UseSignaling If true, uses std::atomic::wait/notify to block when waiting for a slot's turn.
+ *         If false, busy-waits using a CPU pause instruction. Defaults to false.
+ */
+template <typename T, bool UseSignaling = false>
     requires Opal::DefaultConstructable<T>
 class QueueMPMC
 {
@@ -37,8 +44,18 @@ public:
         size_t slot_idx = write_idx & (m_capacity - 1);
         auto& slot = m_data[slot_idx];
         size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
-        while (2 * turn != slot.turn.load(std::memory_order_acquire))
+        size_t current_turn = slot.turn.load(std::memory_order_acquire);
+        while (2 * turn != current_turn)
         {
+            if constexpr (UseSignaling)
+            {
+                slot.turn.wait(current_turn, std::memory_order_relaxed);
+            }
+            else
+            {
+                CpuPause();
+            }
+            current_turn = slot.turn.load(std::memory_order_acquire);
         }
         if constexpr (Opal::CopyAssignable<T>)
         {
@@ -53,6 +70,10 @@ public:
             throw Exception("Data type can't be copied!");
         }
         slot.turn.store(2 * turn + 1, std::memory_order_release);
+        if constexpr (UseSignaling)
+        {
+            slot.turn.notify_all();
+        }
     }
 
     bool TryPush(const T& data)
@@ -94,6 +115,10 @@ public:
                         throw Exception("Data type can't be copied!");
                     }
                     slot.turn.store(2 * turn + 1, std::memory_order_release);
+                    if constexpr (UseSignaling)
+                    {
+                        slot.turn.notify_all();
+                    }
                     return true;
                 }
             }
@@ -106,11 +131,25 @@ public:
         size_t slot_idx = read_idx & (m_capacity - 1);
         auto& slot = m_data[slot_idx];
         size_t turn = read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
-        while (2 * turn + 1 != slot.turn.load(std::memory_order_acquire))
+        size_t current_turn = slot.turn.load(std::memory_order_acquire);
+        while (2 * turn + 1 != current_turn)
         {
+            if constexpr (UseSignaling)
+            {
+                slot.turn.wait(current_turn, std::memory_order_relaxed);
+            }
+            else
+            {
+                CpuPause();
+            }
+            current_turn = slot.turn.load(std::memory_order_acquire);
         }
         T result = Move(slot.data);
         slot.turn.store(2 * turn + 2, std::memory_order_release);
+        if constexpr (UseSignaling)
+        {
+            slot.turn.notify_all();
+        }
         return result;
     }
 
@@ -137,6 +176,10 @@ public:
                 {
                     result = Move(slot.data);
                     slot.turn.store(2 * turn + 2, std::memory_order_release);
+                    if constexpr (UseSignaling)
+                    {
+                        slot.turn.notify_all();
+                    }
                     return true;
                 }
             }
@@ -156,19 +199,20 @@ private:
 }  // namespace Impl
 
 /**
- * Part of the multiple-producer multiple-consumer communication channel used for sending data.
+ * Producer end of a multiple-producer multiple-consumer communication channel.
  * It can be both copied and moved. Use Clone for copying.
  * @tparam T Type of data that is being sent.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
  */
-template <typename T>
+template <typename T, bool UseSignaling = false>
 struct TransmitterMPMC
 {
     TransmitterMPMC() = default;
-    explicit TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T>>&& q) : m_queue(Move(q)) {}
+    explicit TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(Move(q)) {}
     ~TransmitterMPMC() = default;
 
-    TransmitterMPMC(const TransmitterMPMC<T>& q) = delete;
-    TransmitterMPMC& operator=(const TransmitterMPMC<T>& q) = delete;
+    TransmitterMPMC(const TransmitterMPMC& q) = delete;
+    TransmitterMPMC& operator=(const TransmitterMPMC& q) = delete;
 
     TransmitterMPMC(TransmitterMPMC&& other) noexcept : m_queue(Move(other.m_queue)) {}
     TransmitterMPMC& operator=(TransmitterMPMC&& other) noexcept
@@ -192,23 +236,24 @@ struct TransmitterMPMC
     bool TrySend(const T& item) { return m_queue->TryPush(item); }
 
 private:
-    SharedPtr<Impl::QueueMPMC<T>> m_queue;
+    SharedPtr<Impl::QueueMPMC<T, UseSignaling>> m_queue;
 };
 
 /**
- * Part of the single-producer single-consumer communication channel used for receiving data.
+ * Consumer end of a multiple-producer multiple-consumer communication channel.
  * It can be both copied and moved. Use Clone for copying.
  * @tparam T Type of data that is being received.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
  */
-template <typename T>
+template <typename T, bool UseSignaling = false>
 struct ReceiverMPMC
 {
     ReceiverMPMC() = default;
-    explicit ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T>>&& q) : m_queue(Move(q)) {}
+    explicit ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(Move(q)) {}
     ~ReceiverMPMC() = default;
 
-    ReceiverMPMC(const ReceiverMPMC<T>& q) = delete;
-    ReceiverMPMC& operator=(const ReceiverMPMC<T>& q) = delete;
+    ReceiverMPMC(const ReceiverMPMC& q) = delete;
+    ReceiverMPMC& operator=(const ReceiverMPMC& q) = delete;
 
     ReceiverMPMC(ReceiverMPMC&& other) noexcept : m_queue(Move(other.m_queue)) {}
     ReceiverMPMC& operator=(ReceiverMPMC&& other) noexcept
@@ -231,27 +276,27 @@ struct ReceiverMPMC
     [[nodiscard]] bool IsValid() const { return m_queue.IsValid(); }
 
 private:
-    SharedPtr<Impl::QueueMPMC<T>> m_queue;
+    SharedPtr<Impl::QueueMPMC<T, UseSignaling>> m_queue;
 };
 
 /**
- * Represents one-way, thread-safe communication channel that can have multiple producers and
- * multiple consumer. To send data you need to use transmitter field and to receive it you need
- * to use receiver field.
+ * One-way, thread-safe communication channel with multiple producers and multiple consumers.
+ * Use the transmitter field to send data and the receiver field to receive it.
  * @tparam T Type of data to be sent over the channel.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
  */
-template <typename T>
+template <typename T, bool UseSignaling = false>
 struct ChannelMPMC
 {
-    TransmitterMPMC<T> transmitter;
-    ReceiverMPMC<T> receiver;
+    TransmitterMPMC<T, UseSignaling> transmitter;
+    ReceiverMPMC<T, UseSignaling> receiver;
 
     explicit ChannelMPMC(size_t capacity, AllocatorBase* allocator = nullptr)
     {
         capacity = GetNextPowerOf2(capacity);
-        SharedPtr<Impl::QueueMPMC<T>> q(allocator, capacity, allocator);
-        transmitter = TransmitterMPMC<T>(q.Clone());
-        receiver = ReceiverMPMC<T>(Move(q));
+        SharedPtr<Impl::QueueMPMC<T, UseSignaling>> q(allocator, capacity, allocator);
+        transmitter = TransmitterMPMC<T, UseSignaling>(q.Clone());
+        receiver = ReceiverMPMC<T, UseSignaling>(Move(q));
     }
 };
 

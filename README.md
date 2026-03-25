@@ -237,24 +237,25 @@ Cross-platform threading primitives and concurrency utilities.
 | `opal/threading/channel-spsc.h` | Single-producer, single-consumer channel |
 | `opal/threading/channel-mpmc.h` | Multi-producer, multi-consumer channel |
 | `opal/threading/thread-pool.h` | Task-based thread pool |
-| `opal/threading/wait-policy.h` | Wait policies for channels (`SpinWaitPolicy`, `SignalWaitPolicy`) |
 | `opal/threading/cpu-pause.h` | CPU pause/yield hint for spin-wait loops |
 
-SPSC and MPMC channels split into a `Transmitter` (producer) and `Receiver` (consumer) that can be moved to separate threads. SPSC channels accept a `WaitPolicy` template parameter that controls how blocking operations wait:
+Channels split into a `Transmitter` (producer) and `Receiver` (consumer) that can be moved to separate threads. Both SPSC and MPMC channels accept a `bool UseSignaling` template parameter that controls how blocking operations wait:
 
-- **`SignalWaitPolicy`** (default) — blocks via the `Signal` primitive (WaitOnAddress/futex), freeing the CPU while waiting.
-- **`SpinWaitPolicy`** — busy-waits using a CPU pause instruction, lowest latency but consumes CPU.
+- **`true`** — blocks via `std::atomic::wait/notify` (WaitOnAddress/futex), freeing the CPU while waiting.
+- **`false`** — busy-waits using a CPU pause instruction, lowest latency but consumes CPU.
+
+SPSC defaults to `true` (signaling). MPMC defaults to `false` (spin).
 
 ```cpp
 #include "opal/threading/channel-spsc.h"
 
-// Default: uses SignalWaitPolicy
+// Default: uses OS signaling (UseSignaling = true)
 Opal::ChannelSPSC<int> channel(128);
 channel.transmitter.Send(42);
 int val = channel.receiver.Receive();
 
-// Explicit: use SpinWaitPolicy for lowest latency
-Opal::ChannelSPSC<int, Opal::SpinWaitPolicy> fast_channel(128);
+// Explicit: use spin-waiting for lowest latency
+Opal::ChannelSPSC<int, false> fast_channel(128);
 ```
 
 ```cpp

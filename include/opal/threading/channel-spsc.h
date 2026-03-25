@@ -6,7 +6,7 @@
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/shared-ptr.h"
-#include "opal/threading/wait-policy.h"
+#include "opal/threading/cpu-pause.h"
 #include "opal/type-traits.h"
 
 namespace Opal
@@ -15,12 +15,12 @@ namespace Impl
 {
 /**
  * Lock-free single-producer single-consumer bounded queue.
- * Capacity is rounded up to the next power of two. Uses a WaitPolicy to control how blocking
- * Push/Pop operations wait when the queue is full/empty.
+ * Capacity is rounded up to the next power of two.
  * @tparam T Type of data stored in the queue. Must be default constructable.
- * @tparam WaitPolicy Policy that controls how blocking Push/Pop wait. Defaults to SignalWaitPolicy.
+ * @tparam UseSignaling If true, uses std::atomic::wait/notify to block when the queue is full/empty.
+ *         If false, busy-waits using a CPU pause instruction. Defaults to true.
  */
-template <typename T, typename WaitPolicy = SignalWaitPolicy>
+template <typename T, bool UseSignaling = true>
     requires Opal::DefaultConstructable<T>
 class QueueSPSC
 {
@@ -40,10 +40,16 @@ public:
         size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
         size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
 
-        m_not_full.Reset();
         while (write_idx - read_idx == m_capacity)
         {
-            m_not_full.Wait();
+            if constexpr (UseSignaling)
+            {
+                m_read_idx.wait(read_idx, std::memory_order_relaxed);
+            }
+            else
+            {
+                CpuPause();
+            }
             read_idx = m_read_idx.load(std::memory_order_relaxed);
         }
 
@@ -51,7 +57,10 @@ public:
         m_data[bound_write_idx] = item;  // Do copy
 
         m_write_idx.store(write_idx + 1, std::memory_order_release);
-        m_not_empty.NotifyOne();
+        if constexpr (UseSignaling)
+        {
+            m_write_idx.notify_one();
+        }
     }
 
     bool TryPush(const T& item)
@@ -68,7 +77,10 @@ public:
         m_data[bound_write_idx] = item;  // Do copy
 
         m_write_idx.store(write_idx + 1, std::memory_order_release);
-        m_not_empty.NotifyOne();
+        if constexpr (UseSignaling)
+        {
+            m_write_idx.notify_one();
+        }
         return true;
     }
 
@@ -77,10 +89,16 @@ public:
         size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
         size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
 
-        m_not_full.Reset();
         while (write_idx - read_idx == m_capacity)
         {
-            m_not_full.Wait();
+            if constexpr (UseSignaling)
+            {
+                m_read_idx.wait(read_idx, std::memory_order_relaxed);
+            }
+            else
+            {
+                CpuPause();
+            }
             read_idx = m_read_idx.load(std::memory_order_relaxed);
         }
 
@@ -88,7 +106,10 @@ public:
         m_data[bound_write_idx] = Move(item);  // Do move
 
         m_write_idx.store(write_idx + 1, std::memory_order_release);
-        m_not_empty.NotifyOne();
+        if constexpr (UseSignaling)
+        {
+            m_write_idx.notify_one();
+        }
     }
 
     template <typename... Args>
@@ -97,10 +118,16 @@ public:
         size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
         size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
 
-        m_not_full.Reset();
         while (write_idx - read_idx == m_capacity)
         {
-            m_not_full.Wait();
+            if constexpr (UseSignaling)
+            {
+                m_read_idx.wait(read_idx, std::memory_order_relaxed);
+            }
+            else
+            {
+                CpuPause();
+            }
             read_idx = m_read_idx.load(std::memory_order_relaxed);
         }
 
@@ -108,7 +135,10 @@ public:
         new (&m_data[bound_write_idx]) T(args...);
 
         m_write_idx.store(write_idx + 1, std::memory_order_release);
-        m_not_empty.NotifyOne();
+        if constexpr (UseSignaling)
+        {
+            m_write_idx.notify_one();
+        }
     }
 
     template <typename... Args>
@@ -126,7 +156,10 @@ public:
         new (&m_data[bound_write_idx]) T(args...);
 
         m_write_idx.store(write_idx + 1, std::memory_order_release);
-        m_not_empty.NotifyOne();
+        if constexpr (UseSignaling)
+        {
+            m_write_idx.notify_one();
+        }
         return true;
     }
 
@@ -135,17 +168,26 @@ public:
         size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
         size_t write_idx = m_write_idx.load(std::memory_order_acquire);
 
-        m_not_empty.Reset();
         while (write_idx - read_idx == 0)
         {
-            m_not_empty.Wait();
+            if constexpr (UseSignaling)
+            {
+                m_write_idx.wait(write_idx, std::memory_order_acquire);
+            }
+            else
+            {
+                CpuPause();
+            }
             write_idx = m_write_idx.load(std::memory_order_acquire);
         }
 
         size_t bound_read_idx = read_idx & (m_capacity - 1);
         T result = Move(m_data[bound_read_idx]);
         m_read_idx.store(read_idx + 1, std::memory_order_release);
-        m_not_full.NotifyOne();
+        if constexpr (UseSignaling)
+        {
+            m_read_idx.notify_one();
+        }
         return result;
     }
 
@@ -160,7 +202,10 @@ public:
         size_t bound_read_idx = read_idx & (m_capacity - 1);
         result = Move(m_data[bound_read_idx]);
         m_read_idx.store(read_idx + 1, std::memory_order_release);
-        m_not_full.NotifyOne();
+        if constexpr (UseSignaling)
+        {
+            m_read_idx.notify_one();
+        }
         return true;
     }
 
@@ -173,9 +218,6 @@ private:
 
     size_t m_capacity = 0;
     DynamicArray<T> m_data = nullptr;
-
-    WaitPolicy m_not_full;
-    WaitPolicy m_not_empty;
 };
 }  // namespace Impl
 
@@ -183,13 +225,13 @@ private:
  * Producer end of a single-producer single-consumer communication channel.
  * It can't be copied, only moved.
  * @tparam T Type of data that is being sent.
- * @tparam WaitPolicy Policy that controls how blocking operations wait. Defaults to SignalWaitPolicy.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
  */
-template <typename T, typename WaitPolicy = SignalWaitPolicy>
+template <typename T, bool UseSignaling = true>
 struct TransmitterSPSC
 {
     TransmitterSPSC() = default;
-    TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, WaitPolicy>>&& q) : m_queue(Move(q)) {}
+    TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(Move(q)) {}
     ~TransmitterSPSC() = default;
 
     TransmitterSPSC(const TransmitterSPSC& q) = delete;
@@ -216,20 +258,20 @@ struct TransmitterSPSC
     bool TrySend(const T& item) { return m_queue->TryPush(item); }
 
 private:
-    SharedPtr<Impl::QueueSPSC<T, WaitPolicy>> m_queue;
+    SharedPtr<Impl::QueueSPSC<T, UseSignaling>> m_queue;
 };
 
 /**
  * Consumer end of a single-producer single-consumer communication channel.
  * It can't be copied, only moved.
  * @tparam T Type of data that is being received.
- * @tparam WaitPolicy Policy that controls how blocking operations wait. Defaults to SignalWaitPolicy.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
  */
-template <typename T, typename WaitPolicy = SignalWaitPolicy>
+template <typename T, bool UseSignaling = true>
 struct ReceiverSPSC
 {
     ReceiverSPSC() = default;
-    ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, WaitPolicy>>&& q) : m_queue(Move(q)) {}
+    ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(Move(q)) {}
     ~ReceiverSPSC() = default;
 
     ReceiverSPSC(const ReceiverSPSC& q) = delete;
@@ -254,7 +296,7 @@ struct ReceiverSPSC
     [[nodiscard]] bool IsValid() const { return m_queue.IsValid(); }
 
 private:
-    SharedPtr<Impl::QueueSPSC<T, WaitPolicy>> m_queue;
+    SharedPtr<Impl::QueueSPSC<T, UseSignaling>> m_queue;
 };
 
 /**
@@ -262,19 +304,19 @@ private:
  * Use the transmitter field to send data and the receiver field to receive it.
  * The transmitter and receiver can be moved to separate threads.
  * @tparam T Type of data to be sent over the channel.
- * @tparam WaitPolicy Policy that controls how blocking operations wait. Defaults to SignalWaitPolicy.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
  */
-template <typename T, typename WaitPolicy = SignalWaitPolicy>
+template <typename T, bool UseSignaling = true>
 struct ChannelSPSC
 {
-    TransmitterSPSC<T, WaitPolicy> transmitter;
-    ReceiverSPSC<T, WaitPolicy> receiver;
+    TransmitterSPSC<T, UseSignaling> transmitter;
+    ReceiverSPSC<T, UseSignaling> receiver;
 
     ChannelSPSC(size_t capacity, AllocatorBase* allocator = nullptr)
     {
-        SharedPtr<Impl::QueueSPSC<T, WaitPolicy>> q(allocator, capacity, allocator);
-        transmitter = TransmitterSPSC<T, WaitPolicy>(q.Clone());
-        receiver = ReceiverSPSC<T, WaitPolicy>(Move(q));
+        SharedPtr<Impl::QueueSPSC<T, UseSignaling>> q(allocator, capacity, allocator);
+        transmitter = TransmitterSPSC<T, UseSignaling>(q.Clone());
+        receiver = ReceiverSPSC<T, UseSignaling>(Move(q));
     }
 };
 

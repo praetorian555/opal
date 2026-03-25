@@ -8,7 +8,6 @@
 #include "opal/rng.h"
 #include "opal/threading/channel-mpmc.h"
 #include "opal/threading/channel-spsc.h"
-#include "opal/threading/wait-policy.h"
 #include "opal/threading/condition-variable.h"
 #include "opal/threading/signal.h"
 #include "opal/threading/mutex.h"
@@ -275,7 +274,7 @@ TEST_CASE("SPSC channel", "[Thread]")
     }
 }
 
-TEST_CASE("SPSC queue basic Push and Pop with SpinWaitPolicy", "[Thread]")
+TEST_CASE("SPSC queue basic Push and Pop with spin wait", "[Thread]")
 {
     DynamicArray<i64> data;
     constexpr size_t k_capacity = 1024;
@@ -285,10 +284,10 @@ TEST_CASE("SPSC queue basic Push and Pop with SpinWaitPolicy", "[Thread]")
         i64 value = static_cast<i64>(rng.RandomI32()) << 32 | rng.RandomI32();
         data.PushBack(value);
     }
-    Impl::QueueSPSC<i64, SpinWaitPolicy> queue(32);
+    Impl::QueueSPSC<i64, false> queue(32);
 
     const ThreadHandle handle = CreateThread(
-        [](Impl::QueueSPSC<i64, SpinWaitPolicy>& in_queue, Opal::DynamicArray<i64>& in_data)
+        [](Impl::QueueSPSC<i64, false>& in_queue, Opal::DynamicArray<i64>& in_data)
         {
             size_t count = 0;
             while (count < k_capacity)
@@ -308,11 +307,11 @@ TEST_CASE("SPSC queue basic Push and Pop with SpinWaitPolicy", "[Thread]")
     JoinThread(handle);
 }
 
-TEST_CASE("SPSC channel with SpinWaitPolicy", "[Thread]")
+TEST_CASE("SPSC channel with spin wait", "[Thread]")
 {
     SECTION("Basic usage")
     {
-        ChannelSPSC<i32, SpinWaitPolicy> channel(128);
+        ChannelSPSC<i32, false> channel(128);
         channel.transmitter.Send(5);
         REQUIRE(channel.transmitter.TrySend(10));
         i32 val = channel.receiver.Receive();
@@ -322,10 +321,10 @@ TEST_CASE("SPSC channel with SpinWaitPolicy", "[Thread]")
     }
     SECTION("With different threads")
     {
-        ChannelSPSC<i32, SpinWaitPolicy> channel(128);
+        ChannelSPSC<i32, false> channel(128);
 
         const ThreadHandle t = CreateThread(
-            [](ReceiverSPSC<i32, SpinWaitPolicy> receiver)
+            [](ReceiverSPSC<i32, false> receiver)
             {
                 REQUIRE(receiver.IsValid());
                 const i32 val = receiver.Receive();
