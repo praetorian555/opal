@@ -103,7 +103,7 @@ public:
         }
 
         size_t bound_write_idx = write_idx & (m_capacity - 1);
-        m_data[bound_write_idx] = Move(item);  // Do move
+        m_data[bound_write_idx] = std::move(item);  // Do move
 
         m_write_idx.store(write_idx + 1, std::memory_order_release);
         if constexpr (UseSignaling)
@@ -182,7 +182,7 @@ public:
         }
 
         size_t bound_read_idx = read_idx & (m_capacity - 1);
-        T result = Move(m_data[bound_read_idx]);
+        T result = std::move(m_data[bound_read_idx]);
         m_read_idx.store(read_idx + 1, std::memory_order_release);
         if constexpr (UseSignaling)
         {
@@ -200,7 +200,7 @@ public:
             return false;
         }
         size_t bound_read_idx = read_idx & (m_capacity - 1);
-        result = Move(m_data[bound_read_idx]);
+        result = std::move(m_data[bound_read_idx]);
         m_read_idx.store(read_idx + 1, std::memory_order_release);
         if constexpr (UseSignaling)
         {
@@ -231,13 +231,13 @@ template <typename T, bool UseSignaling = true>
 struct TransmitterSPSC
 {
     TransmitterSPSC() = default;
-    TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(Move(q)) {}
+    TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
     ~TransmitterSPSC() = default;
 
     TransmitterSPSC(const TransmitterSPSC& q) = delete;
     TransmitterSPSC& operator=(const TransmitterSPSC& q) = delete;
 
-    TransmitterSPSC(TransmitterSPSC&& other) noexcept : m_queue(Move(other.m_queue)) {}
+    TransmitterSPSC(TransmitterSPSC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
 
     TransmitterSPSC& operator=(TransmitterSPSC&& other) noexcept
     {
@@ -245,7 +245,7 @@ struct TransmitterSPSC
         {
             return *this;
         }
-        m_queue = Move(other.m_queue);
+        m_queue = std::move(other.m_queue);
         return *this;
     }
 
@@ -254,7 +254,7 @@ struct TransmitterSPSC
     [[nodiscard]] bool IsValid() const { return m_queue.IsValid(); }
 
     void Send(const T& item) { m_queue->Push(item); }
-    void Send(T&& item) { m_queue->Push(Move(item)); }
+    void Send(T&& item) { m_queue->Push(std::move(item)); }
     bool TrySend(const T& item) { return m_queue->TryPush(item); }
 
 private:
@@ -271,20 +271,20 @@ template <typename T, bool UseSignaling = true>
 struct ReceiverSPSC
 {
     ReceiverSPSC() = default;
-    ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(Move(q)) {}
+    ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
     ~ReceiverSPSC() = default;
 
     ReceiverSPSC(const ReceiverSPSC& q) = delete;
     ReceiverSPSC& operator=(const ReceiverSPSC& q) = delete;
 
-    ReceiverSPSC(ReceiverSPSC&& other) noexcept : m_queue(Move(other.m_queue)) {}
+    ReceiverSPSC(ReceiverSPSC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
     ReceiverSPSC& operator=(ReceiverSPSC&& other) noexcept
     {
         if (*this == other)
         {
             return *this;
         }
-        m_queue = Move(other.m_queue);
+        m_queue = std::move(other.m_queue);
         return *this;
     }
 
@@ -316,7 +316,7 @@ struct ChannelSPSC
     {
         SharedPtr<Impl::QueueSPSC<T, UseSignaling>> q(allocator, capacity, allocator);
         transmitter = TransmitterSPSC<T, UseSignaling>(q.Clone());
-        receiver = ReceiverSPSC<T, UseSignaling>(Move(q));
+        receiver = ReceiverSPSC<T, UseSignaling>(std::move(q));
     }
 };
 

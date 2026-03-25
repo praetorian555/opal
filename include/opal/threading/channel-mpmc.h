@@ -144,7 +144,7 @@ public:
             }
             current_turn = slot.turn.load(std::memory_order_acquire);
         }
-        T result = Move(slot.data);
+        T result = std::move(slot.data);
         slot.turn.store(2 * turn + 2, std::memory_order_release);
         if constexpr (UseSignaling)
         {
@@ -174,7 +174,7 @@ public:
             {
                 if (m_read_idx.compare_exchange_strong(read_idx, read_idx + 1))
                 {
-                    result = Move(slot.data);
+                    result = std::move(slot.data);
                     slot.turn.store(2 * turn + 2, std::memory_order_release);
                     if constexpr (UseSignaling)
                     {
@@ -208,20 +208,20 @@ template <typename T, bool UseSignaling = false>
 struct TransmitterMPMC
 {
     TransmitterMPMC() = default;
-    explicit TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(Move(q)) {}
+    explicit TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
     ~TransmitterMPMC() = default;
 
     TransmitterMPMC(const TransmitterMPMC& q) = delete;
     TransmitterMPMC& operator=(const TransmitterMPMC& q) = delete;
 
-    TransmitterMPMC(TransmitterMPMC&& other) noexcept : m_queue(Move(other.m_queue)) {}
+    TransmitterMPMC(TransmitterMPMC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
     TransmitterMPMC& operator=(TransmitterMPMC&& other) noexcept
     {
         if (*this == other)
         {
             return *this;
         }
-        m_queue = Move(other.m_queue);
+        m_queue = std::move(other.m_queue);
         return *this;
     }
 
@@ -232,7 +232,7 @@ struct TransmitterMPMC
     [[nodiscard]] bool IsValid() const { return m_queue.IsValid(); }
 
     void Send(const T& item) { m_queue->Push(item); }
-    void Send(T&& item) { m_queue->Push(Move(item)); }
+    void Send(T&& item) { m_queue->Push(std::move(item)); }
     bool TrySend(const T& item) { return m_queue->TryPush(item); }
 
 private:
@@ -249,20 +249,20 @@ template <typename T, bool UseSignaling = false>
 struct ReceiverMPMC
 {
     ReceiverMPMC() = default;
-    explicit ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(Move(q)) {}
+    explicit ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
     ~ReceiverMPMC() = default;
 
     ReceiverMPMC(const ReceiverMPMC& q) = delete;
     ReceiverMPMC& operator=(const ReceiverMPMC& q) = delete;
 
-    ReceiverMPMC(ReceiverMPMC&& other) noexcept : m_queue(Move(other.m_queue)) {}
+    ReceiverMPMC(ReceiverMPMC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
     ReceiverMPMC& operator=(ReceiverMPMC&& other) noexcept
     {
         if (*this == other)
         {
             return *this;
         }
-        m_queue = Move(other.m_queue);
+        m_queue = std::move(other.m_queue);
         return *this;
     }
 
@@ -296,7 +296,7 @@ struct ChannelMPMC
         capacity = GetNextPowerOf2(capacity);
         SharedPtr<Impl::QueueMPMC<T, UseSignaling>> q(allocator, capacity, allocator);
         transmitter = TransmitterMPMC<T, UseSignaling>(q.Clone());
-        receiver = ReceiverMPMC<T, UseSignaling>(Move(q));
+        receiver = ReceiverMPMC<T, UseSignaling>(std::move(q));
     }
 };
 
