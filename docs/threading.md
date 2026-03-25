@@ -316,12 +316,17 @@ Opal::ChannelSPSC<int> channel(128);  // Capacity rounded up to next power of 2
 Opal::ThreadHandle t = Opal::CreateThread(
     [](Opal::ReceiverSPSC<int> receiver)
     {
-        int value = receiver.Receive();       // Blocks until data available
-
-        int result;
-        if (receiver.TryReceive(result))      // Non-blocking
+        auto result = receiver.Receive();     // Blocks until data available
+        if (result.HasValue())
         {
-            // Got data
+            int value = result.GetValue();
+        }
+
+        int out;
+        Opal::ErrorCode err = receiver.TryReceive(out);  // Non-blocking
+        if (err == Opal::ErrorCode::Success)
+        {
+            // Got data in out
         }
     },
     std::move(channel.receiver));
@@ -335,6 +340,42 @@ Opal::JoinThread(t);
 // Use spin-waiting for lowest latency
 Opal::ChannelSPSC<int, false> fast_channel(128);
 ```
+
+### SPSC Channel Close
+
+The transmitter can close the channel to signal "no more data". After closing, `Receive()` and `TryReceive()` on the receiver return `ErrorCode::ChannelClosed` without blocking.
+
+```cpp
+Opal::ChannelSPSC<int> channel(128);
+
+Opal::ThreadHandle t = Opal::CreateThread(
+    [](Opal::ReceiverSPSC<int> receiver)
+    {
+        while (true)
+        {
+            int val;
+            Opal::ErrorCode err = receiver.TryReceive(val);
+            if (err == Opal::ErrorCode::ChannelClosed)
+            {
+                break;  // Producer is done
+            }
+            if (err == Opal::ErrorCode::Success)
+            {
+                // Process val
+            }
+            // ErrorCode::ChannelEmpty means no data yet
+        }
+    },
+    std::move(channel.receiver));
+
+channel.transmitter.Send(1);
+channel.transmitter.Send(2);
+channel.transmitter.Close();
+
+Opal::JoinThread(t);
+```
+
+Close is checked at the channel level before entering the queue. If `Receive()` is already blocked inside the queue waiting for data, `Close()` alone will not unblock it — you must ensure data is sent or use `TryReceive()` in a polling loop for clean shutdown patterns.
 
 ### MPMC Channel
 
@@ -373,18 +414,34 @@ Opal::JoinThread(producer2);
 
 ### Channel API Reference
 
+**SPSC**
+
 | Type | Method | Description |
 |------|--------|-------------|
-| `Transmitter*` | `Send(const T&)` / `Send(T&&)` | Blocking send |
-| `Transmitter*` | `TrySend(const T&)` | Non-blocking send, returns `false` if full |
-| `Transmitter*` | `IsValid()` | Returns `true` if transmitter holds a queue |
-| `Receiver*` | `Receive()` | Blocking receive |
-| `Receiver*` | `TryReceive(T&)` | Non-blocking receive, returns `false` if empty |
-| `Receiver*` | `IsValid()` | Returns `true` if receiver holds a queue |
-| `TransmitterMPMC` | `Clone()` | Create a shared copy for another producer |
-| `ReceiverMPMC` | `Clone()` | Create a shared copy for another consumer |
+| `TransmitterSPSC` | `Send(const T&)` / `Send(T&&)` | Blocking send |
+| `TransmitterSPSC` | `TrySend(const T&)` | Non-blocking send, returns `false` if full |
+| `TransmitterSPSC` | `Close()` | Mark channel as closed |
+| `TransmitterSPSC` | `IsValid()` | Returns `true` if transmitter holds a queue |
+| `ReceiverSPSC` | `Receive()` | Blocking receive, returns `Expected<T, ErrorCode>`. Returns `ChannelClosed` if closed |
+| `ReceiverSPSC` | `TryReceive(T&)` | Non-blocking receive, returns `ErrorCode` (`Success`, `ChannelEmpty`, or `ChannelClosed`) |
+| `ReceiverSPSC` | `IsValid()` | Returns `true` if receiver holds a queue |
 
-SPSC transmitters and receivers are move-only. MPMC transmitters and receivers support `Clone()`.
+SPSC transmitters and receivers are move-only.
+
+**MPMC**
+
+| Type | Method | Description |
+|------|--------|-------------|
+| `TransmitterMPMC` | `Send(const T&)` / `Send(T&&)` | Blocking send |
+| `TransmitterMPMC` | `TrySend(const T&)` | Non-blocking send, returns `false` if full |
+| `TransmitterMPMC` | `Clone()` | Create a shared copy for another producer |
+| `TransmitterMPMC` | `IsValid()` | Returns `true` if transmitter holds a queue |
+| `ReceiverMPMC` | `Receive()` | Blocking receive, returns `T` |
+| `ReceiverMPMC` | `TryReceive(T&)` | Non-blocking receive, returns `false` if empty |
+| `ReceiverMPMC` | `Clone()` | Create a shared copy for another consumer |
+| `ReceiverMPMC` | `IsValid()` | Returns `true` if receiver holds a queue |
+
+MPMC transmitters and receivers support `Clone()`.
 
 ## Thread Pool
 
@@ -459,6 +516,6 @@ parent->WaitForCompletion();
 
 `ConditionVariable::Wait` blocks indefinitely. A `WaitFor(MutexGuard<T>&, duration)` variant would allow timed waits, useful for worker threads that need periodic wake-ups. Supported by `SleepConditionVariableCS` with a timeout on Windows and `pthread_cond_timedwait` on Linux.
 
-### Channel Close
+### MPMC Channel Close
 
-Channels currently have no way to signal "no more data". A `Close()` method on the transmitter side would make `Receive()` return an error or empty value, enabling clean shutdown patterns without sentinel values.
+The SPSC channel supports `Close()` on the transmitter. The MPMC channel does not yet have a `Close()` method — shutdown currently relies on sentinel values (e.g., an invalid `SharedPtr` in the thread pool).

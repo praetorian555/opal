@@ -5,7 +5,9 @@
 #include "opal/allocator.h"
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/container/expected.h"
 #include "opal/container/shared-ptr.h"
+#include "opal/error-codes.h"
 #include "opal/threading/cpu-pause.h"
 #include "opal/type-traits.h"
 
@@ -231,13 +233,19 @@ template <typename T, bool UseSignaling = true>
 struct TransmitterSPSC
 {
     TransmitterSPSC() = default;
-    TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
+    TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q, Ref<std::atomic<bool>> is_closed)
+        : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
+    {
+    }
     ~TransmitterSPSC() = default;
 
     TransmitterSPSC(const TransmitterSPSC& q) = delete;
     TransmitterSPSC& operator=(const TransmitterSPSC& q) = delete;
 
-    TransmitterSPSC(TransmitterSPSC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
+    TransmitterSPSC(TransmitterSPSC&& other) noexcept
+        : m_queue(std::move(other.m_queue)), m_is_closed(std::move(other.m_is_closed))
+    {
+    }
 
     TransmitterSPSC& operator=(TransmitterSPSC&& other) noexcept
     {
@@ -246,6 +254,7 @@ struct TransmitterSPSC
             return *this;
         }
         m_queue = std::move(other.m_queue);
+        m_is_closed = std::move(other.m_is_closed);
         return *this;
     }
 
@@ -257,8 +266,15 @@ struct TransmitterSPSC
     void Send(T&& item) { m_queue->Push(std::move(item)); }
     bool TrySend(const T& item) { return m_queue->TryPush(item); }
 
+    /**
+     * Marks the channel as closed. After this, Receive() and TryReceive() on the
+     * corresponding receiver will return ErrorCode::ChannelClosed without blocking.
+     */
+    void Close() const { m_is_closed->store(true, std::memory_order_release); }
+
 private:
     SharedPtr<Impl::QueueSPSC<T, UseSignaling>> m_queue;
+    Ref<std::atomic<bool>> m_is_closed;
 };
 
 /**
@@ -271,13 +287,19 @@ template <typename T, bool UseSignaling = true>
 struct ReceiverSPSC
 {
     ReceiverSPSC() = default;
-    ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
+    ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q, Ref<std::atomic<bool>> is_closed)
+        : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
+    {
+    }
     ~ReceiverSPSC() = default;
 
     ReceiverSPSC(const ReceiverSPSC& q) = delete;
     ReceiverSPSC& operator=(const ReceiverSPSC& q) = delete;
 
-    ReceiverSPSC(ReceiverSPSC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
+    ReceiverSPSC(ReceiverSPSC&& other) noexcept
+        : m_queue(std::move(other.m_queue)), m_is_closed(std::move(other.m_is_closed))
+    {
+    }
     ReceiverSPSC& operator=(ReceiverSPSC&& other) noexcept
     {
         if (*this == other)
@@ -285,11 +307,35 @@ struct ReceiverSPSC
             return *this;
         }
         m_queue = std::move(other.m_queue);
+        m_is_closed = std::move(other.m_is_closed);
         return *this;
     }
 
-    T Receive() { return m_queue->Pop(); }
-    bool TryReceive(T& result) { return m_queue->TryPop(result); }
+    /**
+     * Blocks until an item is available and returns it.
+     * If the channel has been closed, returns ErrorCode::ChannelClosed without blocking.
+     */
+    Expected<T, ErrorCode> Receive()
+    {
+        if (m_is_closed->load(std::memory_order_acquire))
+        {
+            return Expected<T, ErrorCode>(ErrorCode::ChannelClosed);
+        }
+        return Expected<T, ErrorCode>(m_queue->Pop());
+    }
+
+    ErrorCode TryReceive(T& result)
+    {
+        if (m_is_closed->load(std::memory_order_acquire))
+        {
+            return ErrorCode::ChannelClosed;
+        }
+        if (m_queue->TryPop(result))
+        {
+            return ErrorCode::Success;
+        }
+        return ErrorCode::ChannelEmpty;
+    }
 
     bool operator==(const ReceiverSPSC& other) const { return m_queue == other.m_queue; }
 
@@ -297,6 +343,7 @@ struct ReceiverSPSC
 
 private:
     SharedPtr<Impl::QueueSPSC<T, UseSignaling>> m_queue;
+    Ref<std::atomic<bool>> m_is_closed;
 };
 
 /**
@@ -311,12 +358,13 @@ struct ChannelSPSC
 {
     TransmitterSPSC<T, UseSignaling> transmitter;
     ReceiverSPSC<T, UseSignaling> receiver;
+    std::atomic<bool> m_is_closed = false;
 
     ChannelSPSC(size_t capacity, AllocatorBase* allocator = nullptr)
     {
         SharedPtr<Impl::QueueSPSC<T, UseSignaling>> q(allocator, capacity, allocator);
-        transmitter = TransmitterSPSC<T, UseSignaling>(q.Clone());
-        receiver = ReceiverSPSC<T, UseSignaling>(std::move(q));
+        transmitter = TransmitterSPSC<T, UseSignaling>(q.Clone(), m_is_closed);
+        receiver = ReceiverSPSC<T, UseSignaling>(std::move(q), m_is_closed);
     }
 };
 

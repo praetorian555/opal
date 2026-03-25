@@ -249,9 +249,11 @@ TEST_CASE("SPSC channel", "[Thread]")
         ChannelSPSC<i32> channel(128);
         channel.transmitter.Send(5);
         REQUIRE(channel.transmitter.TrySend(10));
-        i32 val = channel.receiver.Receive();
-        REQUIRE(val == 5);
-        REQUIRE(channel.receiver.TryReceive(val));
+        auto result = channel.receiver.Receive();
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue() == 5);
+        i32 val;
+        REQUIRE(channel.receiver.TryReceive(val) == ErrorCode::Success);
         REQUIRE(val == 10);
     }
     SECTION("With different threads")
@@ -262,8 +264,9 @@ TEST_CASE("SPSC channel", "[Thread]")
             [](ReceiverSPSC<i32> receiver)
             {
                 REQUIRE(receiver.IsValid());
-                const i32 val = receiver.Receive();
-                REQUIRE(val == 5);
+                auto result = receiver.Receive();
+                REQUIRE(result.HasValue());
+                REQUIRE(result.GetValue() == 5);
             },
             Move(channel.receiver));
 
@@ -314,9 +317,11 @@ TEST_CASE("SPSC channel with spin wait", "[Thread]")
         ChannelSPSC<i32, false> channel(128);
         channel.transmitter.Send(5);
         REQUIRE(channel.transmitter.TrySend(10));
-        i32 val = channel.receiver.Receive();
-        REQUIRE(val == 5);
-        REQUIRE(channel.receiver.TryReceive(val));
+        auto result = channel.receiver.Receive();
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue() == 5);
+        i32 val;
+        REQUIRE(channel.receiver.TryReceive(val) == ErrorCode::Success);
         REQUIRE(val == 10);
     }
     SECTION("With different threads")
@@ -327,14 +332,76 @@ TEST_CASE("SPSC channel with spin wait", "[Thread]")
             [](ReceiverSPSC<i32, false> receiver)
             {
                 REQUIRE(receiver.IsValid());
-                const i32 val = receiver.Receive();
-                REQUIRE(val == 5);
+                auto result = receiver.Receive();
+                REQUIRE(result.HasValue());
+                REQUIRE(result.GetValue() == 5);
             },
             Move(channel.receiver));
 
         REQUIRE(!channel.receiver.IsValid());
         channel.transmitter.Send(5);
 
+        JoinThread(t);
+    }
+}
+
+TEST_CASE("SPSC channel Close", "[Thread]")
+{
+    SECTION("Receive returns ChannelClosed after Close")
+    {
+        ChannelSPSC<i32> channel(128);
+        channel.transmitter.Close();
+        auto result = channel.receiver.Receive();
+        REQUIRE(!result.HasValue());
+        REQUIRE(result.GetError() == ErrorCode::ChannelClosed);
+    }
+    SECTION("TryReceive returns ChannelClosed after Close")
+    {
+        ChannelSPSC<i32> channel(128);
+        channel.transmitter.Close();
+        i32 val;
+        REQUIRE(channel.receiver.TryReceive(val) == ErrorCode::ChannelClosed);
+    }
+    SECTION("TryReceive returns ChannelEmpty on empty channel")
+    {
+        ChannelSPSC<i32> channel(128);
+        i32 val;
+        REQUIRE(channel.receiver.TryReceive(val) == ErrorCode::ChannelEmpty);
+    }
+    SECTION("Close after Send, items not received")
+    {
+        ChannelSPSC<i32> channel(128);
+        channel.transmitter.Send(42);
+        channel.transmitter.Close();
+        auto result = channel.receiver.Receive();
+        REQUIRE(!result.HasValue());
+        REQUIRE(result.GetError() == ErrorCode::ChannelClosed);
+    }
+    SECTION("Close with receiver on different thread")
+    {
+        ChannelSPSC<i32> channel(128);
+
+        std::atomic<bool> thread_started{false};
+        const ThreadHandle t = CreateThread(
+            [](ReceiverSPSC<i32> receiver, std::atomic<bool>& started)
+            {
+                started.store(true);
+                // Spin-check until closed (receiver won't block since we don't call blocking Receive)
+                i32 val;
+                ErrorCode err;
+                do
+                {
+                    err = receiver.TryReceive(val);
+                } while (err == ErrorCode::ChannelEmpty);
+                REQUIRE(err == ErrorCode::ChannelClosed);
+            },
+            Move(channel.receiver), Ref(thread_started));
+
+        // Wait for thread to start
+        while (!thread_started.load())
+        {
+        }
+        channel.transmitter.Close();
         JoinThread(t);
     }
 }

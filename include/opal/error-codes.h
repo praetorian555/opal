@@ -20,7 +20,9 @@ enum class ErrorCode : u8
     NotImplemented = 10,
     AlreadyExists = 11,
     PathNotFound = 12,
-    NotEmpty
+    NotEmpty = 13,
+    ChannelClosed = 14,
+    ChannelEmpty = 15,
 };
 
 }
