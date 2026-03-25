@@ -368,14 +368,18 @@ TEST_CASE("SPSC channel Close", "[Thread]")
         i32 val;
         REQUIRE(channel.receiver.TryReceive(val) == ErrorCode::ChannelEmpty);
     }
-    SECTION("Close after Send, items not received")
+    SECTION("Close after Send, items are drained first")
     {
         ChannelSPSC<i32> channel(128);
         channel.transmitter.Send(42);
         channel.transmitter.Close();
         auto result = channel.receiver.Receive();
-        REQUIRE(!result.HasValue());
-        REQUIRE(result.GetError() == ErrorCode::ChannelClosed);
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue() == 42);
+        // Now that the queue is drained, next receive reports closed
+        auto result2 = channel.receiver.Receive();
+        REQUIRE(!result2.HasValue());
+        REQUIRE(result2.GetError() == ErrorCode::ChannelClosed);
     }
     SECTION("Close with receiver on different thread")
     {

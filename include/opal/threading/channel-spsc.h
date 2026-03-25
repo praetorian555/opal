@@ -313,10 +313,16 @@ struct ReceiverSPSC
 
     /**
      * Blocks until an item is available and returns it.
-     * If the channel has been closed, returns ErrorCode::ChannelClosed without blocking.
+     * Items already in the queue are drained first. Only after the queue is empty
+     * and the channel has been closed does this return ErrorCode::ChannelClosed.
      */
     Expected<T, ErrorCode> Receive()
     {
+        T result;
+        if (m_queue->TryPop(result))
+        {
+            return Expected<T, ErrorCode>(std::move(result));
+        }
         if (m_is_closed->load(std::memory_order_acquire))
         {
             return Expected<T, ErrorCode>(ErrorCode::ChannelClosed);
@@ -324,15 +330,20 @@ struct ReceiverSPSC
         return Expected<T, ErrorCode>(m_queue->Pop());
     }
 
+    /**
+     * Non-blocking receive. Items already in the queue are drained first.
+     * Only after the queue is empty and the channel has been closed does this
+     * return ErrorCode::ChannelClosed.
+     */
     ErrorCode TryReceive(T& result)
     {
-        if (m_is_closed->load(std::memory_order_acquire))
-        {
-            return ErrorCode::ChannelClosed;
-        }
         if (m_queue->TryPop(result))
         {
             return ErrorCode::Success;
+        }
+        if (m_is_closed->load(std::memory_order_acquire))
+        {
+            return ErrorCode::ChannelClosed;
         }
         return ErrorCode::ChannelEmpty;
     }
