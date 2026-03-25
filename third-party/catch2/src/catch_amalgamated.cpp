@@ -18,10 +18,11 @@
 // clang-format off
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_WARNING("-Wnon-virtual-dtor")
-OPAL_DISABLE_WARNING("-Wimplicit-int-float-conversion")
+// OPAL_DISABLE_WARNING("-Wimplicit-int-float-conversion")
 OPAL_DISABLE_WARNING("-Wimplicit-fallthrough")
 OPAL_DISABLE_WARNING("-Wsign-conversion")
 OPAL_DISABLE_WARNING("-Wdouble-promotion")
+OPAL_DISABLE_WARNING("-Wconversion")
 #include "catch2/catch2.hpp"
 // clang-format on
 

@@ -416,7 +416,7 @@ void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_WARNING("-Wclass-memaccess")
 #endif  // OPAL_COMPILER_GCC
-    memset(new_slots, 0, new_capacity * sizeof(pair_type));
+    memset(static_cast<void*>(new_slots), 0, new_capacity * sizeof(pair_type));
 #ifdef OPAL_COMPILER_GCC
     OPAL_END_DISABLE_WARNINGS
 #endif  // OPAL_COMPILER_GCC
