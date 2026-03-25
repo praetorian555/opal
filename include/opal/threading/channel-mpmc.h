@@ -5,7 +5,9 @@
 #include "opal/allocator.h"
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/container/expected.h"
 #include "opal/container/shared-ptr.h"
+#include "opal/error-codes.h"
 #include "opal/threading/cpu-pause.h"
 #include "opal/type-traits.h"
 
@@ -208,13 +210,19 @@ template <typename T, bool UseSignaling = false>
 struct TransmitterMPMC
 {
     TransmitterMPMC() = default;
-    explicit TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
+    TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q, Ref<std::atomic<bool>> is_closed)
+        : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
+    {
+    }
     ~TransmitterMPMC() = default;
 
     TransmitterMPMC(const TransmitterMPMC& q) = delete;
     TransmitterMPMC& operator=(const TransmitterMPMC& q) = delete;
 
-    TransmitterMPMC(TransmitterMPMC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
+    TransmitterMPMC(TransmitterMPMC&& other) noexcept
+        : m_queue(std::move(other.m_queue)), m_is_closed(std::move(other.m_is_closed))
+    {
+    }
     TransmitterMPMC& operator=(TransmitterMPMC&& other) noexcept
     {
         if (*this == other)
@@ -222,10 +230,11 @@ struct TransmitterMPMC
             return *this;
         }
         m_queue = std::move(other.m_queue);
+        m_is_closed = std::move(other.m_is_closed);
         return *this;
     }
 
-    TransmitterMPMC Clone() const { return TransmitterMPMC{m_queue.Clone()}; }
+    TransmitterMPMC Clone() const { return TransmitterMPMC{m_queue.Clone(), m_is_closed.Clone()}; }
 
     bool operator==(const TransmitterMPMC& other) const { return m_queue == other.m_queue; }
 
@@ -235,8 +244,15 @@ struct TransmitterMPMC
     void Send(T&& item) { m_queue->Push(std::move(item)); }
     bool TrySend(const T& item) { return m_queue->TryPush(item); }
 
+    /**
+     * Marks the channel as closed. After this, Receive() and TryReceive() on the
+     * corresponding receiver will return ErrorCode::ChannelClosed without blocking.
+     */
+    void Close() const { m_is_closed->store(true, std::memory_order_release); }
+
 private:
     SharedPtr<Impl::QueueMPMC<T, UseSignaling>> m_queue;
+    Ref<std::atomic<bool>> m_is_closed;
 };
 
 /**
@@ -249,13 +265,19 @@ template <typename T, bool UseSignaling = false>
 struct ReceiverMPMC
 {
     ReceiverMPMC() = default;
-    explicit ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
+    ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q, Ref<std::atomic<bool>> is_closed)
+        : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
+    {
+    }
     ~ReceiverMPMC() = default;
 
     ReceiverMPMC(const ReceiverMPMC& q) = delete;
     ReceiverMPMC& operator=(const ReceiverMPMC& q) = delete;
 
-    ReceiverMPMC(ReceiverMPMC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
+    ReceiverMPMC(ReceiverMPMC&& other) noexcept
+        : m_queue(std::move(other.m_queue)), m_is_closed(std::move(other.m_is_closed))
+    {
+    }
     ReceiverMPMC& operator=(ReceiverMPMC&& other) noexcept
     {
         if (*this == other)
@@ -263,13 +285,48 @@ struct ReceiverMPMC
             return *this;
         }
         m_queue = std::move(other.m_queue);
+        m_is_closed = std::move(other.m_is_closed);
         return *this;
     }
 
-    ReceiverMPMC Clone() const { return ReceiverMPMC{m_queue.Clone()}; }
+    ReceiverMPMC Clone() const { return ReceiverMPMC{m_queue.Clone(), m_is_closed.Clone()}; }
 
-    T Receive() { return m_queue->Pop(); }
-    bool TryReceive(T& result) { return m_queue->TryPop(result); }
+    /**
+     * Blocks until an item is available and returns it.
+     * Items already in the queue are drained first. Only after the queue is empty
+     * and the channel has been closed does this return ErrorCode::ChannelClosed.
+     */
+    Expected<T, ErrorCode> Receive()
+    {
+        T result;
+        if (m_queue->TryPop(result))
+        {
+            return Expected<T, ErrorCode>(std::move(result));
+        }
+        if (m_is_closed->load(std::memory_order_acquire))
+        {
+            return Expected<T, ErrorCode>(ErrorCode::ChannelClosed);
+        }
+        return Expected<T, ErrorCode>(m_queue->Pop());
+    }
+
+    /**
+     * Non-blocking receive. Items already in the queue are drained first.
+     * Only after the queue is empty and the channel has been closed does this
+     * return ErrorCode::ChannelClosed.
+     */
+    ErrorCode TryReceive(T& result)
+    {
+        if (m_queue->TryPop(result))
+        {
+            return ErrorCode::Success;
+        }
+        if (m_is_closed->load(std::memory_order_acquire))
+        {
+            return ErrorCode::ChannelClosed;
+        }
+        return ErrorCode::ChannelEmpty;
+    }
 
     bool operator==(const ReceiverMPMC& other) const { return m_queue == other.m_queue; }
 
@@ -277,6 +334,7 @@ struct ReceiverMPMC
 
 private:
     SharedPtr<Impl::QueueMPMC<T, UseSignaling>> m_queue;
+    Ref<std::atomic<bool>> m_is_closed;
 };
 
 /**
@@ -290,13 +348,14 @@ struct ChannelMPMC
 {
     TransmitterMPMC<T, UseSignaling> transmitter;
     ReceiverMPMC<T, UseSignaling> receiver;
+    std::atomic<bool> m_is_closed = false;
 
     explicit ChannelMPMC(size_t capacity, AllocatorBase* allocator = nullptr)
     {
         capacity = GetNextPowerOf2(capacity);
         SharedPtr<Impl::QueueMPMC<T, UseSignaling>> q(allocator, capacity, allocator);
-        transmitter = TransmitterMPMC<T, UseSignaling>(q.Clone());
-        receiver = ReceiverMPMC<T, UseSignaling>(std::move(q));
+        transmitter = TransmitterMPMC<T, UseSignaling>(q.Clone(), m_is_closed);
+        receiver = ReceiverMPMC<T, UseSignaling>(std::move(q), m_is_closed);
     }
 };
 

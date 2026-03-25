@@ -8,7 +8,13 @@ static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, O
     Opal::PushDefaultAllocator(default_allocator.GetPtr());
     while (true)
     {
-        Opal::SharedPtr<Opal::Task> task = receiver.Receive();
+        auto result = receiver.Receive();
+        if (!result.HasValue())
+        {
+            // Channel closed, exit the thread
+            break;
+        }
+        Opal::SharedPtr<Opal::Task> task = std::move(result.GetValue());
         if (!task.IsValid())
         {
             // Sentinel received, exit the thread

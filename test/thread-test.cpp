@@ -472,15 +472,81 @@ TEST_CASE("MPMC Channel", "[Thread]")
 {
     ChannelMPMC<i32> channel(128);
     channel.transmitter.Send(5);
-    i32 val = channel.receiver.Receive();
-    REQUIRE(val == 5);
+    auto result = channel.receiver.Receive();
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == 5);
 
     ChannelMPMC<i32> channel2(0);
+    i32 val;
     REQUIRE(channel2.transmitter.TrySend(5) == true);
     REQUIRE(channel2.transmitter.TrySend(10) == false);
-    REQUIRE(channel2.receiver.TryReceive(val) == true);
+    REQUIRE(channel2.receiver.TryReceive(val) == ErrorCode::Success);
     REQUIRE(val == 5);
-    REQUIRE(channel2.receiver.TryReceive(val) == false);
+    REQUIRE(channel2.receiver.TryReceive(val) == ErrorCode::ChannelEmpty);
+}
+
+TEST_CASE("MPMC channel Close", "[Thread]")
+{
+    SECTION("Receive returns ChannelClosed after Close")
+    {
+        ChannelMPMC<i32> channel(128);
+        channel.transmitter.Close();
+        auto result = channel.receiver.Receive();
+        REQUIRE(!result.HasValue());
+        REQUIRE(result.GetError() == ErrorCode::ChannelClosed);
+    }
+    SECTION("TryReceive returns ChannelClosed after Close")
+    {
+        ChannelMPMC<i32> channel(128);
+        channel.transmitter.Close();
+        i32 val;
+        REQUIRE(channel.receiver.TryReceive(val) == ErrorCode::ChannelClosed);
+    }
+    SECTION("TryReceive returns ChannelEmpty on empty channel")
+    {
+        ChannelMPMC<i32> channel(128);
+        i32 val;
+        REQUIRE(channel.receiver.TryReceive(val) == ErrorCode::ChannelEmpty);
+    }
+    SECTION("Close after Send, items are drained first")
+    {
+        ChannelMPMC<i32> channel(128);
+        channel.transmitter.Send(42);
+        channel.transmitter.Close();
+        auto result = channel.receiver.Receive();
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue() == 42);
+        // Now that the queue is drained, next receive reports closed
+        auto result2 = channel.receiver.Receive();
+        REQUIRE(!result2.HasValue());
+        REQUIRE(result2.GetError() == ErrorCode::ChannelClosed);
+    }
+    SECTION("Close with receiver on different thread")
+    {
+        ChannelMPMC<i32> channel(128);
+
+        std::atomic<bool> thread_started{false};
+        const ThreadHandle t = CreateThread(
+            [](ReceiverMPMC<i32> receiver, Ref<std::atomic<bool>> started)
+            {
+                started->store(true);
+                i32 val;
+                ErrorCode err;
+                do
+                {
+                    err = receiver.TryReceive(val);
+                } while (err == ErrorCode::ChannelEmpty);
+                REQUIRE(err == ErrorCode::ChannelClosed);
+            },
+            channel.receiver.Clone(), Ref(thread_started));
+
+        // Wait for thread to start
+        while (!thread_started.load())
+        {
+        }
+        channel.transmitter.Close();
+        JoinThread(t);
+    }
 }
 
 TEST_CASE("Thread pool", "[Thread]")
