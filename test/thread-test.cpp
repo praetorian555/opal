@@ -472,6 +472,45 @@ TEST_CASE("Condition Variable", "[Thread]")
     REQUIRE(*mutex.Lock().Deref() == true);
 }
 
+TEST_CASE("Condition Variable WaitFor timeout", "[Thread]")
+{
+    Mutex<bool> mutex(false);
+    ConditionVariable cond;
+
+    auto guard = mutex.Lock();
+    const bool signaled = cond.WaitFor(guard, 100);
+    REQUIRE(signaled == false);
+}
+
+TEST_CASE("Condition Variable WaitFor signaled", "[Thread]")
+{
+    Mutex<bool> mutex(false);
+    ConditionVariable cond;
+
+    const ThreadHandle t = CreateThread(
+        [&]()
+        {
+            using namespace std::chrono_literals;
+            std::this_thread::sleep_for(100ms);
+            auto guard = mutex.Lock();
+            *guard.Deref() = true;
+            cond.NotifyOne();
+        });
+
+    auto guard = mutex.Lock();
+    while (!*guard.Deref())
+    {
+        const bool signaled = cond.WaitFor(guard, 5000);
+        if (!signaled)
+        {
+            break;
+        }
+    }
+    REQUIRE(*guard.Deref() == true);
+
+    JoinThread(t);
+}
+
 TEST_CASE("MPMC Channel", "[Thread]")
 {
     ChannelMPMC<i32> channel(128);

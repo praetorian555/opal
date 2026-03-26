@@ -211,6 +211,26 @@ Opal::ThreadHandle t = Opal::CreateThread([&]()
 Opal::JoinThread(t);
 ```
 
+### Timed Wait
+
+`WaitFor` blocks until the condition variable is signaled or the timeout expires. Returns `true` if signaled, `false` if timed out. The mutex is re-acquired in both cases.
+
+```cpp
+Opal::Mutex<bool> ready(false);
+Opal::ConditionVariable cond;
+
+auto guard = ready.Lock();
+while (!*guard.Deref())
+{
+    bool signaled = cond.WaitFor(guard, 1000);  // Wait up to 1 second
+    if (!signaled)
+    {
+        // Timed out
+        break;
+    }
+}
+```
+
 ### API Reference
 
 | Method | Description |
@@ -219,6 +239,7 @@ Opal::JoinThread(t);
 | `NotifyOne()` | Wake one waiting thread |
 | `NotifyAll()` | Wake all waiting threads |
 | `Wait(MutexGuard<T>& guard)` | Atomically release mutex and wait, re-acquire on wake. Returns `T*` |
+| `WaitFor(MutexGuard<T>& guard, u64 timeout_ms)` | Timed wait. Returns `true` if signaled, `false` if timed out |
 
 Platform implementation: `CONDITION_VARIABLE` on Windows, `pthread_cond_t` on Linux.
 
@@ -525,8 +546,3 @@ parent->WaitForCompletion();
 | `ChannelMPMC` | Yes (multiple producers, multiple consumers) |
 | `ThreadPool` | `AddFunctionTask` is thread-safe via internal MPMC channel |
 
-## Planned Improvements
-
-### Timed Wait on Condition Variable
-
-`ConditionVariable::Wait` blocks indefinitely. A `WaitFor(MutexGuard<T>&, duration)` variant would allow timed waits, useful for worker threads that need periodic wake-ups. Supported by `SleepConditionVariableCS` with a timeout on Windows and `pthread_cond_timedwait` on Linux.

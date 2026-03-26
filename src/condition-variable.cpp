@@ -4,6 +4,7 @@
 #include "Windows.h"
 #elif defined(OPAL_PLATFORM_LINUX)
 #include "pthread.h"
+#include <time.h>
 #endif
 
 Opal::ConditionVariable::ConditionVariable(AllocatorBase* allocator)
@@ -97,6 +98,31 @@ void Opal::ConditionVariable::Wait(void* native_mutex_handle)
                              INFINITE);
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_cond_wait(static_cast<pthread_cond_t*>(m_native_handle), static_cast<pthread_mutex_t*>(native_mutex_handle));
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
+}
+
+bool Opal::ConditionVariable::WaitFor(void* native_mutex_handle, u64 timeout_ms)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    const BOOL result = SleepConditionVariableCS(static_cast<CONDITION_VARIABLE*>(m_native_handle),
+                                                 static_cast<CRITICAL_SECTION*>(native_mutex_handle),
+                                                 static_cast<DWORD>(timeout_ms));
+    return result != 0;
+#elif defined(OPAL_PLATFORM_LINUX)
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += static_cast<time_t>(timeout_ms / 1000);
+    ts.tv_nsec += static_cast<long>((timeout_ms % 1000) * 1000000);
+    if (ts.tv_nsec >= 1000000000L)
+    {
+        ts.tv_sec += 1;
+        ts.tv_nsec -= 1000000000L;
+    }
+    const int result =
+        pthread_cond_timedwait(static_cast<pthread_cond_t*>(m_native_handle), static_cast<pthread_mutex_t*>(native_mutex_handle), &ts);
+    return result == 0;
 #else
     throw NotImplementedException(__FUNCTION__);
 #endif
