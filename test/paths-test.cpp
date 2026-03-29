@@ -175,7 +175,7 @@ TEST_CASE("Get parent path", "[Paths]")
     {
         NullAllocator allocator;
         Expected<StringUtf8, ErrorCode> parent;
-        REQUIRE_THROWS_AS(parent = Paths::GetParentPath("a/b/c/d", &allocator), OutOfMemoryException);
+        REQUIRE_THROWS_AS(parent = Paths::GetParentPath("aaaaaaaaaaaa/bbbbbbbbbbbb/cccccccccccc/d", &allocator), OutOfMemoryException);
     }
     SECTION("Parent of empty path")
     {
@@ -256,7 +256,7 @@ TEST_CASE("Get file name", "[Paths]")
     {
         NullAllocator allocator;
         Expected<StringUtf8, ErrorCode> file_name;
-        REQUIRE_THROWS_AS(file_name = Paths::GetFileName("a/b/c/d", &allocator), OutOfMemoryException);
+        REQUIRE_THROWS_AS(file_name = Paths::GetFileName("a/bbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator), OutOfMemoryException);
     }
     SECTION("Relative paths")
     {
@@ -332,7 +332,7 @@ TEST_CASE("Get stem", "[Paths]")
     {
         NullAllocator allocator;
         Expected<StringUtf8, ErrorCode> stem;
-        REQUIRE_THROWS_AS(stem = Paths::GetStem("a/b/c/d", &allocator), OutOfMemoryException);
+        REQUIRE_THROWS_AS(stem = Paths::GetStem("a/bbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator), OutOfMemoryException);
     }
     SECTION("Normal file names")
     {
@@ -380,7 +380,7 @@ TEST_CASE("Get extension", "[Paths]")
     {
         NullAllocator allocator;
         Expected<StringUtf8, ErrorCode> extension;
-        REQUIRE_THROWS_AS(extension = Paths::GetExtension("a/b/c/d", &allocator), OutOfMemoryException);
+        REQUIRE_THROWS_AS(extension = Paths::GetExtension("a/bbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator), OutOfMemoryException);
     }
     SECTION("Normal paths")
     {
@@ -443,5 +443,5 @@ TEST_CASE("Combining paths", "[Paths]")
 
     NullAllocator allocator;
     PushDefault pd(&allocator);
-    REQUIRE_THROWS_AS(result = Paths::Combine("a", "b", "c"), OutOfMemoryException);
+    REQUIRE_THROWS_AS(result = Paths::Combine("aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc"), OutOfMemoryException);
 }

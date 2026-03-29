@@ -21,22 +21,24 @@ TEST_CASE("Construction", "[String]")
         {
             StringUtf8 str;
             REQUIRE(str.GetSize() == 0);
-            REQUIRE(str.GetCapacity() == 0);
-            REQUIRE(str.GetData() == nullptr);
+            REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+            REQUIRE(str.GetData() != nullptr);
+            REQUIRE(str.GetData()[0] == 0);
         }
         SECTION("Default constructor with allocator")
         {
             MallocAllocator da;
             StringUtf8 str(&da);
             REQUIRE(str.GetSize() == 0);
-            REQUIRE(str.GetCapacity() == 0);
-            REQUIRE(str.GetData() == nullptr);
+            REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+            REQUIRE(str.GetData() != nullptr);
+            REQUIRE(str.GetData()[0] == 0);
         }
         SECTION("Count and value")
         {
             StringUtf8 str(5, 'd');
             REQUIRE(str.GetSize() == 5);
-            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
             REQUIRE(str.GetData() != nullptr);
             for (u64 i = 0; i < str.GetSize(); i++)
             {
@@ -48,7 +50,7 @@ TEST_CASE("Construction", "[String]")
             MallocAllocator da;
             StringUtf8 str(5, 'd', &da);
             REQUIRE(str.GetSize() == 5);
-            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
             REQUIRE(str.GetData() != nullptr);
             for (u64 i = 0; i < str.GetSize(); i++)
             {
@@ -59,7 +61,7 @@ TEST_CASE("Construction", "[String]")
         {
             StringLocale str(ref);
             REQUIRE(str.GetSize() == 11);
-            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(strcmp(ref, str.GetData()) == 0);
         }
@@ -68,7 +70,7 @@ TEST_CASE("Construction", "[String]")
             MallocAllocator da;
             StringLocale str(ref, &da);
             REQUIRE(str.GetSize() == 11);
-            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(strcmp(ref, str.GetData()) == 0);
         }
@@ -76,7 +78,7 @@ TEST_CASE("Construction", "[String]")
         {
             StringLocale str(ref, 5);
             REQUIRE(str.GetSize() == 5);
-            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(str.GetData()[0] == 'H');
             REQUIRE(str.GetData()[1] == 'e');
@@ -89,7 +91,7 @@ TEST_CASE("Construction", "[String]")
             MallocAllocator da;
             StringLocale str(ref, 5, &da);
             REQUIRE(str.GetSize() == 5);
-            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(str.GetData()[0] == 'H');
             REQUIRE(str.GetData()[1] == 'e');
@@ -102,7 +104,7 @@ TEST_CASE("Construction", "[String]")
             MallocAllocator da;
             StringLocale first(ref);
             StringLocale second(first, 6, &da);
-            REQUIRE(second.GetCapacity() == 6);
+            REQUIRE(second.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(second.GetSize() == 5);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() != &second.GetAllocator());
@@ -114,7 +116,7 @@ TEST_CASE("Construction", "[String]")
             MallocAllocator da2;
             StringLocale first(ref);
             StringLocale second(first, 6, &da2);
-            REQUIRE(second.GetCapacity() == 6);
+            REQUIRE(second.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(second.GetSize() == 5);
             REQUIRE(first.GetData() != second.GetData());
             REQUIRE(&first.GetAllocator() != &second.GetAllocator());
@@ -124,12 +126,12 @@ TEST_CASE("Construction", "[String]")
         {
             StringLocale first(ref);
             StringLocale second(Move(first));
-            REQUIRE(second.GetCapacity() == 12);
+            REQUIRE(second.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(second.GetSize() == 11);
             REQUIRE(second.GetData() != nullptr);
-            REQUIRE(first.GetCapacity() == 0);
+            REQUIRE(first.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(first.GetSize() == 0);
-            REQUIRE(first.GetData() == nullptr);
+            REQUIRE(first.GetData() != nullptr);
             REQUIRE(strcmp(ref, second.GetData()) == 0);
         }
     }
@@ -240,9 +242,9 @@ TEST_CASE("Construction", "[String]")
             REQUIRE(second.GetCapacity() == 575);
             REQUIRE(second.GetSize() == 574);
             REQUIRE(second.GetData() != nullptr);
-            REQUIRE(first.GetCapacity() == 0);
+            REQUIRE(first.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(first.GetSize() == 0);
-            REQUIRE(first.GetData() == nullptr);
+            REQUIRE(first.GetData() != nullptr);
             REQUIRE(strcmp(ref, second.GetData()) == 0);
         }
     }
@@ -261,9 +263,9 @@ TEST_CASE("Assignment", "[String]")
             REQUIRE(strcmp(str3.GetData(), ref) == 0);
             REQUIRE(str1.GetData() != str3.GetData());
             REQUIRE(str3.GetSize() == 11);
-            REQUIRE(str3.GetCapacity() == 12);
-            REQUIRE(str1.GetData() == nullptr);
-            REQUIRE(str1.GetCapacity() == 0);
+            REQUIRE(str3.GetCapacity() == StringLocale::k_sso_capacity);
+            REQUIRE(str1.GetData() != nullptr);
+            REQUIRE(str1.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str1.GetSize() == 0);
         }
     }
@@ -284,8 +286,8 @@ TEST_CASE("Assignment", "[String]")
             REQUIRE(str1.GetData() != str3.GetData());
             REQUIRE(str3.GetSize() == 574);
             REQUIRE(str3.GetCapacity() == 575);
-            REQUIRE(str1.GetData() == nullptr);
-            REQUIRE(str1.GetCapacity() == 0);
+            REQUIRE(str1.GetData() != nullptr);
+            REQUIRE(str1.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str1.GetSize() == 0);
         }
     }
@@ -342,14 +344,14 @@ TEST_CASE("Assign", "[String]")
             {
                 StringUtf8 str("Hello there");
                 REQUIRE_NOTHROW(str.Assign(0, 'd'));
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 0);
             }
             SECTION("Count is normal and no resize")
             {
                 StringUtf8 str("Hello there");
                 REQUIRE_NOTHROW(str.Assign(5, 'd'));
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 5);
                 for (i32 i = 0; i < 5; i++)
                 {
@@ -360,7 +362,7 @@ TEST_CASE("Assign", "[String]")
             {
                 StringUtf8 str;
                 REQUIRE_NOTHROW(str.Assign(5, 'd'));
-                REQUIRE(str.GetCapacity() == 6);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 5);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
@@ -371,7 +373,7 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
-                REQUIRE_THROWS_AS(str.Assign(5, 'd'), OutOfMemoryException);
+                REQUIRE_NOTHROW(str.Assign(5, 'd'));
             }
         }
         SECTION("Other string")
@@ -381,14 +383,14 @@ TEST_CASE("Assign", "[String]")
                 StringUtf8 str("Hello there");
                 const StringUtf8 other;
                 REQUIRE_NOTHROW(str.Assign(other));
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 0);
             }
             SECTION("Same string")
             {
                 StringUtf8 str("Hello there");
                 REQUIRE_NOTHROW(str.Assign(str));
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 11);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
@@ -400,7 +402,7 @@ TEST_CASE("Assign", "[String]")
                 StringUtf8 str("Hello there");
                 const StringUtf8 other("Hello");
                 REQUIRE_NOTHROW(str.Assign(other));
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 5);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
@@ -456,7 +458,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = copy.Assign(ref, 6);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(copy.GetSize() == 5);
-                REQUIRE(copy.GetCapacity() == 6);
+                REQUIRE(copy.GetCapacity() == StringUtf8::k_sso_capacity);
                 for (u64 i = 0; i < copy.GetSize(); i++)
                 {
                     REQUIRE(copy.GetData()[i] == u8"there"[i]);
@@ -469,7 +471,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = copy.Assign(ref, 6, 3);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(copy.GetSize() == 3);
-                REQUIRE(copy.GetCapacity() == 4);
+                REQUIRE(copy.GetCapacity() == StringUtf8::k_sso_capacity);
                 for (u64 i = 0; i < copy.GetSize(); i++)
                 {
                     REQUIRE(copy.GetData()[i] == u8"the"[i]);
@@ -481,7 +483,7 @@ TEST_CASE("Assign", "[String]")
                 const StringUtf8 other("Hello");
                 const ErrorCode err = str.Assign(other, 0, 5);
                 REQUIRE(err == ErrorCode::Success);
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 5);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
@@ -508,16 +510,16 @@ TEST_CASE("Assign", "[String]")
                 StringUtf8 str("Hello there");
                 StringUtf8 other;
                 str.Assign(Move(other));
-                REQUIRE(str.GetCapacity() == 0);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 0);
-                REQUIRE(other.GetCapacity() == 0);
+                REQUIRE(other.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(other.GetSize() == 0);
             }
             SECTION("Self")
             {
                 StringUtf8 str("Hello there");
                 str.Assign(Move(str));
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 11);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
@@ -529,13 +531,13 @@ TEST_CASE("Assign", "[String]")
                 StringUtf8 str("Hello there");
                 StringUtf8 other("Goodbye");
                 str.Assign(Move(other));
-                REQUIRE(str.GetCapacity() == 8);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 7);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye"[i]);
                 }
-                REQUIRE(other.GetCapacity() == 0);
+                REQUIRE(other.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(other.GetSize() == 0);
             }
         }
@@ -559,7 +561,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign("");
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 0);
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
             }
             SECTION("Non-empty string literal")
             {
@@ -567,7 +569,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign("Goodbye");
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 7);
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye"[i]);
@@ -579,7 +581,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign("Goodbye", 4);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 4);
-                REQUIRE(str.GetCapacity() == 12);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Good"[i]);
@@ -591,7 +593,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign("Goodbye and then some");
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 21);
-                REQUIRE(str.GetCapacity() == 22);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye and then some"[i]);
@@ -601,7 +603,7 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
-                REQUIRE_THROWS_AS(str.Assign("Goodbye and then some"), OutOfMemoryException);
+                REQUIRE_NOTHROW(str.Assign("Goodbye and then some"));
             }
         }
         SECTION("Iterators")
@@ -626,7 +628,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign(ref + 5, ref + 5);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 0);
-                REQUIRE(str.GetCapacity() == 1);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
             }
             SECTION("Normal range that triggers resize")
             {
@@ -635,7 +637,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign(ref + 5, ref + 10);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 5);
-                REQUIRE(str.GetCapacity() == 6);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == ref[5 + i]);
@@ -646,7 +648,7 @@ TEST_CASE("Assign", "[String]")
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
                 const char* ref = "Hello there";
-                REQUIRE_THROWS_AS(str.Assign(ref + 5, ref + 10), OutOfMemoryException);
+                REQUIRE_NOTHROW(str.Assign(ref + 5, ref + 10));
             }
         }
     }
@@ -822,9 +824,9 @@ TEST_CASE("Assign", "[String]")
                 StringUtf8 str("Hello there and then some more");
                 StringUtf8 other;
                 str.Assign(Move(other));
-                REQUIRE(str.GetCapacity() == 0);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 0);
-                REQUIRE(other.GetCapacity() == 0);
+                REQUIRE(other.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(other.GetSize() == 0);
             }
             SECTION("Self")
@@ -843,13 +845,13 @@ TEST_CASE("Assign", "[String]")
                 StringUtf8 str("Hello there and then some more");
                 StringUtf8 other("Goodbye");
                 str.Assign(Move(other));
-                REQUIRE(str.GetCapacity() == 8);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(str.GetSize() == 7);
                 for (u64 i = 0; i < str.GetSize(); i++)
                 {
                     REQUIRE(str.GetData()[i] == u8"Goodbye"[i]);
                 }
-                REQUIRE(other.GetCapacity() == 0);
+                REQUIRE(other.GetCapacity() == StringUtf8::k_sso_capacity);
                 REQUIRE(other.GetSize() == 0);
             }
         }
@@ -915,7 +917,7 @@ TEST_CASE("Assign", "[String]")
             {
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
-                REQUIRE_THROWS_AS(str.Assign("Goodbye and then some"), OutOfMemoryException);
+                REQUIRE_NOTHROW(str.Assign("Goodbye and then some"));
             }
         }
         SECTION("Iterators")
@@ -940,7 +942,7 @@ TEST_CASE("Assign", "[String]")
                 const ErrorCode err = str.Assign(ref + 5, ref + 5);
                 REQUIRE(err == ErrorCode::Success);
                 REQUIRE(str.GetSize() == 0);
-                REQUIRE(str.GetCapacity() == 1);
+                REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
             }
             SECTION("Normal range that triggers resize")
             {
@@ -960,7 +962,7 @@ TEST_CASE("Assign", "[String]")
                 NullAllocator null_allocator;
                 StringUtf8 str(&null_allocator);
                 const char* ref = "Hello there";
-                REQUIRE_THROWS_AS(str.Assign(ref + 5, ref + 10), OutOfMemoryException);
+                REQUIRE_NOTHROW(str.Assign(ref + 5, ref + 10));
             }
         }
     }
@@ -1101,13 +1103,13 @@ TEST_CASE("Reserve", "[String]")
         {
             NullAllocator null_allocator;
             StringUtf8 str(&null_allocator);
-            REQUIRE_THROWS_AS(str.Reserve(10), OutOfMemoryException);
+            REQUIRE_NOTHROW(str.Reserve(10));
         }
         SECTION("Reserve larger then current capacity")
         {
             StringUtf8 str("Hello there");
             str.Reserve(20);
-            REQUIRE(str.GetCapacity() == 20);
+            REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
             REQUIRE(str.GetSize() == 11);
             for (u64 i = 0; i < str.GetSize(); i++)
             {
@@ -1118,7 +1120,7 @@ TEST_CASE("Reserve", "[String]")
         {
             StringUtf8 str("Hello there");
             str.Reserve(5);
-            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
             REQUIRE(str.GetSize() == 11);
             for (u64 i = 0; i < str.GetSize(); i++)
             {
@@ -1144,7 +1146,7 @@ TEST_CASE("Reserve", "[String]")
         {
             NullAllocator null_allocator;
             StringUtf8 str(&null_allocator);
-            REQUIRE_THROWS_AS(str.Reserve(10), OutOfMemoryException);
+            REQUIRE_NOTHROW(str.Reserve(10));
         }
         SECTION("Reserve larger then current capacity")
         {
@@ -1180,7 +1182,7 @@ TEST_CASE("Resize", "[String]")
         {
             StringLocale str("Hello there");
             str.Resize(0);
-            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 0);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(std::strlen(str.GetData()) == 0);
@@ -1189,7 +1191,7 @@ TEST_CASE("Resize", "[String]")
         {
             StringLocale str("Hello there");
             str.Resize(5);
-            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
@@ -1198,7 +1200,7 @@ TEST_CASE("Resize", "[String]")
         {
             StringLocale str("Hello there");
             str.Resize(20);
-            REQUIRE(str.GetCapacity() == 21);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 20);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(strcmp(str.GetData(), "Hello there") == 0);
@@ -1207,7 +1209,7 @@ TEST_CASE("Resize", "[String]")
         {
             StringLocale str("Hello there");
             str.Resize(20, 'd');
-            REQUIRE(str.GetCapacity() == 21);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 20);
             REQUIRE(str.GetData() != nullptr);
             REQUIRE(strcmp(str.GetData(), "Hello thereddddddddd") == 0);
@@ -1231,7 +1233,7 @@ TEST_CASE("Append", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            REQUIRE_THROWS_AS(str.Append(' '), OutOfMemoryException);
+            REQUIRE_NOTHROW(str.Append(' '));
         }
         SECTION("String literal no change to capacity")
         {
@@ -1247,7 +1249,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str("Hello");
             ErrorCode err = str.Append(" there");
             REQUIRE(err == ErrorCode::Success);
-            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 11);
             REQUIRE(strcmp(str.GetData(), "Hello there") == 0);
         }
@@ -1256,7 +1258,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str("Hello");
             ErrorCode err = str.Append(nullptr);
             REQUIRE(err == ErrorCode::InvalidArgument);
-            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
         }
@@ -1265,7 +1267,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str("Hello");
             ErrorCode err = str.Append("");
             REQUIRE(err == ErrorCode::Success);
-            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
         }
@@ -1283,7 +1285,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str("Hello");
             ErrorCode err = str.Append(" there", 5);
             REQUIRE(err == ErrorCode::Success);
-            REQUIRE(str.GetCapacity() == 11);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 10);
             REQUIRE(strcmp(str.GetData(), "Hello ther") == 0);
         }
@@ -1291,7 +1293,7 @@ TEST_CASE("Append", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            REQUIRE_THROWS_AS(str.Append(" there"), OutOfMemoryException);
+            REQUIRE_NOTHROW(str.Append(" there"));
         }
         SECTION("Count and value")
         {
@@ -1316,7 +1318,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str("Hello");
             StringLocale str2(" there");
             str.Append(str2);
-            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 11);
             REQUIRE(strcmp(str.GetData(), "Hello there") == 0);
         }
@@ -1325,7 +1327,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str("Hello");
             StringLocale str2("");
             str.Append(str2);
-            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
         }
@@ -1334,14 +1336,14 @@ TEST_CASE("Append", "[String]")
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
             StringLocale str2(" there");
-            REQUIRE_THROWS_AS(str.Append(str2), OutOfMemoryException);
+            REQUIRE_NOTHROW(str.Append(str2));
         }
         SECTION("Sub string")
         {
             StringLocale str("Hello");
             StringLocale str2(" there");
             str.Append(str2, 0, 5);
-            REQUIRE(str.GetCapacity() == 11);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 10);
             REQUIRE(strcmp(str.GetData(), "Hello ther") == 0);
         }
@@ -1351,7 +1353,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str2(" there");
             ErrorCode err = str.Append(str2, 6, 5);
             REQUIRE(err == ErrorCode::OutOfBounds);
-            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
         }
@@ -1360,7 +1362,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str("Hello");
             StringLocale str2(" there");
             str.Append(str2, 0, 0);
-            REQUIRE(str.GetCapacity() == 6);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 5);
             REQUIRE(strcmp(str.GetData(), "Hello") == 0);
         }
@@ -1376,14 +1378,14 @@ TEST_CASE("Append", "[String]")
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
             StringLocale str2(" there");
-            REQUIRE_THROWS_AS(str.Append(str2, 0, 5), OutOfMemoryException);
+            REQUIRE_NOTHROW(str.Append(str2, 0, 5));
         }
         SECTION("Sub string with k_npos")
         {
             StringLocale str("Hello");
             StringLocale str2(" there");
             str.Append(str2, 0, StringLocale::k_npos);
-            REQUIRE(str.GetCapacity() == 12);
+            REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 11);
             REQUIRE(strcmp(str.GetData(), "Hello there") == 0);
         }
@@ -3177,7 +3179,7 @@ TEST_CASE("Insert", "[String]")
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
             Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_THROWS_AS(result = str.Insert(0, 2, 'a'), OutOfMemoryException);
+            REQUIRE_NOTHROW(result = str.Insert(0, 2, 'a'));
         }
         SECTION("Insert at beginning")
         {
@@ -3225,7 +3227,7 @@ TEST_CASE("Insert", "[String]")
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
             Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_THROWS_AS(result = str.Insert(0, "aa", 2), OutOfMemoryException);
+            REQUIRE_NOTHROW(result = str.Insert(0, "aa", 2));
         }
         SECTION("Count is zero")
         {
@@ -3284,7 +3286,7 @@ TEST_CASE("Insert", "[String]")
             StringLocale str(&null_allocator);
             StringLocale in("aa");
             Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_THROWS_AS(result = str.Insert(0, in), OutOfMemoryException);
+            REQUIRE_NOTHROW(result = str.Insert(0, in));
         }
         SECTION("Count is zero")
         {
@@ -3337,7 +3339,7 @@ TEST_CASE("Insert", "[String]")
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
             Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_THROWS_AS(result = str.Insert(str.Begin(), 'a', 2), OutOfMemoryException);
+            REQUIRE_NOTHROW(result = str.Insert(str.Begin(), 'a', 2));
         }
         SECTION("Insert at beginning")
         {
@@ -3378,7 +3380,7 @@ TEST_CASE("Insert", "[String]")
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
             Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_THROWS_AS(result = str.Insert(str.ConstBegin(), 'a', 2), OutOfMemoryException);
+            REQUIRE_NOTHROW(result = str.Insert(str.ConstBegin(), 'a', 2));
         }
         SECTION("Insert at beginning")
         {
@@ -3429,7 +3431,7 @@ TEST_CASE("Insert", "[String]")
             StringLocale str(&null_allocator);
             StringLocale in("aa");
             Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_THROWS_AS(result = str.Insert(str.Begin(), in.Begin(), in.End()), OutOfMemoryException);
+            REQUIRE_NOTHROW(result = str.Insert(str.Begin(), in.Begin(), in.End()));
         }
         SECTION("Count is zero")
         {
@@ -3492,7 +3494,7 @@ TEST_CASE("Insert", "[String]")
             StringLocale str(&null_allocator);
             StringLocale in("aa");
             Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_THROWS_AS(result = str.Insert(str.ConstBegin(), in.Begin(), in.End()), OutOfMemoryException);
+            REQUIRE_NOTHROW(result = str.Insert(str.ConstBegin(), in.Begin(), in.End()));
         }
         SECTION("Count is zero")
         {

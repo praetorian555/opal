@@ -51,7 +51,7 @@ TEST_CASE("Construction", "[StringView]")
     {
         StringUtf8 str;
         StringViewUtf8 view(str);
-        REQUIRE(view.GetData() == nullptr);
+        REQUIRE(view.GetData() != nullptr);
         REQUIRE(view.GetSize() == 0);
     }
 
