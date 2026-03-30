@@ -3975,6 +3975,647 @@ TEST_CASE("StringToNumber with StringViewUtf8", "[String]")
     REQUIRE(StringToNumber<u64>(large) == 4294967296ULL);
 }
 
+TEST_CASE("Iterator range constructor", "[String]")
+{
+    SECTION("Short string")
+    {
+        const char ref[] = "Hello there";
+        StringLocale str(ref + 0, ref + 11);
+        REQUIRE(str.GetSize() == 11);
+        REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
+        REQUIRE(strcmp(ref, str.GetData()) == 0);
+    }
+    SECTION("Short string with allocator")
+    {
+        MallocAllocator da;
+        const char ref[] = "Hello there";
+        StringLocale str(ref + 0, ref + 11, &da);
+        REQUIRE(str.GetSize() == 11);
+        REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
+        REQUIRE(strcmp(ref, str.GetData()) == 0);
+    }
+    SECTION("Long string")
+    {
+        const char ref[] = "Hello there and then some more";
+        StringLocale str(ref + 0, ref + 30);
+        REQUIRE(str.GetSize() == 30);
+        REQUIRE(str.GetCapacity() == 31);
+        REQUIRE(strcmp(ref, str.GetData()) == 0);
+    }
+    SECTION("Empty range")
+    {
+        const char ref[] = "Hello";
+        StringLocale str(ref + 0, ref + 0);
+        REQUIRE(str.GetSize() == 0);
+        REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
+    }
+    SECTION("From string iterators")
+    {
+        StringUtf8 source("Hello there");
+        StringUtf8 str(source.begin(), source.end());
+        REQUIRE(str.GetSize() == 11);
+        REQUIRE(str == source);
+    }
+    SECTION("Partial range from string iterators")
+    {
+        StringUtf8 source("Hello there");
+        StringUtf8 str(source.begin(), source.begin() + 5);
+        REQUIRE(str.GetSize() == 5);
+        REQUIRE(str == "Hello");
+    }
+}
+
+TEST_CASE("IsEmpty and empty", "[String]")
+{
+    SECTION("Default constructed")
+    {
+        StringUtf8 str;
+        REQUIRE(str.IsEmpty());
+        REQUIRE(str.empty());
+    }
+    SECTION("Non-empty short string")
+    {
+        StringUtf8 str("Hello");
+        REQUIRE(!str.IsEmpty());
+        REQUIRE(!str.empty());
+    }
+    SECTION("Non-empty long string")
+    {
+        StringUtf8 str("Hello there and then some more");
+        REQUIRE(!str.IsEmpty());
+        REQUIRE(!str.empty());
+    }
+    SECTION("After clearing via Resize")
+    {
+        StringUtf8 str("Hello there");
+        str.Resize(0);
+        REQUIRE(str.IsEmpty());
+        REQUIRE(str.empty());
+    }
+    SECTION("After move")
+    {
+        StringUtf8 str("Hello there");
+        StringUtf8 other(Move(str));
+        REQUIRE(str.IsEmpty());
+        REQUIRE(str.empty());
+        REQUIRE(!other.IsEmpty());
+        REQUIRE(!other.empty());
+    }
+}
+
+TEST_CASE("Trim", "[String]")
+{
+    SECTION("Short string")
+    {
+        StringUtf8 str("Hello there");
+        str.Resize(5);
+        str.Trim();
+        REQUIRE(str.GetSize() == 5);
+        REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Long string with extra capacity")
+    {
+        StringUtf8 str(200, 0);
+        REQUIRE(str.GetSize() == 200);
+        str.Trim();
+        REQUIRE(str.GetSize() == 0);
+    }
+    SECTION("Long string data preserved")
+    {
+        StringUtf8 str("Hello there and then some more");
+        str.Trim();
+        REQUIRE(str.GetSize() == 30);
+        REQUIRE(str == "Hello there and then some more");
+    }
+    SECTION("Long string resized smaller")
+    {
+        StringUtf8 str("Hello there and then some more");
+        str.Resize(5);
+        str.Trim();
+        REQUIRE(str.GetSize() == 5);
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Empty string")
+    {
+        StringUtf8 str;
+        str.Trim();
+        REQUIRE(str.GetSize() == 0);
+        REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+    }
+}
+
+TEST_CASE("Append with iterator range", "[String]")
+{
+    SECTION("Short string")
+    {
+        SECTION("Append from char pointer range")
+        {
+            StringUtf8 str("Hello");
+            const char ref[] = " there";
+            ErrorCode err = str.Append(ref + 0, ref + 6);
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetSize() == 11);
+            REQUIRE(str == "Hello there");
+        }
+        SECTION("Append from string iterators")
+        {
+            StringUtf8 str("Hello");
+            StringUtf8 other(" there");
+            ErrorCode err = str.Append(other.begin(), other.end());
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetSize() == 11);
+            REQUIRE(str == "Hello there");
+        }
+        SECTION("Append empty range")
+        {
+            StringUtf8 str("Hello");
+            const char* ref = "there";
+            ErrorCode err = str.Append(ref + 0, ref + 0);
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetSize() == 5);
+            REQUIRE(str == "Hello");
+        }
+        SECTION("Append triggers resize to long string")
+        {
+            StringUtf8 str("Hello");
+            const char ref[] = " there and then some more";
+            ErrorCode err = str.Append(ref + 0, ref + 25);
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetSize() == 30);
+            REQUIRE(str == "Hello there and then some more");
+        }
+    }
+    SECTION("Long string")
+    {
+        SECTION("Append from char pointer range")
+        {
+            StringUtf8 str("Hello there and then some more");
+            const char ref[] = " text";
+            ErrorCode err = str.Append(ref + 0, ref + 5);
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetSize() == 35);
+            REQUIRE(str == "Hello there and then some more text");
+        }
+        SECTION("Append from string iterators")
+        {
+            StringUtf8 str("Hello there and then some more");
+            StringUtf8 other(" text");
+            ErrorCode err = str.Append(other.begin(), other.end());
+            REQUIRE(err == ErrorCode::Success);
+            REQUIRE(str.GetSize() == 35);
+            REQUIRE(str == "Hello there and then some more text");
+        }
+    }
+}
+
+TEST_CASE("SplitToArray", "[String]")
+{
+    SECTION("Normal split")
+    {
+        const StringUtf8 str("Hello there friend");
+        const StringUtf8 delimiter(" ");
+        DynamicArray<StringUtf8> result;
+        REQUIRE(Opal::SplitToArray(str, delimiter, result));
+        REQUIRE(result.GetSize() == 3);
+        REQUIRE(result[0] == "Hello");
+        REQUIRE(result[1] == "there");
+        REQUIRE(result[2] == "friend");
+    }
+    SECTION("No delimiter found")
+    {
+        const StringUtf8 str("Hello");
+        const StringUtf8 delimiter(" ");
+        DynamicArray<StringUtf8> result;
+        REQUIRE(!Opal::SplitToArray(str, delimiter, result));
+        REQUIRE(result.GetSize() == 1);
+        REQUIRE(result[0] == "Hello");
+    }
+    SECTION("Empty string")
+    {
+        const StringUtf8 str("");
+        const StringUtf8 delimiter(" ");
+        DynamicArray<StringUtf8> result;
+        REQUIRE(!Opal::SplitToArray(str, delimiter, result));
+    }
+    SECTION("Multiple consecutive delimiters")
+    {
+        const StringUtf8 str("Hello  there");
+        const StringUtf8 delimiter(" ");
+        DynamicArray<StringUtf8> result;
+        REQUIRE(Opal::SplitToArray(str, delimiter, result));
+        REQUIRE(result.GetSize() == 3);
+        REQUIRE(result[0] == "Hello");
+        REQUIRE(result[1] == "");
+        REQUIRE(result[2] == "there");
+    }
+    SECTION("Single character delimiter at the end")
+    {
+        const StringUtf8 str("Hello there ");
+        const StringUtf8 delimiter(" ");
+        DynamicArray<StringUtf8> result;
+        Opal::SplitToArray(str, delimiter, result);
+        REQUIRE(result.GetSize() >= 2);
+        REQUIRE(result[0] == "Hello");
+        REQUIRE(result[1] == "there");
+    }
+}
+
+TEST_CASE("Clone", "[String]")
+{
+    SECTION("Short string with default allocator")
+    {
+        StringUtf8 str("Hello there");
+        StringUtf8 cloned = str.Clone();
+        REQUIRE(cloned == str);
+        REQUIRE(cloned.GetData() != str.GetData());
+        REQUIRE(cloned.GetSize() == 11);
+        REQUIRE(cloned.GetCapacity() == StringUtf8::k_sso_capacity);
+    }
+    SECTION("Short string with custom allocator")
+    {
+        MallocAllocator da;
+        StringUtf8 str("Hello there");
+        StringUtf8 cloned = str.Clone(&da);
+        REQUIRE(cloned == str);
+        REQUIRE(cloned.GetData() != str.GetData());
+        REQUIRE(&cloned.GetAllocator() == &da);
+    }
+    SECTION("Long string with default allocator")
+    {
+        StringUtf8 str("Hello there and then some more");
+        StringUtf8 cloned = str.Clone();
+        REQUIRE(cloned == str);
+        REQUIRE(cloned.GetData() != str.GetData());
+        REQUIRE(cloned.GetSize() == 30);
+    }
+    SECTION("Long string with custom allocator")
+    {
+        MallocAllocator da;
+        StringUtf8 str("Hello there and then some more");
+        StringUtf8 cloned = str.Clone(&da);
+        REQUIRE(cloned == str);
+        REQUIRE(cloned.GetData() != str.GetData());
+        REQUIRE(&cloned.GetAllocator() == &da);
+    }
+    SECTION("Empty string")
+    {
+        StringUtf8 str;
+        StringUtf8 cloned = str.Clone();
+        REQUIRE(cloned == str);
+        REQUIRE(cloned.GetSize() == 0);
+    }
+    SECTION("Clone is a deep copy")
+    {
+        StringUtf8 str("Hello there and then some more");
+        StringUtf8 cloned = str.Clone();
+        str.Append(" extra");
+        REQUIRE(cloned == "Hello there and then some more");
+        REQUIRE(str == "Hello there and then some more extra");
+    }
+}
+
+TEST_CASE("Move assignment cross category", "[String]")
+{
+    SECTION("Short to long")
+    {
+        StringUtf8 short_str("Hello");
+        StringUtf8 long_str("Hello there and then some more");
+        long_str = Move(short_str);
+        REQUIRE(long_str.GetSize() == 5);
+        REQUIRE(long_str == "Hello");
+        REQUIRE(short_str.GetSize() == 0);
+    }
+    SECTION("Long to short")
+    {
+        StringUtf8 short_str("Hello");
+        StringUtf8 long_str("Hello there and then some more");
+        short_str = Move(long_str);
+        REQUIRE(short_str.GetSize() == 30);
+        REQUIRE(short_str == "Hello there and then some more");
+        REQUIRE(long_str.GetSize() == 0);
+    }
+}
+
+TEST_CASE("Comparison extended", "[String]")
+{
+    SECTION("Empty vs empty")
+    {
+        StringUtf8 a;
+        StringUtf8 b;
+        REQUIRE(a == b);
+    }
+    SECTION("Empty vs non-empty")
+    {
+        StringUtf8 a;
+        StringUtf8 b("Hello");
+        REQUIRE(a != b);
+        REQUIRE(b != a);
+    }
+    SECTION("Self comparison")
+    {
+        StringUtf8 a("Hello there");
+        REQUIRE(a == a);
+    }
+    SECTION("Different lengths same prefix")
+    {
+        StringUtf8 a("Hello");
+        StringUtf8 b("Hello there");
+        REQUIRE(a != b);
+    }
+    SECTION("Same length different content")
+    {
+        StringUtf8 a("Hello");
+        StringUtf8 b("World");
+        REQUIRE(a != b);
+    }
+}
+
+TEST_CASE("Resize long string", "[String]")
+{
+    SECTION("Resize to zero")
+    {
+        StringUtf8 str("Hello there and then some more");
+        str.Resize(0);
+        REQUIRE(str.GetSize() == 0);
+        REQUIRE(str.GetData() != nullptr);
+        REQUIRE(str.GetData()[0] == 0);
+    }
+    SECTION("New size smaller than old")
+    {
+        StringUtf8 str("Hello there and then some more");
+        str.Resize(5);
+        REQUIRE(str.GetSize() == 5);
+        REQUIRE(str == "Hello");
+    }
+    SECTION("New size larger than old")
+    {
+        StringUtf8 str("Hello there and then some more");
+        str.Resize(40);
+        REQUIRE(str.GetSize() == 40);
+        REQUIRE(str.GetData() != nullptr);
+        for (u64 i = 0; i < 30; i++)
+        {
+            REQUIRE(str.GetData()[i] == u8"Hello there and then some more"[i]);
+        }
+    }
+    SECTION("New size larger than old with non-zero value")
+    {
+        StringUtf8 str("Hello there and then some more");
+        str.Resize(35, 'x');
+        REQUIRE(str.GetSize() == 35);
+        for (u64 i = 0; i < 30; i++)
+        {
+            REQUIRE(str.GetData()[i] == u8"Hello there and then some more"[i]);
+        }
+        for (u64 i = 30; i < 35; i++)
+        {
+            REQUIRE(str.GetData()[i] == 'x');
+        }
+    }
+}
+
+TEST_CASE("Erase long string", "[String]")
+{
+    SECTION("Erase with start position and count")
+    {
+        StringUtf8 str("Hello there and then some more");
+        auto result = str.Erase(5, 6);
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "Hello and then some more");
+    }
+    SECTION("Erase all from position")
+    {
+        StringUtf8 str("Hello there and then some more");
+        auto result = str.Erase(5);
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Erase with single iterator")
+    {
+        StringUtf8 str("Hello there and then some more");
+        auto result = str.Erase(str.Begin());
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "ello there and then some more");
+    }
+    SECTION("Erase with iterator range")
+    {
+        StringUtf8 str("Hello there and then some more");
+        auto result = str.Erase(str.Begin() + 5, str.Begin() + 11);
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "Hello and then some more");
+    }
+    SECTION("Erase with const iterator range")
+    {
+        StringUtf8 str("Hello there and then some more");
+        auto result = str.Erase(str.ConstBegin() + 5, str.ConstBegin() + 11);
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "Hello and then some more");
+    }
+}
+
+TEST_CASE("Insert long string", "[String]")
+{
+    SECTION("Insert at beginning with count and value")
+    {
+        StringUtf8 str("Hello there and then some more");
+        auto result = str.Insert(0, 3, 'X');
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "XXXHello there and then some more");
+    }
+    SECTION("Insert in the middle with char pointer")
+    {
+        StringUtf8 str("Hello there and then some more");
+        auto result = str.Insert(5, " beautiful");
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "Hello beautiful there and then some more");
+    }
+    SECTION("Insert at end with string object")
+    {
+        StringUtf8 str("Hello there and then some more");
+        StringUtf8 suffix(" text");
+        auto result = str.Insert(30, suffix);
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "Hello there and then some more text");
+    }
+    SECTION("Insert with single iterator")
+    {
+        StringUtf8 str("Hello there and then some more");
+        auto result = str.Insert(str.Begin(), 'X');
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "XHello there and then some more");
+    }
+    SECTION("Insert with iterator range")
+    {
+        StringUtf8 str("Hello there and then some more");
+        const char insert_text[] = "XXX";
+        auto result = str.Insert(str.Begin() + 5, insert_text + 0, insert_text + 3);
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "HelloXXX there and then some more");
+    }
+}
+
+TEST_CASE("SSO boundary", "[String]")
+{
+    SECTION("String at SSO capacity minus one")
+    {
+        StringUtf8 str(StringUtf8::k_sso_capacity - 1, 'A');
+        REQUIRE(str.GetSize() == StringUtf8::k_sso_capacity - 1);
+        REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+        for (u64 i = 0; i < str.GetSize(); i++)
+        {
+            REQUIRE(str.GetData()[i] == 'A');
+        }
+    }
+    SECTION("Append pushes past SSO boundary")
+    {
+        StringUtf8 str(StringUtf8::k_sso_capacity - 1, 'A');
+        REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+        str.Append('B');
+        REQUIRE(str.GetSize() == StringUtf8::k_sso_capacity);
+        REQUIRE(str.GetCapacity() > StringUtf8::k_sso_capacity);
+        REQUIRE(str.GetData()[StringUtf8::k_sso_capacity - 1] == 'B');
+    }
+    SECTION("Insert at SSO boundary")
+    {
+        StringUtf8 str(StringUtf8::k_sso_capacity - 1, 'A');
+        auto result = str.Insert(0, 1, 'B');
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str.GetSize() == StringUtf8::k_sso_capacity);
+        REQUIRE(str.GetCapacity() > StringUtf8::k_sso_capacity);
+        REQUIRE(str.GetData()[0] == 'B');
+    }
+    SECTION("Resize from SSO to heap")
+    {
+        StringUtf8 str("Hello");
+        str.Resize(StringUtf8::k_sso_capacity);
+        REQUIRE(str.GetSize() == StringUtf8::k_sso_capacity);
+        REQUIRE(str.GetCapacity() > StringUtf8::k_sso_capacity);
+    }
+    SECTION("Assign transitions from SSO to heap")
+    {
+        StringUtf8 str("Hello");
+        REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+        str.Assign(StringUtf8::k_sso_capacity, 'X');
+        REQUIRE(str.GetSize() == StringUtf8::k_sso_capacity);
+    }
+}
+
+TEST_CASE("Reverse long string", "[String]")
+{
+    SECTION("Full reverse")
+    {
+        StringUtf8 str("Hello there and then some more");
+        str.Reverse();
+        REQUIRE(str == "erom emos neht dna ereht olleH");
+    }
+    SECTION("Partial reverse")
+    {
+        StringUtf8 str("Hello there and then some more");
+        str.Reverse(str.begin(), str.begin() + 5);
+        REQUIRE(str == "olleH there and then some more");
+    }
+}
+
+TEST_CASE("Find long string", "[String]")
+{
+    SECTION("Find with string object")
+    {
+        StringUtf8 str("Hello there and then some more");
+        StringUtf8 needle("then");
+        REQUIRE(Find(str, needle) == 16);
+    }
+    SECTION("Find with char pointer")
+    {
+        StringUtf8 str("Hello there and then some more");
+        REQUIRE(Find(str, "some") == 21);
+    }
+    SECTION("Find character")
+    {
+        StringUtf8 str("Hello there and then some more");
+        REQUIRE(Find(str, 'a') == 12);
+    }
+    SECTION("Find not found")
+    {
+        StringUtf8 str("Hello there and then some more");
+        StringUtf8 needle("xyz");
+        REQUIRE(Find(str, needle) == StringUtf8::k_npos);
+    }
+}
+
+TEST_CASE("ReverseFind long string", "[String]")
+{
+    SECTION("Find with string object")
+    {
+        StringUtf8 str("Hello there and then some more");
+        StringUtf8 needle("the");
+        REQUIRE(ReverseFind(str, needle) == 16);
+    }
+    SECTION("Find with char pointer")
+    {
+        StringUtf8 str("Hello there and then some more");
+        REQUIRE(ReverseFind(str, "some") == 21);
+    }
+    SECTION("Find character")
+    {
+        StringUtf8 str("Hello there and then some more");
+        REQUIRE(ReverseFind(str, 'e') == 29);
+    }
+}
+
+TEST_CASE("NumberToString with leading zeros", "[String]")
+{
+    SECTION("8-bit binary with leading zeros")
+    {
+        StringUtf8 str = NumberToString(static_cast<u8>(5), NumberSystemBase::Binary, true);
+        REQUIRE(str == "00000101");
+    }
+    SECTION("16-bit binary with leading zeros")
+    {
+        StringUtf8 str = NumberToString(static_cast<u16>(5), NumberSystemBase::Binary, true);
+        REQUIRE(str == "0000000000000101");
+    }
+    SECTION("32-bit binary with leading zeros")
+    {
+        StringUtf8 str = NumberToString(static_cast<u32>(1), NumberSystemBase::Binary, true);
+        REQUIRE(str == "00000000000000000000000000000001");
+    }
+    SECTION("64-bit binary with leading zeros")
+    {
+        StringUtf8 str = NumberToString(static_cast<u64>(1), NumberSystemBase::Binary, true);
+        REQUIRE(str == "0000000000000000000000000000000000000000000000000000000000000001");
+    }
+    SECTION("Binary without leading zeros")
+    {
+        StringUtf8 str = NumberToString(static_cast<u8>(5), NumberSystemBase::Binary, false);
+        REQUIRE(str == "101");
+    }
+    SECTION("Zero value with leading zeros")
+    {
+        StringUtf8 str = NumberToString(static_cast<u8>(0), NumberSystemBase::Binary, true);
+        REQUIRE(str == "00000000");
+    }
+}
+
+TEST_CASE("Append long string character", "[String]")
+{
+    SECTION("Character")
+    {
+        StringUtf8 str("Hello there and then some more");
+        str.Append('!');
+        REQUIRE(str.GetSize() == 31);
+        REQUIRE(str == "Hello there and then some more!");
+    }
+    SECTION("Character triggers resize")
+    {
+        StringUtf8 str("Hello there and then some more");
+        u64 old_capacity = str.GetCapacity();
+        str.Resize(old_capacity - 1);
+        str.Append('!');
+        REQUIRE(str.GetSize() == old_capacity);
+    }
+}
+
 TEST_CASE("Clonable interface", "[String]")
 {
     struct Data : ClonableBase<Data>
