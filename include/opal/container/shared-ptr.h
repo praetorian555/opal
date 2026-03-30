@@ -183,9 +183,11 @@ public:
     /**
      * Creates a new SharedPtr that shares ownership of the managed object. The reference count is incremented.
      * If this shared pointer is invalid, the returned clone is also invalid.
+     * @param allocator Ignored. The managed object can only be freed by the allocator that originally created it.
+     *        This parameter exists for API compatibility with Opal::Clone(source, allocator).
      * @return A new SharedPtr that points to the same object.
      */
-    SharedPtr Clone() const
+    SharedPtr Clone([[maybe_unused]] AllocatorBase* allocator = nullptr) const
     {
         SharedPtr clone;
         if (!IsValid())

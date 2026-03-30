@@ -191,6 +191,15 @@ TEMPLATE_TEST_CASE("SharedPtr Clone", "[SharedPtr]",
         REQUIRE(clone3.IsValid());
         REQUIRE(*clone3.Get() == 42);
     }
+    SECTION("Clone with allocator argument ignores allocator")
+    {
+        LinearAllocator other_allocator("Other");
+        SharedPtr<i32, k_policy> ptr(GetDefaultAllocator(), 5);
+        SharedPtr<i32, k_policy> clone = ptr.Clone(&other_allocator);
+        REQUIRE(clone.IsValid());
+        REQUIRE(*clone.Get() == 5);
+        REQUIRE(ptr.Get() == clone.Get());
+    }
 }
 
 TEMPLATE_TEST_CASE("SharedPtr Reset", "[SharedPtr]",
