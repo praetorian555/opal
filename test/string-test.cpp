@@ -4105,6 +4105,90 @@ TEST_CASE("Trim", "[String]")
     }
 }
 
+TEST_CASE("Strip", "[String]")
+{
+    SECTION("No whitespace")
+    {
+        StringUtf8 str("Hello");
+        str.Strip();
+        REQUIRE(str == "Hello");
+        REQUIRE(str.GetSize() == 5);
+    }
+    SECTION("Leading spaces")
+    {
+        StringUtf8 str("   Hello");
+        str.Strip();
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Trailing spaces")
+    {
+        StringUtf8 str("Hello   ");
+        str.Strip();
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Both sides spaces")
+    {
+        StringUtf8 str("  Hello  ");
+        str.Strip();
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Tabs")
+    {
+        StringUtf8 str("\tHello\t");
+        str.Strip();
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Newlines")
+    {
+        StringUtf8 str("\nHello\n");
+        str.Strip();
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Carriage returns")
+    {
+        StringUtf8 str("\rHello\r");
+        str.Strip();
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Mixed whitespace")
+    {
+        StringUtf8 str(" \t\r\nHello world\n\r\t ");
+        str.Strip();
+        REQUIRE(str == "Hello world");
+    }
+    SECTION("All whitespace")
+    {
+        StringUtf8 str(" \t\n\r ");
+        str.Strip();
+        REQUIRE(str.GetSize() == 0);
+        REQUIRE(str.IsEmpty());
+    }
+    SECTION("Empty string")
+    {
+        StringUtf8 str;
+        str.Strip();
+        REQUIRE(str.GetSize() == 0);
+    }
+    SECTION("Whitespace in the middle preserved")
+    {
+        StringUtf8 str("  Hello\tthere\nfriend  ");
+        str.Strip();
+        REQUIRE(str == "Hello\tthere\nfriend");
+    }
+    SECTION("Long string")
+    {
+        StringUtf8 str("\n\r  Hello there and then some more  \r\n");
+        str.Strip();
+        REQUIRE(str == "Hello there and then some more");
+    }
+    SECTION("Single character")
+    {
+        StringUtf8 str(" A ");
+        str.Strip();
+        REQUIRE(str == "A");
+    }
+}
+
 TEST_CASE("Append with iterator range", "[String]")
 {
     SECTION("Short string")

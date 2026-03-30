@@ -338,6 +338,11 @@ public:
     void Trim();
 
     /**
+     * Remove leading and trailing whitespace characters from the string. Characters removed are: space, tab, newline, and carriage return.
+     */
+    void Strip();
+
+    /**
      * Append a code unit to the end of the string.
      * @param ch Code unit to append.
      * @return ErrorCode::Success in case of a success.
@@ -1511,6 +1516,38 @@ void CLASS_HEADER::Trim()
         SetSize(real_size);
         GetData()[real_size] = 0;
     }
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::Strip()
+{
+    const size_type my_size = GetSize();
+    if (my_size == 0)
+    {
+        return;
+    }
+    auto is_whitespace = [](CodeUnitType ch) -> bool
+    { return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r'; };
+    size_type start = 0;
+    while (start < my_size && is_whitespace(GetData()[start]))
+    {
+        ++start;
+    }
+    size_type end = my_size;
+    while (end > start && is_whitespace(GetData()[end - 1]))
+    {
+        --end;
+    }
+    const size_type new_size = end - start;
+    if (start > 0 && new_size > 0)
+    {
+        for (size_type i = 0; i < new_size; ++i)
+        {
+            GetData()[i] = GetData()[start + i];
+        }
+    }
+    SetSize(new_size);
+    GetData()[new_size] = 0;
 }
 
 TEMPLATE_HEADER
