@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+    <Type Name="Opal::DynamicArray &lt;*&gt;">
+        <DisplayString>{{ size={m_size}, capacity={m_capacity} }}</DisplayString>
+        <Expand>
+            <Item Name="[allocator]">m_allocator</Item>
+            <Item Name="[capacity]">m_capacity</Item>
+            <Item Name="[size]">m_size</Item>
+            <ArrayItems>
+                <Size>m_size</Size>
+                <ValuePointer>m_data</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <Type Name="Opal::String &lt;*,*&gt;">
+        <Intrinsic Name="FlagBit" Expression="1ULL &lt;&lt; 63"/>
+        <Intrinsic Name="IsShort" Expression="(m_allocator_and_tag &amp; FlagBit()) != 0"/>
+        <Intrinsic Name="IsLong" Expression="(m_allocator_and_tag &amp; FlagBit()) == 0"/>
+        <Intrinsic Name="GetSize" Expression="IsShort() ? (uint64_t)((m_allocator_and_tag &amp; (0x3FULL &lt;&lt; 57)) &gt;&gt; 57) : m_storage.large.size"/>
+        <Intrinsic Name="GetCapacity" Expression="IsShort() ? (uint64_t)(24 / sizeof($T1)) : m_storage.large.capacity"/>
+        <Intrinsic Name="GetAllocator" Expression="(Opal::AllocatorBase*)(m_allocator_and_tag &amp; ((1ULL &lt;&lt; 57) - 1))"/>
+        <DisplayString Condition="IsShort()">{(char8*)m_storage.raw,na}</DisplayString>
+        <DisplayString Condition="IsLong()">{m_storage.large.data,na}</DisplayString>
+        <StringView Condition="IsShort()">(char8*)m_storage.raw,na</StringView>
+        <StringView Condition="IsLong()">m_storage.large.data,na</StringView>
+        <Expand>
+            <Item Name="[allocator]">GetAllocator()</Item>
+            <Item Name="[capacity]">GetCapacity()</Item>
+            <Item Name="[size]">GetSize()</Item>
+            <ArrayItems>
+                <Size>GetSize()</Size>
+                <ValuePointer Condition="IsShort()">(char8*)m_storage.raw</ValuePointer>
+                <ValuePointer Condition="IsLong()">m_storage.large.data</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <Type Name="Opal::StringView &lt;*,*&gt;">
+        <DisplayString>{m_data,[m_size]na}</DisplayString>
+        <StringView>m_data,[m_size]na</StringView>
+        <Expand>
+            <Item Name="[size]">m_size</Item>
+            <ArrayItems>
+                <Size>m_size</Size>
+                <ValuePointer>m_data</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <Type Name="Opal::Variant &lt;*&gt;">
+        <Intrinsic Name="index" Expression="(int)m_index"/>
+        <DisplayString Condition="index() &lt; 0">[empty]</DisplayString>
+        <DisplayString Condition="index() ==  0" Optional="true">{{ index=0, value={m_storage.head} }}</DisplayString>
+        <DisplayString Condition="index() ==  1" Optional="true">{{ index=1, value={m_storage.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() ==  2" Optional="true">{{ index=2, value={m_storage.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() ==  3" Optional="true">{{ index=3, value={m_storage.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() ==  4" Optional="true">{{ index=4, value={m_storage.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() ==  5" Optional="true">{{ index=5, value={m_storage.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() ==  6" Optional="true">{{ index=6, value={m_storage.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() ==  7" Optional="true">{{ index=7, value={m_storage.tail.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() ==  8" Optional="true">{{ index=8, value={m_storage.tail.tail.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() ==  9" Optional="true">{{ index=9, value={m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() == 10" Optional="true">{{ index=10, value={m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() == 11" Optional="true">{{ index=11, value={m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() == 12" Optional="true">{{ index=12, value={m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() == 13" Optional="true">{{ index=13, value={m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() == 14" Optional="true">{{ index=14, value={m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <DisplayString Condition="index() == 15" Optional="true">{{ index=15, value={m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head} }}</DisplayString>
+        <Expand>
+            <Item Name="index">index()</Item>
+            <Item Name="[value]" Condition="index() ==  0" Optional="true">m_storage.head</Item>
+            <Item Name="[value]" Condition="index() ==  1" Optional="true">m_storage.tail.head</Item>
+            <Item Name="[value]" Condition="index() ==  2" Optional="true">m_storage.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() ==  3" Optional="true">m_storage.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() ==  4" Optional="true">m_storage.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() ==  5" Optional="true">m_storage.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() ==  6" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() ==  7" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() ==  8" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() ==  9" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() == 10" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() == 11" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() == 12" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() == 13" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() == 14" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head</Item>
+            <Item Name="[value]" Condition="index() == 15" Optional="true">m_storage.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.tail.head</Item>
+        </Expand>
+    </Type>
+
+</AutoVisualizer>
