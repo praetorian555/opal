@@ -317,7 +317,18 @@ Type-safe discriminated union supporting multiple alternative types with visit a
 #include "opal/variant.h"
 
 Opal::Variant<int, float, Opal::StringUtf8> value(42);
-Opal::Visit(value, [](const auto& v) { /* handle each type */ });
+
+// Visit — must handle all types
+value.Visit(Opal::Overloaded{
+    [](int v)                     { /* handle int */ },
+    [](float v)                   { /* handle float */ },
+    [](const Opal::StringUtf8& v) { /* handle string */ },
+});
+
+// VisitPartial — only handle types you care about, rest are ignored
+value.VisitPartial(Opal::Overloaded{
+    [](int v) { /* handle int only */ },
+});
 ```
 
 ### Other Utilities
