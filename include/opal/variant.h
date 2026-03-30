@@ -79,6 +79,19 @@ struct TypeIndex<T, First, Rest...>
 }  // namespace Impl
 
 /**
+ * Helper for creating a visitor from multiple lambdas via aggregate initialization.
+ * Usage: v.Visit(Overloaded{[](i32 x) { ... }, [](f32 x) { ... }});
+ */
+template <typename... Visitors>
+struct Overloaded : Visitors...
+{
+    using Visitors::operator()...;
+};
+
+template <typename... Visitors>
+Overloaded(Visitors...) -> Overloaded<Visitors...>;
+
+/**
  * A type-safe tagged union that holds exactly one value from the alternative types Ts.
  *
  * The default constructor initializes the first alternative. Copy is deleted, use Clone for that;
@@ -259,6 +272,34 @@ public:
         return VisitDispatch(std::forward<Visitor>(visitor), std::make_index_sequence<sizeof...(Ts)>{});
     }
 
+    /**
+     * Calls the visitor with the active alternative's value.
+     * Unlike Visit(), the visitor does not need to handle every alternative type.
+     * Unhandled types are silently ignored. The return type is always void.
+     * @param visitor A callable (or Overloaded set of callables) to invoke.
+     */
+    /**
+     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     */
+    template <typename Visitor>
+    void VisitPartial(Visitor&& visitor)
+    {
+        ThrowIfEmpty();
+        auto combined = Overloaded{std::forward<Visitor>(visitor), [](const auto&) {}};
+        VisitDispatch(combined, std::make_index_sequence<sizeof...(Ts)>{});
+    }
+
+    /**
+     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     */
+    template <typename Visitor>
+    void VisitPartial(Visitor&& visitor) const
+    {
+        ThrowIfEmpty();
+        auto combined = Overloaded{std::forward<Visitor>(visitor), [](const auto&) {}};
+        VisitDispatch(combined, std::make_index_sequence<sizeof...(Ts)>{});
+    }
+
 private:
     using Storage = Impl::VariantStorage<Ts...>;
 
@@ -381,18 +422,5 @@ private:
     Storage m_storage;
     std::size_t m_index = static_cast<std::size_t>(-1);
 };
-
-/**
- * Helper for creating a visitor from multiple lambdas via aggregate initialization.
- * Usage: v.Visit(Overloaded{[](i32 x) { ... }, [](f32 x) { ... }});
- */
-template <typename... Visitors>
-struct Overloaded : Visitors...
-{
-    using Visitors::operator()...;
-};
-
-template <typename... Visitors>
-Overloaded(Visitors...) -> Overloaded<Visitors...>;
 
 }  // namespace Opal

@@ -490,3 +490,74 @@ TEST_CASE("Variant Visit throws on moved-from variant", "[Variant]")
     Variant<i32, f32> v2(Move(v));
     REQUIRE_THROWS_AS(v.Visit([](auto&) {}), InvalidArgumentException);
 }
+
+// ------------------------------------------------------------------------------------------------
+// VisitPartial.
+// ------------------------------------------------------------------------------------------------
+
+TEST_CASE("Variant VisitPartial calls matching handler", "[Variant]")
+{
+    Variant<i32, f32, f64> v(42);
+    i32 result = 0;
+    v.VisitPartial(Overloaded{
+        [&result](i32& val) { result = val; },
+    });
+    REQUIRE(result == 42);
+}
+
+TEST_CASE("Variant VisitPartial ignores unhandled types", "[Variant]")
+{
+    Variant<i32, f32, f64> v(1.5f);
+    i32 result = 0;
+    v.VisitPartial(Overloaded{
+        [&result](i32& val) { result = val; },
+    });
+    REQUIRE(result == 0);
+}
+
+TEST_CASE("Variant VisitPartial with multiple handlers", "[Variant]")
+{
+    Variant<i32, f32, f64> v(2.5);
+    i32 which = -1;
+    v.VisitPartial(Overloaded{
+        [&which](i32&) { which = 0; },
+        [&which](f64&) { which = 2; },
+    });
+    REQUIRE(which == 2);
+}
+
+TEST_CASE("Variant VisitPartial with no matching handler", "[Variant]")
+{
+    Variant<i32, f32, f64> v(1.5f);
+    bool called = false;
+    v.VisitPartial(Overloaded{
+        [&called](i32&) { called = true; },
+        [&called](f64&) { called = true; },
+    });
+    REQUIRE_FALSE(called);
+}
+
+TEST_CASE("Variant VisitPartial on const variant", "[Variant]")
+{
+    const Variant<i32, f32, f64> v(42);
+    i32 result = 0;
+    v.VisitPartial(Overloaded{
+        [&result](const i32& val) { result = val; },
+    });
+    REQUIRE(result == 42);
+}
+
+TEST_CASE("Variant VisitPartial with generic lambda", "[Variant]")
+{
+    Variant<i32, f32, f64> v(42);
+    bool visited = false;
+    v.VisitPartial([&visited](auto&) { visited = true; });
+    REQUIRE(visited);
+}
+
+TEST_CASE("Variant VisitPartial throws on moved-from variant", "[Variant]")
+{
+    Variant<i32, f32> v(42);
+    Variant<i32, f32> v2(Move(v));
+    REQUIRE_THROWS_AS(v.VisitPartial([](auto&) {}), InvalidArgumentException);
+}
