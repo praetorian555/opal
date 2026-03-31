@@ -49,6 +49,27 @@
         </Expand>
     </Type>
 
+    <Type Name="Opal::InPlaceArray &lt;*,*&gt;">
+        <DisplayString>{{ size={$T2} }}</DisplayString>
+        <Expand>
+            <ArrayItems>
+                <Size>$T2</Size>
+                <ValuePointer>m_data</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <Type Name="Opal::ArrayView &lt;*&gt;">
+        <DisplayString>{{ size={m_size} }}</DisplayString>
+        <Expand>
+            <Item Name="[size]">m_size</Item>
+            <ArrayItems>
+                <Size>m_size</Size>
+                <ValuePointer>m_data</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
     <Type Name="Opal::Variant &lt;*&gt;">
         <Intrinsic Name="index" Expression="(int)m_index"/>
         <DisplayString Condition="index() &lt; 0">[empty]</DisplayString>
