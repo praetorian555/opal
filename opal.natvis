@@ -70,6 +70,50 @@
         </Expand>
     </Type>
 
+    <Type Name="Opal::Pair &lt;*,*&gt;">
+        <DisplayString>{{ {key}: {value} }}</DisplayString>
+        <Expand>
+            <Item Name="key">key</Item>
+            <Item Name="value">value</Item>
+        </Expand>
+    </Type>
+
+    <Type Name="Opal::HashMap &lt;*,*&gt;">
+        <DisplayString>{{ size={m_size}, capacity={m_capacity} }}</DisplayString>
+        <Expand>
+            <Item Name="[allocator]">m_allocator</Item>
+            <Item Name="[capacity]">m_capacity</Item>
+            <Item Name="[size]">m_size</Item>
+            <CustomListItems>
+                <Variable Name="i" InitialValue="0"/>
+                <Loop Condition="i &lt; m_capacity">
+                    <If Condition="m_control_bytes[i] &gt;= 0">
+                        <Item Name="[{i}]">m_slots[i]</Item>
+                    </If>
+                    <Exec>++i</Exec>
+                </Loop>
+            </CustomListItems>
+        </Expand>
+    </Type>
+
+    <Type Name="Opal::HashSet &lt;*&gt;">
+        <DisplayString>{{ size={m_size}, capacity={m_capacity} }}</DisplayString>
+        <Expand>
+            <Item Name="[allocator]">m_allocator</Item>
+            <Item Name="[capacity]">m_capacity</Item>
+            <Item Name="[size]">m_size</Item>
+            <CustomListItems>
+                <Variable Name="i" InitialValue="0"/>
+                <Loop Condition="i &lt; m_capacity">
+                    <If Condition="m_control_bytes[i] &gt;= 0">
+                        <Item Name="[{i}]">m_slots[i]</Item>
+                    </If>
+                    <Exec>++i</Exec>
+                </Loop>
+            </CustomListItems>
+        </Expand>
+    </Type>
+
     <Type Name="Opal::Variant &lt;*&gt;">
         <Intrinsic Name="index" Expression="(int)m_index"/>
         <DisplayString Condition="index() &lt; 0">[empty]</DisplayString>
