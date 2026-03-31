@@ -53,6 +53,7 @@ set(OPAL_FILES
         src/signal.cpp
         src/logging.cpp
         src/thread-pool.cpp
+        src/json-reader.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -193,6 +194,7 @@ if (OPAL_BUILD_TESTS)
             test/enum-flags-test.cpp
             test/type-traits-test.cpp
             test/variant-test.cpp
+            test/json-reader-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
     target_include_directories(opal_test PRIVATE third-party/catch2/include)
