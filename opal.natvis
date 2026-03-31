@@ -1,6 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
+    <Type Name="Opal::AllocatorBase">
+        <DisplayString>{m_debug_name,s}</DisplayString>
+    </Type>
+
+    <Type Name="Opal::MallocAllocator">
+        <DisplayString>MallocAllocator</DisplayString>
+    </Type>
+
+    <Type Name="Opal::NullAllocator">
+        <DisplayString>NullAllocator</DisplayString>
+    </Type>
+
+    <Type Name="Opal::LinearAllocator">
+        <DisplayString>{m_debug_name,s} {{ offset={m_offset}, size={m_size} }}</DisplayString>
+        <Expand>
+            <Item Name="[name]">m_debug_name,s</Item>
+            <Item Name="[offset]">m_offset</Item>
+            <Item Name="[size]">m_size</Item>
+        </Expand>
+    </Type>
+
+    <Type Name="Opal::SystemMemoryAllocator">
+        <DisplayString>{m_debug_name,s} {{ committed={m_commited_size}, reserved={m_reserved_size} }}</DisplayString>
+        <Expand>
+            <Item Name="[name]">m_debug_name,s</Item>
+            <Item Name="[memory]">m_memory</Item>
+            <Item Name="[offset]">m_offset</Item>
+            <Item Name="[committed]">m_commited_size</Item>
+            <Item Name="[reserved]">m_reserved_size</Item>
+            <Item Name="[page_size]">m_page_size</Item>
+        </Expand>
+    </Type>
+
     <Type Name="Opal::DynamicArray &lt;*&gt;">
         <DisplayString>{{ size={m_size}, capacity={m_capacity} }}</DisplayString>
         <Expand>
