@@ -147,6 +147,45 @@
         </Expand>
     </Type>
 
+    <Type Name="Opal::JsonNull">
+        <DisplayString>null</DisplayString>
+    </Type>
+
+    <Type Name="Opal::JsonValue">
+        <Intrinsic Name="index" Expression="(int)m_data.m_index"/>
+        <DisplayString Condition="index() == 0">null</DisplayString>
+        <DisplayString Condition="index() == 1">{m_data.m_storage.tail.head}</DisplayString>
+        <DisplayString Condition="index() == 2">{m_data.m_storage.tail.tail.head}</DisplayString>
+        <DisplayString Condition="index() == 3">{m_data.m_storage.tail.tail.tail.head}</DisplayString>
+        <DisplayString Condition="index() == 4">array {{ size={m_data.m_storage.tail.tail.tail.tail.head.m_object->m_size} }}</DisplayString>
+        <DisplayString Condition="index() == 5">object {{ size={m_data.m_storage.tail.tail.tail.tail.tail.head.m_object->m_size} }}</DisplayString>
+        <Expand>
+            <!-- Null: nothing to expand -->
+            <!-- Bool -->
+            <Item Name="[value]" Condition="index() == 1">m_data.m_storage.tail.head</Item>
+            <!-- Number -->
+            <Item Name="[value]" Condition="index() == 2">m_data.m_storage.tail.tail.head</Item>
+            <!-- String -->
+            <Item Name="[value]" Condition="index() == 3">m_data.m_storage.tail.tail.tail.head</Item>
+            <!-- Array -->
+            <ArrayItems Condition="index() == 4">
+                <Size>m_data.m_storage.tail.tail.tail.tail.head.m_object->m_size</Size>
+                <ValuePointer>m_data.m_storage.tail.tail.tail.tail.head.m_object->m_data</ValuePointer>
+            </ArrayItems>
+            <!-- Object -->
+            <CustomListItems Condition="index() == 5">
+                <Variable Name="i" InitialValue="0"/>
+                <Variable Name="obj" InitialValue="m_data.m_storage.tail.tail.tail.tail.tail.head.m_object"/>
+                <Loop Condition="i &lt; obj->m_capacity">
+                    <If Condition="obj->m_control_bytes[i] &gt;= 0">
+                        <Item Name="{obj->m_slots[i].key}">obj->m_slots[i].value</Item>
+                    </If>
+                    <Exec>++i</Exec>
+                </Loop>
+            </CustomListItems>
+        </Expand>
+    </Type>
+
     <Type Name="Opal::Variant &lt;*&gt;">
         <Intrinsic Name="index" Expression="(int)m_index"/>
         <DisplayString Condition="index() &lt; 0">[empty]</DisplayString>
