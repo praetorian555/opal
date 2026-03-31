@@ -60,7 +60,7 @@ struct Hasher
  * @tparam T Plain old data type.
  */
 template <typename T>
-    requires IsPOD<T>
+    requires IsPOD<T> && (!Range<T>)
 struct Hasher<T>
 {
     u64 operator()(const T& value) const
