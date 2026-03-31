@@ -197,7 +197,9 @@ u64 JsonValue::GetSize() const
         return m_data.Get<JsonObject>()->GetSize();
     }
     ThrowTypeMismatch("array or object", GetType());
+#if defined(OPAL_COMPILER_GCC) || defined(OPAL_COMPILER_CLANG)
     return 0;
+#endif
 }
 
 // ------------------------------------------------------------------------------------------------
