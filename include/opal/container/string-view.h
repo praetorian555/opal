@@ -2,6 +2,7 @@
 
 #include "opal/container/array-view.h"
 #include "opal/container/expected.h"
+#include "opal/container/iterator.h"
 #include "opal/container/string-encoding.h"
 #include "opal/container/string.h"
 #include "opal/error-codes.h"

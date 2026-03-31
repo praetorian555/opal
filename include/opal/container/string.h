@@ -72,6 +72,7 @@ class StringConstIterator
 public:
     using value_type = typename StringClass::value_type;
     using difference_type = typename StringClass::difference_type;
+    using reference = typename StringClass::const_reference;
     using const_reference = typename StringClass::const_reference;
     using pointer = typename StringClass::pointer;
 
