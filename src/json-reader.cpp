@@ -1,5 +1,7 @@
 #include "opal/container/json-reader.h"
 
+#include "opal/container/in-place-array.h"
+
 namespace Opal
 {
 
@@ -7,7 +9,9 @@ namespace Opal
 // Helper.
 // ------------------------------------------------------------------------------------------------
 
-static const char* JsonTypeToString(JsonType type)
+namespace
+{
+const char* JsonTypeToString(JsonType type)
 {
     switch (type)
     {
@@ -27,10 +31,11 @@ static const char* JsonTypeToString(JsonType type)
     return "unknown";
 }
 
-static void ThrowTypeMismatch(const char* expected, JsonType actual)
+void ThrowTypeMismatch(const char* expected, JsonType actual)
 {
     throw JsonTypeMismatchException(expected, JsonTypeToString(actual));
 }
+}  // namespace
 
 // ------------------------------------------------------------------------------------------------
 // JsonValue constructors.
@@ -63,12 +68,30 @@ JsonType JsonValue::GetType() const
     return static_cast<JsonType>(m_data.GetIndex());
 }
 
-bool JsonValue::IsNull() const { return m_data.IsActive<JsonNull>(); }
-bool JsonValue::IsBool() const { return m_data.IsActive<bool>(); }
-bool JsonValue::IsNumber() const { return m_data.IsActive<f64>(); }
-bool JsonValue::IsString() const { return m_data.IsActive<StringViewUtf8>(); }
-bool JsonValue::IsArray() const { return m_data.IsActive<JsonArray>(); }
-bool JsonValue::IsObject() const { return m_data.IsActive<JsonObject>(); }
+bool JsonValue::IsNull() const
+{
+    return m_data.IsActive<JsonNull>();
+}
+bool JsonValue::IsBool() const
+{
+    return m_data.IsActive<bool>();
+}
+bool JsonValue::IsNumber() const
+{
+    return m_data.IsActive<f64>();
+}
+bool JsonValue::IsString() const
+{
+    return m_data.IsActive<StringViewUtf8>();
+}
+bool JsonValue::IsArray() const
+{
+    return m_data.IsActive<JsonArray>();
+}
+bool JsonValue::IsObject() const
+{
+    return m_data.IsActive<JsonObject>();
+}
 
 // ------------------------------------------------------------------------------------------------
 // JsonValue value extraction.
@@ -126,7 +149,7 @@ const JsonValue& JsonValue::operator[](StringViewUtf8 key) const
         ThrowTypeMismatch("object", GetType());
     }
     const auto& obj = m_data.Get<JsonObject>();
-    auto it = obj->Find(key);
+    const auto it = obj->Find(key);
     if (it == obj->cend())
     {
         throw InvalidArgumentException("JsonValue::operator[]", "Key not found");
@@ -138,14 +161,14 @@ const JsonValue& JsonValue::GetPath(StringViewUtf8 path) const
 {
     const JsonValue* current = this;
     const char8* data = path.GetData();
-    u64 size = path.GetSize();
+    const u64 size = path.GetSize();
     u64 start = 0;
 
     for (u64 i = 0; i <= size; ++i)
     {
         if (i == size || data[i] == '.')
         {
-            StringViewUtf8 segment(data + start, i - start);
+            const StringViewUtf8 segment(data + start, i - start);
             if (segment.GetSize() == 0)
             {
                 start = i + 1;
@@ -157,7 +180,7 @@ const JsonValue& JsonValue::GetPath(StringViewUtf8 path) const
             u64 index = 0;
             for (u64 j = 0; j < segment.GetSize(); ++j)
             {
-                char8 c = segment.GetData()[j];
+                const char8 c = segment.GetData()[j];
                 if (c < '0' || c > '9')
                 {
                     is_index = false;
@@ -208,7 +231,10 @@ u64 JsonValue::GetSize() const
 
 JsonValue::ArrayIterator::ArrayIterator(const JsonValue* data, u64 index) : m_data(data), m_index(index) {}
 
-const JsonValue& JsonValue::ArrayIterator::operator*() const { return m_data[m_index]; }
+const JsonValue& JsonValue::ArrayIterator::operator*() const
+{
+    return m_data[m_index];
+}
 
 JsonValue::ArrayIterator& JsonValue::ArrayIterator::operator++()
 {
@@ -221,7 +247,10 @@ bool JsonValue::ArrayIterator::operator==(const ArrayIterator& other) const
     return m_data == other.m_data && m_index == other.m_index;
 }
 
-bool JsonValue::ArrayIterator::operator!=(const ArrayIterator& other) const { return !(*this == other); }
+bool JsonValue::ArrayIterator::operator!=(const ArrayIterator& other) const
+{
+    return !(*this == other);
+}
 
 JsonValue::ArrayIterator JsonValue::begin() const
 {
@@ -230,7 +259,7 @@ JsonValue::ArrayIterator JsonValue::begin() const
         ThrowTypeMismatch("array", GetType());
     }
     const auto& arr = m_data.Get<JsonArray>();
-    return ArrayIterator(arr->GetData(), 0);
+    return {arr->GetData(), 0};
 }
 
 JsonValue::ArrayIterator JsonValue::end() const
@@ -240,7 +269,7 @@ JsonValue::ArrayIterator JsonValue::end() const
         ThrowTypeMismatch("array", GetType());
     }
     const auto& arr = m_data.Get<JsonArray>();
-    return ArrayIterator(arr->GetData(), arr->GetSize());
+    return {arr->GetData(), arr->GetSize()};
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -252,7 +281,7 @@ JsonValue::ObjectIterator::ObjectIterator(InnerIterator it) : m_it(it) {}
 JsonValue::ObjectEntry JsonValue::ObjectIterator::operator*() const
 {
     const auto& pair = *m_it;
-    return ObjectEntry{pair.key, pair.value};
+    return ObjectEntry{.key = pair.key, .value = pair.value};
 }
 
 JsonValue::ObjectIterator& JsonValue::ObjectIterator::operator++()
@@ -261,20 +290,30 @@ JsonValue::ObjectIterator& JsonValue::ObjectIterator::operator++()
     return *this;
 }
 
-bool JsonValue::ObjectIterator::operator==(const ObjectIterator& other) const { return m_it == other.m_it; }
-bool JsonValue::ObjectIterator::operator!=(const ObjectIterator& other) const { return !(*this == other); }
+bool JsonValue::ObjectIterator::operator==(const ObjectIterator& other) const
+{
+    return m_it == other.m_it;
+}
+
+bool JsonValue::ObjectIterator::operator!=(const ObjectIterator& other) const
+{
+    return !(*this == other);
+}
 
 // ------------------------------------------------------------------------------------------------
 // JsonValue::ObjectRange.
 // ------------------------------------------------------------------------------------------------
 
-JsonValue::ObjectRange::ObjectRange(ObjectIterator begin_it, ObjectIterator end_it)
-    : m_begin(begin_it), m_end(end_it)
-{
-}
+JsonValue::ObjectRange::ObjectRange(ObjectIterator begin_it, ObjectIterator end_it) : m_begin(begin_it), m_end(end_it) {}
 
-JsonValue::ObjectIterator JsonValue::ObjectRange::begin() const { return m_begin; }
-JsonValue::ObjectIterator JsonValue::ObjectRange::end() const { return m_end; }
+JsonValue::ObjectIterator JsonValue::ObjectRange::begin() const
+{
+    return m_begin;
+}
+JsonValue::ObjectIterator JsonValue::ObjectRange::end() const
+{
+    return m_end;
+}
 
 JsonValue::ObjectRange JsonValue::Items() const
 {
@@ -283,7 +322,7 @@ JsonValue::ObjectRange JsonValue::Items() const
         ThrowTypeMismatch("object", GetType());
     }
     const auto& obj = m_data.Get<JsonObject>();
-    return ObjectRange(ObjectIterator(obj->begin()), ObjectIterator(obj->end()));
+    return {ObjectIterator(obj->begin()), ObjectIterator(obj->end())};
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -297,10 +336,7 @@ class JsonParser
 {
 public:
     JsonParser(StringViewUtf8 input, AllocatorBase* allocator, DynamicArray<StringUtf8>& escaped_strings)
-        : m_input(input.GetData()),
-          m_size(input.GetSize()),
-          m_allocator(allocator),
-          m_escaped_strings(escaped_strings)
+        : m_input(input.GetData()), m_size(input.GetSize()), m_allocator(allocator), m_escaped_strings(escaped_strings)
     {
     }
 
@@ -324,7 +360,7 @@ private:
             ThrowError("Unexpected end of input");
         }
 
-        char8 c = m_input[m_pos];
+        const char8 c = m_input[m_pos];
         switch (c)
         {
             case '"':
@@ -355,7 +391,7 @@ private:
         Expect('u');
         Expect('l');
         Expect('l');
-        return JsonValue();
+        return {};
     }
 
     // -- Bool --
@@ -382,7 +418,7 @@ private:
 
     f64 ParseNumber()
     {
-        u64 start = m_pos;
+        const u64 start = m_pos;
 
         if (m_pos < m_size && m_input[m_pos] == '-')
         {
@@ -438,8 +474,8 @@ private:
 
         // Convert the number substring to f64. We need a null-terminated string for strtod.
         constexpr u64 k_buf_size = 64;
-        char buf[k_buf_size];
-        u64 len = m_pos - start;
+        InPlaceArray<char, k_buf_size> buf;
+        const u64 len = m_pos - start;
         if (len >= k_buf_size)
         {
             ThrowError("Number literal too long");
@@ -451,8 +487,8 @@ private:
         buf[len] = '\0';
 
         char* end_ptr = nullptr;
-        f64 result = strtod(buf, &end_ptr);
-        if (end_ptr != buf + len)
+        const f64 result = strtod(buf.GetData(), &end_ptr);
+        if (end_ptr != buf.GetData() + len)
         {
             ThrowError("Invalid number");
         }
@@ -464,7 +500,7 @@ private:
     StringViewUtf8 ParseString()
     {
         Expect('"');
-        u64 start = m_pos;
+        const u64 start = m_pos;
         bool has_escapes = false;
 
         while (m_pos < m_size && m_input[m_pos] != '"')
@@ -488,14 +524,14 @@ private:
 
         if (!has_escapes)
         {
-            StringViewUtf8 result(m_input + start, m_pos - start);
+            const StringViewUtf8 result(m_input + start, m_pos - start);
             ++m_pos;  // skip closing quote
             return result;
         }
 
         // String has escapes, need to unescape into a buffer.
         StringUtf8 unescaped(m_allocator);
-        u64 end = m_pos;
+        const u64 end = m_pos;
         u64 i = start;
         while (i < end)
         {
@@ -547,10 +583,10 @@ private:
 
         m_escaped_strings.PushBack(std::move(unescaped));
         const StringUtf8& stored = m_escaped_strings[m_escaped_strings.GetSize() - 1];
-        return StringViewUtf8(stored);
+        return {stored};
     }
 
-    void UnescapeUnicode(StringUtf8& out, u64& i)
+    void UnescapeUnicode(StringUtf8& out, u64& i) const
     {
         // i points to 'u', the 4 hex digits follow.
         ++i;
@@ -565,10 +601,10 @@ private:
         if (codepoint >= 0xD800 && codepoint <= 0xDBFF)
         {
             // High surrogate, expect low surrogate.
-            u64 next = i + 1;
+            const u64 next = i + 1;
             if (next + 5 < m_size && m_input[next] == '\\' && m_input[next + 1] == 'u')
             {
-                u32 low = ParseHex4(next + 2);
+                const u32 low = ParseHex4(next + 2);
                 if (low >= 0xDC00 && low <= 0xDFFF)
                 {
                     codepoint = 0x10000 + ((codepoint - 0xD800) << 10) + (low - 0xDC00);
@@ -589,12 +625,12 @@ private:
         EncodeUtf8(out, codepoint);
     }
 
-    u32 ParseHex4(u64 pos) const
+    [[nodiscard]] u32 ParseHex4(u64 pos) const
     {
         u32 result = 0;
         for (u64 j = 0; j < 4; ++j)
         {
-            char8 c = m_input[pos + j];
+            const char8 c = m_input[pos + j];
             u32 digit = 0;
             if (c >= '0' && c <= '9')
             {
@@ -707,7 +743,7 @@ private:
                 ThrowError("Expected string key in object");
             }
 
-            StringViewUtf8 key = ParseString();
+            const StringViewUtf8 key = ParseString();
 
             SkipWhitespace();
             Expect(':');
@@ -743,7 +779,7 @@ private:
     {
         while (m_pos < m_size)
         {
-            char8 c = m_input[m_pos];
+            const char8 c = m_input[m_pos];
             if (c == ' ' || c == '\t' || c == '\r' || c == '\n')
             {
                 if (c == '\n')
@@ -768,18 +804,15 @@ private:
     {
         if (m_pos >= m_size || m_input[m_pos] != expected)
         {
-            char msg[64];
-            snprintf(msg, sizeof(msg), "Expected '%c'", static_cast<char>(expected));
-            ThrowError(msg);
+            InPlaceArray<char, 64> msg;
+            snprintf(msg.GetData(), msg.GetSize(), "Expected '%c'", static_cast<char>(expected));
+            ThrowError(msg.GetData());
         }
         ++m_pos;
         ++m_column;
     }
 
-    [[noreturn]] void ThrowError(const char* message) const
-    {
-        throw JsonParseException(m_line, m_column, m_pos, message);
-    }
+    [[noreturn]] void ThrowError(const char* message) const { throw JsonParseException(m_line, m_column, m_pos, message); }
 
     const char8* m_input = nullptr;
     u64 m_size = 0;
@@ -822,12 +855,15 @@ JsonReader JsonReader::Parse(StringUtf8&& input, AllocatorBase* allocator)
     reader.m_owned_input = std::move(input);
     reader.m_escaped_strings = DynamicArray<StringUtf8>(allocator);
 
-    StringViewUtf8 view(reader.m_owned_input);
+    const StringViewUtf8 view(reader.m_owned_input);
     JsonParser parser(view, allocator, reader.m_escaped_strings);
     reader.m_root = parser.Parse();
     return reader;
 }
 
-const JsonValue& JsonReader::GetRoot() const { return m_root; }
+const JsonValue& JsonReader::GetRoot() const
+{
+    return m_root;
+}
 
 }  // namespace Opal
