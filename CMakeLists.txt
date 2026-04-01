@@ -197,6 +197,7 @@ if (OPAL_BUILD_TESTS)
             test/type-traits-test.cpp
             test/variant-test.cpp
             test/json-reader-test.cpp
+            test/json-value-test.cpp
             test/json-writer-test.cpp
             test/string-format-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)

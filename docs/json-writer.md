@@ -16,6 +16,51 @@ Opal::StringUtf8 json = Opal::JsonWriter::Serialize(reader.GetRoot());
 // json == {"name":"Alice","score":100}
 ```
 
+## Building JSON Programmatically
+
+Use `JsonValue` factory methods to construct a JSON tree in code, then serialize it:
+
+```cpp
+#include "opal/container/json-reader.h"
+#include "opal/container/json-writer.h"
+
+Opal::StringUtf8 name("Alice");
+
+Opal::JsonValue scores = Opal::JsonValue::MakeArray();
+scores.PushBack(Opal::JsonValue::MakeNumber(90));
+scores.PushBack(Opal::JsonValue::MakeNumber(85));
+
+Opal::JsonValue root = Opal::JsonValue::MakeObject();
+root.Insert(name, Opal::JsonValue::MakeString(name));
+root.Insert(Opal::StringUtf8("score"), Opal::JsonValue::MakeNumber(100));
+root.Insert(Opal::StringUtf8("active"), Opal::JsonValue::MakeBool(true));
+root.Insert(Opal::StringUtf8("scores"), std::move(scores));
+
+Opal::StringUtf8 json = Opal::JsonWriter::Serialize(root);
+// {"name":"Alice","score":100,"active":true,"scores":[90,85]}
+```
+
+### Factory Methods
+
+| Method | Description |
+|--------|-------------|
+| `JsonValue::MakeNull()` | Null value |
+| `JsonValue::MakeBool(bool)` | Boolean value |
+| `JsonValue::MakeNumber(f64)` | Number from double |
+| `JsonValue::MakeNumber(T)` | Number from any integral or floating-point type |
+| `JsonValue::MakeString(StringViewUtf8)` | String value (caller must keep the string data alive) |
+| `JsonValue::MakeArray(allocator)` | Empty array |
+| `JsonValue::MakeObject(allocator)` | Empty object |
+
+### Mutation Methods
+
+| Method | Description |
+|--------|-------------|
+| `PushBack(JsonValue&&)` | Append an element to an array. Throws `JsonTypeMismatchException` if not an array. |
+| `Insert(StringViewUtf8, JsonValue&&)` | Add a key-value pair to an object. Throws `JsonTypeMismatchException` if not an object. |
+
+`MakeArray` and `MakeObject` accept an optional `AllocatorBase*` (defaults to the default allocator).
+
 ## Compact Output
 
 `Serialize` with no options produces compact JSON with no whitespace:

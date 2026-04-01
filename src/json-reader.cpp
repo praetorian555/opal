@@ -50,6 +50,62 @@ JsonValue::JsonValue(JsonArray value) : m_data(std::move(value)) {}
 JsonValue::JsonValue(JsonObject value) : m_data(std::move(value)) {}
 
 // ------------------------------------------------------------------------------------------------
+// JsonValue factory methods.
+// ------------------------------------------------------------------------------------------------
+
+JsonValue JsonValue::MakeNull()
+{
+    return {};
+}
+
+JsonValue JsonValue::MakeBool(bool value)
+{
+    return JsonValue(value);
+}
+
+JsonValue JsonValue::MakeNumber(f64 value)
+{
+    return JsonValue(value);
+}
+
+JsonValue JsonValue::MakeString(StringViewUtf8 value)
+{
+    return JsonValue(value);
+}
+
+JsonValue JsonValue::MakeArray(AllocatorBase* allocator)
+{
+    return JsonValue(JsonArray(allocator));
+}
+
+JsonValue JsonValue::MakeObject(AllocatorBase* allocator)
+{
+    return JsonValue(JsonObject(allocator));
+}
+
+// ------------------------------------------------------------------------------------------------
+// JsonValue mutation.
+// ------------------------------------------------------------------------------------------------
+
+void JsonValue::PushBack(JsonValue&& value)
+{
+    if (!IsArray())
+    {
+        ThrowTypeMismatch("array", GetType());
+    }
+    m_data.Get<JsonArray>()->PushBack(std::move(value));
+}
+
+void JsonValue::Insert(StringViewUtf8 key, JsonValue&& value)
+{
+    if (!IsObject())
+    {
+        ThrowTypeMismatch("object", GetType());
+    }
+    m_data.Get<JsonObject>()->Insert(key, std::move(value));
+}
+
+// ------------------------------------------------------------------------------------------------
 // JsonValue clone.
 // ------------------------------------------------------------------------------------------------
 

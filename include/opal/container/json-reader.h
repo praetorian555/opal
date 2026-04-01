@@ -89,6 +89,37 @@ public:
 
     ~JsonValue() = default;
 
+    // -- Factory methods --
+
+    [[nodiscard]] static JsonValue MakeNull();
+    [[nodiscard]] static JsonValue MakeBool(bool value);
+    [[nodiscard]] static JsonValue MakeNumber(f64 value);
+
+    template <typename T>
+        requires IntegralOrFloatingPoint<T>
+    [[nodiscard]] static JsonValue MakeNumber(T value)
+    {
+        return JsonValue(static_cast<f64>(value));
+    }
+
+    [[nodiscard]] static JsonValue MakeString(StringViewUtf8 value);
+    [[nodiscard]] static JsonValue MakeArray(AllocatorBase* allocator = nullptr);
+    [[nodiscard]] static JsonValue MakeObject(AllocatorBase* allocator = nullptr);
+
+    // -- Mutation --
+
+    /**
+     * Appends a value to the end of an array.
+     * @throws JsonTypeMismatchException if not an array.
+     */
+    void PushBack(JsonValue&& value);
+
+    /**
+     * Inserts a key-value pair into an object.
+     * @throws JsonTypeMismatchException if not an object.
+     */
+    void Insert(StringViewUtf8 key, JsonValue&& value);
+
     // -- Clone --
 
     [[nodiscard]] JsonValue Clone(AllocatorBase* allocator = nullptr) const;
