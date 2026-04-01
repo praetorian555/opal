@@ -282,6 +282,37 @@ Opal::Compare(str1, str2);        // Returns Expected<i32, ErrorCode>
 
 `StringHash<MyString>` provides a hash functor for use with `HashMap`/`HashSet`.
 
+### String Formatting
+
+Header: `opal/container/string-format.h`
+
+Type-safe string formatting using C++20 `std::format` syntax. Two free functions are provided:
+
+- `Format(fmt, args...)` — returns a new `StringUtf8` with the formatted result.
+- `AppendFormat(output, fmt, args...)` — appends the formatted result to an existing `StringUtf8`.
+
+When called with no variadic arguments, the format string is appended directly without parsing.
+
+```cpp
+#include "opal/container/string-format.h"
+
+// Create a formatted string
+Opal::StringUtf8 msg = Opal::Format("hello {}", "world");         // "hello world"
+
+// Numeric formatting
+Opal::StringUtf8 num = Opal::Format("{} + {} = {}", 1, 2, 3);    // "1 + 2 = 3"
+Opal::StringUtf8 flt = Opal::Format("{:.2f}", 3.14);              // "3.14"
+Opal::StringUtf8 hex = Opal::Format("{:#x}", 255);                // "0xff"
+Opal::StringUtf8 pad = Opal::Format("{:04d}", 42);                // "0042"
+
+// Append to an existing string
+Opal::StringUtf8 str("prefix: ");
+Opal::AppendFormat(str, "value={}", 99);                           // "prefix: value=99"
+
+// No args — literal passthrough
+Opal::StringUtf8 lit = Opal::Format("literal");                   // "literal"
+```
+
 ---
 
 ## HashMap
