@@ -54,6 +54,7 @@ set(OPAL_FILES
         src/logging.cpp
         src/thread-pool.cpp
         src/json-reader.cpp
+        src/json-writer.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -196,6 +197,7 @@ if (OPAL_BUILD_TESTS)
             test/type-traits-test.cpp
             test/variant-test.cpp
             test/json-reader-test.cpp
+            test/json-writer-test.cpp
             test/string-format-test.cpp
             third-party/catch2/src/catch_amalgamated.cpp)
     add_executable(opal_test ${OPAL_TEST_FILES})
