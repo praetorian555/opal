@@ -158,7 +158,7 @@ public:
     struct ObjectEntry
     {
         StringViewUtf8 key;
-        const JsonValue& value;
+        Ref<const JsonValue> value;
     };
 
     class ObjectIterator

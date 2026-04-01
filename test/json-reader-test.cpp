@@ -244,7 +244,7 @@ TEST_CASE("JsonReader object Items iteration", "[JsonReader]")
     u64 count = 0;
     for (auto [key, val] : reader.GetRoot().Items())
     {
-        REQUIRE(val.IsNumber());
+        REQUIRE(val->IsNumber());
         ++count;
     }
     REQUIRE(count == 2);

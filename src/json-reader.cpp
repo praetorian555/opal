@@ -1,5 +1,6 @@
 #include "opal/container/json-reader.h"
 
+#include "opal/container/dynamic-array.h"
 #include "opal/container/in-place-array.h"
 
 namespace Opal
@@ -186,7 +187,7 @@ const JsonValue& JsonValue::GetPath(StringViewUtf8 path) const
                     is_index = false;
                     break;
                 }
-                index = index * 10 + static_cast<u64>(c - '0');
+                index = (index * 10) + static_cast<u64>(c - '0');
             }
 
             if (is_index && current->IsArray())
@@ -220,7 +221,7 @@ u64 JsonValue::GetSize() const
         return m_data.Get<JsonObject>()->GetSize();
     }
     ThrowTypeMismatch("array or object", GetType());
-#if defined(OPAL_DEBUG)
+#ifdef OPAL_DEBUG
     return 0;
 #endif
 }
@@ -332,6 +333,14 @@ JsonValue::ObjectRange JsonValue::Items() const
 namespace
 {
 
+struct ParseFrame
+{
+    JsonArray arr;
+    JsonObject obj;
+    StringViewUtf8 key;
+    bool is_object;
+};
+
 class JsonParser
 {
 public:
@@ -343,43 +352,156 @@ public:
     JsonValue Parse()
     {
         SkipWhitespace();
-        JsonValue result = ParseValue();
-        SkipWhitespace();
-        if (m_pos < m_size)
-        {
-            ThrowError("Unexpected trailing content");
-        }
-        return result;
-    }
-
-private:
-    JsonValue ParseValue()
-    {
         if (m_pos >= m_size)
         {
             ThrowError("Unexpected end of input");
         }
 
+        JsonValue value = ParseLeafOrOpenContainer();
+
+        // Deliver completed values up the stack.
+        for (;;)
+        {
+            if (m_stack.IsEmpty())
+            {
+                SkipWhitespace();
+                if (m_pos < m_size)
+                {
+                    ThrowError("Unexpected trailing content");
+                }
+                return value;
+            }
+
+            // Deliver value to the current container frame.
+            ParseFrame& frame = m_stack.Back();
+            if (frame.is_object)
+            {
+                frame.obj->Insert(frame.key, std::move(value));
+            }
+            else
+            {
+                frame.arr->PushBack(std::move(value));
+            }
+
+            SkipWhitespace();
+            if (m_pos >= m_size)
+            {
+                ThrowError(frame.is_object ? "Unterminated object" : "Unterminated array");
+            }
+
+            const char8 c = m_input[m_pos];
+            if (frame.is_object)
+            {
+                if (c == '}')
+                {
+                    ++m_pos;
+                    ++m_column;
+                    value = JsonValue(std::move(m_stack.Back().obj));
+                    m_stack.PopBack();
+                    continue;
+                }
+                if (c != ',')
+                {
+                    ThrowError("Expected ',' or '}' in object");
+                }
+                ++m_pos;
+                ++m_column;
+
+                // Parse the next key.
+                SkipWhitespace();
+                if (m_pos >= m_size || m_input[m_pos] != '"')
+                {
+                    ThrowError("Expected string key in object");
+                }
+                m_stack.Back().key = ParseString();
+                SkipWhitespace();
+                Expect(':');
+            }
+            else
+            {
+                if (c == ']')
+                {
+                    ++m_pos;
+                    ++m_column;
+                    value = JsonValue(std::move(m_stack.Back().arr));
+                    m_stack.PopBack();
+                    continue;
+                }
+                if (c != ',')
+                {
+                    ThrowError("Expected ',' or ']' in array");
+                }
+                ++m_pos;
+                ++m_column;
+            }
+
+            // Parse the next element value.
+            SkipWhitespace();
+            if (m_pos >= m_size)
+            {
+                ThrowError("Unexpected end of input");
+            }
+            value = ParseLeafOrOpenContainer();
+        }
+    }
+
+private:
+    // -- Value dispatch --
+
+    JsonValue ParseLeafOrOpenContainer()
+    {
         const char8 c = m_input[m_pos];
         switch (c)
         {
             case '"':
                 return JsonValue(ParseString());
-            case '{':
-                return ParseObject();
-            case '[':
-                return ParseArray();
             case 't':
             case 'f':
                 return JsonValue(ParseBool());
             case 'n':
                 return ParseNull();
+            case '[':
+            {
+                Expect('[');
+                SkipWhitespace();
+                if (m_pos < m_size && m_input[m_pos] == ']')
+                {
+                    ++m_pos;
+                    ++m_column;
+                    return JsonValue(JsonArray(m_allocator));
+                }
+                m_stack.EmplaceBack(ParseFrame{JsonArray(m_allocator), JsonObject{}, StringViewUtf8{}, false});
+                return ParseLeafOrOpenContainer();
+            }
+            case '{':
+            {
+                Expect('{');
+                SkipWhitespace();
+                if (m_pos < m_size && m_input[m_pos] == '}')
+                {
+                    ++m_pos;
+                    ++m_column;
+                    return JsonValue(JsonObject(m_allocator));
+                }
+                if (m_pos >= m_size || m_input[m_pos] != '"')
+                {
+                    ThrowError("Expected string key in object");
+                }
+                const StringViewUtf8 key = ParseString();
+                SkipWhitespace();
+                Expect(':');
+                SkipWhitespace();
+                m_stack.EmplaceBack(JsonArray{}, JsonObject(m_allocator), key, true);
+                return ParseLeafOrOpenContainer();
+            }
             default:
+            {
                 if (c == '-' || (c >= '0' && c <= '9'))
                 {
                     return JsonValue(ParseNumber());
                 }
                 ThrowError("Unexpected character");
+            }
         }
     }
 
@@ -581,8 +703,8 @@ private:
 
         ++m_pos;  // skip closing quote
 
-        m_escaped_strings.PushBack(std::move(unescaped));
-        const StringUtf8& stored = m_escaped_strings[m_escaped_strings.GetSize() - 1];
+        m_escaped_strings->PushBack(std::move(unescaped));
+        const StringUtf8& stored = m_escaped_strings.Get()[m_escaped_strings->GetSize() - 1];
         return {stored};
     }
 
@@ -679,100 +801,6 @@ private:
         }
     }
 
-    // -- Array --
-
-    JsonValue ParseArray()
-    {
-        Expect('[');
-        SkipWhitespace();
-
-        JsonArray arr(m_allocator);
-
-        if (m_pos < m_size && m_input[m_pos] == ']')
-        {
-            ++m_pos;
-            return JsonValue(std::move(arr));
-        }
-
-        while (true)
-        {
-            SkipWhitespace();
-            arr->PushBack(ParseValue());
-            SkipWhitespace();
-
-            if (m_pos >= m_size)
-            {
-                ThrowError("Unterminated array");
-            }
-
-            if (m_input[m_pos] == ']')
-            {
-                ++m_pos;
-                return JsonValue(std::move(arr));
-            }
-
-            if (m_input[m_pos] != ',')
-            {
-                ThrowError("Expected ',' or ']' in array");
-            }
-            ++m_pos;
-        }
-    }
-
-    // -- Object --
-
-    JsonValue ParseObject()
-    {
-        Expect('{');
-        SkipWhitespace();
-
-        JsonObject obj(m_allocator);
-
-        if (m_pos < m_size && m_input[m_pos] == '}')
-        {
-            ++m_pos;
-            return JsonValue(std::move(obj));
-        }
-
-        while (true)
-        {
-            SkipWhitespace();
-
-            if (m_pos >= m_size || m_input[m_pos] != '"')
-            {
-                ThrowError("Expected string key in object");
-            }
-
-            const StringViewUtf8 key = ParseString();
-
-            SkipWhitespace();
-            Expect(':');
-            SkipWhitespace();
-
-            JsonValue value = ParseValue();
-            obj->Insert(key, std::move(value));
-
-            SkipWhitespace();
-
-            if (m_pos >= m_size)
-            {
-                ThrowError("Unterminated object");
-            }
-
-            if (m_input[m_pos] == '}')
-            {
-                ++m_pos;
-                return JsonValue(std::move(obj));
-            }
-
-            if (m_input[m_pos] != ',')
-            {
-                ThrowError("Expected ',' or '}' in object");
-            }
-            ++m_pos;
-        }
-    }
-
     // -- Utilities --
 
     void SkipWhitespace()
@@ -820,7 +848,8 @@ private:
     u64 m_line = 1;
     u64 m_column = 1;
     AllocatorBase* m_allocator = nullptr;
-    DynamicArray<StringUtf8>& m_escaped_strings;
+    Ref<DynamicArray<StringUtf8>> m_escaped_strings;
+    DynamicArray<ParseFrame> m_stack;
 };
 
 }  // namespace
