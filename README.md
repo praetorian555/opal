@@ -331,6 +331,30 @@ value.VisitPartial(Opal::Overloaded{
 });
 ```
 
+### JSON
+
+Read and write JSON with allocator support.
+
+```cpp
+#include "opal/container/json-reader.h"
+#include "opal/container/json-writer.h"
+
+// Parse
+Opal::JsonReader reader = Opal::JsonReader::Parse(R"({"name":"Alice","score":100})");
+const Opal::JsonValue& root = reader.GetRoot();
+Opal::StringViewUtf8 name = root["name"].GetString();
+
+// Serialize (compact)
+Opal::StringUtf8 json = Opal::JsonWriter::Serialize(root);
+
+// Serialize (pretty)
+Opal::JsonWriteOptions options;
+options.pretty = true;
+Opal::StringUtf8 pretty_json = Opal::JsonWriter::Serialize(root, options);
+```
+
+See [docs/json-reader.md](docs/json-reader.md) and [docs/json-writer.md](docs/json-writer.md) for the full guides.
+
 ### Other Utilities
 
 | Header | Description |
