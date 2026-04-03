@@ -95,4 +95,22 @@ struct DirectoryEntry
  */
 DynamicArray<DirectoryEntry> OPAL_EXPORT CollectDirectoryContents(StringUtf8 path, const DirectoryContentsDesc& desc = {});
 
+/**
+ * @brief Read the entire contents of a file as a UTF-8 string.
+ * @param path Path to the file to read.
+ * @return String containing the file contents.
+ * @throw PathNotFoundException when the file does not exist.
+ * @throw Exception when any other error occurs.
+ */
+StringUtf8 OPAL_EXPORT ReadFileAsString(const StringUtf8& path);
+
+/**
+ * @brief Read the entire contents of a file as a byte array.
+ * @param path Path to the file to read.
+ * @return Array of bytes containing the file contents.
+ * @throw PathNotFoundException when the file does not exist.
+ * @throw Exception when any other error occurs.
+ */
+DynamicArray<u8> OPAL_EXPORT ReadFileAsBytes(const StringUtf8& path);
+
 }  // namespace Opal

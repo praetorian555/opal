@@ -1,5 +1,7 @@
 #include "opal/file-system.h"
 
+#include <cstdio>
+
 #include "opal/exceptions.h"
 #include "opal/paths.h"
 #include "opal/container/hash-set.h"
@@ -8,6 +10,24 @@
 #include "test-helpers.h"
 
 using namespace Opal;
+
+namespace
+{
+
+void WriteDataToFile(const StringUtf8& path, const void* data, Opal::u64 size)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    FILE* f = nullptr;
+    fopen_s(&f, *path, "wb");
+#else
+    FILE* f = fopen(*path, "wb");
+#endif
+    REQUIRE(f != nullptr);
+    fwrite(data, 1, size, f);
+    fclose(f);
+}
+
+}  // namespace
 
 CATCH_TRANSLATE_EXCEPTION(const Opal::Exception& ex)
 {
@@ -271,5 +291,109 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         REQUIRE_NOTHROW(DeleteDirectory(another_dir));
         REQUIRE_NOTHROW(DeleteDirectory(path));
         REQUIRE(!Opal::Exists(path));
+    }
+}
+
+TEST_CASE("ReadFileAsString", "[FileSystem]")
+{
+    StringUtf8 path;
+    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+
+    SECTION("Read non-existent file")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "non-existent-file.txt");
+        REQUIRE(!Exists(file_path));
+        REQUIRE_THROWS_AS(ReadFileAsString(file_path), PathNotFoundException);
+    }
+    SECTION("Read empty file")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "empty-file.txt");
+        REQUIRE_NOTHROW(CreateFile(file_path));
+        StringUtf8 content;
+        REQUIRE_NOTHROW(content = ReadFileAsString(file_path));
+        REQUIRE(content.IsEmpty());
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Read file with content")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "test-read.txt");
+        REQUIRE(!Exists(file_path));
+
+        const char* expected = "Hello, Opal!";
+        WriteDataToFile(file_path, expected, strlen(expected));
+
+        StringUtf8 content;
+        REQUIRE_NOTHROW(content = ReadFileAsString(file_path));
+        REQUIRE(content == expected);
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Read file with multiple lines")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "test-multiline.txt");
+        REQUIRE(!Exists(file_path));
+
+        const char* expected = "line1\nline2\nline3\n";
+        WriteDataToFile(file_path, expected, strlen(expected));
+
+        StringUtf8 content;
+        REQUIRE_NOTHROW(content = ReadFileAsString(file_path));
+        REQUIRE(content == expected);
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+}
+
+TEST_CASE("ReadFileAsBytes", "[FileSystem]")
+{
+    StringUtf8 path;
+    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+
+    SECTION("Read non-existent file")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "non-existent-file.bin");
+        REQUIRE(!Exists(file_path));
+        REQUIRE_THROWS_AS(ReadFileAsBytes(file_path), PathNotFoundException);
+    }
+    SECTION("Read empty file")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "empty-file.bin");
+        REQUIRE_NOTHROW(CreateFile(file_path));
+        DynamicArray<u8> content;
+        REQUIRE_NOTHROW(content = ReadFileAsBytes(file_path));
+        REQUIRE(content.IsEmpty());
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Read file with content")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "test-read.bin");
+        REQUIRE(!Exists(file_path));
+
+        const u8 expected[] = {0x48, 0x65, 0x6C, 0x6C, 0x6F};
+        WriteDataToFile(file_path, expected, sizeof(expected));
+
+        DynamicArray<u8> content;
+        REQUIRE_NOTHROW(content = ReadFileAsBytes(file_path));
+        REQUIRE(content.GetSize() == sizeof(expected));
+        for (u64 i = 0; i < sizeof(expected); ++i)
+        {
+            REQUIRE(content[i] == expected[i]);
+        }
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Read file with binary data")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "test-binary.bin");
+        REQUIRE(!Exists(file_path));
+
+        const u8 expected[] = {0x00, 0xFF, 0x01, 0xFE, 0x80};
+        WriteDataToFile(file_path, expected, sizeof(expected));
+
+        DynamicArray<u8> content;
+        REQUIRE_NOTHROW(content = ReadFileAsBytes(file_path));
+        REQUIRE(content.GetSize() == sizeof(expected));
+        for (u64 i = 0; i < sizeof(expected); ++i)
+        {
+            REQUIRE(content[i] == expected[i]);
+        }
+        REQUIRE_NOTHROW(DeleteFile(file_path));
     }
 }

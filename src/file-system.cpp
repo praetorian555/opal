@@ -428,3 +428,162 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUt
     throw NotImplementedException(__FUNCTION__);
 #endif
 }
+
+Opal::StringUtf8 Opal::ReadFileAsString(const StringUtf8& path)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringWide path_wide(path.GetSize() * 2, L'\0');
+    if (Transcode(path, path_wide) != ErrorCode::Success)
+    {
+        throw Exception("Failed to transcode path!");
+    }
+
+    constexpr DWORD k_share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
+    HANDLE file_handle = CreateFileW(path_wide.GetData(), GENERIC_READ, k_share_mode, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file_handle == INVALID_HANDLE_VALUE)
+    {
+        const DWORD win32_err = GetLastError();
+        if (win32_err == ERROR_FILE_NOT_FOUND || win32_err == ERROR_PATH_NOT_FOUND)
+        {
+            throw PathNotFoundException(*path);
+        }
+        throw Exception("Failed to open file for reading!");
+    }
+
+    LARGE_INTEGER file_size;
+    if (GetFileSizeEx(file_handle, &file_size) == 0)
+    {
+        CloseHandle(file_handle);
+        throw Exception("Failed to get file size!");
+    }
+
+    StringUtf8 result(static_cast<u64>(file_size.QuadPart), '\0');
+    if (file_size.QuadPart > 0)
+    {
+        DWORD bytes_read = 0;
+        if (ReadFile(file_handle, result.GetData(), static_cast<DWORD>(file_size.QuadPart), &bytes_read, nullptr) == 0)
+        {
+            CloseHandle(file_handle);
+            throw Exception("Failed to read file!");
+        }
+    }
+
+    CloseHandle(file_handle);
+    return result;
+#elif defined(OPAL_PLATFORM_LINUX)
+    FILE* file = fopen(*path, "rb");
+    if (file == nullptr)
+    {
+        if (errno == ENOENT)
+        {
+            throw PathNotFoundException(*path);
+        }
+        throw Exception("Failed to open file for reading!");
+    }
+
+    fseek(file, 0, SEEK_END);
+    const long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    if (file_size < 0)
+    {
+        fclose(file);
+        throw Exception("Failed to get file size!");
+    }
+
+    StringUtf8 result(static_cast<u64>(file_size), '\0');
+    if (file_size > 0)
+    {
+        const u64 read_count = fread(result.GetData(), 1, static_cast<u64>(file_size), file);
+        if (read_count != static_cast<u64>(file_size))
+        {
+            fclose(file);
+            throw Exception("Failed to read file!");
+        }
+    }
+
+    fclose(file);
+    return result;
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
+}
+
+Opal::DynamicArray<Opal::u8> Opal::ReadFileAsBytes(const StringUtf8& path)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringWide path_wide(path.GetSize() * 2, L'\0');
+    if (Transcode(path, path_wide) != ErrorCode::Success)
+    {
+        throw Exception("Failed to transcode path!");
+    }
+
+    constexpr DWORD k_share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
+    HANDLE file_handle = CreateFileW(path_wide.GetData(), GENERIC_READ, k_share_mode, nullptr,
+                                     OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file_handle == INVALID_HANDLE_VALUE)
+    {
+        const DWORD win32_err = GetLastError();
+        if (win32_err == ERROR_FILE_NOT_FOUND || win32_err == ERROR_PATH_NOT_FOUND)
+        {
+            throw PathNotFoundException(*path);
+        }
+        throw Exception("Failed to open file for reading!");
+    }
+
+    LARGE_INTEGER file_size;
+    if (GetFileSizeEx(file_handle, &file_size) == 0)
+    {
+        CloseHandle(file_handle);
+        throw Exception("Failed to get file size!");
+    }
+
+    DynamicArray<u8> result(static_cast<u64>(file_size.QuadPart), static_cast<u8>(0));
+    if (file_size.QuadPart > 0)
+    {
+        DWORD bytes_read = 0;
+        if (ReadFile(file_handle, result.GetData(), static_cast<DWORD>(file_size.QuadPart), &bytes_read, nullptr) == 0)
+        {
+            CloseHandle(file_handle);
+            throw Exception("Failed to read file!");
+        }
+    }
+
+    CloseHandle(file_handle);
+    return result;
+#elif defined(OPAL_PLATFORM_LINUX)
+    FILE* file = fopen(*path, "rb");
+    if (file == nullptr)
+    {
+        if (errno == ENOENT)
+        {
+            throw PathNotFoundException(*path);
+        }
+        throw Exception("Failed to open file for reading!");
+    }
+
+    fseek(file, 0, SEEK_END);
+    const long file_size = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    if (file_size < 0)
+    {
+        fclose(file);
+        throw Exception("Failed to get file size!");
+    }
+
+    DynamicArray<u8> result(static_cast<u64>(file_size), static_cast<u8>(0));
+    if (file_size > 0)
+    {
+        const u64 read_count = fread(result.GetData(), 1, static_cast<u64>(file_size), file);
+        if (read_count != static_cast<u64>(file_size))
+        {
+            fclose(file);
+            throw Exception("Failed to read file!");
+        }
+    }
+
+    fclose(file);
+    return result;
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
+}
