@@ -397,3 +397,197 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
         REQUIRE_NOTHROW(DeleteFile(file_path));
     }
 }
+
+TEST_CASE("WriteStringToFile", "[FileSystem]")
+{
+    StringUtf8 path;
+    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+
+    SECTION("Write to non-existent directory")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.txt");
+        REQUIRE_THROWS_AS(WriteStringToFile(file_path, StringUtf8("data")), PathNotFoundException);
+    }
+    SECTION("Write creates new file")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "write-new.txt");
+        REQUIRE(!Exists(file_path));
+
+        StringUtf8 content("Hello, Opal!");
+        REQUIRE_NOTHROW(WriteStringToFile(file_path, content));
+        REQUIRE(Exists(file_path));
+
+        StringUtf8 read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        REQUIRE(read_back == content);
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Write overwrites existing file")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "write-overwrite.txt");
+
+        REQUIRE_NOTHROW(WriteStringToFile(file_path, StringUtf8("original content")));
+        REQUIRE_NOTHROW(WriteStringToFile(file_path, StringUtf8("new")));
+
+        StringUtf8 read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        REQUIRE(read_back == "new");
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Write empty string")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "write-empty.txt");
+
+        REQUIRE_NOTHROW(WriteStringToFile(file_path, StringUtf8()));
+        REQUIRE(Exists(file_path));
+
+        StringUtf8 read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        REQUIRE(read_back.IsEmpty());
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+}
+
+TEST_CASE("WriteBytesToFile", "[FileSystem]")
+{
+    StringUtf8 path;
+    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+
+    SECTION("Write to non-existent directory")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.bin");
+        const u8 data[] = {0x01};
+        REQUIRE_THROWS_AS(WriteBytesToFile(file_path, ArrayView<const u8>(data)), PathNotFoundException);
+    }
+    SECTION("Write and read back bytes")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "write-bytes.bin");
+        REQUIRE(!Exists(file_path));
+
+        const u8 expected[] = {0x00, 0xFF, 0x42, 0x80};
+        REQUIRE_NOTHROW(WriteBytesToFile(file_path, ArrayView<const u8>(expected)));
+
+        DynamicArray<u8> read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsBytes(file_path));
+        REQUIRE(read_back.GetSize() == sizeof(expected));
+        for (u64 i = 0; i < sizeof(expected); ++i)
+        {
+            REQUIRE(read_back[i] == expected[i]);
+        }
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Write overwrites existing bytes")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "write-bytes-over.bin");
+
+        const u8 original[] = {0x01, 0x02, 0x03, 0x04, 0x05};
+        REQUIRE_NOTHROW(WriteBytesToFile(file_path, ArrayView<const u8>(original)));
+
+        const u8 replacement[] = {0xAA, 0xBB};
+        REQUIRE_NOTHROW(WriteBytesToFile(file_path, ArrayView<const u8>(replacement)));
+
+        DynamicArray<u8> read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsBytes(file_path));
+        REQUIRE(read_back.GetSize() == sizeof(replacement));
+        REQUIRE(read_back[0] == 0xAA);
+        REQUIRE(read_back[1] == 0xBB);
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+}
+
+TEST_CASE("AppendStringToFile", "[FileSystem]")
+{
+    StringUtf8 path;
+    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+
+    SECTION("Append to non-existent directory")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.txt");
+        REQUIRE_THROWS_AS(AppendStringToFile(file_path, StringUtf8("data")), PathNotFoundException);
+    }
+    SECTION("Append creates new file")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "append-new.txt");
+        REQUIRE(!Exists(file_path));
+
+        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8("Hello")));
+        REQUIRE(Exists(file_path));
+
+        StringUtf8 read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        REQUIRE(read_back == "Hello");
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Append adds to existing content")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "append-existing.txt");
+
+        REQUIRE_NOTHROW(WriteStringToFile(file_path, StringUtf8("Hello")));
+        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8(", World!")));
+
+        StringUtf8 read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        REQUIRE(read_back == "Hello, World!");
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Multiple appends")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "append-multi.txt");
+
+        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8("line1\n")));
+        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8("line2\n")));
+        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8("line3\n")));
+
+        StringUtf8 read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        REQUIRE(read_back == "line1\nline2\nline3\n");
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+}
+
+TEST_CASE("AppendBytesToFile", "[FileSystem]")
+{
+    StringUtf8 path;
+    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+
+    SECTION("Append to non-existent directory")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.bin");
+        const u8 data[] = {0x01};
+        REQUIRE_THROWS_AS(AppendBytesToFile(file_path, ArrayView<const u8>(data)), PathNotFoundException);
+    }
+    SECTION("Append creates new file")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "append-bytes-new.bin");
+        REQUIRE(!Exists(file_path));
+
+        const u8 data[] = {0x01, 0x02};
+        REQUIRE_NOTHROW(AppendBytesToFile(file_path, ArrayView<const u8>(data)));
+
+        DynamicArray<u8> read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsBytes(file_path));
+        REQUIRE(read_back.GetSize() == sizeof(data));
+        REQUIRE(read_back[0] == 0x01);
+        REQUIRE(read_back[1] == 0x02);
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+    SECTION("Append adds to existing bytes")
+    {
+        StringUtf8 file_path = Paths::Combine(path, "append-bytes-existing.bin");
+
+        const u8 first[] = {0xAA, 0xBB};
+        REQUIRE_NOTHROW(WriteBytesToFile(file_path, ArrayView<const u8>(first)));
+
+        const u8 second[] = {0xCC, 0xDD};
+        REQUIRE_NOTHROW(AppendBytesToFile(file_path, ArrayView<const u8>(second)));
+
+        DynamicArray<u8> read_back;
+        REQUIRE_NOTHROW(read_back = ReadFileAsBytes(file_path));
+        REQUIRE(read_back.GetSize() == 4);
+        REQUIRE(read_back[0] == 0xAA);
+        REQUIRE(read_back[1] == 0xBB);
+        REQUIRE(read_back[2] == 0xCC);
+        REQUIRE(read_back[3] == 0xDD);
+        REQUIRE_NOTHROW(DeleteFile(file_path));
+    }
+}

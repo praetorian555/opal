@@ -113,4 +113,40 @@ StringUtf8 OPAL_EXPORT ReadFileAsString(const StringUtf8& path);
  */
 DynamicArray<u8> OPAL_EXPORT ReadFileAsBytes(const StringUtf8& path);
 
+/**
+ * @brief Write a string to a file, replacing any existing content. Creates the file if it does not exist.
+ * @param path Path to the file to write.
+ * @param content String content to write.
+ * @throw PathNotFoundException when the parent directory does not exist.
+ * @throw Exception when any other error occurs.
+ */
+void OPAL_EXPORT WriteStringToFile(const StringUtf8& path, const StringUtf8& content);
+
+/**
+ * @brief Write bytes to a file, replacing any existing content. Creates the file if it does not exist.
+ * @param path Path to the file to write.
+ * @param content Byte data to write.
+ * @throw PathNotFoundException when the parent directory does not exist.
+ * @throw Exception when any other error occurs.
+ */
+void OPAL_EXPORT WriteBytesToFile(const StringUtf8& path, ArrayView<const u8> content);
+
+/**
+ * @brief Append a string to a file. Creates the file if it does not exist.
+ * @param path Path to the file to append to.
+ * @param content String content to append.
+ * @throw PathNotFoundException when the parent directory does not exist.
+ * @throw Exception when any other error occurs.
+ */
+void OPAL_EXPORT AppendStringToFile(const StringUtf8& path, const StringUtf8& content);
+
+/**
+ * @brief Append bytes to a file. Creates the file if it does not exist.
+ * @param path Path to the file to append to.
+ * @param content Byte data to append.
+ * @throw PathNotFoundException when the parent directory does not exist.
+ * @throw Exception when any other error occurs.
+ */
+void OPAL_EXPORT AppendBytesToFile(const StringUtf8& path, ArrayView<const u8> content);
+
 }  // namespace Opal

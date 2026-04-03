@@ -342,3 +342,10 @@ TEST_CASE("JsonReader rejects trailing content", "[JsonReader]")
 {
     REQUIRE_THROWS_AS(JsonReader::Parse("42 42"), JsonParseException);
 }
+
+
+TEST_CASE("Bad read", "[JsonReader]")
+{
+    const StringUtf8 file_path = R"(D:\Dev\obsidian\build\debug\Debug\obs.cache)";
+
+}

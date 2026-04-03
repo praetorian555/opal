@@ -587,3 +587,126 @@ Opal::DynamicArray<Opal::u8> Opal::ReadFileAsBytes(const StringUtf8& path)
     throw NotImplementedException(__FUNCTION__);
 #endif
 }
+
+namespace
+{
+
+#if defined(OPAL_PLATFORM_WINDOWS)
+void WriteToFileWin32(const Opal::StringUtf8& path, const void* data, Opal::u64 size, DWORD creation_disposition)
+{
+    using namespace Opal;
+
+    StringWide path_wide(path.GetSize() * 2, L'\0');
+    if (Transcode(path, path_wide) != ErrorCode::Success)
+    {
+        throw Exception("Failed to transcode path!");
+    }
+
+    constexpr DWORD k_share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
+    HANDLE file_handle =
+        CreateFileW(path_wide.GetData(), GENERIC_WRITE, k_share_mode, nullptr, creation_disposition, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file_handle == INVALID_HANDLE_VALUE)
+    {
+        const DWORD win32_err = GetLastError();
+        if (win32_err == ERROR_PATH_NOT_FOUND)
+        {
+            throw PathNotFoundException(*path);
+        }
+        throw Exception("Failed to open file for writing!");
+    }
+
+    if (creation_disposition == OPEN_ALWAYS)
+    {
+        if (SetFilePointer(file_handle, 0, nullptr, FILE_END) == INVALID_SET_FILE_POINTER)
+        {
+            CloseHandle(file_handle);
+            throw Exception("Failed to seek to end of file!");
+        }
+    }
+
+    if (size > 0)
+    {
+        DWORD bytes_written = 0;
+        if (WriteFile(file_handle, data, static_cast<DWORD>(size), &bytes_written, nullptr) == 0)
+        {
+            CloseHandle(file_handle);
+            throw Exception("Failed to write to file!");
+        }
+    }
+
+    CloseHandle(file_handle);
+}
+#elif defined(OPAL_PLATFORM_LINUX)
+void WriteToFileLinux(const Opal::StringUtf8& path, const void* data, Opal::u64 size, const char* mode)
+{
+    using namespace Opal;
+
+    FILE* file = fopen(*path, mode);
+    if (file == nullptr)
+    {
+        if (errno == ENOENT)
+        {
+            throw PathNotFoundException(*path);
+        }
+        throw Exception("Failed to open file for writing!");
+    }
+
+    if (size > 0)
+    {
+        const u64 write_count = fwrite(data, 1, size, file);
+        if (write_count != size)
+        {
+            fclose(file);
+            throw Exception("Failed to write to file!");
+        }
+    }
+
+    fclose(file);
+}
+#endif
+
+}  // namespace
+
+void Opal::WriteStringToFile(const StringUtf8& path, const StringUtf8& content)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
+#elif defined(OPAL_PLATFORM_LINUX)
+    WriteToFileLinux(path, content.GetData(), content.GetSize(), "wb");
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
+}
+
+void Opal::WriteBytesToFile(const StringUtf8& path, ArrayView<const u8> content)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
+#elif defined(OPAL_PLATFORM_LINUX)
+    WriteToFileLinux(path, content.GetData(), content.GetSize(), "wb");
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
+}
+
+void Opal::AppendStringToFile(const StringUtf8& path, const StringUtf8& content)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);
+#elif defined(OPAL_PLATFORM_LINUX)
+    WriteToFileLinux(path, content.GetData(), content.GetSize(), "ab");
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
+}
+
+void Opal::AppendBytesToFile(const StringUtf8& path, ArrayView<const u8> content)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);
+#elif defined(OPAL_PLATFORM_LINUX)
+    WriteToFileLinux(path, content.GetData(), content.GetSize(), "ab");
+#else
+    throw NotImplementedException(__FUNCTION__);
+#endif
+}
