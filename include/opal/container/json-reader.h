@@ -70,13 +70,14 @@ using JsonObject = SharedPtr<HashMap<StringViewUtf8, JsonValue>, ThreadingPolicy
 class JsonValue
 {
 public:
-    using VariantType = Variant<JsonNull, bool, f64, StringViewUtf8, JsonArray, JsonObject>;
+    using VariantType = Variant<JsonNull, bool, f64, i64, StringViewUtf8, JsonArray, JsonObject>;
 
     // -- Constructors --
 
     JsonValue();
     explicit JsonValue(bool value);
     explicit JsonValue(f64 value);
+    explicit JsonValue(i64 value);
     explicit JsonValue(StringViewUtf8 value);
     explicit JsonValue(JsonArray value);
     explicit JsonValue(JsonObject value);
@@ -94,12 +95,20 @@ public:
     [[nodiscard]] static JsonValue MakeNull();
     [[nodiscard]] static JsonValue MakeBool(bool value);
     [[nodiscard]] static JsonValue MakeNumber(f64 value);
+    [[nodiscard]] static JsonValue MakeNumber(i64 value);
 
     template <typename T>
         requires IntegralOrFloatingPoint<T>
     [[nodiscard]] static JsonValue MakeNumber(T value)
     {
-        return JsonValue(static_cast<f64>(value));
+        if constexpr (Integral<T>)
+        {
+            return JsonValue(static_cast<i64>(value));
+        }
+        else
+        {
+            return JsonValue(static_cast<f64>(value));
+        }
     }
 
     [[nodiscard]] static JsonValue MakeString(StringViewUtf8 value);
@@ -131,6 +140,7 @@ public:
     [[nodiscard]] bool IsNull() const;
     [[nodiscard]] bool IsBool() const;
     [[nodiscard]] bool IsNumber() const;
+    [[nodiscard]] bool IsIntegerNumber() const;
     [[nodiscard]] bool IsString() const;
     [[nodiscard]] bool IsArray() const;
     [[nodiscard]] bool IsObject() const;
@@ -139,12 +149,17 @@ public:
 
     [[nodiscard]] bool GetBool() const;
     [[nodiscard]] f64 GetNumber() const;
+    [[nodiscard]] i64 GetIntegerNumber() const;
     [[nodiscard]] StringViewUtf8 GetString() const;
 
     template <typename T>
         requires IntegralOrFloatingPoint<T>
     [[nodiscard]] T GetNumberAs() const
     {
+        if (m_data.IsActive<i64>())
+        {
+            return Narrow<T>(m_data.Get<i64>());
+        }
         return Narrow<T>(GetNumber());
     }
 

@@ -212,3 +212,42 @@ TEST_CASE("Build and serialize mixed types", "[JsonValue]")
     StringUtf8 result = JsonWriter::Serialize(arr);
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"([null,true,false,42,"hello"])"));
 }
+
+// ------------------------------------------------------------------------------------------------
+// Integer number (i64) support.
+// ------------------------------------------------------------------------------------------------
+
+TEST_CASE("MakeNumber from integer stores as i64", "[JsonValue]")
+{
+    JsonValue value = JsonValue::MakeNumber(42);
+    REQUIRE(value.IsNumber());
+    REQUIRE(value.IsIntegerNumber());
+    REQUIRE(value.GetIntegerNumber() == 42);
+    REQUIRE(value.GetType() == JsonType::Number);
+}
+
+TEST_CASE("MakeNumber from i64 stores as i64", "[JsonValue]")
+{
+    JsonValue value = JsonValue::MakeNumber(static_cast<i64>(9007199254740993LL));
+    REQUIRE(value.IsIntegerNumber());
+    REQUIRE(value.GetIntegerNumber() == 9007199254740993LL);
+}
+
+TEST_CASE("MakeNumber from f64 stores as f64", "[JsonValue]")
+{
+    JsonValue value = JsonValue::MakeNumber(3.14);
+    REQUIRE(value.IsNumber());
+    REQUIRE_FALSE(value.IsIntegerNumber());
+}
+
+TEST_CASE("GetNumber on i64 converts to f64", "[JsonValue]")
+{
+    JsonValue value = JsonValue::MakeNumber(42);
+    REQUIRE(value.GetNumber() == 42.0);
+}
+
+TEST_CASE("GetNumberAs from i64 narrows directly", "[JsonValue]")
+{
+    JsonValue value = JsonValue::MakeNumber(static_cast<i64>(9007199254740993LL));
+    REQUIRE(value.GetNumberAs<i64>() == 9007199254740993LL);
+}

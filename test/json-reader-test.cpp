@@ -267,7 +267,8 @@ TEST_CASE("JsonReader Visit", "[JsonReader]")
     reader.GetRoot().Visit(Overloaded{
         [](const JsonNull&) {},
         [](bool) {},
-        [&visited](f64) { visited = true; },
+        [](f64) {},
+        [&visited](i64) { visited = true; },
         [](const StringViewUtf8&) {},
         [](const JsonArray&) {},
         [](const JsonObject&) {},
@@ -280,7 +281,7 @@ TEST_CASE("JsonReader VisitPartial", "[JsonReader]")
     JsonReader reader = JsonReader::Parse("42");
     bool visited = false;
     reader.GetRoot().VisitPartial(Overloaded{
-        [&visited](f64) { visited = true; },
+        [&visited](i64) { visited = true; },
     });
     REQUIRE(visited);
 }
@@ -347,5 +348,75 @@ TEST_CASE("JsonReader rejects trailing content", "[JsonReader]")
 TEST_CASE("Bad read", "[JsonReader]")
 {
     const StringUtf8 file_path = R"(D:\Dev\obsidian\build\debug\Debug\obs.cache)";
+}
 
+// ------------------------------------------------------------------------------------------------
+// Integer number support.
+// ------------------------------------------------------------------------------------------------
+
+TEST_CASE("JsonReader parses integer as i64", "[JsonReader]")
+{
+    JsonReader reader = JsonReader::Parse("42");
+    REQUIRE(reader.GetRoot().IsNumber());
+    REQUIRE(reader.GetRoot().IsIntegerNumber());
+    REQUIRE(reader.GetRoot().GetIntegerNumber() == 42);
+}
+
+TEST_CASE("JsonReader parses negative integer as i64", "[JsonReader]")
+{
+    JsonReader reader = JsonReader::Parse("-100");
+    REQUIRE(reader.GetRoot().IsIntegerNumber());
+    REQUIRE(reader.GetRoot().GetIntegerNumber() == -100);
+}
+
+TEST_CASE("JsonReader parses float as f64", "[JsonReader]")
+{
+    JsonReader reader = JsonReader::Parse("3.14");
+    REQUIRE(reader.GetRoot().IsNumber());
+    REQUIRE_FALSE(reader.GetRoot().IsIntegerNumber());
+}
+
+TEST_CASE("JsonReader parses exponent number as f64", "[JsonReader]")
+{
+    JsonReader reader = JsonReader::Parse("1e10");
+    REQUIRE(reader.GetRoot().IsNumber());
+    REQUIRE_FALSE(reader.GetRoot().IsIntegerNumber());
+}
+
+TEST_CASE("JsonReader large integer preserves precision", "[JsonReader]")
+{
+    // 2^53 + 1, not representable as f64.
+    JsonReader reader = JsonReader::Parse("9007199254740993");
+    REQUIRE(reader.GetRoot().IsIntegerNumber());
+    REQUIRE(reader.GetRoot().GetIntegerNumber() == 9007199254740993LL);
+    REQUIRE(reader.GetRoot().GetNumberAs<i64>() == 9007199254740993LL);
+}
+
+TEST_CASE("JsonReader i64 max", "[JsonReader]")
+{
+    JsonReader reader = JsonReader::Parse("9223372036854775807");
+    REQUIRE(reader.GetRoot().IsIntegerNumber());
+    REQUIRE(reader.GetRoot().GetIntegerNumber() == 9223372036854775807LL);
+}
+
+TEST_CASE("JsonReader i64 min", "[JsonReader]")
+{
+    JsonReader reader = JsonReader::Parse("-9223372036854775808");
+    REQUIRE(reader.GetRoot().IsIntegerNumber());
+    // Use explicit comparison to avoid literal issues.
+    REQUIRE(reader.GetRoot().GetIntegerNumber() == static_cast<i64>(-9223372036854775807LL - 1));
+}
+
+TEST_CASE("JsonReader integer overflow falls back to f64", "[JsonReader]")
+{
+    // Larger than i64 max.
+    JsonReader reader = JsonReader::Parse("9223372036854775808");
+    REQUIRE(reader.GetRoot().IsNumber());
+    REQUIRE_FALSE(reader.GetRoot().IsIntegerNumber());
+}
+
+TEST_CASE("JsonReader GetIntegerNumber on f64 throws", "[JsonReader]")
+{
+    JsonReader reader = JsonReader::Parse("3.14");
+    REQUIRE_THROWS_AS(reader.GetRoot().GetIntegerNumber(), JsonTypeMismatchException);
 }

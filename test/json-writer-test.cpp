@@ -323,3 +323,45 @@ TEST_CASE("Serialize with explicit allocator", "[JsonWriter]")
     StringUtf8 result = JsonWriter::Serialize(reader.GetRoot(), &allocator);
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("[1,2,3]"));
 }
+
+// ------------------------------------------------------------------------------------------------
+// Integer number precision.
+// ------------------------------------------------------------------------------------------------
+
+TEST_CASE("Serialize large integer preserves precision", "[JsonWriter]")
+{
+    // 2^53 + 1, not representable as f64.
+    JsonReader reader = JsonReader::Parse("9007199254740993");
+    StringUtf8 result = JsonWriter::Serialize(reader.GetRoot());
+    REQUIRE(StringViewUtf8(result) == StringViewUtf8("9007199254740993"));
+}
+
+TEST_CASE("Serialize i64 max", "[JsonWriter]")
+{
+    JsonReader reader = JsonReader::Parse("9223372036854775807");
+    StringUtf8 result = JsonWriter::Serialize(reader.GetRoot());
+    REQUIRE(StringViewUtf8(result) == StringViewUtf8("9223372036854775807"));
+}
+
+TEST_CASE("Serialize negative large integer", "[JsonWriter]")
+{
+    JsonReader reader = JsonReader::Parse("-9007199254740993");
+    StringUtf8 result = JsonWriter::Serialize(reader.GetRoot());
+    REQUIRE(StringViewUtf8(result) == StringViewUtf8("-9007199254740993"));
+}
+
+TEST_CASE("Serialize programmatically built i64", "[JsonWriter]")
+{
+    JsonValue value = JsonValue::MakeNumber(static_cast<i64>(9007199254740993LL));
+    StringUtf8 result = JsonWriter::Serialize(value);
+    REQUIRE(StringViewUtf8(result) == StringViewUtf8("9007199254740993"));
+}
+
+TEST_CASE("Round-trip large integer", "[JsonWriter]")
+{
+    StringUtf8 input("9007199254740993");
+    JsonReader reader1 = JsonReader::Parse(input);
+    StringUtf8 serialized = JsonWriter::Serialize(reader1.GetRoot());
+    JsonReader reader2 = JsonReader::Parse(serialized);
+    REQUIRE(reader2.GetRoot().GetIntegerNumber() == 9007199254740993LL);
+}

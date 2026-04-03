@@ -1,5 +1,8 @@
 #include "opal/container/json-reader.h"
 
+#include <cerrno>
+#include <cstdlib>
+
 #include "opal/container/dynamic-array.h"
 #include "opal/container/in-place-array.h"
 
@@ -45,6 +48,7 @@ void ThrowTypeMismatch(const char* expected, JsonType actual)
 JsonValue::JsonValue() : m_data(JsonNull{}) {}
 JsonValue::JsonValue(bool value) : m_data(value) {}
 JsonValue::JsonValue(f64 value) : m_data(value) {}
+JsonValue::JsonValue(i64 value) : m_data(value) {}
 JsonValue::JsonValue(StringViewUtf8 value) : m_data(value) {}
 JsonValue::JsonValue(JsonArray value) : m_data(std::move(value)) {}
 JsonValue::JsonValue(JsonObject value) : m_data(std::move(value)) {}
@@ -64,6 +68,11 @@ JsonValue JsonValue::MakeBool(bool value)
 }
 
 JsonValue JsonValue::MakeNumber(f64 value)
+{
+    return JsonValue(value);
+}
+
+JsonValue JsonValue::MakeNumber(i64 value)
 {
     return JsonValue(value);
 }
@@ -122,7 +131,16 @@ JsonValue JsonValue::Clone(AllocatorBase* allocator) const
 
 JsonType JsonValue::GetType() const
 {
-    return static_cast<JsonType>(m_data.GetIndex());
+    const auto index = m_data.GetIndex();
+    // Variant order: JsonNull(0), bool(1), f64(2), i64(3), StringViewUtf8(4), ...
+    // JsonType enum: Null(0), Bool(1), Number(2), String(3), ...
+    // i64 at index 3 also maps to Number, so indices > 2 need adjustment.
+    if (index <= 2)
+    {
+        return static_cast<JsonType>(index);
+    }
+    // index 3 (i64) -> Number (2), index 4+ shifted down by 1.
+    return static_cast<JsonType>(index - 1);
 }
 
 bool JsonValue::IsNull() const
@@ -135,7 +153,11 @@ bool JsonValue::IsBool() const
 }
 bool JsonValue::IsNumber() const
 {
-    return m_data.IsActive<f64>();
+    return m_data.IsActive<f64>() || m_data.IsActive<i64>();
+}
+bool JsonValue::IsIntegerNumber() const
+{
+    return m_data.IsActive<i64>();
 }
 bool JsonValue::IsString() const
 {
@@ -169,7 +191,20 @@ f64 JsonValue::GetNumber() const
     {
         ThrowTypeMismatch("number", GetType());
     }
+    if (m_data.IsActive<i64>())
+    {
+        return static_cast<f64>(m_data.Get<i64>());
+    }
     return m_data.Get<f64>();
+}
+
+i64 JsonValue::GetIntegerNumber() const
+{
+    if (!IsIntegerNumber())
+    {
+        ThrowTypeMismatch("integer number", GetType());
+    }
+    return m_data.Get<i64>();
 }
 
 StringViewUtf8 JsonValue::GetString() const
@@ -554,7 +589,7 @@ private:
             {
                 if (c == '-' || (c >= '0' && c <= '9'))
                 {
-                    return JsonValue(ParseNumber());
+                    return ParseNumber();
                 }
                 ThrowError("Unexpected character");
             }
@@ -594,9 +629,10 @@ private:
 
     // -- Number --
 
-    f64 ParseNumber()
+    JsonValue ParseNumber()
     {
         const u64 start = m_pos;
+        bool is_float = false;
 
         if (m_pos < m_size && m_input[m_pos] == '-')
         {
@@ -622,6 +658,7 @@ private:
 
         if (m_pos < m_size && m_input[m_pos] == '.')
         {
+            is_float = true;
             ++m_pos;
             if (m_pos >= m_size || m_input[m_pos] < '0' || m_input[m_pos] > '9')
             {
@@ -635,6 +672,7 @@ private:
 
         if (m_pos < m_size && (m_input[m_pos] == 'e' || m_input[m_pos] == 'E'))
         {
+            is_float = true;
             ++m_pos;
             if (m_pos < m_size && (m_input[m_pos] == '+' || m_input[m_pos] == '-'))
             {
@@ -650,7 +688,7 @@ private:
             }
         }
 
-        // Convert the number substring to f64. We need a null-terminated string for strtod.
+        // Copy number substring into a null-terminated buffer.
         constexpr u64 k_buf_size = 64;
         InPlaceArray<char, k_buf_size> buf;
         const u64 len = m_pos - start;
@@ -664,13 +702,25 @@ private:
         }
         buf[len] = '\0';
 
+        // Integer literals (no '.' or 'e'/'E') are stored as i64 when they fit.
+        if (!is_float)
+        {
+            char* end_ptr = nullptr;
+            errno = 0;
+            const i64 result = strtoll(buf.GetData(), &end_ptr, 10);
+            if (end_ptr == buf.GetData() + len && errno != ERANGE)
+            {
+                return JsonValue(result);
+            }
+        }
+
         char* end_ptr = nullptr;
         const f64 result = strtod(buf.GetData(), &end_ptr);
         if (end_ptr != buf.GetData() + len)
         {
             ThrowError("Invalid number");
         }
-        return result;
+        return JsonValue(result);
     }
 
     // -- String --

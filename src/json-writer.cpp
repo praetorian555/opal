@@ -84,7 +84,14 @@ private:
                 WriteBool(value.GetBool());
                 break;
             case JsonType::Number:
-                WriteNumber(value.GetNumber());
+                if (value.IsIntegerNumber())
+                {
+                    WriteInteger(value.GetIntegerNumber());
+                }
+                else
+                {
+                    WriteNumber(value.GetNumber());
+                }
                 break;
             case JsonType::String:
                 WriteString(value.GetString());
@@ -124,6 +131,8 @@ private:
         }
         AppendFormat(m_output, "{:.17g}", value);
     }
+
+    void WriteInteger(i64 value) const { AppendFormat(m_output, "{}", value); }
 
     void WriteString(StringViewUtf8 value) const
     {
