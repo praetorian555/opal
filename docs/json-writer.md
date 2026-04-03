@@ -46,8 +46,9 @@ Opal::StringUtf8 json = Opal::JsonWriter::Serialize(root);
 |--------|-------------|
 | `JsonValue::MakeNull()` | Null value |
 | `JsonValue::MakeBool(bool)` | Boolean value |
-| `JsonValue::MakeNumber(f64)` | Number from double |
-| `JsonValue::MakeNumber(T)` | Number from any integral or floating-point type |
+| `JsonValue::MakeNumber(f64)` | Number from double (stored as `f64`) |
+| `JsonValue::MakeNumber(i64)` | Number from 64-bit integer (stored as `i64`) |
+| `JsonValue::MakeNumber(T)` | Number from any numeric type (integrals route to `i64`, floats to `f64`) |
 | `JsonValue::MakeString(StringViewUtf8)` | String value (caller must keep the string data alive) |
 | `JsonValue::MakeArray(allocator)` | Empty array |
 | `JsonValue::MakeObject(allocator)` | Empty object |
@@ -146,7 +147,15 @@ Forward slash `/` is not escaped (optional per spec).
 
 ## Number Formatting
 
-Numbers are formatted with 17 significant digits (`{:.17g}`) for exact `f64` round-trip fidelity. Trailing zeros are suppressed (e.g., `42.0` serializes as `42`).
+Numbers stored as `i64` (integers) are formatted as exact decimal integers with no decimal point or exponent. Numbers stored as `f64` (floating-point) are formatted with 17 significant digits (`{:.17g}`) for exact round-trip fidelity.
+
+This means large integers beyond 2^53 that were parsed or constructed as `i64` will round-trip without precision loss:
+
+```cpp
+Opal::JsonReader reader = Opal::JsonReader::Parse("9007199254740993");
+Opal::StringUtf8 json = Opal::JsonWriter::Serialize(reader.GetRoot());
+// json == "9007199254740993" (exact, not rounded to 9007199254740992)
+```
 
 NaN and Infinity are not valid JSON. Attempting to serialize them throws `JsonSerializeException`.
 

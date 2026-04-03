@@ -67,10 +67,11 @@ The root can be any JSON type: null, bool, number, string, array, or object.
 ### Type Queries
 
 ```cpp
-root.GetType();     // Returns JsonType enum
+root.GetType();          // Returns JsonType enum
 root.IsNull();
 root.IsBool();
-root.IsNumber();
+root.IsNumber();         // True for both f64 and i64
+root.IsIntegerNumber();  // True only for i64
 root.IsString();
 root.IsArray();
 root.IsObject();
@@ -84,15 +85,28 @@ All extraction methods throw `JsonTypeMismatchException` on type mismatch.
 
 ```cpp
 bool b = root.GetBool();
-Opal::f64 n = root.GetNumber();
+Opal::f64 n = root.GetNumber();          // Returns f64 for both f64 and i64 values
+Opal::i64 i = root.GetIntegerNumber();   // Returns i64, throws if not an integer
 Opal::StringViewUtf8 s = root.GetString();
 ```
 
-`GetNumberAs<T>()` converts the number via `Opal::Narrow`, supporting any integral or floating-point type:
+#### Number Storage
+
+The parser stores JSON numbers in two internal representations:
+
+- **`i64`** for integer literals (no `.` or `e`/`E`) that fit in 64-bit signed range.
+- **`f64`** for numbers with fractional parts, exponents, or integers that overflow `i64`.
+
+`GetNumber()` always returns `f64`, converting from `i64` if needed (lossy for values beyond 2^53). `GetIntegerNumber()` returns `i64` directly and throws if the value is stored as `f64`.
+
+#### GetNumberAs
+
+`GetNumberAs<T>()` converts the number via `Opal::Narrow`, supporting any integral or floating-point type. When the value is stored as `i64`, it narrows directly from `i64` without going through `f64`, preserving full precision for large integers:
 
 ```cpp
 Opal::i32 x = root.GetNumberAs<Opal::i32>();
 Opal::u64 y = root.GetNumberAs<Opal::u64>();
+Opal::i64 hash = root.GetNumberAs<Opal::i64>();  // Exact for integers up to i64 max
 ```
 
 ### Element Access
@@ -156,16 +170,17 @@ Throws `JsonTypeMismatchException` if the value is not an object.
 
 ### Visit
 
-`Visit` requires handlers for all JSON types:
+`Visit` requires handlers for all variant types, including both `f64` and `i64`:
 
 ```cpp
 root.Visit(Opal::Overloaded{
-    [](const Opal::JsonNull&)       { /* null */ },
-    [](bool b)                      { /* bool */ },
-    [](Opal::f64 n)                 { /* number */ },
+    [](const Opal::JsonNull&)         { /* null */ },
+    [](bool b)                        { /* bool */ },
+    [](Opal::f64 n)                   { /* floating-point number */ },
+    [](Opal::i64 n)                   { /* integer number */ },
     [](const Opal::StringViewUtf8& s) { /* string */ },
-    [](const Opal::JsonArray& arr)  { /* array */ },
-    [](const Opal::JsonObject& obj) { /* object */ },
+    [](const Opal::JsonArray& arr)    { /* array */ },
+    [](const Opal::JsonObject& obj)   { /* object */ },
 });
 ```
 
@@ -174,8 +189,10 @@ root.Visit(Opal::Overloaded{
 `VisitPartial` handles only the types you care about; unmatched types are silently ignored:
 
 ```cpp
+// Handle all numbers regardless of internal representation
 root.VisitPartial(Opal::Overloaded{
-    [](Opal::f64 n) { /* handle numbers only */ },
+    [](Opal::f64 n) { /* floating-point numbers */ },
+    [](Opal::i64 n) { /* integer numbers */ },
 });
 ```
 
