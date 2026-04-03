@@ -66,6 +66,8 @@ public:
 
     ~StringView() = default;
 
+    String<CodeUnitType, EncodingType> ToString() const;
+
     /** @brief Get the underlying data pointer. */
     [[nodiscard]] const CodeUnitType* GetData() const { return m_data; }
 
@@ -206,6 +208,12 @@ private:
     const CodeUnitType* m_data = nullptr;
     size_type m_size = 0;
 };
+
+template <typename CodeUnitType, typename EncodingType>
+String<CodeUnitType, EncodingType> StringView<CodeUnitType, EncodingType>::ToString() const
+{
+    return {m_data, m_size};
+}
 
 /*************************************************************************************************/
 /** Most common StringView specializations. ******************************************************/

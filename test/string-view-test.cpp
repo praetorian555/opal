@@ -386,3 +386,10 @@ TEST_CASE("Free function compatibility", "[StringView]")
         REQUIRE_FALSE(EndsWith(view, suffix));
     }
 }
+
+TEST_CASE("ToString", "[StringView]")
+{
+    StringViewUtf8 view("Hello World");
+    StringUtf8 str = view.ToString();
+    REQUIRE(str == "Hello World");
+}
