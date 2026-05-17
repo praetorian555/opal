@@ -232,7 +232,7 @@ private:
 
         using ObjIt = JsonValue::ObjectIterator;
         using Inner = ObjIt::InnerIterator;
-        m_stack.EmplaceBack(&value, ObjIt(Inner{}), ObjIt(Inner{}), size, 0, false);
+        m_stack.EmplaceBack(&value, ObjIt(Inner{}), ObjIt(Inner{}), size, 0ull, false);
     }
 
     void OpenObject(const JsonValue& value)
@@ -253,7 +253,7 @@ private:
         }
 
         const auto range = value.Items();
-        m_stack.EmplaceBack(&value, range.begin(), range.end(), size, 0, true);
+        m_stack.EmplaceBack(&value, range.begin(), range.end(), size, 0ull, true);
     }
 
     void CloseContainer(bool is_object)

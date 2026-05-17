@@ -939,6 +939,7 @@ private:
         if (m_pos >= m_size || m_input[m_pos] != expected)
         {
             InPlaceArray<char, 64> msg;
+            memset(msg.GetData(), 0, 64);
             snprintf(msg.GetData(), msg.GetSize(), "Expected '%c'", static_cast<char>(expected));
             ThrowError(msg.GetData());
         }
