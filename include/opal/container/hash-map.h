@@ -582,7 +582,7 @@ Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>
 }
 
 template <typename KeyType, typename ValueType>
-const Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(const key_type& key) const
+const typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(const key_type& key) const
 {
     const_iterator it = Find(key);
     if (it != cend())
@@ -858,35 +858,35 @@ Opal::HashMap<KeyType, ValueType>::pair_type& Opal::HashMap<KeyType, ValueType>:
 }
 
 template <typename KeyType, typename ValueType>
-const Opal::HashMap<KeyType, ValueType>::pair_type& Opal::HashMap<KeyType, ValueType>::Get(u64 index) const
+const typename Opal::HashMap<KeyType, ValueType>::pair_type& Opal::HashMap<KeyType, ValueType>::Get(u64 index) const
 {
     OPAL_ASSERT(IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index];
 }
 
 template <typename KeyType, typename ValueType>
-Opal::HashMap<KeyType, ValueType>::key_type& Opal::HashMap<KeyType, ValueType>::GetKey(u64 index)
+typename Opal::HashMap<KeyType, ValueType>::key_type& Opal::HashMap<KeyType, ValueType>::GetKey(u64 index)
 {
     OPAL_ASSERT(IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index].key;
 }
 
 template <typename KeyType, typename ValueType>
-const Opal::HashMap<KeyType, ValueType>::key_type& Opal::HashMap<KeyType, ValueType>::GetKey(u64 index) const
+const typename Opal::HashMap<KeyType, ValueType>::key_type& Opal::HashMap<KeyType, ValueType>::GetKey(u64 index) const
 {
     OPAL_ASSERT(IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index].key;
 }
 
 template <typename KeyType, typename ValueType>
-Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(u64 index)
+typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(u64 index)
 {
     OPAL_ASSERT(IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index].value;
 }
 
 template <typename KeyType, typename ValueType>
-const Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(u64 index) const
+const typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(u64 index) const
 {
     OPAL_ASSERT(IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index].value;
