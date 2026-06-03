@@ -203,6 +203,61 @@ arr.Fill(0);             // Set all elements to a value
 
 ---
 
+## Optional
+
+Header: `opal/container/optional.h`
+
+Holds either a single value of type `T` or nothing. When empty, no `T` is constructed and no heap
+allocation occurs; storage for `T` lives inline. Following the project's "Clone instead of Copy"
+pattern, copy is deleted — use `Clone()` or `Move()`.
+
+```cpp
+Opal::Optional<int> empty;                       // No value
+Opal::Optional<int> a = Opal::k_null_opt;        // No value (explicit)
+Opal::Optional<int> b(42);                        // Holds 42
+Opal::Optional<std::string> c(Opal::k_in_place, 3, 'a');  // Constructs "aaa" in place
+```
+
+### Access
+
+```cpp
+b.HasValue();            // true
+static_cast<bool>(b);    // true
+b.GetValue();            // 42 (asserts if empty)
+*b;                      // 42
+c->size();               // operator-> forwards to the value
+b.GetValueOr(0);         // 42 if present, otherwise 0
+b == Opal::k_null_opt;   // false
+```
+
+### Modification
+
+```cpp
+b.Emplace(7);            // Destroys current value, constructs new one in place, returns T&
+b.Reset();               // Destroys value, becomes empty
+b = Opal::k_null_opt;    // Same as Reset()
+auto clone = b.Clone();  // Deep copy (POD copies, non-POD calls .Clone())
+```
+
+### Reference Specialization
+
+`Optional<T&>` holds a non-owning pointer to a `T` (or nothing). Move transfers the reference and
+empties the source; `Clone()` shares the same referenced object.
+
+```cpp
+int value = 10;
+Opal::Optional<int&> ref(value);
+ref.GetValue() = 20;     // value is now 20
+ref.Reset();             // Empty, value untouched
+```
+
+### Hashing
+
+`Optional<T>` is hashable via `Opal::Hasher` when `T` is hashable, so it can be used as a
+`HashMap`/`HashSet` key. Empty optionals hash to a fixed sentinel value.
+
+---
+
 ## String
 
 Headers: `opal/container/string.h`, `opal/container/string-view.h`, `opal/container/string-encoding.h`, `opal/container/string-hash.h`

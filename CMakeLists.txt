@@ -55,6 +55,7 @@ set(OPAL_FILES
         src/thread-pool.cpp
         src/json-reader.cpp
         src/json-writer.cpp
+        src/optional.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -76,6 +77,7 @@ set(OPAL_FILES
         include/opal/math-constants.h
         include/opal/container/iterator.h
         include/opal/container/expected.h
+        include/opal/container/optional.h
         include/opal/container/deque.h
         include/opal/container/array-view.h
         include/opal/container/string.h
@@ -162,6 +164,7 @@ if (OPAL_BUILD_TESTS)
             test/string-test.cpp
             test/string-view-test.cpp
             test/expected-test.cpp
+            test/optional-test.cpp
             test/time-test.cpp
             test/sort-test.cpp
             test/paths-test.cpp
