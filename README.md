@@ -39,6 +39,22 @@ cd build
 ctest
 ```
 
+### Installing
+
+```bash
+cmake -B build -DOPAL_BUILD_TESTS=OFF -DOPAL_HARDENING=OFF
+cmake --build build
+cmake --install build --prefix path/to/install
+```
+
+This installs the library, public headers, and a CMake package config so consumers
+can use `find_package(opal)`.
+
+> **Note:** `OPAL_HARDENING` must be `OFF` when installing. A hardened build bakes
+> sanitizer instrumentation into the library, producing an install that consumers
+> cannot link without enabling the same sanitizers. The install step refuses to run
+> while `OPAL_HARDENING=ON`.
+
 ## Integration
 
 ### As a CMake Subdirectory
