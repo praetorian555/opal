@@ -20,70 +20,75 @@ jobs:
           os: windows-latest
           build_type: "Debug"
           cxx: "cl"
-          generators: "Visual Studio 17 2022"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: "MSVC Test"
           os: windows-latest
           build_type: "RelWithDebInfo"
           cxx: "cl"
-          generators: "Visual Studio 17 2022"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: "MSVC Release"
           os: windows-latest
           build_type: "Release"
           cxx: "cl"
-          generators: "Visual Studio 17 2022"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: "GCC Debug"
           os: ubuntu-latest
           build_type: "Debug"
           cxx: "g++"
-          generators: "Unix Makefiles"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: "GCC Test"
           os: ubuntu-latest
           build_type: "RelWithDebInfo"
           cxx: "g++"
-          generators: "Unix Makefiles"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: "GCC Release"
           os: ubuntu-latest
           build_type: "Release"
           cxx: "g++"
-          generators: "Unix Makefiles"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: Clang Debug
           os: ubuntu-latest
           build_type: "Debug"
           cxx: "clang++"
-          generators: "Unix Makefiles"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: Clang Test
           os: ubuntu-latest
-          build_type: "Test"
+          build_type: "RelWithDebInfo"
           cxx: "clang++"
-          generators: "Unix Makefiles"
+          generators: "Ninja"
           shared_libs: "OFF"
         - name: Clang Release
           os: ubuntu-latest
           build_type: "Release"
           cxx: "clang++"
-          generators: "Unix Makefiles"
+          generators: "Ninja"
           shared_libs: "OFF"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
     steps:
     - uses: actions/checkout@v3
+
+    - name: Set up MSVC developer environment
+      # Ninja + cl needs the MSVC toolchain on PATH (the VS generator did this implicitly).
+      if: matrix.config.cxx == 'cl'
+      uses: ilammy/msvc-dev-cmd@v1
+
     - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -G "${{matrix.config.generators}}" -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF -DOPAL_SHARED_LIBS=${{matrix.config.shared_libs}}
+      # Ninja is single-config, so the build type must be set at configure time via CMAKE_BUILD_TYPE.
+      run: cmake -B ${{github.workspace}}/build -G "${{matrix.config.generators}}" -DCMAKE_BUILD_TYPE=${{matrix.config.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.config.cxx}} -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF -DOPAL_SHARED_LIBS=${{matrix.config.shared_libs}}
 
     - name: Build
       # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{matrix.config.build_type}}
+      run: cmake --build ${{github.workspace}}/build
 
     - name: Test
       working-directory: ${{github.workspace}}/build
       # Execute tests defined by the CMake configuration.
-      run: ctest --build-config ${{matrix.config.build_type}} --output-on-failure
+      run: ctest --output-on-failure
