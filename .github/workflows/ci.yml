@@ -1,4 +1,4 @@
-name: Build checks
+name: Unit Tests
 
 on:
   push:
@@ -83,10 +83,7 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{matrix.config.build_type}}
 
-    - name: Install
-      run: cmake --install ${{github.workspace}}/build --prefix ${{github.workspace}}/install-dir --config ${{matrix.config.build_type}}
-      
     - name: Test
-      working-directory: ${{github.workspace}}/install-dir/bin
+      working-directory: ${{github.workspace}}/build
       # Execute tests defined by the CMake configuration.
-      run: ./opal_test
+      run: ctest --build-config ${{matrix.config.build_type}} --output-on-failure
