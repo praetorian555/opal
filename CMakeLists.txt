@@ -121,11 +121,12 @@ set(OPAL_FILES
         include/opal/container/string-format.h
 )
 add_library(opal ${OPAL_FILES})
+add_library(opal::opal ALIAS opal)
 target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/wyhash/include>)
 target_include_directories(opal PUBLIC $<INSTALL_INTERFACE:include>)
-target_link_libraries(opal PRIVATE opal_warnings)
-target_link_libraries(opal PRIVATE opal_options)
+target_link_libraries(opal PRIVATE $<BUILD_INTERFACE:opal_warnings>)
+target_link_libraries(opal PRIVATE $<BUILD_INTERFACE:opal_options>)
 if (WIN32)
     target_link_libraries(opal PRIVATE synchronization)
 endif ()
@@ -140,19 +141,53 @@ target_include_directories(opal PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY
 target_include_directories(opal PUBLIC "$<INSTALL_INTERFACE:include>")
 
 # Install the library
+include(GNUInstallDirs)
+include(CMakePackageConfigHelpers)
+
+set(OPAL_INSTALL_CMAKEDIR ${CMAKE_INSTALL_LIBDIR}/cmake/opal)
+
+# A hardened build bakes sanitizer instrumentation into opal, producing an install that
+# consumers cannot link without enabling the same sanitizers. Refuse to install such a build.
+if (OPAL_HARDENING)
+    install(CODE "message(FATAL_ERROR \"Refusing to install: OPAL_HARDENING=ON bakes sanitizers into opal, so the install is not consumable. Reconfigure with -DOPAL_HARDENING=OFF to install.\")")
+endif ()
+
 install(TARGETS opal
+        EXPORT opalTargets
         LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}  # For Windows DLL files
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION include
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         FILES_MATCHING PATTERN "*.h"
         PATTERN "*.hpp")
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
-        DESTINATION include
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         FILES_MATCHING PATTERN "*.h"
         PATTERN "*.hpp")
+
+# Generate and install the CMake package config so consumers can use find_package(opal)
+install(EXPORT opalTargets
+        FILE opalTargets.cmake
+        NAMESPACE opal::
+        DESTINATION ${OPAL_INSTALL_CMAKEDIR})
+
+configure_package_config_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/opalConfig.cmake.in
+        ${CMAKE_CURRENT_BINARY_DIR}/opalConfig.cmake
+        INSTALL_DESTINATION ${OPAL_INSTALL_CMAKEDIR})
+
+write_basic_package_version_file(
+        ${CMAKE_CURRENT_BINARY_DIR}/opalConfigVersion.cmake
+        VERSION ${PROJECT_VERSION}
+        COMPATIBILITY SameMajorVersion)
+
+install(FILES
+        ${CMAKE_CURRENT_BINARY_DIR}/opalConfig.cmake
+        ${CMAKE_CURRENT_BINARY_DIR}/opalConfigVersion.cmake
+        DESTINATION ${OPAL_INSTALL_CMAKEDIR})
 
 if (OPAL_BUILD_TESTS)
     set(OPAL_TEST_FILES
@@ -214,10 +249,4 @@ if (OPAL_BUILD_TESTS)
     target_compile_definitions(opal_test PRIVATE cxx_std_20)
     enable_testing()
     add_test(NAME opal_test COMMAND opal_test)
-    # Install the test executable
-    install(TARGETS opal_test
-            LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}  # For Windows DLL files
-    )
 endif ()

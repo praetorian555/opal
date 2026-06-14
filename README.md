@@ -45,14 +45,14 @@ ctest
 
 ```cmake
 add_subdirectory(path/to/opal)
-target_link_libraries(your_target PRIVATE opal)
+target_link_libraries(your_target PRIVATE opal::opal)
 ```
 
 ### After Install
 
 ```cmake
 find_package(opal REQUIRED)
-target_link_libraries(your_target PRIVATE opal)
+target_link_libraries(your_target PRIVATE opal::opal)
 ```
 
 ## Features
