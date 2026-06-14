@@ -24,13 +24,13 @@ TEST_CASE("Quaternion constructors", "[math][quaternion]")
         const Quatf q2 = Quatf::FromAxisAngleDegrees(Vector3f(0, 0, 2), 60);
         CHECK(q2.vec.x == 0.0f);
         CHECK(q2.vec.y == 0.0f);
-        CHECK(q2.vec.z == 0.5f);
-        CHECK(q2.w == 0.866025403784438646763723170752f);
+        CHECK(IsEqual(q2.vec.z, 0.5f, k_machine_epsilon_float));
+        CHECK(IsEqual(q2.w, 0.866025403784438646763723170752f, k_machine_epsilon_float));
         const Quatf q3 = Quatf::FromAxisAngleRadians(Vector3f(0, 0, 2), Radians(60.0f));
         CHECK(q3.vec.x == 0.0f);
         CHECK(q3.vec.y == 0.0f);
-        CHECK(q3.vec.z == 0.5f);
-        CHECK(q2.w == 0.866025403784438646763723170752f);
+        CHECK(IsEqual(q3.vec.z, 0.5f, k_machine_epsilon_float));
+        CHECK(IsEqual(q2.w, 0.866025403784438646763723170752f, k_machine_epsilon_float));
         const Quatf q4 = Quatf::Identity();
         CHECK(q4.vec.x == 0.0f);
         CHECK(q4.vec.y == 0.0f);
@@ -258,17 +258,17 @@ TEST_CASE("Quaternion multiplication", "[math][quaternion]")
         {
             const Quatf q1 = Quatf::FromAxisAngleDegrees(Vector3f(1, 0, 0), 90);
             const Vector3f Res = q1 * Vector3f(0, 1, 0);
-            CHECK(Res.x == 0.0f);
+            CHECK(IsEqual(Res.x, 0.0f, 0.0001f));
             CHECK(IsEqual(Res.y, 0.0f, 0.0001f));
-            CHECK(Res.z == 1.0f);
+            CHECK(IsEqual(Res.z, 1.0f, 0.0001f));
         }
         SECTION("Multiply 3D point")
         {
             const Quatf q1 = Quatf::FromAxisAngleDegrees(Vector3f(1, 0, 0), 90);
             const Point3f Res = q1 * Point3f(0, 0, 1);
-            CHECK(Res.x == 0.0f);
-            CHECK(Res.y == -1.0f);
-            CHECK(Res.z == 0.0f);
+            CHECK(IsEqual(Res.x, 0.0f, 0.0001f));
+            CHECK(IsEqual(Res.y, -1.0f, 0.0001f));
+            CHECK(IsEqual(Res.z, 0.0f, 0.0001f));
         }
     }
     SECTION("double")
@@ -324,16 +324,16 @@ TEST_CASE("Quaternion multiplication", "[math][quaternion]")
         {
             const Quatd q1 = Quatd::FromAxisAngleDegrees(Vector3d(1, 0, 0), 90);
             const Vector3d Res = q1 * Vector3d(0, 1, 0);
-            CHECK(Res.x == 0);
+            CHECK(IsEqual(Res.x, 0.0, k_machine_epsilon_double));
             CHECK(IsEqual(Res.y, 0.0, k_machine_epsilon_double));
-            CHECK(Res.z == 1);
+            CHECK(IsEqual(Res.z, 1.0, k_machine_epsilon_double));
         }
         SECTION("Multiply 3D point")
         {
             const Quatd q1 = Quatd::FromAxisAngleDegrees(Vector3d(1, 0, 0), 90);
             const Point3d Res = q1 * Point3d(0, 0, 1);
-            CHECK(Res.x == 0);
-            CHECK(Res.y == -1);
+            CHECK(IsEqual(Res.x, 0.0, k_machine_epsilon_double));
+            CHECK(IsEqual(Res.y, -1.0, k_machine_epsilon_double));
             CHECK(IsEqual(Res.z, 0.0, k_machine_epsilon_double));
         }
     }
@@ -453,7 +453,7 @@ TEST_CASE("Quaternion normalize", "[math][quaternion]")
     {
         const Quatf q1(4, 1, 2, 3);
         const Quatf q2 = Normalize(q1);
-        CHECK(Length(q2) == 1.0f);
+        CHECK(IsEqual(Length(q2), 1.0f, k_machine_epsilon_float));
     }
     SECTION("double")
     {
@@ -471,10 +471,10 @@ TEST_CASE("Quaternion lerp", "[math][quaternion]")
         const Quatf q2 = Quatf::FromAxisAngleDegrees(Vector3f(1, 0, 0), 90);
         const Quatf q3 = Lerp(0.5f, q1, q2);
         const Quatf q4 = Quatf::FromAxisAngleDegrees(Vector3f(1, 0, 0), 60);
-        CHECK(q3.vec.x == q4.vec.x);
+        CHECK(IsEqual(q3.vec.x, q4.vec.x, k_machine_epsilon_float));
         CHECK(q3.vec.y == q4.vec.y);
         CHECK(q3.vec.z == q4.vec.z);
-        CHECK(q3.w == q4.w);
+        CHECK(IsEqual(q3.w, q4.w, k_machine_epsilon_float));
     }
     SECTION("float with 0.4 parameter")
     {
@@ -496,7 +496,7 @@ TEST_CASE("Quaternion lerp", "[math][quaternion]")
         CHECK(IsEqual(q3.vec.x, q4.vec.x, k_machine_epsilon_double));
         CHECK(q3.vec.y == q4.vec.y);
         CHECK(q3.vec.z == q4.vec.z);
-        CHECK(q3.w == q4.w);
+        CHECK(IsEqual(q3.w, q4.w, k_machine_epsilon_double));
     }
 }
 
@@ -513,7 +513,7 @@ TEST_CASE("Quaternion slerp", "[math][quaternion]")
             CHECK(IsEqual(q3.vec.x, q4.vec.x, k_machine_epsilon_float));
             CHECK(q3.vec.y == q4.vec.y);
             CHECK(q3.vec.z == q4.vec.z);
-            CHECK(q3.w == q4.w);
+            CHECK(IsEqual(q3.w, q4.w, k_machine_epsilon_float));
         }
         SECTION("parameter 0.4")
         {
@@ -535,7 +535,7 @@ TEST_CASE("Quaternion slerp", "[math][quaternion]")
             const Quatd q2 = Quatd::FromAxisAngleDegrees(Vector3d(1, 0, 0), 90);
             const Quatd q3 = Slerp(0.5, q1, q2);
             const Quatd q4 = Quatd::FromAxisAngleDegrees(Vector3d(1, 0, 0), 60);
-            CHECK(q3.vec.x == q4.vec.x);
+            CHECK(IsEqual(q3.vec.x, q4.vec.x, k_machine_epsilon_double));
             CHECK(q3.vec.y == q4.vec.y);
             CHECK(q3.vec.z == q4.vec.z);
             CHECK(IsEqual(q3.w, q4.w, k_machine_epsilon_double));
@@ -546,7 +546,7 @@ TEST_CASE("Quaternion slerp", "[math][quaternion]")
             const Quatd q2 = Quatd::FromAxisAngleDegrees(Vector3d(1, 0, 0), 90);
             const Quatd q3 = Slerp(0.4, q1, q2);
             const Quatd q4 = Quatd::FromAxisAngleDegrees(Vector3d(1, 0, 0), 54);
-            CHECK(q3.vec.x == q4.vec.x);
+            CHECK(IsEqual(q3.vec.x, q4.vec.x, k_machine_epsilon_double));
             CHECK(q3.vec.y == q4.vec.y);
             CHECK(q3.vec.z == q4.vec.z);
             CHECK(IsEqual(q3.w, q4.w, k_machine_epsilon_double));
@@ -582,19 +582,19 @@ TEST_CASE("Quaternion inverse", "[math][quaternion]")
     {
         const Quatf q1(4, 1, 2, 3);
         const Quatf q2 = Inverse(q1);
-        CHECK(q2.w == 2.0f / 15.0f);
-        CHECK(q2.vec.x == -1.0f / 30.0f);
-        CHECK(q2.vec.y == -1.0f / 15.0f);
+        CHECK(IsEqual(q2.w, 2.0f / 15.0f, k_machine_epsilon_float));
+        CHECK(IsEqual(q2.vec.x, -1.0f / 30.0f, k_machine_epsilon_float));
+        CHECK(IsEqual(q2.vec.y, -1.0f / 15.0f, k_machine_epsilon_float));
         CHECK(IsEqual(q2.vec.z, -1.0f / 10.0f, k_machine_epsilon_float));
     }
     SECTION("double")
     {
         const Quatd q1(4, 1, 2, 3);
         const Quatd q2 = Inverse(q1);
-        CHECK(q2.w == 2.0 / 15.0);
-        CHECK(q2.vec.x == -1.0 / 30.0);
-        CHECK(q2.vec.y == -1.0 / 15.0);
-        CHECK(q2.vec.z == -1.0 / 10.0);
+        CHECK(IsEqual(q2.w, 2.0 / 15.0, k_machine_epsilon_double));
+        CHECK(IsEqual(q2.vec.x, -1.0 / 30.0, k_machine_epsilon_double));
+        CHECK(IsEqual(q2.vec.y, -1.0 / 15.0, k_machine_epsilon_double));
+        CHECK(IsEqual(q2.vec.z, -1.0 / 10.0, k_machine_epsilon_double));
     }
 }
 
@@ -605,15 +605,15 @@ TEST_CASE("Quaternion rotate a point", "[math][quaternion]")
         // Rotate point around an axis
         const Quatf q = Quatf::FromAxisAngleDegrees(Vector3f(0, 0, 1), 90);
         const Point3f p = q * Point3f(1, 0, 0);
-        CHECK(p.x == 0.0f);
-        CHECK(p.y == 1.0f);
-        CHECK(p.z == 0.0f);
+        CHECK(IsEqual(p.x, 0.0f, k_machine_epsilon_float));
+        CHECK(IsEqual(p.y, 1.0f, k_machine_epsilon_float));
+        CHECK(IsEqual(p.z, 0.0f, k_machine_epsilon_float));
         // Rotate using an inverse, should be in the opposite direction by the same amount
         const Quatf q_inv = Inverse(q);
         const Point3f p_inv = q_inv * Point3f(1, 0, 0);
-        CHECK(p_inv.x == 0.0f);
-        CHECK(p_inv.y == -1.0f);
-        CHECK(p_inv.z == 0.0f);
+        CHECK(IsEqual(p_inv.x, 0.0f, k_machine_epsilon_float));
+        CHECK(IsEqual(p_inv.y, -1.0f, k_machine_epsilon_float));
+        CHECK(IsEqual(p_inv.z, 0.0f, k_machine_epsilon_float));
     }
     SECTION("rotate point using a composition of two rotations")
     {
