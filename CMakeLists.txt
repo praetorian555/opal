@@ -8,6 +8,23 @@ message(STATUS "OPAL_HARDENING: ${OPAL_HARDENING}")
 option(OPAL_SHARED_LIBS "Build shared libraries" OFF)
 message(STATUS "OPAL_SHARED_LIBS: ${OPAL_SHARED_LIBS}")
 
+# Report the toolchain being used to ease debugging of platform-specific issues.
+message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
+if (WIN32)
+    # The Visual Studio generator records the targeted SDK in this variable. With other
+    # generators (e.g. Ninja) the SDK is selected by the environment, so fall back to the
+    # WindowsSDKVersion variable set by vcvarsall.bat.
+    if (CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION)
+        set(OPAL_WINDOWS_SDK_VERSION "${CMAKE_VS_WINDOWS_TARGET_PLATFORM_VERSION}")
+    elseif (DEFINED ENV{WindowsSDKVersion})
+        # Strip the trailing backslash the environment variable carries (e.g. "10.0.22621.0\").
+        string(REGEX REPLACE "\\\\$" "" OPAL_WINDOWS_SDK_VERSION "$ENV{WindowsSDKVersion}")
+    else ()
+        set(OPAL_WINDOWS_SDK_VERSION "unknown")
+    endif ()
+    message(STATUS "Windows SDK: ${OPAL_WINDOWS_SDK_VERSION}")
+endif ()
+
 # Don't use C++ 20 modules
 set(CMAKE_CXX_SCAN_FOR_MODULES 0)
 
