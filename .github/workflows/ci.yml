@@ -17,19 +17,19 @@ jobs:
       matrix:
         config:
         - name: "MSVC Debug"
-          os: windows-latest
+          os: windows-2022
           build_type: "Debug"
           cxx: "cl"
           generators: "Ninja"
           shared_libs: "OFF"
         - name: "MSVC Test"
-          os: windows-latest
+          os: windows-2022
           build_type: "RelWithDebInfo"
           cxx: "cl"
           generators: "Ninja"
           shared_libs: "OFF"
         - name: "MSVC Release"
-          os: windows-latest
+          os: windows-2022
           build_type: "Release"
           cxx: "cl"
           generators: "Ninja"
@@ -79,6 +79,9 @@ jobs:
       # Ninja + cl needs the MSVC toolchain on PATH (the VS generator did this implicitly).
       if: matrix.config.cxx == 'cl'
       uses: ilammy/msvc-dev-cmd@v1
+      with:
+        # Pin the MSVC toolset so the compiler is version 19.44 (_MSC_VER 1944).
+        toolset: "14.44"
 
     - name: Configure CMake
       # Ninja is single-config, so the build type must be set at configure time via CMAKE_BUILD_TYPE.
