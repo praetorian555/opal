@@ -56,6 +56,49 @@ struct NonPod
 
     bool operator==(const NonPod& other) const { return *ptr == *other.ptr; }
 };
+
+// Owns a heap value like NonPod, but copyable, which is what the copying Insert overloads
+// (count-of-a-value, and a range) need from their element type.
+struct OwnedCopy
+{
+    i32* ptr = nullptr;
+    explicit OwnedCopy(i32 value) : ptr(new i32(value)) {}
+    OwnedCopy(const OwnedCopy& other) : ptr(other.ptr != nullptr ? new i32(*other.ptr) : nullptr) {}
+    OwnedCopy& operator=(const OwnedCopy& other)
+    {
+        if (this != &other)
+        {
+            // A container may assign onto an element it just moved out of, so a null of our
+            // own is a state to recover from rather than one to dereference.
+            if (other.ptr == nullptr)
+            {
+                delete ptr;
+                ptr = nullptr;
+            }
+            else if (ptr == nullptr)
+            {
+                ptr = new i32(*other.ptr);
+            }
+            else
+            {
+                *ptr = *other.ptr;
+            }
+        }
+        return *this;
+    }
+    OwnedCopy(OwnedCopy&& other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }
+    OwnedCopy& operator=(OwnedCopy&& other) noexcept
+    {
+        if (this != &other)
+        {
+            delete ptr;
+            ptr = other.ptr;
+            other.ptr = nullptr;
+        }
+        return *this;
+    }
+    ~OwnedCopy() { delete ptr; }
+};
 }  // namespace
 
 TEST_CASE("Construction with POD data", "[Array]")
@@ -2203,6 +2246,107 @@ TEST_CASE("Erase", "[Array]")
             REQUIRE(int_arr[3] == 42);
             REQUIRE(int_arr[4] == 42);
         }
+    }
+}
+
+// Inserting shifts the elements at and after the position up. The slots they land in past
+// the old end hold no object yet, so they must be constructed into rather than assigned to:
+// assigning would run the element's cleanup on memory that was never initialized.
+TEST_CASE("Insert of an owning element type", "[Array]")
+{
+    const auto make = [](i32 count)
+    {
+        DynamicArray<NonPod> arr;
+        arr.Reserve(16);  // room for every insert below, so no reallocation moves anything
+        for (i32 i = 0; i < count; ++i)
+        {
+            arr.PushBack(NonPod(i + 1));
+        }
+        return arr;
+    };
+    const auto make_copyable = [](i32 count)
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(16);
+        for (i32 i = 0; i < count; ++i)
+        {
+            arr.PushBack(OwnedCopy(i + 1));
+        }
+        return arr;
+    };
+
+    SECTION("Insert one element at the front")
+    {
+        DynamicArray<NonPod> arr = make(3);
+        arr.Insert(arr.cbegin(), NonPod(9));
+        REQUIRE(arr.GetSize() == 4);
+        REQUIRE(*arr[0].ptr == 9);
+        REQUIRE(*arr[1].ptr == 1);
+        REQUIRE(*arr[2].ptr == 2);
+        REQUIRE(*arr[3].ptr == 3);
+    }
+    SECTION("Insert one element at the end")
+    {
+        DynamicArray<NonPod> arr = make(3);
+        arr.Insert(arr.cend(), NonPod(9));
+        REQUIRE(arr.GetSize() == 4);
+        REQUIRE(*arr[2].ptr == 3);
+        REQUIRE(*arr[3].ptr == 9);
+    }
+    SECTION("Insert into an empty array")
+    {
+        DynamicArray<NonPod> arr = make(0);
+        arr.Insert(arr.cbegin(), NonPod(9));
+        REQUIRE(arr.GetSize() == 1);
+        REQUIRE(*arr[0].ptr == 9);
+    }
+    SECTION("Insert more elements than the array holds after the position")
+    {
+        // The gap reaches past the old end, so some survivors are constructed into raw
+        // storage and some of the inserted values are too.
+        DynamicArray<OwnedCopy> arr = make_copyable(3);
+        arr.Insert(arr.cbegin() + 2, 4, OwnedCopy(9));
+        REQUIRE(arr.GetSize() == 7);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 2);
+        REQUIRE(*arr[2].ptr == 9);
+        REQUIRE(*arr[5].ptr == 9);
+        REQUIRE(*arr[6].ptr == 3);
+    }
+    SECTION("Insert fewer elements than the array holds after the position")
+    {
+        DynamicArray<OwnedCopy> arr = make_copyable(5);
+        arr.Insert(arr.cbegin() + 1, 2, OwnedCopy(9));
+        REQUIRE(arr.GetSize() == 7);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 9);
+        REQUIRE(*arr[2].ptr == 9);
+        REQUIRE(*arr[3].ptr == 2);
+        REQUIRE(*arr[6].ptr == 5);
+    }
+    SECTION("Insert a range at the end")
+    {
+        DynamicArray<OwnedCopy> source = make_copyable(2);  // 1, 2
+        DynamicArray<OwnedCopy> arr = make_copyable(3);     // 1, 2, 3
+        arr.Insert(arr.cbegin() + 3, source.begin(), source.end());
+        REQUIRE(arr.GetSize() == 5);
+        REQUIRE(*arr[2].ptr == 3);
+        REQUIRE(*arr[3].ptr == 1);
+        REQUIRE(*arr[4].ptr == 2);
+        REQUIRE(source.GetSize() == 2);  // the source is copied, not consumed
+        REQUIRE(*source[0].ptr == 1);
+    }
+    SECTION("Insert a range in the middle")
+    {
+        DynamicArray<OwnedCopy> source = make_copyable(2);
+        DynamicArray<OwnedCopy> arr = make_copyable(4);
+        arr.Insert(arr.cbegin() + 1, source.begin(), source.end());
+        REQUIRE(arr.GetSize() == 6);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 1);
+        REQUIRE(*arr[2].ptr == 2);
+        REQUIRE(*arr[3].ptr == 2);
+        REQUIRE(*arr[5].ptr == 4);
     }
 }
 

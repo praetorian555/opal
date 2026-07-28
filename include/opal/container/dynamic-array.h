@@ -441,6 +441,14 @@ private:
 
     size_type GetNextCapacity(size_type current_capacity) const;
 
+    // Open a gap of `count` slots at `pos_offset` for an insert, moving the elements at and
+    // after it up. The slots that land past the old end are raw storage and are
+    // move-constructed into; the rest hold live objects and are move-assigned. Leaves m_size
+    // alone: the caller fills the gap — assigning to the slots below the old size,
+    // constructing into those at or above it — and then adds `count` to it. Capacity for
+    // m_size + count must already be reserved.
+    void MakeInsertGap(difference_type pos_offset, size_type count);
+
     static constexpr f64 k_resize_factor = 1.5;
 
     allocator_type* m_allocator = nullptr;
@@ -981,6 +989,28 @@ void CLASS_HEADER::PopBack()
 }
 
 TEMPLATE_HEADER
+void CLASS_HEADER::MakeInsertGap(difference_type pos_offset, size_type count)
+{
+    const size_type pos = static_cast<size_type>(pos_offset);
+    const size_type after = m_size - pos;  // elements at and after the position
+    // The last `to_construct` of them land past the old end, in storage no object lives in
+    // yet: those must be move-constructed, since assigning to raw memory would run the
+    // element's assignment (and its cleanup) on an object that was never constructed.
+    const size_type to_construct = after < count ? after : count;
+    for (size_type i = 0; i < to_construct; ++i)
+    {
+        const size_type source = m_size - to_construct + i;
+        new (&m_data[source + count]) T(Move(m_data[source]));  // Invokes move constructor on allocated memory
+    }
+    // The survivors below them move onto live objects, back to front so none is overwritten
+    // before it has been read.
+    for (size_type i = m_size - to_construct; i > pos; --i)
+    {
+        m_data[i - 1 + count] = Move(m_data[i - 1]);
+    }
+}
+
+TEMPLATE_HEADER
 typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, const T& value)
 {
     if (position < cbegin() || position > cend()) [[unlikely]]
@@ -993,14 +1023,17 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, co
         const size_type new_capacity = GetNextCapacity(m_capacity);
         Reserve(new_capacity);
     }
-    iterator it = end() - 1;
+    const size_type old_size = m_size;
+    MakeInsertGap(pos_offset, 1);
     iterator mut_position = begin() + pos_offset;
-    while (it >= mut_position)
+    if (static_cast<size_type>(pos_offset) < old_size)
     {
-        *(it + 1) = Move(*it);
-        --it;
+        *mut_position = value;
     }
-    *mut_position = value;
+    else
+    {
+        new (&(*mut_position)) T(value);  // Invokes copy constructor on allocated memory
+    }
     m_size++;
     return mut_position;
 }
@@ -1018,14 +1051,17 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(DynamicArray::const_iterato
         const size_type new_capacity = GetNextCapacity(m_capacity);
         Reserve(new_capacity);
     }
-    iterator it = end() - 1;
+    const size_type old_size = m_size;
+    MakeInsertGap(pos_offset, 1);
     iterator mut_position = begin() + pos_offset;
-    while (it >= mut_position)
+    if (static_cast<size_type>(pos_offset) < old_size)
     {
-        *(it + 1) = Move(*it);
-        --it;
+        *mut_position = Move(value);
     }
-    *mut_position = Move(value);
+    else
+    {
+        new (&(*mut_position)) T(Move(value));  // Invokes move constructor on allocated memory
+    }
     m_size++;
     return mut_position;
 }
@@ -1048,18 +1084,20 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, si
         new_capacity = m_size + count > new_capacity ? m_size + count : new_capacity;
         Reserve(new_capacity);
     }
-    iterator it = end() - 1;
-    iterator mut_position = begin() + pos_offset;
-    while (it >= mut_position)
-    {
-        *(it + Narrow<difference_type>(count)) = Move(*it);
-        --it;
-    }
-    iterator return_it = mut_position;
+    const size_type old_size = m_size;
+    MakeInsertGap(pos_offset, count);
+    iterator return_it = begin() + pos_offset;
     for (size_type i = 0; i < count; i++)
     {
-        *mut_position = value;
-        ++mut_position;
+        const size_type destination = static_cast<size_type>(pos_offset) + i;
+        if (destination < old_size)
+        {
+            m_data[destination] = value;
+        }
+        else
+        {
+            new (&m_data[destination]) T(value);  // Invokes copy constructor on allocated memory
+        }
     }
     m_size += count;
     return return_it;
@@ -1086,18 +1124,21 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, In
         new_capacity = m_size + count > new_capacity ? m_size + count : new_capacity;
         Reserve(new_capacity);
     }
-    iterator it = end() - 1;
-    iterator mut_position = begin() + pos_offset;
-    while (it >= mut_position)
+    const size_type old_size = m_size;
+    MakeInsertGap(pos_offset, count);
+    iterator return_it = begin() + pos_offset;
+    size_type offset = 0;
+    for (InputIt current = start_it; current < end_it; ++current, ++offset)
     {
-        *(it + Narrow<difference_type>(count)) = Move(*it);
-        --it;
-    }
-    iterator return_it = mut_position;
-    for (InputIt current = start_it; current < end_it; ++current)
-    {
-        *mut_position = *current;
-        ++mut_position;
+        const size_type destination = static_cast<size_type>(pos_offset) + offset;
+        if (destination < old_size)
+        {
+            m_data[destination] = *current;
+        }
+        else
+        {
+            new (&m_data[destination]) T(*current);  // Invokes copy constructor on allocated memory
+        }
     }
     m_size += count;
     return return_it;
