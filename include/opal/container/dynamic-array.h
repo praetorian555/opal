@@ -1112,12 +1112,16 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Erase(const_iterator position)
     }
     difference_type pos_offset = position - cbegin();
     iterator mut_position = begin() + pos_offset;
-    (*mut_position).~T();  // Invokes destructor on allocated memory
+    // Shift the tail down onto live elements first, then destroy the vacated last slot.
+    // Destroying up front and assigning into the destroyed slot would run the element's
+    // assignment on an object whose lifetime has ended, which for an owning type (a
+    // ScopePtr, say) frees a pointer that was already freed.
     while (mut_position < end() - 1)
     {
         *mut_position = Move(*(mut_position + 1));
         ++mut_position;
     }
+    (*(end() - 1)).~T();  // Invokes destructor on allocated memory
     m_size--;
     return begin() + pos_offset;
 }
@@ -1131,12 +1135,16 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Erase(iterator position)
     }
     difference_type pos_offset = position - begin();
     iterator mut_position = begin() + pos_offset;
-    (*mut_position).~T();  // Invokes destructor on allocated memory
+    // Shift the tail down onto live elements first, then destroy the vacated last slot.
+    // Destroying up front and assigning into the destroyed slot would run the element's
+    // assignment on an object whose lifetime has ended, which for an owning type (a
+    // ScopePtr, say) frees a pointer that was already freed.
     while (mut_position < end() - 1)
     {
         *mut_position = Move(*(mut_position + 1));
         ++mut_position;
     }
+    (*(end() - 1)).~T();  // Invokes destructor on allocated memory
     m_size--;
     return begin() + pos_offset;
 }
@@ -1149,13 +1157,16 @@ typename CLASS_HEADER::iterator CLASS_HEADER::EraseWithSwap(DynamicArray::const_
         return end();
     }
     iterator mut_position = begin() + (position - cbegin());
-    (*mut_position).~T();  // Invokes destructor on allocated memory
+    // As in Erase: overwrite the element with the last one while both are alive, and destroy
+    // the slot the last one vacated.
     if (mut_position != end() - 1)
     {
         *mut_position = Move(*(end() - 1));
+        (*(end() - 1)).~T();  // Invokes destructor on allocated memory
         m_size--;
         return mut_position;
     }
+    (*mut_position).~T();  // Invokes destructor on allocated memory
     m_size--;
     return end();
 }
@@ -1168,13 +1179,16 @@ typename CLASS_HEADER::iterator CLASS_HEADER::EraseWithSwap(iterator position)
         return end();
     }
     iterator mut_position = begin() + (position - begin());
-    (*mut_position).~T();  // Invokes destructor on allocated memory
+    // As in Erase: overwrite the element with the last one while both are alive, and destroy
+    // the slot the last one vacated.
     if (mut_position != end() - 1)
     {
         *mut_position = Move(*(end() - 1));
+        (*(end() - 1)).~T();  // Invokes destructor on allocated memory
         m_size--;
         return mut_position;
     }
+    (*mut_position).~T();  // Invokes destructor on allocated memory
     m_size--;
     return end();
 }
@@ -1197,10 +1211,10 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     }
     const difference_type start_offset = start_it - cbegin();
     const difference_type end_offset = end_it - cbegin();
-    for (difference_type i = start_offset; i < end_offset; ++i)
-    {
-        m_data[i].~T();  // Invokes destructor on allocated memory
-    }
+    // Shift the survivors down over the erased range while every element is still alive, then
+    // destroy the slots left vacated at the back. Destroying first and assigning into the
+    // destroyed slots would run the element's assignment after its lifetime ended, which for
+    // an owning type frees an already-freed pointer.
     iterator mut_start = begin() + start_offset;
     iterator mut_end = begin() + end_offset;
     while (mut_end < end())
@@ -1208,6 +1222,10 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
         *mut_start = Move(*mut_end);
         ++mut_start;
         ++mut_end;
+    }
+    for (iterator it = mut_start; it < end(); ++it)
+    {
+        (*it).~T();  // Invokes destructor on allocated memory
     }
     m_size += Narrow<size_type>(start_offset - end_offset);
     using ReturnType = Expected<iterator, ErrorCode>;
@@ -1231,10 +1249,10 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     }
     const difference_type start_offset = start_it - begin();
     const difference_type end_offset = end_it - begin();
-    for (difference_type i = start_offset; i < end_offset; ++i)
-    {
-        m_data[i].~T();  // Invokes destructor on allocated memory
-    }
+    // Shift the survivors down over the erased range while every element is still alive, then
+    // destroy the slots left vacated at the back. Destroying first and assigning into the
+    // destroyed slots would run the element's assignment after its lifetime ended, which for
+    // an owning type frees an already-freed pointer.
     iterator mut_start = begin() + start_offset;
     iterator mut_end = begin() + end_offset;
     while (mut_end < end())
@@ -1242,6 +1260,10 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
         *mut_start = Move(*mut_end);
         ++mut_start;
         ++mut_end;
+    }
+    for (iterator it = mut_start; it < end(); ++it)
+    {
+        (*it).~T();  // Invokes destructor on allocated memory
     }
     m_size += Narrow<size_type>(start_offset - end_offset);
     using ReturnType = Expected<iterator, ErrorCode>;

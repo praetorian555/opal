@@ -2206,6 +2206,75 @@ TEST_CASE("Erase", "[Array]")
     }
 }
 
+// Erasing an element that is not the last shifts the survivors down over it. The shift must
+// not assign into a slot whose element was already destroyed: for an owning type that runs
+// the assignment's cleanup on a pointer that was already freed, which is a double free.
+TEST_CASE("Erase of an owning element type", "[Array]")
+{
+    const auto make = []()
+    {
+        DynamicArray<NonPod> arr;
+        arr.Reserve(3);  // no reallocation, so the destructor count below counts only erases
+        arr.PushBack(NonPod(1));
+        arr.PushBack(NonPod(2));
+        arr.PushBack(NonPod(3));
+        g_destroy_call_count = 0;
+        return arr;
+    };
+
+    SECTION("Erase the first element through an iterator")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.Erase(arr.begin());
+        REQUIRE(g_destroy_call_count == 1);  // exactly one element left the array
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 2);
+        REQUIRE(*arr[1].ptr == 3);
+    }
+    SECTION("Erase the first element through a const iterator")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.Erase(arr.cbegin());
+        REQUIRE(g_destroy_call_count == 1);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 2);
+        REQUIRE(*arr[1].ptr == 3);
+    }
+    SECTION("Erase the last element, which shifts nothing")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.Erase(arr.end() - 1);
+        REQUIRE(g_destroy_call_count == 1);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 2);
+    }
+    SECTION("EraseWithSwap moves the last element into the hole")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.EraseWithSwap(arr.begin());
+        REQUIRE(g_destroy_call_count == 1);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 3);
+        REQUIRE(*arr[1].ptr == 2);
+    }
+    SECTION("Erase a range from the front")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.Erase(arr.begin(), arr.begin() + 2);
+        REQUIRE(g_destroy_call_count == 2);
+        REQUIRE(arr.GetSize() == 1);
+        REQUIRE(*arr[0].ptr == 3);
+    }
+    SECTION("Erase every element through a range")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.Erase(arr.begin(), arr.end());
+        REQUIRE(g_destroy_call_count == 3);
+        REQUIRE(arr.GetSize() == 0);
+    }
+}
+
 TEST_CASE("Remove", "[Array]")
 {
     Opal::DynamicArray<i32> arr;
