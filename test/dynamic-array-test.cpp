@@ -1232,8 +1232,9 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 3);
                 }
-                // 2 temporaries, 3 originals left behind by the growth, 4 live elements.
-                REQUIRE(g_destroy_call_count == 9);
+                // 2 objects outside the array, 1 more staged across the growth, 3 originals left
+                // behind by it, 4 live elements.
+                REQUIRE(g_destroy_call_count == 10);
             }
             SECTION("Without enough capacity")
             {
@@ -1255,8 +1256,9 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 4);
                 }
-                // 2 temporaries, 4 originals left behind by the growth, 5 live elements.
-                REQUIRE(g_destroy_call_count == 11);
+                // 2 objects outside the array, 1 more staged across the growth, 4 originals left
+                // behind by it, 5 live elements.
+                REQUIRE(g_destroy_call_count == 12);
             }
         }
         SECTION("With move")
@@ -1279,8 +1281,9 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 3);
                 }
-                // 2 temporaries, 3 originals left behind by the growth, 4 live elements.
-                REQUIRE(g_destroy_call_count == 9);
+                // 2 objects outside the array, 1 more staged across the growth, 3 originals left
+                // behind by it, 4 live elements.
+                REQUIRE(g_destroy_call_count == 10);
             }
             SECTION("Without enough capacity")
             {
@@ -1301,10 +1304,84 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 4);
                 }
-                // 2 temporaries, 4 originals left behind by the growth, 5 live elements.
-                REQUIRE(g_destroy_call_count == 11);
+                // 2 objects outside the array, 1 more staged across the growth, 4 originals left
+                // behind by it, 5 live elements.
+                REQUIRE(g_destroy_call_count == 12);
             }
         }
+    }
+}
+
+// Growing frees the buffer the elements live in. A value handed in by reference is allowed to be
+// one of those elements, so it has to survive the growth it triggers.
+TEST_CASE("Adding an element of the array to itself", "[Array]")
+{
+    SECTION("PushBack a copy at the capacity boundary")
+    {
+        DynamicArray<i32> int_arr;
+        int_arr.Reserve(2);
+        int_arr.PushBack(7);
+        int_arr.PushBack(8);
+        REQUIRE(int_arr.GetCapacity() == 2);
+        int_arr.PushBack(int_arr[0]);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr[0] == 7);
+        REQUIRE(int_arr[1] == 8);
+        REQUIRE(int_arr[2] == 7);
+    }
+    SECTION("PushBack a move at the capacity boundary")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(2);
+        arr.PushBack(OwnedCopy(7));
+        arr.PushBack(OwnedCopy(8));
+        REQUIRE(arr.GetCapacity() == 2);
+        arr.PushBack(Move(arr[0]));
+        REQUIRE(arr.GetSize() == 3);
+        REQUIRE(arr[2].ptr != nullptr);
+        REQUIRE(*arr[1].ptr == 8);
+        REQUIRE(*arr[2].ptr == 7);
+    }
+    SECTION("EmplaceBack from an element at the capacity boundary")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(2);
+        arr.PushBack(OwnedCopy(7));
+        arr.PushBack(OwnedCopy(8));
+        REQUIRE(arr.GetCapacity() == 2);
+        arr.EmplaceBack(arr[0]);
+        REQUIRE(arr.GetSize() == 3);
+        REQUIRE(arr[2].ptr != nullptr);
+        REQUIRE(*arr[0].ptr == 7);
+        REQUIRE(*arr[2].ptr == 7);
+    }
+    SECTION("Insert a copy at the capacity boundary")
+    {
+        DynamicArray<i32> int_arr;
+        int_arr.Reserve(2);
+        int_arr.PushBack(7);
+        int_arr.PushBack(8);
+        REQUIRE(int_arr.GetCapacity() == 2);
+        int_arr.Insert(int_arr.cbegin(), int_arr[1]);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr[0] == 8);
+        REQUIRE(int_arr[1] == 7);
+        REQUIRE(int_arr[2] == 8);
+    }
+    SECTION("Insert several copies at the capacity boundary")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(2);
+        arr.PushBack(OwnedCopy(7));
+        arr.PushBack(OwnedCopy(8));
+        REQUIRE(arr.GetCapacity() == 2);
+        arr.Insert(arr.cbegin() + 1, 3, arr[0]);
+        REQUIRE(arr.GetSize() == 5);
+        REQUIRE(*arr[0].ptr == 7);
+        REQUIRE(*arr[1].ptr == 7);
+        REQUIRE(*arr[2].ptr == 7);
+        REQUIRE(*arr[3].ptr == 7);
+        REQUIRE(*arr[4].ptr == 8);
     }
 }
 
