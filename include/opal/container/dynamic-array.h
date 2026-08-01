@@ -306,12 +306,25 @@ public:
     template <typename... Args>
     reference EmplaceBack(Args&&... args);
 
+    /**
+     * Add every element of `container` to the end of the array, in order. The container is left
+     * unchanged; its elements are cloned.
+     * @param container Source range.
+     * @throw OutOfMemoryException when allocator runs out of memory.
+     */
     template <typename ContainerClass>
         requires Range<ContainerClass>
     void Append(const ContainerClass& container);
 
+    /**
+     * Add every element of `container` to the end of the array, in order, moving them out of the
+     * container. Only selected for an rvalue; an lvalue container is appended by the overload
+     * above and left intact.
+     * @param container Source range, emptied of its element values.
+     * @throw OutOfMemoryException when allocator runs out of memory.
+     */
     template <typename ContainerClass>
-        requires Range<ContainerClass>
+        requires Range<ContainerClass> && (!k_is_reference_value<ContainerClass>)
     void Append(ContainerClass&& container);
 
     /**
@@ -965,7 +978,7 @@ void CLASS_HEADER::Append(const ContainerClass& container)
 
 TEMPLATE_HEADER
 template <typename ContainerClass>
-    requires Opal::Range<ContainerClass>
+    requires Opal::Range<ContainerClass> && (!Opal::k_is_reference_value<ContainerClass>)
 void CLASS_HEADER::Append(ContainerClass&& container)
 {
     for (auto& element : container)

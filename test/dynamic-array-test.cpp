@@ -2621,6 +2621,38 @@ TEST_CASE("Append multiple elements", "[Array]")
         REQUIRE(int_arr[1] == 5);
         REQUIRE(int_arr[2] == 6);
     }
+    SECTION("Append leaves a non-const lvalue source intact")
+    {
+        // An owning element type, so a source that was moved out of rather than cloned shows up
+        // as a null of its own.
+        DynamicArray<NonPod> source;
+        source.PushBack(NonPod(1));
+        source.PushBack(NonPod(2));
+        DynamicArray<NonPod> non_pod_arr;
+        non_pod_arr.Append(source);
+        REQUIRE(non_pod_arr.GetSize() == 2);
+        REQUIRE(*non_pod_arr[0].ptr == 1);
+        REQUIRE(*non_pod_arr[1].ptr == 2);
+        REQUIRE(source.GetSize() == 2);
+        REQUIRE(source[0].ptr != nullptr);
+        REQUIRE(source[1].ptr != nullptr);
+        REQUIRE(*source[0].ptr == 1);
+        REQUIRE(*source[1].ptr == 2);
+    }
+    SECTION("Append consumes an rvalue source")
+    {
+        DynamicArray<NonPod> source;
+        source.PushBack(NonPod(1));
+        source.PushBack(NonPod(2));
+        DynamicArray<NonPod> non_pod_arr;
+        non_pod_arr.Append(Move(source));
+        REQUIRE(non_pod_arr.GetSize() == 2);
+        REQUIRE(*non_pod_arr[0].ptr == 1);
+        REQUIRE(*non_pod_arr[1].ptr == 2);
+        REQUIRE(source.GetSize() == 2);
+        REQUIRE(source[0].ptr == nullptr);
+        REQUIRE(source[1].ptr == nullptr);
+    }
 }
 
 TEST_CASE("Clone", "[Array]")
