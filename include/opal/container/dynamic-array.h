@@ -119,6 +119,15 @@ DynamicArrayConstIterator<MyArray> operator+(typename DynamicArrayConstIterator<
 
 /**
  * Represents continuous memory storage on the heap that can dynamically grow in size. Similar to std::vector.
+ *
+ * The array does not copy. It moves, or it clones through Opal::Clone, so a non-POD element type
+ * has to provide Clone(AllocatorBase*) to be stored by value rather than moved in.
+ *
+ * A value or range handed to Assign, Insert, Resize, PushBack or Append may name elements of the
+ * array it is being given to. std::vector leaves the range case undefined; this does not.
+ *
+ * Growing invalidates every iterator, pointer and reference into the array. So does erasing, from
+ * the erased position onwards.
  */
 template <typename T>
 class DynamicArray
@@ -197,10 +206,17 @@ public:
      */
     DynamicArray& operator=(DynamicArray&& other) noexcept;
 
+    /**
+     * Compare element by element. Two arrays are equal when they have the same size and every
+     * element compares equal to the one at the same index.
+     * @param other Array to compare against.
+     * @return True when the arrays are equal.
+     */
     bool operator==(const DynamicArray& other) const;
 
     /**
-     * Clears the array and adds `count` new elements with value `value`.
+     * Clears the array and adds `count` new elements with value `value`. `value` may be an element
+     * of this array.
      * @param count How many new elements to add.
      * @param value Value of the new elements.
      * @throw OutOfMemoryException when allocator runs out of memory.
@@ -208,12 +224,13 @@ public:
     void Assign(size_type count, const T& value);
 
     /**
-     * Clears the array and adds new elements based on the input iterator range.
+     * Clears the array and adds new elements based on the input iterator range. The range may read
+     * from this array.
      * @tparam InputIt Input iterator type.
      * @param start Start of the range, inclusive.
      * @param end end of the range, exclusive.
-     * @return ErrorCode::Success if the operation was successful, ErrorCode::BadInput if start > end, ErrorCode::OutOfMemory if
-     * memory allocation failed.
+     * @return ErrorCode::Success, or ErrorCode::InvalidArgument if @p start is greater than @p end.
+     * @throw OutOfMemoryException when allocator runs out of memory.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -252,13 +269,40 @@ public:
     reference Back();
     const_reference Back() const;
 
+    /**
+     * Get a pointer to the first element. The elements are contiguous, so the pointer addresses
+     * all of them. Null until the array first takes memory, which reserving does even though no
+     * element exists yet.
+     * @return Pointer to the storage.
+     */
     T* GetData();
     const T* GetData() const;
 
+    /**
+     * Get how many elements the array can hold before it has to take more memory.
+     * @return Current capacity, in elements.
+     */
     [[nodiscard]] size_type GetCapacity() const;
+
+    /**
+     * Get how many elements the array holds.
+     * @return Current size, in elements.
+     */
     [[nodiscard]] size_type GetSize() const;
 
+    /**
+     * Get the allocator the array takes its memory from. Never null.
+     * @return The allocator in use.
+     */
     allocator_type* GetAllocator() const { return m_allocator; }
+
+    /**
+     * Move the elements to memory from `allocator` and use it from then on. Does nothing when the
+     * array already uses that allocator. Capacity comes down to the current size, so any spare
+     * room the array was holding is given up.
+     * @param allocator Allocator to move to. If nullptr, the default allocator is used.
+     * @throw OutOfMemoryException when allocator runs out of memory.
+     */
     void SetAllocator(allocator_type* allocator);
 
     /**
@@ -284,7 +328,7 @@ public:
 
     /**
      * Change the size of the array to `new_size`. If `new_size` is greater than current size, new elements are copy constructed from
-     * `default_value`.
+     * `default_value`, which may be an element of this array.
      * @param new_size New size of the array.
      * @param default_value Value to copy construct new elements from.
      * @throw OutOfMemoryException when allocator runs out of memory.
@@ -297,7 +341,11 @@ public:
     void Clear();
 
     /**
-     * Add a new element to the end of the array. If the array is full, it will be resized.
+     * Add a new element to the end of the array. If the array is full, it will be resized. `value`
+     * may be an element of this array.
+     *
+     * Only a POD element type can be pushed by copy. Anything else has to be moved in, or cloned
+     * by the caller and the clone moved in, which keeps the copying explicit.
      * @param value Value of the new element.
      * @throw OutOfMemoryException when allocator runs out of memory.
      */
@@ -342,8 +390,9 @@ public:
     void PopBack();
 
     /**
-     * Insert a new element at the specified position.
-     * @param position Iterator pointing to the position where the new element should be inserted.
+     * Insert a new element at the specified position. `value` may be an element of this array.
+     * @param position Iterator pointing to the position where the new element should be inserted. Can be @ref cend to insert at the
+     * end.
      * @param value Value of the new element.
      * @return Iterator pointing to the newly inserted element.
      * @throw OutOfMemoryException when allocator runs out of memory.
@@ -353,7 +402,8 @@ public:
     iterator Insert(const_iterator position, T&& value);
 
     /**
-     * Insert `count` new elements with value `value` at the specified position.
+     * Insert `count` new elements with value `value` at the specified position. `value` may be an
+     * element of this array.
      * @param position Iterator pointing to the position where the new elements should be inserted. Can be cend() to insert at the
      * end.
      * @param count How many new elements to insert.
@@ -365,7 +415,8 @@ public:
     iterator Insert(const_iterator position, size_type count, const T& value);
 
     /**
-     * Insert new elements from the range [@p start_it, @p end_it) at the specified position.
+     * Insert new elements from the range [@p start_it, @p end_it) at the specified position. The
+     * range may read from this array, which std::vector does not allow.
      * @tparam InputIt Input iterator type.
      * @param position Iterator pointing to the position where the new elements should be inserted. Can be @ref cend to insert at the
      * end.
@@ -398,20 +449,22 @@ public:
      * Erase elements in the range [start, end). Does not deallocate memory.
      * @param start_it Iterator pointing to the first element to erase.
      * @param end_it Iterator pointing to the element following the last element to erase.
-     * @return Iterator pointing to the element following the last erased element or ErrorCode::BadInput if start > end,
-     * ErrorCode::OutOfBounds if start or end are out of bounds.
+     * @return Iterator pointing to the element following the last erased element, ErrorCode::InvalidArgument if @p start_it is
+     * greater than @p end_it, or ErrorCode::OutOfBounds if either is out of bounds.
      */
     Expected<iterator, ErrorCode> Erase(const_iterator start_it, const_iterator end_it);
 
     /**
-     * Remove an element in the array matching the value argument. Do nothing if element is not in the array. The order of the elements
-     * stays the same.
+     * Remove the first element matching the value argument. Do nothing if no element matches. Later
+     * matches are left in place. The order of the elements stays the same.
      * @param value Value to find. Uses equality operator of the type T.
      */
     void Remove(const T& value);
 
     /**
-     * Remove an element in the array matching the value argument. The order of the elements does not stay the same.
+     * Remove the first element matching the value argument, by moving the last element into its
+     * place. Do nothing if no element matches. Later matches are left in place. The order of the
+     * elements does not stay the same.
      * @param value Value to find. Uses equality operator of the type T.
      */
     void RemoveWithSwap(const T& value);

@@ -935,6 +935,63 @@ TEST_CASE("Is empty", "[Array]")
     }
 }
 
+TEST_CASE("Set allocator", "[Array]")
+{
+    SECTION("An array always has an allocator")
+    {
+        DynamicArray<i32> int_arr;
+        REQUIRE(int_arr.GetAllocator() != nullptr);
+        REQUIRE(int_arr.GetAllocator() == GetDefaultAllocator());
+    }
+    SECTION("Moving to another allocator gives up the spare room")
+    {
+        MallocAllocator allocator;
+        DynamicArray<i32> int_arr;
+        int_arr.Reserve(16);
+        int_arr.PushBack(1);
+        int_arr.PushBack(2);
+        REQUIRE(int_arr.GetCapacity() == 16);
+        int_arr.SetAllocator(&allocator);
+        REQUIRE(int_arr.GetAllocator() == &allocator);
+        REQUIRE(int_arr.GetCapacity() == 2);
+        REQUIRE(int_arr.GetSize() == 2);
+        REQUIRE(int_arr[0] == 1);
+        REQUIRE(int_arr[1] == 2);
+    }
+    SECTION("Passing nullptr moves to the default allocator")
+    {
+        MallocAllocator allocator;
+        DynamicArray<i32> int_arr(&allocator);
+        int_arr.PushBack(1);
+        int_arr.SetAllocator(nullptr);
+        REQUIRE(int_arr.GetAllocator() == GetDefaultAllocator());
+        REQUIRE(int_arr.GetSize() == 1);
+        REQUIRE(int_arr[0] == 1);
+    }
+    SECTION("Passing the allocator already in use does nothing")
+    {
+        MallocAllocator allocator;
+        DynamicArray<i32> int_arr(&allocator);
+        int_arr.Reserve(16);
+        int_arr.PushBack(1);
+        const i32* data_before = int_arr.GetData();
+        int_arr.SetAllocator(&allocator);
+        REQUIRE(int_arr.GetData() == data_before);
+        REQUIRE(int_arr.GetCapacity() == 16);
+        REQUIRE(int_arr[0] == 1);
+    }
+    SECTION("An empty array moves without allocating")
+    {
+        // Nothing to carry over, so the new allocator is not asked for anything.
+        BudgetedAllocator allocator(0);
+        DynamicArray<i32> int_arr;
+        REQUIRE_NOTHROW(int_arr.SetAllocator(&allocator));
+        REQUIRE(int_arr.GetAllocator() == &allocator);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetCapacity() == 0);
+    }
+}
+
 TEST_CASE("Allocation failure", "[Array]")
 {
     SECTION("Reserve reports an allocator that hands back nothing")
