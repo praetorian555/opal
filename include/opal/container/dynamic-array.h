@@ -565,11 +565,12 @@ CLASS_HEADER::DynamicArray(std::initializer_list<T> init_list, allocator_type* a
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
     size_type count = init_list.size();
-    if (count > m_capacity)
+    if (count == 0)
     {
-        m_data = Allocate(count);
-        m_capacity = count;
+        return;
     }
+    m_data = Allocate(count);
+    m_capacity = count;
     m_size = count;
     if constexpr (IsPOD<T>)
     {
@@ -579,7 +580,7 @@ CLASS_HEADER::DynamicArray(std::initializer_list<T> init_list, allocator_type* a
     {
         for (size_type i = 0; i < m_size; i++)
         {
-            new (&m_data[i]) T((init_list.begin() + i)->Clone());  // Invokes copy constructor on allocated memory
+            new (&m_data[i]) T(Opal::Clone(*(init_list.begin() + i)));  // Invokes copy constructor on allocated memory
         }
     }
 }

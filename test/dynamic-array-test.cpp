@@ -129,6 +129,25 @@ struct SelfMoveUnsafe
 
 // Every constructor adds to the live count and the destructor takes one off, so the count only
 // returns to zero if each object built is also torn down.
+// Non-POD, copyable so it can sit in an initializer_list, and clonable through the contract
+// ClonableBase documents: a Clone that takes an allocator. The parameter has no default, so this
+// only compiles where the array goes through Opal::Clone rather than calling Clone() itself.
+struct ClonableCopy
+{
+    i32 value = 0;
+    explicit ClonableCopy(i32 in_value) : value(in_value) {}
+    ClonableCopy(const ClonableCopy& other) : value(other.value) {}
+    ClonableCopy& operator=(const ClonableCopy& other)
+    {
+        value = other.value;
+        return *this;
+    }
+    ~ClonableCopy() {}
+
+    ClonableCopy Clone(AllocatorBase*) const { return ClonableCopy(value); }
+};
+static_assert(!IsPOD<ClonableCopy>);
+
 // Passes the first `allowed` allocations through and reports failure for every one after that by
 // returning null, which is how malloc reports it.
 struct BudgetedAllocator final : public AllocatorBase
@@ -314,6 +333,13 @@ TEST_CASE("Construction with POD data", "[Array]")
         REQUIRE(int_arr.GetData()[0] == 42);
         REQUIRE(int_arr.GetAllocator() == &allocator);
     }
+    SECTION("Empty initializer list")
+    {
+        DynamicArray<i32> int_arr(std::initializer_list<i32>{});
+        REQUIRE(int_arr.GetCapacity() == 0);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() == nullptr);
+    }
 }
 
 TEST_CASE("Construction with non-POD data", "[Array]")
@@ -395,6 +421,15 @@ TEST_CASE("Construction with non-POD data", "[Array]")
             REQUIRE(g_clone_call_count == 3);
         }
         REQUIRE(g_destroy_call_count == 4);
+    }
+    SECTION("Initializer list")
+    {
+        DynamicArray<ClonableCopy> arr{ClonableCopy(1), ClonableCopy(2), ClonableCopy(3)};
+        REQUIRE(arr.GetCapacity() == 3);
+        REQUIRE(arr.GetSize() == 3);
+        REQUIRE(arr[0].value == 1);
+        REQUIRE(arr[1].value == 2);
+        REQUIRE(arr[2].value == 3);
     }
 }
 
