@@ -1,0 +1,260 @@
+# Opal - Claude Code Guide
+
+## Project Overview
+
+C++20 utility library for game engines and real-time systems. Pluggable memory allocation throughout. No external dependencies (Catch2 and wyhash vendored in `third-party/`).
+
+**Namespace:** All public API lives in `Opal`.
+
+**Platforms:** Windows, Linux. Cross-platform via `#if defined(OPAL_PLATFORM_WINDOWS)` / `#elif defined(OPAL_PLATFORM_LINUX)`.
+
+## Build & Test
+
+```bash
+cmake -B build
+cmake --build build
+cd build && ctest
+```
+
+CMake options: `OPAL_BUILD_TESTS` (ON), `OPAL_HARDENING` (ON), `OPAL_SHARED_LIBS` (OFF).
+
+Test framework: Catch2 (amalgamated, vendored). Custom `main` in `test/main-test.cpp`. Test helpers in `test/test-helpers.h` (custom Catch matchers for math types). When adding a new test file, it must be added to `OPAL_TEST_FILES` in `CMakeLists.txt`.
+
+When adding a new source/header file, it must be added to `OPAL_FILES` in `CMakeLists.txt`.
+
+## Directory Layout
+
+```
+include/opal/              Public headers
+include/opal/container/    Container types (dynamic-array, string, hash-map, etc.)
+include/opal/math/         Math types (vector, matrix, quaternion, etc.)
+include/opal/threading/    Threading primitives (mutex, channel, thread-pool, etc.)
+include/opal/sort/         Sorting algorithms
+src/                       Source files (only for non-template code)
+test/                      Test files (*-test.cpp)
+cmake/                     CMake helper modules
+third-party/               Vendored libraries (catch2, wyhash)
+docs/                      Feature documentation
+```
+
+## Type Aliases
+
+Defined in `include/opal/types.h`:
+
+| Alias | Type |
+|-------|------|
+| `i8`, `i16`, `i32`, `i64` | Signed integers |
+| `u8`, `u16`, `u32`, `u64` | Unsigned integers |
+| `f32`, `f64` | Floating point |
+| `char8` | `char` |
+| `char16` | `wchar_t` (Windows) / `char16_t` (Linux) |
+
+Always use these instead of raw C++ types.
+
+## String Types
+
+```
+StringUtf8     = String<char8, EncodingUtf8<char8>>       // Primary string type
+StringLocale   = String<char8, EncodingLocale>
+StringWide     = String<char16, EncodingUtf16LE<char16>>
+StringViewUtf8 = StringView<char8, EncodingUtf8<char8>>   // Primary view type
+```
+
+Defined at end of `include/opal/container/string.h` and `include/opal/container/string-view.h`.
+
+## Coding Conventions
+
+### Naming
+
+- **Types/Classes:** `PascalCase` (e.g., `DynamicArray`, `MallocAllocator`)
+- **Methods:** `PascalCase` (e.g., `PushBack`, `GetSize`, `IsEmpty`)
+- **Exception:** `begin()`, `end()`, `cbegin()`, `cend()`, `empty()` are lowercase for STL compatibility
+- **Member variables:** `m_` prefix with `snake_case` (e.g., `m_data`, `m_allocator`, `m_has_value`)
+- **Local variables:** `snake_case` (e.g., `new_address`, `commit_size`)
+- **Constants:** `k_` prefix with `snake_case` (e.g., `k_resize_factor`, `k_default_capacity`, `k_npos`)
+- **Global variables:** `g_` prefix with `snake_case` (e.g., `g_default_stack`)
+- **Static variables:** `s_` prefix with `snake_case` (e.g., `s_default_allocator`)
+- **Template parameters:** `PascalCase` (e.g., `CodeUnitType`, `EncodingType`)
+- **Compile-time bool constants:** `k_` prefix, e.g., `k_is_same_value`, `k_is_pointer_value`
+- **Concepts:** `PascalCase` (e.g., `Integral`, `FloatingPoint`, `MoveConstructable`, `IsPOD`)
+- **Enums:** `PascalCase` enum class with `PascalCase` values (e.g., `ErrorCode::OutOfBounds`)
+- **Macros:** `OPAL_` prefix with `SCREAMING_SNAKE_CASE` (e.g., `OPAL_ASSERT`, `OPAL_PLATFORM_WINDOWS`)
+- **Files:** `kebab-case` (e.g., `dynamic-array.h`, `string-encoding.cpp`)
+- **Namespaces:** `PascalCase` (e.g., `Opal`, `Opal::Impl`)
+
+### Formatting
+
+Controlled by `.clang-format`:
+- **Style:** Chromium-based, Allman braces
+- **Indent:** 4 spaces, no tabs
+- **Column limit:** 140
+- Braces on their own line for functions, classes, control flow
+
+### Comments
+
+Be terse. Comments document the interface, not the implementation.
+
+- Put documentation on function and class **declarations** - what it does, parameters, return value, error conditions.
+- Avoid comments inside function bodies. If a body needs explaining, prefer clearer names and structure.
+- Do not disclose implementation details in public documentation - describe observable behavior and contract, not the internal algorithm, data layout, or allocation strategy.
+- Section banners and platform `#if` markers are exempt.
+
+### Header Guards
+
+Use `#pragma once` (no include guards).
+
+### Include Style
+
+- System includes (`<cstring>`, `<utility>`) first, then project includes (`"opal/..."`)
+- Use full paths from include root: `"opal/container/dynamic-array.h"`, `"opal/types.h"`
+- Relative includes also used within `include/opal/`: `"allocator.h"`, `"container/ref.h"`
+
+### Template Implementation
+
+Templates are implemented in the same `.h` file, below the class definition, separated by a comment banner:
+
+```cpp
+}  // namespace Opal
+
+/** Implementation *******************************************************************************/
+// or
+/*************************************************************************************************/
+/***************************************** Implementation ****************************************/
+/*************************************************************************************************/
+```
+
+Some headers use `TEMPLATE_HEADER` / `CLASS_HEADER` macros for brevity:
+
+```cpp
+#define TEMPLATE_HEADER template <typename T>
+#define CLASS_HEADER Opal::DynamicArray<T>
+
+TEMPLATE_HEADER
+CLASS_HEADER::DynamicArray(...) { ... }
+```
+
+### Non-Template Code
+
+Non-template implementations go in `src/*.cpp`. Method definitions use fully qualified names:
+
+```cpp
+void Opal::ClassName::MethodName(...) { ... }
+```
+
+Some `.cpp` files are minimal (just include the header) because all logic is in templates:
+```cpp
+// src/string.cpp
+#include "opal/container/string.h"
+```
+
+Anonymous namespaces for file-local helpers:
+```cpp
+namespace
+{
+// helper functions
+}  // namespace
+```
+
+### Section Dividers
+
+Use comment banners to separate sections:
+
+```cpp
+// ------------------------------------------------------------------------------------------------
+// Section name.
+// ------------------------------------------------------------------------------------------------
+
+// or
+
+/*************************************************************************************************/
+/** Section Name *********************************************************************************/
+/*************************************************************************************************/
+```
+
+## Key Design Patterns
+
+### Clone Instead of Copy
+
+Copy constructors and copy assignment are **deleted** on all resource-owning types. Use `std::move()` or `.Clone()`:
+
+```cpp
+DynamicArray(const DynamicArray&) = delete;
+DynamicArray& operator=(const DynamicArray&) = delete;
+DynamicArray(DynamicArray&&) noexcept;
+DynamicArray& operator=(DynamicArray&&) noexcept;
+DynamicArray Clone(AllocatorBase* allocator = nullptr) const;
+```
+
+The free function `Opal::Clone()` in `common.h` dispatches: POD types copy directly, non-POD calls `.Clone(allocator)`.
+
+For user types, inherit `ClonableBase<Derived>` and use `OPAL_CLONE_FIELDS(field1, field2, ...)`.
+
+### Allocator Pattern
+
+Every container takes an optional `AllocatorBase*`. If `nullptr`, uses `GetDefaultAllocator()`:
+
+```cpp
+DynamicArray(allocator_type* allocator = nullptr);
+// In constructor body:
+m_allocator = (allocator == nullptr) ? GetDefaultAllocator() : allocator;
+```
+
+Allocator hierarchy: `AllocatorBase` (abstract) -> `MallocAllocator`, `LinearAllocator`, `NullAllocator`, `SystemMemoryAllocator`.
+
+Thread-local allocator stacks with RAII guards: `PushDefault`, `PushScratch`, `ScratchAsDefault`.
+
+`Opal::New<T>(allocator, args...)` and `Opal::Delete<T>(allocator, ptr)` for allocator-aware heap objects.
+
+### Error Handling
+
+Two patterns used:
+1. **Expected<T, ErrorCode>** for recoverable errors (returned from methods)
+2. **Exceptions** (inheriting from `Opal::Exception`) for programming errors and unrecoverable situations
+
+`ErrorCode` enum in `error-codes.h`. Exception types in `exceptions.h`.
+
+`OPAL_ASSERT(condition, message)` - active only in debug builds (`OPAL_DEBUG`), maps to `assert()`.
+
+### OPAL_EXPORT Macro
+
+Use `OPAL_EXPORT` on classes/functions that need DLL export. Generated by CMake's `GenerateExportHeader` into `include/opal/export.h`. Only needed on non-template types in headers.
+
+### Move Utility
+
+`Opal::Move()` in `type-traits.h` is the project's own `std::move` equivalent. Used throughout instead of `std::move()` (though `std::move()` also appears in some places).
+
+### Concepts and Type Traits
+
+Custom concepts in `type-traits.h`: `IsPOD`, `Integral`, `FloatingPoint`, `IntegralOrFloatingPoint`, `MoveConstructable`, `RandomAccessIterator`, etc. Used with `requires` clauses.
+
+`if constexpr (IsPOD<T>)` pattern used to optimize for trivial types (memcpy vs placement new).
+
+## Test Patterns
+
+- Test framework: Catch2 amalgamated
+- Test file naming: `<feature>-test.cpp`
+- Use `using namespace Opal;` at top of test files
+- Include `"test-helpers.h"` for Catch2 and custom matchers
+- Catch2 include wrapped with warning suppression macros
+- Test structure: `TEST_CASE("Description", "[Tag]")` with `SECTION("...")` nesting
+- Tags match the feature name: `[String]`, `[DynamicArray]`, `[JsonReader]`, `[JsonWriter]`
+- Math tests use custom matchers: `CHECK_QUATERNION`, `CHECK_VECTOR3`, `CHECK_POINT3`
+
+## Platform Abstractions
+
+Platform-specific code uses preprocessor:
+```cpp
+#if defined(OPAL_PLATFORM_WINDOWS)
+    // Windows implementation (VirtualAlloc, _aligned_malloc, etc.)
+#elif defined(OPAL_PLATFORM_LINUX)
+    // Linux implementation (mmap, aligned_alloc, etc.)
+#endif
+```
+
+Compiler detection: `OPAL_COMPILER_MSVC`, `OPAL_COMPILER_CLANG`, `OPAL_COMPILER_GCC`.
+
+Warning suppression macros: `OPAL_START_DISABLE_WARNINGS`, `OPAL_DISABLE_WARNING(name)`, `OPAL_END_DISABLE_WARNINGS`.
+
+## Commits
+
+Do not add `Co-Authored-By:` or any other co-author trailer to commit messages. No tool attribution lines either.
