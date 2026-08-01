@@ -129,6 +129,28 @@ struct SelfMoveUnsafe
 
 // Every constructor adds to the live count and the destructor takes one off, so the count only
 // returns to zero if each object built is also torn down.
+// Passes the first `allowed` allocations through and reports failure for every one after that by
+// returning null, which is how malloc reports it.
+struct BudgetedAllocator final : public AllocatorBase
+{
+    explicit BudgetedAllocator(i32 allowed_count) : AllocatorBase("BudgetedAllocator"), allowed(allowed_count) {}
+
+    void* Alloc(u64 size, u64 alignment) override
+    {
+        if (allowed <= 0)
+        {
+            return nullptr;
+        }
+        allowed--;
+        return inner.Alloc(size, alignment);
+    }
+    void Free(void* ptr) override { inner.Free(ptr); }
+    [[nodiscard]] bool IsThreadSafe() const override { return false; }
+
+    MallocAllocator inner;
+    i32 allowed = 0;
+};
+
 i32 g_live_count = 0;
 struct CountedLive
 {
@@ -857,6 +879,64 @@ TEST_CASE("Is empty", "[Array]")
     {
         DynamicArray<i32> int_arr(3, 42);
         REQUIRE(int_arr.IsEmpty() == false);
+    }
+}
+
+TEST_CASE("Allocation failure", "[Array]")
+{
+    SECTION("Reserve reports an allocator that hands back nothing")
+    {
+        BudgetedAllocator allocator(0);
+        DynamicArray<i32> int_arr(&allocator);
+        REQUIRE_THROWS_AS(int_arr.Reserve(4), OutOfMemoryException);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetCapacity() == 0);
+    }
+    SECTION("PushBack reports an allocator that hands back nothing")
+    {
+        BudgetedAllocator allocator(0);
+        DynamicArray<i32> int_arr(&allocator);
+        REQUIRE_THROWS_AS(int_arr.PushBack(1), OutOfMemoryException);
+        REQUIRE(int_arr.GetSize() == 0);
+    }
+    SECTION("Resize reports an allocator that hands back nothing")
+    {
+        BudgetedAllocator allocator(0);
+        DynamicArray<i32> int_arr(&allocator);
+        REQUIRE_THROWS_AS(int_arr.Resize(4), OutOfMemoryException);
+        REQUIRE(int_arr.GetSize() == 0);
+    }
+    SECTION("Assign holds on to a buffer it owns when the allocation fails")
+    {
+        // One allocation builds the array, leaving none for the Assign that has to grow it.
+        BudgetedAllocator allocator(1);
+        DynamicArray<i32> int_arr(2, 42, &allocator);
+        REQUIRE(int_arr.GetSize() == 2);
+        REQUIRE_THROWS_AS(int_arr.Assign(8, 7), OutOfMemoryException);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetCapacity() == 2);
+        // The buffer it kept has to be one it still owns, so that growing again works and the
+        // destructor frees live storage rather than storage already handed back.
+        allocator.allowed = 1;
+        int_arr.Assign(8, 7);
+        REQUIRE(int_arr.GetSize() == 8);
+        REQUIRE(int_arr.GetCapacity() == 8);
+        REQUIRE(int_arr[0] == 7);
+        REQUIRE(int_arr[7] == 7);
+    }
+    SECTION("Assign from a range holds on to a buffer it owns when the allocation fails")
+    {
+        BudgetedAllocator allocator(1);
+        DynamicArray<i32> int_arr(2, 42, &allocator);
+        const DynamicArray<i32> source(8, 7);
+        REQUIRE_THROWS_AS(int_arr.Assign(source.cbegin(), source.cend()), OutOfMemoryException);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetCapacity() == 2);
+        allocator.allowed = 1;
+        REQUIRE(int_arr.Assign(source.cbegin(), source.cend()) == ErrorCode::Success);
+        REQUIRE(int_arr.GetSize() == 8);
+        REQUIRE(int_arr[0] == 7);
+        REQUIRE(int_arr[7] == 7);
     }
 }
 

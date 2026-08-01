@@ -691,7 +691,20 @@ void CLASS_HEADER::SetAllocator(allocator_type* allocator)
     {
         return;
     }
-    T* new_data = static_cast<T*>(allocator->Alloc(m_size * sizeof(T), alignof(T)));
+    if (m_size == 0)
+    {
+        Deallocate(m_data);
+        m_data = nullptr;
+        m_capacity = 0;
+        m_allocator = allocator;
+        return;
+    }
+    const size_type bytes_to_allocate = m_size * sizeof(T);
+    T* new_data = static_cast<T*>(allocator->Alloc(bytes_to_allocate, alignof(T)));
+    if (new_data == nullptr) [[unlikely]]
+    {
+        throw OutOfMemoryException(allocator->GetName(), bytes_to_allocate);
+    }
     if constexpr (IsPOD<T>)
     {
         memcpy(new_data, m_data, m_size * sizeof(T));
@@ -722,16 +735,22 @@ void CLASS_HEADER::Assign(size_type count, const T& value)
             m_data[i].~T();  // Invokes destructor on allocated memory
         }
     }
+    // The old elements are gone. Nothing below may leave them looking alive, since anything below
+    // can throw and the destructor would then run over them a second time.
+    m_size = 0;
     if (count > m_capacity)
     {
+        // Take the new storage before releasing the old, so a failed allocation leaves the array
+        // holding a buffer it still owns rather than a freed one.
+        T* new_data = Allocate(count);
         Deallocate(m_data);
+        m_data = new_data;
         m_capacity = count;
-        m_data = Allocate(m_capacity);
     }
-    m_size = count;
-    for (size_type i = 0; i < m_size; i++)
+    for (size_type i = 0; i < count; i++)
     {
         new (&m_data[i]) T(Opal::Clone(value));  // Invokes copy constructor on allocated memory
+        m_size++;
     }
 }
 
@@ -745,30 +764,41 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start, InputIt end)
         return ErrorCode::InvalidArgument;
     }
     size_type count = static_cast<size_type>(end - start);
-    if (!IsPOD<T>)
+    if constexpr (!IsPOD<T>)
     {
         for (size_type i = 0; i < m_size; i++)
         {
             m_data[i].~T();  // Invokes destructor on allocated memory
         }
     }
+    // The old elements are gone. Nothing below may leave them looking alive, since anything below
+    // can throw and the destructor would then run over them a second time.
+    m_size = 0;
+    if (count == 0)
+    {
+        return ErrorCode::Success;
+    }
     if (count > m_capacity)
     {
+        // Take the new storage before releasing the old, so a failed allocation leaves the array
+        // holding a buffer it still owns rather than a freed one.
+        T* new_data = Allocate(count);
         Deallocate(m_data);
+        m_data = new_data;
         m_capacity = count;
-        m_data = Allocate(m_capacity);
     }
-    m_size = count;
     InputIt current = start;
     if constexpr (IsPOD<T>)
     {
-        memcpy(m_data, &(*current), m_size * sizeof(T));
+        memcpy(m_data, &(*current), count * sizeof(T));
+        m_size = count;
     }
     else
     {
-        for (size_type i = 0; i < m_size; ++i)
+        for (size_type i = 0; i < count; ++i)
         {
             new (&m_data[i]) T(*(current + Narrow<difference_type>(i)));  // Invokes copy constructor on allocated memory
+            m_size++;
         }
     }
     return ErrorCode::Success;
@@ -1400,7 +1430,12 @@ T* CLASS_HEADER::Allocate(size_type count)
     OPAL_ASSERT(m_allocator, "Allocator should never be null!");
     constexpr u64 k_alignment = alignof(T);
     const size_type bytes_to_allocate = count * sizeof(T);
-    return static_cast<T*>(m_allocator->Alloc(bytes_to_allocate, k_alignment));
+    T* memory = static_cast<T*>(m_allocator->Alloc(bytes_to_allocate, k_alignment));
+    if (memory == nullptr) [[unlikely]]
+    {
+        throw OutOfMemoryException(m_allocator->GetName(), bytes_to_allocate);
+    }
+    return memory;
 }
 
 TEMPLATE_HEADER
