@@ -99,6 +99,18 @@ struct OwnedCopy
     }
     ~OwnedCopy() { delete ptr; }
 };
+
+// POD, but three padding bytes sit between the members, so two objects can hold equal values in
+// bytes that are not equal.
+struct PaddedPod
+{
+    u8 tag;
+    i32 value;
+
+    bool operator==(const PaddedPod& other) const { return tag == other.tag && value == other.value; }
+};
+static_assert(IsPOD<PaddedPod>);
+static_assert(sizeof(PaddedPod) > sizeof(u8) + sizeof(i32));
 }  // namespace
 
 TEST_CASE("Construction with POD data", "[Array]")
@@ -433,6 +445,38 @@ TEST_CASE("Compare", "[Array]")
         REQUIRE(int_arr1 == int_arr2);
         REQUIRE(int_arr1 != int_arr3);
         REQUIRE(int_arr1 != int_arr4);
+    }
+    SECTION("POD data differing past the first element")
+    {
+        DynamicArray<i32> int_arr1{1, 2, 3};
+        DynamicArray<i32> int_arr2{1, 2, 3};
+        DynamicArray<i32> int_arr3{1, 2, 4};
+        DynamicArray<i32> int_arr4{1, 9, 3};
+        REQUIRE(int_arr1 == int_arr2);
+        REQUIRE(int_arr1 != int_arr3);
+        REQUIRE(int_arr1 != int_arr4);
+    }
+    SECTION("POD data with equal values in unequal padding bytes")
+    {
+        constexpr u64 k_count = 2;
+        DynamicArray<PaddedPod> arr1(k_count, PaddedPod{});
+        DynamicArray<PaddedPod> arr2(k_count, PaddedPod{});
+        memset(arr1.GetData(), 0x00, k_count * sizeof(PaddedPod));
+        memset(arr2.GetData(), 0xFF, k_count * sizeof(PaddedPod));
+        for (u64 i = 0; i < k_count; i++)
+        {
+            arr1[i].tag = 7;
+            arr1[i].value = 42;
+            arr2[i].tag = 7;
+            arr2[i].value = 42;
+        }
+        REQUIRE(arr1 == arr2);
+    }
+    SECTION("Floating point data where zero and negative zero are equal")
+    {
+        DynamicArray<f32> float_arr1{1.0f, 0.0f};
+        DynamicArray<f32> float_arr2{1.0f, -0.0f};
+        REQUIRE(float_arr1 == float_arr2);
     }
     SECTION("Non-POD data")
     {

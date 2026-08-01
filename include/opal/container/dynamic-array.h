@@ -627,9 +627,9 @@ bool CLASS_HEADER::operator==(const DynamicArray& other) const
     {
         return true;
     }
-    if constexpr (IsPOD<T>)
+    if constexpr (IsPOD<T> && HasUniqueObjectRepresentations<T>)
     {
-        return memcmp(m_data, other.m_data, sizeof(T)) == 0;
+        return memcmp(m_data, other.m_data, m_size * sizeof(T)) == 0;
     }
     else
     {

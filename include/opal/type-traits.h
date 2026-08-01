@@ -550,4 +550,12 @@ concept IsStandardLayout = __is_standard_layout(T);
 template <typename T>
 concept IsPOD = IsTriviallyCopyable<T> && IsStandardLayout<T>;
 
+/**
+ * Concept: T's value is fully determined by its bytes, so comparing two objects with memcmp gives
+ * the same answer as comparing them with ==. False for types with padding bits, and for
+ * floating-point types, where -0.0 and 0.0 compare equal with differing bytes.
+ */
+template <typename T>
+concept HasUniqueObjectRepresentations = __has_unique_object_representations(T);
+
 }  // namespace Opal
