@@ -3051,6 +3051,38 @@ TEST_CASE("Append multiple elements", "[Array]")
         REQUIRE(*source[0].ptr == 1);
         REQUIRE(*source[1].ptr == 2);
     }
+    SECTION("Append an array to itself")
+    {
+        // Every element is read after the array has already grown once, so without room taken up
+        // front the loop walks a buffer PushBack has freed.
+        DynamicArray<NonPod> arr;
+        arr.PushBack(NonPod(1));
+        arr.PushBack(NonPod(2));
+        arr.PushBack(NonPod(3));
+        REQUIRE(arr.GetCapacity() == 4);
+        arr.Append(arr);
+        REQUIRE(arr.GetSize() == 6);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 2);
+        REQUIRE(*arr[2].ptr == 3);
+        REQUIRE(*arr[3].ptr == 1);
+        REQUIRE(*arr[4].ptr == 2);
+        REQUIRE(*arr[5].ptr == 3);
+    }
+    SECTION("Append takes the room for the whole range in one allocation")
+    {
+        // Two allocations all told: one for the first element, one for the append. Letting each
+        // PushBack grow on its own would take four more, and the budget would run out.
+        BudgetedAllocator allocator(2);
+        DynamicArray<i32> int_arr(&allocator);
+        int_arr.PushBack(1);
+        const DynamicArray<i32> source(16, 7);
+        REQUIRE_NOTHROW(int_arr.Append(source));
+        REQUIRE(allocator.allowed == 0);
+        REQUIRE(int_arr.GetSize() == 17);
+        REQUIRE(int_arr[0] == 1);
+        REQUIRE(int_arr[16] == 7);
+    }
     SECTION("Append consumes an rvalue source")
     {
         DynamicArray<NonPod> source;

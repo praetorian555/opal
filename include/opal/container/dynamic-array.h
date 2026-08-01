@@ -496,6 +496,10 @@ private:
     // elements take a copy of it first when so, and pay nothing for the check otherwise.
     bool ValueReadsOwnStorage(const T& value) const;
 
+    // Make room for `count` more elements in one go, keeping the geometric growth step so that
+    // repeated appends do not degrade into one allocation per call.
+    void ReserveForAppend(size_type count);
+
     static constexpr f64 k_resize_factor = 1.5;
 
     allocator_type* m_allocator = nullptr;
@@ -1107,6 +1111,10 @@ template <typename ContainerClass>
     requires Opal::Range<ContainerClass>
 void CLASS_HEADER::Append(const ContainerClass& container)
 {
+    // Take the room up front. The loop below reads `container` from beginning to end, and if a
+    // PushBack were left to grow part way through, it would reallocate out from under a container
+    // that is this array itself.
+    ReserveForAppend(static_cast<size_type>(Opal::end(container) - Opal::begin(container)));
     for (const auto& element : container)
     {
         PushBack(Opal::Clone(element));
@@ -1118,6 +1126,7 @@ template <typename ContainerClass>
     requires Opal::Range<ContainerClass> && (!Opal::k_is_reference_value<ContainerClass>)
 void CLASS_HEADER::Append(ContainerClass&& container)
 {
+    ReserveForAppend(static_cast<size_type>(Opal::end(container) - Opal::begin(container)));
     for (auto& element : container)
     {
         PushBack(std::move(element));
@@ -1202,6 +1211,18 @@ bool CLASS_HEADER::ValueReadsOwnStorage(const T& value) const
     }
     const u64 address = reinterpret_cast<u64>(&value);
     return address >= reinterpret_cast<u64>(m_data) && address < reinterpret_cast<u64>(m_data + m_capacity);
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::ReserveForAppend(size_type count)
+{
+    const size_type needed = m_size + count;
+    if (needed <= m_capacity)
+    {
+        return;
+    }
+    const size_type geometric = GetNextCapacity(m_capacity);
+    Reserve(needed > geometric ? needed : geometric);
 }
 
 TEMPLATE_HEADER
