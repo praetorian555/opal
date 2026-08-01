@@ -243,6 +243,21 @@ public:
     ErrorCode Assign(InputIt start, InputIt end);
 
     /**
+     * Clears the array and adds the elements of the initializer list.
+     * @param init_list Initializer list.
+     * @throw OutOfMemoryException when allocator runs out of memory.
+     */
+    void Assign(std::initializer_list<T> init_list);
+
+    /**
+     * Clears the array and adds the elements of the initializer list. Keeps the current allocator.
+     * @param init_list Initializer list.
+     * @return Reference to this array.
+     * @throw OutOfMemoryException when allocator runs out of memory.
+     */
+    DynamicArray& operator=(std::initializer_list<T> init_list);
+
+    /**
      * Get a reference to the element at specified index.
      * @param index Index of the element in the array.
      * @return Returns a reference to the element in the array at the given index.
@@ -444,6 +459,20 @@ public:
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
     iterator Insert(const_iterator position, InputIt start_it, InputIt end_it);
+
+    /**
+     * Construct a new element in-place at the specified position. The arguments may name elements
+     * of this array.
+     * @tparam Args Types of the arguments to forward to the constructor.
+     * @param position Iterator pointing to the position where the new element should be constructed. Can be @ref cend to construct at
+     * the end.
+     * @param args Arguments to forward to the constructor.
+     * @return Iterator pointing to the newly constructed element.
+     * @throw OutOfMemoryException when allocator runs out of memory.
+     * @throw OutOfBoundsException when position is out of bounds.
+     */
+    template <typename... Args>
+    iterator Emplace(const_iterator position, Args&&... args);
 
     /**
      * Erase the element at the specified position. Does not deallocate memory.
@@ -937,6 +966,33 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start, InputIt end)
         }
     }
     return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::Assign(std::initializer_list<T> init_list)
+{
+    // The list is its own storage, never ours, so nothing here can alias.
+    Clear();
+    const size_type count = init_list.size();
+    if (count > m_capacity)
+    {
+        T* new_data = Allocate(count);
+        Deallocate(m_data);
+        m_data = new_data;
+        m_capacity = count;
+    }
+    for (size_type i = 0; i < count; i++)
+    {
+        new (&m_data[i]) T(Opal::Clone(*(init_list.begin() + i)));  // Invokes copy constructor on allocated memory
+        m_size++;
+    }
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator=(std::initializer_list<T> init_list)
+{
+    Assign(init_list);
+    return *this;
 }
 
 TEMPLATE_HEADER
@@ -1522,6 +1578,25 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, In
     }
     m_size += count;
     return return_it;
+}
+
+TEMPLATE_HEADER
+template <typename... Args>
+typename CLASS_HEADER::iterator CLASS_HEADER::Emplace(const_iterator position, Args&&... args)
+{
+    if (position < cbegin() || position > cend()) [[unlikely]]
+    {
+        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
+    }
+    // The arguments are allowed to name elements of this array, and both opening the gap and
+    // growing move those out from under them, so the element is built before either happens.
+    T value(std::forward<Args>(args)...);
+    difference_type pos_offset = position - cbegin();
+    if (m_size == m_capacity)
+    {
+        Reserve(GetNextCapacity(m_capacity));
+    }
+    return InsertOneAt(pos_offset, Move(value));
 }
 
 TEMPLATE_HEADER

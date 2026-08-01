@@ -942,6 +942,109 @@ static_assert(!CopyAssignable<DynamicArray<i32>>);
 static_assert(MoveConstructable<DynamicArray<i32>>);
 static_assert(MoveAssignable<DynamicArray<i32>>);
 
+TEST_CASE("Emplace at a position", "[Array]")
+{
+    SECTION("At the front, in the middle and at the end")
+    {
+        DynamicArray<i32> int_arr{1, 2, 3};
+        DynamicArray<i32>::iterator it = int_arr.Emplace(int_arr.cbegin(), 9);
+        REQUIRE(it == int_arr.begin());
+        REQUIRE(*it == 9);
+        int_arr.Emplace(int_arr.cbegin() + 2, 8);
+        int_arr.Emplace(int_arr.cend(), 7);
+        REQUIRE(int_arr.GetSize() == 6);
+        REQUIRE(int_arr[0] == 9);
+        REQUIRE(int_arr[1] == 1);
+        REQUIRE(int_arr[2] == 8);
+        REQUIRE(int_arr[5] == 7);
+    }
+    SECTION("Into an empty array")
+    {
+        DynamicArray<i32> int_arr;
+        int_arr.Emplace(int_arr.cbegin(), 9);
+        REQUIRE(int_arr.GetSize() == 1);
+        REQUIRE(int_arr[0] == 9);
+    }
+    SECTION("Builds the element from its arguments")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Emplace(arr.cbegin(), 7);
+        arr.Emplace(arr.cbegin(), 8);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 8);
+        REQUIRE(*arr[1].ptr == 7);
+    }
+    SECTION("From an element of the array, at the capacity boundary")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(2);
+        arr.PushBack(OwnedCopy(7));
+        arr.PushBack(OwnedCopy(8));
+        REQUIRE(arr.GetCapacity() == 2);
+        arr.Emplace(arr.cbegin(), arr[1]);
+        REQUIRE(arr.GetSize() == 3);
+        REQUIRE(*arr[0].ptr == 8);
+        REQUIRE(*arr[1].ptr == 7);
+        REQUIRE(*arr[2].ptr == 8);
+    }
+    SECTION("Bad position")
+    {
+        DynamicArray<i32> int_arr(3, 42);
+        REQUIRE_THROWS_AS(int_arr.Emplace(int_arr.cend() + 1, 9), OutOfBoundsException);
+        REQUIRE(int_arr.GetSize() == 3);
+    }
+}
+
+TEST_CASE("Assign from an initializer list", "[Array]")
+{
+    SECTION("Replaces the contents")
+    {
+        DynamicArray<i32> int_arr(5, 42);
+        int_arr.Assign({1, 2, 3});
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr.GetCapacity() == 5);
+        REQUIRE(int_arr[0] == 1);
+        REQUIRE(int_arr[2] == 3);
+    }
+    SECTION("Grows when the list is longer")
+    {
+        DynamicArray<i32> int_arr(2, 42);
+        int_arr.Assign({1, 2, 3, 4});
+        REQUIRE(int_arr.GetSize() == 4);
+        REQUIRE(int_arr.GetCapacity() == 4);
+        REQUIRE(int_arr[0] == 1);
+        REQUIRE(int_arr[3] == 4);
+    }
+    SECTION("An empty list empties the array")
+    {
+        DynamicArray<i32> int_arr(3, 42);
+        int_arr.Assign({});
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetCapacity() == 3);
+    }
+    SECTION("Assignment operator does the same and keeps the allocator")
+    {
+        MallocAllocator allocator;
+        DynamicArray<i32> int_arr(&allocator);
+        int_arr = {1, 2, 3};
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr[0] == 1);
+        REQUIRE(int_arr[2] == 3);
+        REQUIRE(int_arr.GetAllocator() == &allocator);
+    }
+    SECTION("Non-POD elements are destroyed exactly once")
+    {
+        g_live_count = 0;
+        {
+            DynamicArray<ClonableCopy> arr{ClonableCopy(1), ClonableCopy(2)};
+            arr.Assign({ClonableCopy(3)});
+            REQUIRE(arr.GetSize() == 1);
+            REQUIRE(arr[0].value == 3);
+        }
+        REQUIRE(g_live_count == 0);
+    }
+}
+
 TEST_CASE("Find and Contains", "[Array]")
 {
     SECTION("Finds the first match")
