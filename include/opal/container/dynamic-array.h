@@ -687,10 +687,12 @@ void CLASS_HEADER::SetAllocator(allocator_type* allocator)
     }
     else
     {
+        // A moved-from element is still a live object, so it is owed a destructor before its
+        // storage goes back to the allocator.
         for (size_type i = 0; i < m_size; i++)
         {
-            // Invoke move constructor
-            new (&new_data[i]) T(Move(m_data[i]));
+            new (&new_data[i]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
+            m_data[i].~T();                         // Invokes destructor on allocated memory
         }
     }
     Deallocate(m_data);
@@ -864,9 +866,12 @@ void CLASS_HEADER::Reserve(DynamicArray::size_type new_capacity)
     }
     else
     {
+        // A moved-from element is still a live object, so it is owed a destructor before its
+        // storage goes back to the allocator.
         for (size_type i = 0; i < m_size; i++)
         {
             new (&new_data[i]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
+            m_data[i].~T();                         // Invokes destructor on allocated memory
         }
     }
     Deallocate(m_data);

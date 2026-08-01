@@ -127,6 +127,20 @@ struct SelfMoveUnsafe
     ~SelfMoveUnsafe() { delete ptr; }
 };
 
+// Every constructor adds to the live count and the destructor takes one off, so the count only
+// returns to zero if each object built is also torn down.
+i32 g_live_count = 0;
+struct CountedLive
+{
+    i32 value = 0;
+    explicit CountedLive(i32 in_value) : value(in_value) { g_live_count++; }
+    CountedLive(const CountedLive& other) : value(other.value) { g_live_count++; }
+    CountedLive(CountedLive&& other) noexcept : value(other.value) { g_live_count++; }
+    CountedLive& operator=(const CountedLive& other) = default;
+    CountedLive& operator=(CountedLive&& other) noexcept = default;
+    ~CountedLive() { g_live_count--; }
+};
+
 // POD, but three padding bytes sit between the members, so two objects can hold equal values in
 // bytes that are not equal.
 struct PaddedPod
@@ -915,8 +929,50 @@ TEST_CASE("Reserve", "[Array]")
                 REQUIRE(g_value_call_count == 1);
                 REQUIRE(g_clone_call_count == 3);
             }
-            REQUIRE(g_destroy_call_count == 4);
+            // 1 temporary, 3 originals left behind by the reallocation, 3 live elements.
+            REQUIRE(g_destroy_call_count == 7);
         }
+    }
+}
+
+// Moving the elements into a new buffer leaves the originals behind as live objects. They own
+// their storage until they are destroyed, so skipping that leaks whatever they still hold.
+TEST_CASE("Moving to a new buffer destroys the elements it moved from", "[Array]")
+{
+    SECTION("Reserve")
+    {
+        g_live_count = 0;
+        {
+            DynamicArray<CountedLive> arr;
+            arr.Reserve(2);
+            arr.PushBack(CountedLive(1));
+            arr.PushBack(CountedLive(2));
+            REQUIRE(g_live_count == 2);
+            arr.Reserve(8);
+            REQUIRE(g_live_count == 2);
+            REQUIRE(arr.GetCapacity() == 8);
+            REQUIRE(arr[0].value == 1);
+            REQUIRE(arr[1].value == 2);
+        }
+        REQUIRE(g_live_count == 0);
+    }
+    SECTION("SetAllocator")
+    {
+        MallocAllocator allocator;
+        g_live_count = 0;
+        {
+            DynamicArray<CountedLive> arr;
+            arr.Reserve(4);
+            arr.PushBack(CountedLive(1));
+            arr.PushBack(CountedLive(2));
+            REQUIRE(g_live_count == 2);
+            arr.SetAllocator(&allocator);
+            REQUIRE(g_live_count == 2);
+            REQUIRE(arr.GetAllocator() == &allocator);
+            REQUIRE(arr[0].value == 1);
+            REQUIRE(arr[1].value == 2);
+        }
+        REQUIRE(g_live_count == 0);
     }
 }
 
@@ -1033,7 +1089,8 @@ TEST_CASE("Resize", "[Array]")
                 REQUIRE(g_value_call_count == 1);
                 REQUIRE(g_clone_call_count == 4);
             }
-            REQUIRE(g_destroy_call_count == 6);
+            // 2 temporaries, 3 originals left behind by the Reserve, 4 live elements.
+            REQUIRE(g_destroy_call_count == 9);
         }
         SECTION("To new size which is greater then capacity")
         {
@@ -1055,7 +1112,8 @@ TEST_CASE("Resize", "[Array]")
                 REQUIRE(g_value_call_count == 1);
                 REQUIRE(g_clone_call_count == 6);
             }
-            REQUIRE(g_destroy_call_count == 8);
+            // 2 temporaries, 3 originals left behind by the growth, 6 live elements.
+            REQUIRE(g_destroy_call_count == 11);
         }
     }
 }
@@ -1174,7 +1232,8 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 3);
                 }
-                REQUIRE(g_destroy_call_count == 6);
+                // 2 temporaries, 3 originals left behind by the growth, 4 live elements.
+                REQUIRE(g_destroy_call_count == 9);
             }
             SECTION("Without enough capacity")
             {
@@ -1196,7 +1255,8 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 4);
                 }
-                REQUIRE(g_destroy_call_count == 7);
+                // 2 temporaries, 4 originals left behind by the growth, 5 live elements.
+                REQUIRE(g_destroy_call_count == 11);
             }
         }
         SECTION("With move")
@@ -1219,7 +1279,8 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 3);
                 }
-                REQUIRE(g_destroy_call_count == 6);
+                // 2 temporaries, 3 originals left behind by the growth, 4 live elements.
+                REQUIRE(g_destroy_call_count == 9);
             }
             SECTION("Without enough capacity")
             {
@@ -1240,7 +1301,8 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 4);
                 }
-                REQUIRE(g_destroy_call_count == 7);
+                // 2 temporaries, 4 originals left behind by the growth, 5 live elements.
+                REQUIRE(g_destroy_call_count == 11);
             }
         }
     }
