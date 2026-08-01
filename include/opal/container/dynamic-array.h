@@ -117,6 +117,63 @@ template <typename MyArray>
 DynamicArrayConstIterator<MyArray> operator+(typename DynamicArrayConstIterator<MyArray>::difference_type n,
                                              const DynamicArrayConstIterator<MyArray>& it);
 
+/*************************************************************************************************/
+/** Reverse Iterator API *************************************************************************/
+/*************************************************************************************************/
+
+/**
+ * Walks a DynamicArray from the last element to the first. Advancing it steps backwards through
+ * the array, so the usual begin-to-end loop visits the elements in reverse.
+ *
+ * Like the standard reverse iterators, it holds the position one past the element it refers to, so
+ * that the reverse end can be built from the array's begin without pointing before the storage.
+ */
+template <typename MyArray, typename BaseIterator>
+class DynamicArrayReverseIteratorBase
+{
+public:
+    using value_type = typename BaseIterator::value_type;
+    using difference_type = typename BaseIterator::difference_type;
+    using reference = typename BaseIterator::reference;
+    using pointer = typename BaseIterator::pointer;
+
+    DynamicArrayReverseIteratorBase() = default;
+    explicit DynamicArrayReverseIteratorBase(BaseIterator base) : m_base(base) {}
+
+    /** Get the underlying forward iterator, one past the element this refers to. */
+    BaseIterator GetBase() const { return m_base; }
+
+    bool operator==(const DynamicArrayReverseIteratorBase& other) const { return m_base == other.m_base; }
+    bool operator>(const DynamicArrayReverseIteratorBase& other) const;
+    bool operator>=(const DynamicArrayReverseIteratorBase& other) const;
+    bool operator<(const DynamicArrayReverseIteratorBase& other) const;
+    bool operator<=(const DynamicArrayReverseIteratorBase& other) const;
+
+    DynamicArrayReverseIteratorBase& operator++();
+    DynamicArrayReverseIteratorBase operator++(int);
+    DynamicArrayReverseIteratorBase& operator--();
+    DynamicArrayReverseIteratorBase operator--(int);
+
+    DynamicArrayReverseIteratorBase operator+(difference_type n) const;
+    DynamicArrayReverseIteratorBase operator-(difference_type n) const;
+    DynamicArrayReverseIteratorBase& operator+=(difference_type n);
+    DynamicArrayReverseIteratorBase& operator-=(difference_type n);
+
+    difference_type operator-(const DynamicArrayReverseIteratorBase& other) const;
+
+    reference operator[](difference_type n) const;
+    reference operator*() const;
+    pointer operator->() const;
+
+private:
+    BaseIterator m_base = {};
+};
+
+template <typename MyArray, typename BaseIterator>
+DynamicArrayReverseIteratorBase<MyArray, BaseIterator> operator+(
+    typename DynamicArrayReverseIteratorBase<MyArray, BaseIterator>::difference_type n,
+    const DynamicArrayReverseIteratorBase<MyArray, BaseIterator>& it);
+
 /**
  * Represents continuous memory storage on the heap that can dynamically grow in size. Similar to std::vector.
  *
@@ -143,6 +200,8 @@ public:
     using const_pointer = const T*;
     using iterator = DynamicArrayIterator<DynamicArray>;
     using const_iterator = DynamicArrayConstIterator<DynamicArray>;
+    using reverse_iterator = DynamicArrayReverseIteratorBase<DynamicArray, iterator>;
+    using const_reverse_iterator = DynamicArrayReverseIteratorBase<DynamicArray, const_iterator>;
 
     static_assert(!k_is_reference_value<value_type>, "Value type must not be a reference");
     static_assert(!k_is_const_value<value_type>, "Value type must not be const");
@@ -585,6 +644,23 @@ public:
      * @return Const iterator pointing to the element following the last element.
      */
     const_iterator cend() const { return const_iterator(m_data + m_size); }
+
+    /**
+     * Get a reverse iterator pointing to the last element in the array. Advancing it steps towards
+     * the front.
+     * @return Reverse iterator pointing to the last element.
+     */
+    reverse_iterator rbegin() { return reverse_iterator(end()); }
+    const_reverse_iterator rbegin() const { return const_reverse_iterator(cend()); }
+    const_reverse_iterator crbegin() const { return const_reverse_iterator(cend()); }
+
+    /**
+     * Get a reverse iterator pointing one before the first element in the array.
+     * @return Reverse iterator marking the end of a backwards walk.
+     */
+    reverse_iterator rend() { return reverse_iterator(begin()); }
+    const_reverse_iterator rend() const { return const_reverse_iterator(cbegin()); }
+    const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
 
 private:
     T* Allocate(size_type count);
@@ -1936,6 +2012,130 @@ typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 
 TEMPLATE_HEADER
 CLASS_HEADER Opal::operator+(typename DynamicArrayIterator<MyArray>::difference_type n, const DynamicArrayIterator<MyArray>& it)
+{
+    return it + n;
+}
+
+#undef TEMPLATE_HEADER
+#undef CLASS_HEADER
+
+#define TEMPLATE_HEADER template <typename MyArray, typename BaseIterator>
+#define CLASS_HEADER Opal::DynamicArrayReverseIteratorBase<MyArray, BaseIterator>
+
+// The base sits one past the element referred to, so every comparison is the reverse of the base's
+// and every step goes the other way.
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator>(const DynamicArrayReverseIteratorBase& other) const
+{
+    return m_base < other.m_base;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator>=(const DynamicArrayReverseIteratorBase& other) const
+{
+    return m_base <= other.m_base;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator<(const DynamicArrayReverseIteratorBase& other) const
+{
+    return m_base > other.m_base;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator<=(const DynamicArrayReverseIteratorBase& other) const
+{
+    return m_base >= other.m_base;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator++()
+{
+    --m_base;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator++(int)
+{
+    DynamicArrayReverseIteratorBase temp = *this;
+    --m_base;
+    return temp;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator--()
+{
+    ++m_base;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator--(int)
+{
+    DynamicArrayReverseIteratorBase temp = *this;
+    ++m_base;
+    return temp;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
+{
+    return DynamicArrayReverseIteratorBase(m_base - n);
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
+{
+    return DynamicArrayReverseIteratorBase(m_base + n);
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator+=(difference_type n)
+{
+    m_base -= n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
+{
+    m_base += n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const DynamicArrayReverseIteratorBase& other) const
+{
+    return other.m_base - m_base;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](difference_type n) const
+{
+    return *(*this + n);
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::reference CLASS_HEADER::operator*() const
+{
+    BaseIterator element = m_base;
+    --element;
+    return *element;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
+{
+    BaseIterator element = m_base;
+    --element;
+    return element.operator->();
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER Opal::operator+(typename DynamicArrayReverseIteratorBase<MyArray, BaseIterator>::difference_type n,
+                             const DynamicArrayReverseIteratorBase<MyArray, BaseIterator>& it)
 {
     return it + n;
 }

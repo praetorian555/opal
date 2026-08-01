@@ -942,6 +942,87 @@ static_assert(!CopyAssignable<DynamicArray<i32>>);
 static_assert(MoveConstructable<DynamicArray<i32>>);
 static_assert(MoveAssignable<DynamicArray<i32>>);
 
+TEST_CASE("Reverse iterator", "[Array]")
+{
+    SECTION("Walks the elements back to front")
+    {
+        DynamicArray<i32> int_arr{1, 2, 3, 4};
+        DynamicArray<i32> seen;
+        for (DynamicArray<i32>::reverse_iterator it = int_arr.rbegin(); it != int_arr.rend(); ++it)
+        {
+            seen.PushBack(*it);
+        }
+        REQUIRE(seen.GetSize() == 4);
+        REQUIRE(seen[0] == 4);
+        REQUIRE(seen[1] == 3);
+        REQUIRE(seen[2] == 2);
+        REQUIRE(seen[3] == 1);
+    }
+    SECTION("An empty array has nothing to walk")
+    {
+        DynamicArray<i32> int_arr;
+        REQUIRE(int_arr.rbegin() == int_arr.rend());
+        REQUIRE(int_arr.crbegin() == int_arr.crend());
+    }
+    SECTION("Writes through to the array")
+    {
+        DynamicArray<i32> int_arr{1, 2, 3};
+        *int_arr.rbegin() = 9;
+        REQUIRE(int_arr[2] == 9);
+    }
+    SECTION("Reads a const array")
+    {
+        const DynamicArray<i32> int_arr{1, 2, 3};
+        REQUIRE(*int_arr.rbegin() == 3);
+        REQUIRE(*int_arr.crbegin() == 3);
+        REQUIRE(int_arr.crend() - int_arr.crbegin() == 3);
+    }
+    SECTION("The base is the position one past what it refers to")
+    {
+        DynamicArray<i32> int_arr{1, 2, 3};
+        REQUIRE(int_arr.rbegin().GetBase() == int_arr.end());
+        REQUIRE(int_arr.rend().GetBase() == int_arr.begin());
+        REQUIRE(*int_arr.rbegin() == 3);
+    }
+    SECTION("Steps and jumps")
+    {
+        DynamicArray<i32> int_arr{1, 2, 3, 4, 5};
+        DynamicArray<i32>::reverse_iterator it = int_arr.rbegin();
+        REQUIRE(*it == 5);
+        REQUIRE(*(++it) == 4);
+        REQUIRE(*(it++) == 4);
+        REQUIRE(*it == 3);
+        REQUIRE(*(--it) == 4);
+        REQUIRE(*(it--) == 4);
+        REQUIRE(*it == 5);
+        REQUIRE(*(it + 2) == 3);
+        REQUIRE(*(2 + it) == 3);
+        REQUIRE(it[3] == 2);
+        it += 4;
+        REQUIRE(*it == 1);
+        it -= 2;
+        REQUIRE(*it == 3);
+        REQUIRE(*(it - 1) == 4);
+    }
+    SECTION("Difference and ordering follow the walking direction")
+    {
+        DynamicArray<i32> int_arr{1, 2, 3, 4};
+        REQUIRE(int_arr.rend() - int_arr.rbegin() == 4);
+        REQUIRE(int_arr.rbegin() < int_arr.rend());
+        REQUIRE(int_arr.rend() > int_arr.rbegin());
+        REQUIRE(int_arr.rbegin() <= int_arr.rbegin());
+        REQUIRE(int_arr.rend() >= int_arr.rbegin());
+        REQUIRE(int_arr.rbegin() != int_arr.rend());
+    }
+    SECTION("Arrow reaches the element")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.PushBack(OwnedCopy(1));
+        arr.PushBack(OwnedCopy(2));
+        REQUIRE(*arr.rbegin()->ptr == 2);
+    }
+}
+
 TEST_CASE("Emplace at a position", "[Array]")
 {
     SECTION("At the front, in the middle and at the end")
