@@ -1116,8 +1116,12 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, In
     {
         throw InvalidArgumentException(__FUNCTION__, "end_it - start_it", static_cast<i64>(end_it - start_it));
     }
-    difference_type pos_offset = position - cbegin();
     size_type count = static_cast<size_type>(end_it - start_it);
+    if (count == 0)
+    {
+        return begin() + (position - cbegin());
+    }
+    difference_type pos_offset = position - cbegin();
     if (m_size + count > m_capacity)
     {
         size_type new_capacity = GetNextCapacity(m_capacity);

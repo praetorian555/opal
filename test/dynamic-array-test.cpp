@@ -100,6 +100,33 @@ struct OwnedCopy
     ~OwnedCopy() { delete ptr; }
 };
 
+// Owns a heap value and, like plenty of real move assignments, does not guard against
+// self-assignment. Move-assigning one of these onto itself leaves it holding nothing.
+struct SelfMoveUnsafe
+{
+    i32* ptr = nullptr;
+    explicit SelfMoveUnsafe(i32 value) : ptr(new i32(value)) {}
+    SelfMoveUnsafe(const SelfMoveUnsafe& other) : ptr(other.ptr != nullptr ? new i32(*other.ptr) : nullptr) {}
+    SelfMoveUnsafe& operator=(const SelfMoveUnsafe& other)
+    {
+        if (this != &other)
+        {
+            delete ptr;
+            ptr = other.ptr != nullptr ? new i32(*other.ptr) : nullptr;
+        }
+        return *this;
+    }
+    SelfMoveUnsafe(SelfMoveUnsafe&& other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }
+    SelfMoveUnsafe& operator=(SelfMoveUnsafe&& other) noexcept
+    {
+        delete ptr;
+        ptr = other.ptr;
+        other.ptr = nullptr;
+        return *this;
+    }
+    ~SelfMoveUnsafe() { delete ptr; }
+};
+
 // POD, but three padding bytes sit between the members, so two objects can hold equal values in
 // bytes that are not equal.
 struct PaddedPod
@@ -2391,6 +2418,42 @@ TEST_CASE("Insert of an owning element type", "[Array]")
         REQUIRE(*arr[2].ptr == 2);
         REQUIRE(*arr[3].ptr == 2);
         REQUIRE(*arr[5].ptr == 4);
+    }
+    SECTION("Insert an empty range")
+    {
+        DynamicArray<OwnedCopy> source = make_copyable(2);
+        DynamicArray<OwnedCopy> arr = make_copyable(4);
+        DynamicArray<OwnedCopy>::iterator it;
+        REQUIRE_NOTHROW(it = arr.Insert(arr.cbegin() + 1, source.begin(), source.begin()));
+        REQUIRE(it == arr.begin() + 1);
+        REQUIRE(arr.GetSize() == 4);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 2);
+        REQUIRE(*arr[2].ptr == 3);
+        REQUIRE(*arr[3].ptr == 4);
+    }
+    SECTION("Insert an empty range does not move elements onto themselves")
+    {
+        // An empty range opens a zero-wide gap, and shifting elements across it assigns each
+        // one onto itself. An element type that does not guard its move assignment loses what
+        // it owns.
+        DynamicArray<SelfMoveUnsafe> source;
+        DynamicArray<SelfMoveUnsafe> arr;
+        arr.Reserve(4);
+        for (i32 i = 0; i < 4; ++i)
+        {
+            arr.PushBack(SelfMoveUnsafe(i + 1));
+        }
+        arr.Insert(arr.cbegin() + 1, source.begin(), source.end());
+        REQUIRE(arr.GetSize() == 4);
+        REQUIRE(arr[0].ptr != nullptr);
+        REQUIRE(arr[1].ptr != nullptr);
+        REQUIRE(arr[2].ptr != nullptr);
+        REQUIRE(arr[3].ptr != nullptr);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 2);
+        REQUIRE(*arr[2].ptr == 3);
+        REQUIRE(*arr[3].ptr == 4);
     }
 }
 
