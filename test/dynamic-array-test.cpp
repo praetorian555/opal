@@ -3440,6 +3440,81 @@ TEST_CASE("Erase of an owning element type", "[Array]")
         REQUIRE(g_destroy_call_count == 3);
         REQUIRE(arr.GetSize() == 0);
     }
+    SECTION("EraseWithSwap on the last element, which swaps nothing")
+    {
+        // The other branch of EraseWithSwap: there is no element to move into the hole, so it
+        // only destroys. Covered for i32 but never for a type where a missed destructor shows.
+        DynamicArray<NonPod> arr = make();
+        DynamicArray<NonPod>::iterator it = arr.EraseWithSwap(arr.end() - 1);
+        REQUIRE(it == arr.end());
+        REQUIRE(g_destroy_call_count == 1);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 2);
+    }
+    SECTION("EraseWithSwap on the only element")
+    {
+        DynamicArray<NonPod> arr;
+        arr.PushBack(NonPod(1));
+        g_destroy_call_count = 0;
+        arr.EraseWithSwap(arr.begin());
+        REQUIRE(g_destroy_call_count == 1);
+        REQUIRE(arr.GetSize() == 0);
+    }
+    SECTION("Remove takes out the first match and destroys it once")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.Remove(NonPod(2));
+        // One for the element removed, one for the temporary compared against.
+        REQUIRE(g_destroy_call_count == 2);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 3);
+    }
+    SECTION("Remove of a value that is not there leaves the array alone")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.Remove(NonPod(9));
+        REQUIRE(g_destroy_call_count == 1);  // only the temporary
+        REQUIRE(arr.GetSize() == 3);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[2].ptr == 3);
+    }
+    SECTION("RemoveWithSwap takes out the first match and destroys it once")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.RemoveWithSwap(NonPod(1));
+        REQUIRE(g_destroy_call_count == 2);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 3);
+        REQUIRE(*arr[1].ptr == 2);
+    }
+    SECTION("RemoveWithSwap of the last element")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.RemoveWithSwap(NonPod(3));
+        REQUIRE(g_destroy_call_count == 2);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 2);
+    }
+    SECTION("RemoveWithSwap of a value that is not there leaves the array alone")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.RemoveWithSwap(NonPod(9));
+        REQUIRE(g_destroy_call_count == 1);  // only the temporary
+        REQUIRE(arr.GetSize() == 3);
+    }
+    SECTION("Removing every element one at a time")
+    {
+        DynamicArray<NonPod> arr = make();
+        arr.Remove(NonPod(2));
+        arr.Remove(NonPod(1));
+        arr.Remove(NonPod(3));
+        REQUIRE(arr.GetSize() == 0);
+        // Three elements and three temporaries.
+        REQUIRE(g_destroy_call_count == 6);
+    }
 }
 
 TEST_CASE("Remove", "[Array]")
@@ -3661,6 +3736,33 @@ TEST_CASE("Clone", "[Array]")
         REQUIRE(*clone[0].ptr == 3);
         REQUIRE(*clone[1].ptr == 4);
         REQUIRE(clone.GetAllocator() == &allocator);
+    }
+    SECTION("The clone takes its memory from the allocator it was given")
+    {
+        // The sections above check the allocator the clone reports, which a Clone that recorded
+        // the pointer without ever calling it would also pass. This asks the allocator itself.
+        BudgetedAllocator allocator(1);
+        DynamicArray<i32> src = {1, 2, 3};
+        DynamicArray<i32> clone = src.Clone(&allocator);
+        REQUIRE(allocator.allowed == 0);
+        REQUIRE(clone.GetSize() == 3);
+        REQUIRE(clone[0] == 1);
+        REQUIRE(clone[2] == 3);
+    }
+    SECTION("Cloning an array of arrays copies each one deeply")
+    {
+        DynamicArray<DynamicArray<i32>> src;
+        src.PushBack(DynamicArray<i32>{1, 2});
+        src.PushBack(DynamicArray<i32>{3});
+        DynamicArray<DynamicArray<i32>> clone = src.Clone();
+        REQUIRE(clone.GetSize() == 2);
+        REQUIRE(clone[0].GetSize() == 2);
+        REQUIRE(clone[0][0] == 1);
+        REQUIRE(clone[1][0] == 3);
+        REQUIRE(clone[0].GetData() != src[0].GetData());
+        // Changing the clone leaves the source alone.
+        clone[0][0] = 9;
+        REQUIRE(src[0][0] == 1);
     }
     SECTION("Modifying clone does not affect source")
     {
