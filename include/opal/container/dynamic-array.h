@@ -469,7 +469,7 @@ public:
      * @throw OutOfMemoryException when allocator runs out of memory.
      */
     template <typename ContainerClass>
-        requires Range<ContainerClass> && (!k_is_reference_value<ContainerClass>)
+        requires NonReferenceRange<ContainerClass>
     void Append(ContainerClass&& container);
 
     /**
@@ -1322,7 +1322,7 @@ void CLASS_HEADER::Append(const ContainerClass& container)
 
 TEMPLATE_HEADER
 template <typename ContainerClass>
-    requires Opal::Range<ContainerClass> && (!Opal::k_is_reference_value<ContainerClass>)
+    requires Opal::NonReferenceRange<ContainerClass>
 void CLASS_HEADER::Append(ContainerClass&& container)
 {
     ReserveForAppend(static_cast<size_type>(Opal::end(container) - Opal::begin(container)));

@@ -448,6 +448,19 @@ concept Range = requires(T& t) {
     } -> SameAs<bool>;
 };
 
+/**
+ * Concept: T is a Range that is not a reference type.
+ *
+ * For telling an rvalue overload apart from a `const&` one when the parameter is written as `T&&`,
+ * which is a forwarding reference and would otherwise swallow non-const lvalues. Being a concept
+ * rather than a bare `!k_is_reference_value<T>` matters: an atomic constraint has to be spelled the
+ * same way in a declaration and its out-of-line definition, and the two live in different scopes,
+ * so one of them has to qualify the name. Concept-ids are compared by which concept they name, so
+ * the qualification stops mattering.
+ */
+template <typename T>
+concept NonReferenceRange = Range<T> && !k_is_reference_value<T>;
+
 // ------------------------------------------------------------------------------------------------
 // Type matching utilities.
 // ------------------------------------------------------------------------------------------------
