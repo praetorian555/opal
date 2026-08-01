@@ -479,6 +479,23 @@ private:
     // must not name an element of this array.
     iterator InsertCountAt(difference_type pos_offset, size_type count, const T& value);
 
+    // Grow into a fresh buffer with a gap of `count` slots at `pos_offset`, and return an iterator
+    // to the first of them. `construct_gap(T* gap)` fills the gap by constructing into it, and is
+    // called while the old elements are still alive and in place, so a source that reads from them
+    // stays valid. Only for the case where the array has to grow.
+    template <typename ConstructGap>
+    iterator GrowAndInsert(difference_type pos_offset, size_type count, ConstructGap&& construct_gap);
+
+    // True when the range reads out of this array's own storage. Such a range cannot survive the
+    // elements being shifted or released, so the methods that would do either build their result
+    // in fresh storage instead.
+    template <typename InputIt>
+    bool RangeReadsOwnStorage(InputIt start_it, InputIt end_it) const;
+
+    // True when `value` is one of this array's own elements. Methods that release or overwrite the
+    // elements take a copy of it first when so, and pay nothing for the check otherwise.
+    bool ValueReadsOwnStorage(const T& value) const;
+
     static constexpr f64 k_resize_factor = 1.5;
 
     allocator_type* m_allocator = nullptr;
@@ -735,6 +752,14 @@ void CLASS_HEADER::SetAllocator(allocator_type* allocator)
 TEMPLATE_HEADER
 void CLASS_HEADER::Assign(size_type count, const T& value)
 {
+    if (ValueReadsOwnStorage(value))
+    {
+        // `value` is one of the elements about to be destroyed. Re-enter with a copy of it that
+        // lives on the stack, which the check above then passes over.
+        T value_copy(Opal::Clone(value));
+        Assign(count, value_copy);
+        return;
+    }
     if constexpr (!IsPOD<T>)
     {
         for (size_type i = 0; i < m_size; i++)
@@ -771,6 +796,28 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start, InputIt end)
         return ErrorCode::InvalidArgument;
     }
     size_type count = static_cast<size_type>(end - start);
+    if (RangeReadsOwnStorage(start, end))
+    {
+        // The range reads the very elements this would otherwise destroy first, so the new
+        // contents are built in fresh storage and the old buffer is only released afterwards.
+        T* new_data = Allocate(count);
+        for (size_type i = 0; i < count; ++i)
+        {
+            new (&new_data[i]) T(*(start + Narrow<difference_type>(i)));  // Invokes copy constructor on allocated memory
+        }
+        if constexpr (!IsPOD<T>)
+        {
+            for (size_type i = 0; i < m_size; i++)
+            {
+                m_data[i].~T();  // Invokes destructor on allocated memory
+            }
+        }
+        Deallocate(m_data);
+        m_data = new_data;
+        m_capacity = count;
+        m_size = count;
+        return ErrorCode::Success;
+    }
     if constexpr (!IsPOD<T>)
     {
         for (size_type i = 0; i < m_size; i++)
@@ -959,12 +1006,25 @@ void CLASS_HEADER::Resize(DynamicArray::size_type new_size, const T& default_val
         }
         m_size = new_size;
     }
+    else if (new_size > m_capacity)
+    {
+        if (ValueReadsOwnStorage(default_value))
+        {
+            // Growing frees the storage `default_value` lives in. Re-enter with a copy of it that
+            // lives on the stack, which the check then passes over.
+            T value_copy(Opal::Clone(default_value));
+            Resize(new_size, value_copy);
+            return;
+        }
+        Reserve(new_size);
+        for (size_type i = m_size; i < new_size; i++)
+        {
+            new (&m_data[i]) T(Opal::Clone(default_value));  // Invokes copy constructor on allocated memory
+        }
+        m_size = new_size;
+    }
     else
     {
-        if (new_size > m_capacity)
-        {
-            Reserve(new_size);
-        }
         for (size_type i = m_size; i < new_size; i++)
         {
             new (&m_data[i]) T(Opal::Clone(default_value));  // Invokes copy constructor on allocated memory
@@ -992,13 +1052,15 @@ void CLASS_HEADER::PushBack(const T& value)
 {
     if (m_size == m_capacity)
     {
-        // Growing frees the storage the elements live in, and `value` is allowed to be one of
-        // them, so it has to be taken out of that storage before the buffer goes away.
-        T value_copy(value);
+        if (ValueReadsOwnStorage(value))
+        {
+            // Growing frees the storage `value` lives in. Re-enter with a copy of it that lives on
+            // the stack, which the check then passes over.
+            T value_copy(value);
+            PushBack(value_copy);
+            return;
+        }
         Reserve(GetNextCapacity(m_capacity));
-        new (&m_data[m_size]) T(value_copy);  // Invokes copy constructor on allocated memory
-        m_size++;
-        return;
     }
     new (&m_data[m_size]) T(value);  // Invokes copy constructor on allocated memory
     m_size++;
@@ -1009,11 +1071,13 @@ void CLASS_HEADER::PushBack(T&& value)
 {
     if (m_size == m_capacity)
     {
-        T value_copy(Move(value));
+        if (ValueReadsOwnStorage(value))
+        {
+            T value_copy(Move(value));
+            PushBack(Move(value_copy));
+            return;
+        }
         Reserve(GetNextCapacity(m_capacity));
-        new (&m_data[m_size]) T(Move(value_copy));  // Invokes move constructor on allocated memory
-        m_size++;
-        return;
     }
     new (&m_data[m_size]) T(Move(value));  // Invokes move constructor on allocated memory
     m_size++;
@@ -1116,6 +1180,76 @@ typename CLASS_HEADER::iterator CLASS_HEADER::InsertOneAt(difference_type pos_of
 }
 
 TEMPLATE_HEADER
+template <typename InputIt>
+bool CLASS_HEADER::RangeReadsOwnStorage(InputIt start_it, InputIt end_it) const
+{
+    if (m_data == nullptr || start_it == end_it)
+    {
+        return false;
+    }
+    const u64 first = reinterpret_cast<u64>(&(*start_it));
+    const u64 storage_begin = reinterpret_cast<u64>(m_data);
+    const u64 storage_end = reinterpret_cast<u64>(m_data + m_capacity);
+    return first >= storage_begin && first < storage_end;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::ValueReadsOwnStorage(const T& value) const
+{
+    if (m_data == nullptr)
+    {
+        return false;
+    }
+    const u64 address = reinterpret_cast<u64>(&value);
+    return address >= reinterpret_cast<u64>(m_data) && address < reinterpret_cast<u64>(m_data + m_capacity);
+}
+
+TEMPLATE_HEADER
+template <typename ConstructGap>
+typename CLASS_HEADER::iterator CLASS_HEADER::GrowAndInsert(difference_type pos_offset, size_type count, ConstructGap&& construct_gap)
+{
+    size_type new_capacity = GetNextCapacity(m_capacity);
+    if (m_size + count > new_capacity)
+    {
+        new_capacity = m_size + count;
+    }
+    const size_type pos = static_cast<size_type>(pos_offset);
+    T* new_data = Allocate(new_capacity);
+    // Fill the gap before touching the old elements. Whatever the caller reads from is still
+    // where it was, which is what lets a source range point into this array.
+    construct_gap(new_data + pos);
+    if constexpr (IsPOD<T>)
+    {
+        if (pos > 0)
+        {
+            memcpy(new_data, m_data, pos * sizeof(T));
+        }
+        if (m_size > pos)
+        {
+            memcpy(new_data + pos + count, m_data + pos, (m_size - pos) * sizeof(T));
+        }
+    }
+    else
+    {
+        for (size_type i = 0; i < pos; i++)
+        {
+            new (&new_data[i]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
+            m_data[i].~T();                         // Invokes destructor on allocated memory
+        }
+        for (size_type i = pos; i < m_size; i++)
+        {
+            new (&new_data[i + count]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
+            m_data[i].~T();                                 // Invokes destructor on allocated memory
+        }
+    }
+    Deallocate(m_data);
+    m_data = new_data;
+    m_capacity = new_capacity;
+    m_size += count;
+    return begin() + pos_offset;
+}
+
+TEMPLATE_HEADER
 typename CLASS_HEADER::iterator CLASS_HEADER::InsertCountAt(difference_type pos_offset, size_type count, const T& value)
 {
     const size_type old_size = m_size;
@@ -1144,14 +1278,17 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, co
     {
         throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
     }
+    if (ValueReadsOwnStorage(value))
+    {
+        // Opening the gap moves `value` out from under itself, and growing frees the storage it
+        // lives in. Re-enter with a copy that lives on the stack, which the check passes over.
+        T value_copy(value);
+        return Insert(position, value_copy);
+    }
     difference_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
     {
-        // Growing frees the storage the elements live in, and `value` is allowed to be one of
-        // them, so it has to be taken out of that storage before the buffer goes away.
-        T value_copy(value);
         Reserve(GetNextCapacity(m_capacity));
-        return InsertOneAt(pos_offset, Move(value_copy));
     }
     return InsertOneAt(pos_offset, value);
 }
@@ -1163,12 +1300,15 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(DynamicArray::const_iterato
     {
         throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
     }
+    if (ValueReadsOwnStorage(value))
+    {
+        T value_copy(Move(value));
+        return Insert(position, Move(value_copy));
+    }
     difference_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
     {
-        T value_copy(Move(value));
         Reserve(GetNextCapacity(m_capacity));
-        return InsertOneAt(pos_offset, Move(value_copy));
     }
     return InsertOneAt(pos_offset, Move(value));
 }
@@ -1184,14 +1324,19 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, si
     {
         return begin() + (position - cbegin());
     }
+    if (ValueReadsOwnStorage(value))
+    {
+        // Opening the gap moves `value` out from under itself, and growing frees the storage it
+        // lives in. Re-enter with a copy that lives on the stack, which the check passes over.
+        T value_copy(value);
+        return Insert(position, count, value_copy);
+    }
     difference_type pos_offset = position - cbegin();
     if (m_size + count > m_capacity)
     {
         size_type new_capacity = GetNextCapacity(m_capacity);
         new_capacity = m_size + count > new_capacity ? m_size + count : new_capacity;
-        T value_copy(value);
         Reserve(new_capacity);
-        return InsertCountAt(pos_offset, count, value_copy);
     }
     return InsertCountAt(pos_offset, count, value);
 }
@@ -1215,11 +1360,20 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, In
         return begin() + (position - cbegin());
     }
     difference_type pos_offset = position - cbegin();
-    if (m_size + count > m_capacity)
+    // A range that reads out of this array cannot survive the elements being shifted, so it takes
+    // the growing path even when there is room, which builds the result somewhere else entirely.
+    if (m_size + count > m_capacity || RangeReadsOwnStorage(start_it, end_it))
     {
-        size_type new_capacity = GetNextCapacity(m_capacity);
-        new_capacity = m_size + count > new_capacity ? m_size + count : new_capacity;
-        Reserve(new_capacity);
+        // The gap is filled from the old elements before they are moved out of the way.
+        return GrowAndInsert(pos_offset, count,
+                             [start_it, end_it](T* gap)
+                             {
+                                 size_type offset = 0;
+                                 for (InputIt current = start_it; current < end_it; ++current, ++offset)
+                                 {
+                                     new (&gap[offset]) T(*current);  // Invokes copy constructor on allocated memory
+                                 }
+                             });
     }
     const size_type old_size = m_size;
     MakeInsertGap(pos_offset, count);

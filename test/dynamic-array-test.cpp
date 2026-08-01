@@ -1365,9 +1365,9 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 3);
                 }
-                // 2 objects outside the array, 1 more staged across the growth, 3 originals left
-                // behind by it, 4 live elements.
-                REQUIRE(g_destroy_call_count == 10);
+                // 2 objects outside the array, 3 originals left behind by the growth, 4 live
+                // elements. Nothing is staged: the value pushed does not live in this array.
+                REQUIRE(g_destroy_call_count == 9);
             }
             SECTION("Without enough capacity")
             {
@@ -1389,9 +1389,9 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 4);
                 }
-                // 2 objects outside the array, 1 more staged across the growth, 4 originals left
-                // behind by it, 5 live elements.
-                REQUIRE(g_destroy_call_count == 12);
+                // 2 objects outside the array, 4 originals left behind by the growth, 5 live
+                // elements. Nothing is staged: the value pushed does not live in this array.
+                REQUIRE(g_destroy_call_count == 11);
             }
         }
         SECTION("With move")
@@ -1414,9 +1414,9 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 3);
                 }
-                // 2 objects outside the array, 1 more staged across the growth, 3 originals left
-                // behind by it, 4 live elements.
-                REQUIRE(g_destroy_call_count == 10);
+                // 2 objects outside the array, 3 originals left behind by the growth, 4 live
+                // elements. Nothing is staged: the value pushed does not live in this array.
+                REQUIRE(g_destroy_call_count == 9);
             }
             SECTION("Without enough capacity")
             {
@@ -1437,9 +1437,9 @@ TEST_CASE("Push back", "[Array]")
                     REQUIRE(g_value_call_count == 2);
                     REQUIRE(g_clone_call_count == 4);
                 }
-                // 2 objects outside the array, 1 more staged across the growth, 4 originals left
-                // behind by it, 5 live elements.
-                REQUIRE(g_destroy_call_count == 12);
+                // 2 objects outside the array, 4 originals left behind by the growth, 5 live
+                // elements. Nothing is staged: the value pushed does not live in this array.
+                REQUIRE(g_destroy_call_count == 11);
             }
         }
     }
@@ -1515,6 +1515,133 @@ TEST_CASE("Adding an element of the array to itself", "[Array]")
         REQUIRE(*arr[2].ptr == 7);
         REQUIRE(*arr[3].ptr == 7);
         REQUIRE(*arr[4].ptr == 8);
+    }
+    SECTION("Insert a value from after the position, with room to spare")
+    {
+        // No reallocation here, but opening the gap shifts the very element the value names.
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(8);
+        arr.PushBack(OwnedCopy(1));
+        arr.PushBack(OwnedCopy(2));
+        arr.PushBack(OwnedCopy(3));
+        arr.Insert(arr.cbegin(), arr[2]);
+        REQUIRE(arr.GetSize() == 4);
+        REQUIRE(*arr[0].ptr == 3);
+        REQUIRE(*arr[1].ptr == 1);
+        REQUIRE(*arr[2].ptr == 2);
+        REQUIRE(*arr[3].ptr == 3);
+    }
+    SECTION("Insert several copies of a value from after the position, with room to spare")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(8);
+        arr.PushBack(OwnedCopy(1));
+        arr.PushBack(OwnedCopy(2));
+        arr.PushBack(OwnedCopy(3));
+        arr.Insert(arr.cbegin(), 2, arr[2]);
+        REQUIRE(arr.GetSize() == 5);
+        REQUIRE(*arr[0].ptr == 3);
+        REQUIRE(*arr[1].ptr == 3);
+        REQUIRE(*arr[2].ptr == 1);
+        REQUIRE(*arr[4].ptr == 3);
+    }
+    SECTION("Assign from an element of the array")
+    {
+        DynamicArray<NonPod> arr;
+        arr.PushBack(NonPod(1));
+        arr.PushBack(NonPod(2));
+        arr.Assign(4, arr[1]);
+        REQUIRE(arr.GetSize() == 4);
+        REQUIRE(*arr[0].ptr == 2);
+        REQUIRE(*arr[3].ptr == 2);
+    }
+    SECTION("Resize from an element of the array")
+    {
+        DynamicArray<NonPod> arr;
+        arr.PushBack(NonPod(1));
+        arr.PushBack(NonPod(2));
+        REQUIRE(arr.GetCapacity() == 2);
+        arr.Resize(5, arr[0]);
+        REQUIRE(arr.GetSize() == 5);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 2);
+        REQUIRE(*arr[2].ptr == 1);
+        REQUIRE(*arr[4].ptr == 1);
+    }
+}
+
+// A source range that reads out of the array being changed cannot survive its elements being
+// shifted or released, so those cases build the result somewhere else first.
+TEST_CASE("Inserting and assigning a range of the array into itself", "[Array]")
+{
+    SECTION("Insert a subrange at the front, at the capacity boundary")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(3);
+        arr.PushBack(OwnedCopy(1));
+        arr.PushBack(OwnedCopy(2));
+        arr.PushBack(OwnedCopy(3));
+        REQUIRE(arr.GetCapacity() == 3);
+        arr.Insert(arr.cbegin(), arr.cbegin() + 1, arr.cbegin() + 3);
+        REQUIRE(arr.GetSize() == 5);
+        REQUIRE(*arr[0].ptr == 2);
+        REQUIRE(*arr[1].ptr == 3);
+        REQUIRE(*arr[2].ptr == 1);
+        REQUIRE(*arr[3].ptr == 2);
+        REQUIRE(*arr[4].ptr == 3);
+    }
+    SECTION("Insert a subrange from after the position, with room to spare")
+    {
+        // No reallocation, so the shift is what would clobber the source.
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(16);
+        arr.PushBack(OwnedCopy(1));
+        arr.PushBack(OwnedCopy(2));
+        arr.PushBack(OwnedCopy(3));
+        arr.Insert(arr.cbegin(), arr.cbegin() + 1, arr.cbegin() + 3);
+        REQUIRE(arr.GetSize() == 5);
+        REQUIRE(*arr[0].ptr == 2);
+        REQUIRE(*arr[1].ptr == 3);
+        REQUIRE(*arr[2].ptr == 1);
+        REQUIRE(*arr[3].ptr == 2);
+        REQUIRE(*arr[4].ptr == 3);
+    }
+    SECTION("Insert a subrange from before the position")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(16);
+        arr.PushBack(OwnedCopy(1));
+        arr.PushBack(OwnedCopy(2));
+        arr.PushBack(OwnedCopy(3));
+        arr.Insert(arr.cend(), arr.cbegin(), arr.cbegin() + 2);
+        REQUIRE(arr.GetSize() == 5);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[2].ptr == 3);
+        REQUIRE(*arr[3].ptr == 1);
+        REQUIRE(*arr[4].ptr == 2);
+    }
+    SECTION("Assign from a subrange of the array")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(4);
+        arr.PushBack(OwnedCopy(1));
+        arr.PushBack(OwnedCopy(2));
+        arr.PushBack(OwnedCopy(3));
+        REQUIRE(arr.Assign(arr.cbegin() + 1, arr.cbegin() + 3) == ErrorCode::Success);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 2);
+        REQUIRE(*arr[1].ptr == 3);
+    }
+    SECTION("Assign from the whole array")
+    {
+        DynamicArray<OwnedCopy> arr;
+        arr.Reserve(4);
+        arr.PushBack(OwnedCopy(1));
+        arr.PushBack(OwnedCopy(2));
+        REQUIRE(arr.Assign(arr.cbegin(), arr.cend()) == ErrorCode::Success);
+        REQUIRE(arr.GetSize() == 2);
+        REQUIRE(*arr[0].ptr == 1);
+        REQUIRE(*arr[1].ptr == 2);
     }
 }
 
