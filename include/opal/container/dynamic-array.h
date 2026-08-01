@@ -17,6 +17,9 @@
 namespace Opal
 {
 
+template <typename MyArray>
+class DynamicArrayConstIterator;
+
 /*************************************************************************************************/
 /** Iterator API *********************************************************************************/
 /*************************************************************************************************/
@@ -56,6 +59,8 @@ public:
     pointer operator->() const;
 
 private:
+    friend class DynamicArrayConstIterator<MyArray>;
+
     pointer m_ptr = nullptr;
 };
 
@@ -72,11 +77,15 @@ class DynamicArrayConstIterator
 public:
     using value_type = typename MyArray::value_type;
     using difference_type = typename MyArray::difference_type;
-    using reference = typename MyArray::reference;
-    using pointer = typename MyArray::pointer;
+    using reference = typename MyArray::const_reference;
+    using pointer = typename MyArray::const_pointer;
 
     DynamicArrayConstIterator() = default;
     explicit DynamicArrayConstIterator(pointer ptr) : m_ptr(ptr) {}
+
+    // A mutable iterator converts to a const one, the way it does for the standard containers, so
+    // methods that only read through the position take a single const_iterator parameter.
+    DynamicArrayConstIterator(const DynamicArrayIterator<MyArray>& other) : m_ptr(other.m_ptr) {}
 
     bool operator==(const DynamicArrayConstIterator& other) const { return m_ptr == other.m_ptr; }
     bool operator>(const DynamicArrayConstIterator& other) const;
@@ -377,7 +386,6 @@ public:
      * @return Iterator pointing to the element following the erased element. Returns @ref end() if @p position is out of bounds.
      */
     iterator Erase(const_iterator position);
-    iterator Erase(iterator position);
 
     /**
      * Erase the element at the specified position by swapping it with the last element. Does not deallocate memory.
@@ -385,7 +393,6 @@ public:
      * @return Iterator pointing to the new element at the @pos position, or @ref end() if @p position is out of bounds.
      */
     iterator EraseWithSwap(const_iterator position);
-    iterator EraseWithSwap(iterator position);
 
     /**
      * Erase elements in the range [start, end). Does not deallocate memory.
@@ -395,7 +402,6 @@ public:
      * ErrorCode::OutOfBounds if start or end are out of bounds.
      */
     Expected<iterator, ErrorCode> Erase(const_iterator start_it, const_iterator end_it);
-    Expected<iterator, ErrorCode> Erase(iterator start_it, iterator end_it);
 
     /**
      * Remove an element in the array matching the value argument. Do nothing if element is not in the array. The order of the elements
@@ -1252,29 +1258,6 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Erase(const_iterator position)
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::iterator CLASS_HEADER::Erase(iterator position)
-{
-    if (position < begin() || position >= end())
-    {
-        return end();
-    }
-    difference_type pos_offset = position - begin();
-    iterator mut_position = begin() + pos_offset;
-    // Shift the tail down onto live elements first, then destroy the vacated last slot.
-    // Destroying up front and assigning into the destroyed slot would run the element's
-    // assignment on an object whose lifetime has ended, which for an owning type (a
-    // ScopePtr, say) frees a pointer that was already freed.
-    while (mut_position < end() - 1)
-    {
-        *mut_position = Move(*(mut_position + 1));
-        ++mut_position;
-    }
-    (*(end() - 1)).~T();  // Invokes destructor on allocated memory
-    m_size--;
-    return begin() + pos_offset;
-}
-
-TEMPLATE_HEADER
 typename CLASS_HEADER::iterator CLASS_HEADER::EraseWithSwap(DynamicArray::const_iterator position)
 {
     if (position < cbegin() || position >= cend())
@@ -1282,28 +1265,6 @@ typename CLASS_HEADER::iterator CLASS_HEADER::EraseWithSwap(DynamicArray::const_
         return end();
     }
     iterator mut_position = begin() + (position - cbegin());
-    // As in Erase: overwrite the element with the last one while both are alive, and destroy
-    // the slot the last one vacated.
-    if (mut_position != end() - 1)
-    {
-        *mut_position = Move(*(end() - 1));
-        (*(end() - 1)).~T();  // Invokes destructor on allocated memory
-        m_size--;
-        return mut_position;
-    }
-    (*mut_position).~T();  // Invokes destructor on allocated memory
-    m_size--;
-    return end();
-}
-
-TEMPLATE_HEADER
-typename CLASS_HEADER::iterator CLASS_HEADER::EraseWithSwap(iterator position)
-{
-    if (position < begin() || position >= end())
-    {
-        return end();
-    }
-    iterator mut_position = begin() + (position - begin());
     // As in Erase: overwrite the element with the last one while both are alive, and destroy
     // the slot the last one vacated.
     if (mut_position != end() - 1)
@@ -1336,44 +1297,6 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     }
     const difference_type start_offset = start_it - cbegin();
     const difference_type end_offset = end_it - cbegin();
-    // Shift the survivors down over the erased range while every element is still alive, then
-    // destroy the slots left vacated at the back. Destroying first and assigning into the
-    // destroyed slots would run the element's assignment after its lifetime ended, which for
-    // an owning type frees an already-freed pointer.
-    iterator mut_start = begin() + start_offset;
-    iterator mut_end = begin() + end_offset;
-    while (mut_end < end())
-    {
-        *mut_start = Move(*mut_end);
-        ++mut_start;
-        ++mut_end;
-    }
-    for (iterator it = mut_start; it < end(); ++it)
-    {
-        (*it).~T();  // Invokes destructor on allocated memory
-    }
-    m_size += Narrow<size_type>(start_offset - end_offset);
-    using ReturnType = Expected<iterator, ErrorCode>;
-    return ReturnType{begin() + start_offset};
-}
-
-TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(iterator start_it, iterator end_it)
-{
-    if (start_it > end_it)
-    {
-        return Expected<iterator, ErrorCode>(ErrorCode::InvalidArgument);
-    }
-    if (start_it < begin() || end_it > end())
-    {
-        return Expected<iterator, ErrorCode>(ErrorCode::OutOfBounds);
-    }
-    if (start_it == end_it)
-    {
-        return Expected<iterator, ErrorCode>(begin() + (start_it - begin()));
-    }
-    const difference_type start_offset = start_it - begin();
-    const difference_type end_offset = end_it - begin();
     // Shift the survivors down over the erased range while every element is still alive, then
     // destroy the slots left vacated at the back. Destroying first and assigning into the
     // destroyed slots would run the element's assignment after its lifetime ended, which for

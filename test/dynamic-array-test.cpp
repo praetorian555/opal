@@ -148,6 +148,12 @@ struct ClonableCopy
 };
 static_assert(!IsPOD<ClonableCopy>);
 
+// Reading through a const iterator must not hand back something writable, whether the array it
+// came from is const or not.
+static_assert(k_is_same_value<decltype(*DynamicArray<i32>().cbegin()), const i32&>);
+static_assert(k_is_same_value<decltype(DynamicArray<i32>().cbegin().operator->()), const i32*>);
+static_assert(k_is_same_value<decltype(*DynamicArray<i32>().begin()), i32&>);
+
 // Passes the first `allowed` allocations through and reports failure for every one after that by
 // returning null, which is how malloc reports it.
 struct BudgetedAllocator final : public AllocatorBase

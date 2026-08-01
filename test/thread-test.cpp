@@ -164,7 +164,7 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
         },
         Ref(queue), Ref(data));
 
-    const DynamicArray<Data> data_for_init = data.Clone();
+    DynamicArray<Data> data_for_init = data.Clone();
     for (Data& value : data_for_init)
     {
         queue.Push(Move(value));
