@@ -177,6 +177,12 @@ public:
     DynamicArray(const T* data, size_type count, allocator_type* allocator = nullptr);
 
     /**
+     * The array does not copy. Use @ref Clone for a deep copy, or move it.
+     */
+    DynamicArray(const DynamicArray& other) = delete;
+    DynamicArray& operator=(const DynamicArray& other) = delete;
+
+    /**
      * Move constructor.
      * @param other Source array.
      */
@@ -318,6 +324,14 @@ public:
      * @throw OutOfMemoryException when allocator runs out of memory.
      */
     void Reserve(size_type new_capacity);
+
+    /**
+     * Give up any capacity beyond the current size. Releases the storage outright when the array is
+     * empty. Does nothing when there is no spare room. Invalidates every iterator, pointer and
+     * reference into the array when it moves the elements.
+     * @throw OutOfMemoryException when allocator runs out of memory.
+     */
+    void ShrinkToFit();
 
     /**
      * Change the size of the array to `new_size`. If `new_size` is greater than current size, new elements are default constructed.
@@ -553,6 +567,11 @@ private:
     // repeated appends do not degrade into one allocation per call.
     void ReserveForAppend(size_type count);
 
+    // Move every element into fresh storage of `new_capacity` taken from `allocator`, destroy what
+    // is left behind, release the old buffer and adopt the allocator. `new_capacity` has to be at
+    // least the current size; zero releases the storage outright.
+    void Rehome(allocator_type* allocator, size_type new_capacity);
+
     static constexpr f64 k_resize_factor = 1.5;
 
     allocator_type* m_allocator = nullptr;
@@ -772,38 +791,7 @@ void CLASS_HEADER::SetAllocator(allocator_type* allocator)
     {
         return;
     }
-    if (m_size == 0)
-    {
-        Deallocate(m_data);
-        m_data = nullptr;
-        m_capacity = 0;
-        m_allocator = allocator;
-        return;
-    }
-    const size_type bytes_to_allocate = m_size * sizeof(T);
-    T* new_data = static_cast<T*>(allocator->Alloc(bytes_to_allocate, alignof(T)));
-    if (new_data == nullptr) [[unlikely]]
-    {
-        throw OutOfMemoryException(allocator->GetName(), bytes_to_allocate);
-    }
-    if constexpr (IsPOD<T>)
-    {
-        memcpy(new_data, m_data, m_size * sizeof(T));
-    }
-    else
-    {
-        // A moved-from element is still a live object, so it is owed a destructor before its
-        // storage goes back to the allocator.
-        for (size_type i = 0; i < m_size; i++)
-        {
-            new (&new_data[i]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
-            m_data[i].~T();                         // Invokes destructor on allocated memory
-        }
-    }
-    Deallocate(m_data);
-    m_data = new_data;
-    m_capacity = m_size;
-    m_allocator = allocator;
+    Rehome(allocator, m_size);
 }
 
 TEMPLATE_HEADER
@@ -1016,27 +1004,17 @@ void CLASS_HEADER::Reserve(DynamicArray::size_type new_capacity)
     {
         return;
     }
-    T* new_data = Allocate(new_capacity);
-    if constexpr (IsPOD<T>)
+    Rehome(m_allocator, new_capacity);
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::ShrinkToFit()
+{
+    if (m_capacity == m_size)
     {
-        if (m_size > 0)
-        {
-            memcpy(new_data, m_data, sizeof(T) * m_size);
-        }
+        return;
     }
-    else
-    {
-        // A moved-from element is still a live object, so it is owed a destructor before its
-        // storage goes back to the allocator.
-        for (size_type i = 0; i < m_size; i++)
-        {
-            new (&new_data[i]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
-            m_data[i].~T();                         // Invokes destructor on allocated memory
-        }
-    }
-    Deallocate(m_data);
-    m_data = new_data;
-    m_capacity = new_capacity;
+    Rehome(m_allocator, m_size);
 }
 
 TEMPLATE_HEADER
@@ -1264,6 +1242,47 @@ bool CLASS_HEADER::ValueReadsOwnStorage(const T& value) const
     }
     const u64 address = reinterpret_cast<u64>(&value);
     return address >= reinterpret_cast<u64>(m_data) && address < reinterpret_cast<u64>(m_data + m_capacity);
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::Rehome(allocator_type* allocator, size_type new_capacity)
+{
+    OPAL_ASSERT(new_capacity >= m_size, "New storage has to hold what the array already has");
+    if (new_capacity == 0)
+    {
+        Deallocate(m_data);
+        m_data = nullptr;
+        m_capacity = 0;
+        m_allocator = allocator;
+        return;
+    }
+    const size_type bytes_to_allocate = new_capacity * sizeof(T);
+    T* new_data = static_cast<T*>(allocator->Alloc(bytes_to_allocate, alignof(T)));
+    if (new_data == nullptr) [[unlikely]]
+    {
+        throw OutOfMemoryException(allocator->GetName(), bytes_to_allocate);
+    }
+    if constexpr (IsPOD<T>)
+    {
+        if (m_size > 0)
+        {
+            memcpy(new_data, m_data, m_size * sizeof(T));
+        }
+    }
+    else
+    {
+        // A moved-from element is still a live object, so it is owed a destructor before its
+        // storage goes back to the allocator.
+        for (size_type i = 0; i < m_size; i++)
+        {
+            new (&new_data[i]) T(Move(m_data[i]));  // Invokes move constructor on allocated memory
+            m_data[i].~T();                         // Invokes destructor on allocated memory
+        }
+    }
+    Deallocate(m_data);
+    m_data = new_data;
+    m_capacity = new_capacity;
+    m_allocator = allocator;
 }
 
 TEMPLATE_HEADER

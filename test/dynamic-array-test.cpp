@@ -935,6 +935,111 @@ TEST_CASE("Is empty", "[Array]")
     }
 }
 
+// The array clones instead of copying, and says so rather than letting the copy operations be
+// deleted as a side effect of declaring the move ones.
+static_assert(!CopyConstructable<DynamicArray<i32>>);
+static_assert(!CopyAssignable<DynamicArray<i32>>);
+static_assert(MoveConstructable<DynamicArray<i32>>);
+static_assert(MoveAssignable<DynamicArray<i32>>);
+
+TEST_CASE("Shrink to fit", "[Array]")
+{
+    SECTION("Gives up the spare room")
+    {
+        DynamicArray<i32> int_arr;
+        int_arr.Reserve(16);
+        int_arr.PushBack(1);
+        int_arr.PushBack(2);
+        REQUIRE(int_arr.GetCapacity() == 16);
+        int_arr.ShrinkToFit();
+        REQUIRE(int_arr.GetCapacity() == 2);
+        REQUIRE(int_arr.GetSize() == 2);
+        REQUIRE(int_arr[0] == 1);
+        REQUIRE(int_arr[1] == 2);
+    }
+    SECTION("An array with no spare room is left alone")
+    {
+        DynamicArray<i32> int_arr(3, 42);
+        const i32* data_before = int_arr.GetData();
+        REQUIRE(int_arr.GetCapacity() == 3);
+        int_arr.ShrinkToFit();
+        REQUIRE(int_arr.GetData() == data_before);
+        REQUIRE(int_arr.GetCapacity() == 3);
+    }
+    SECTION("An emptied array releases its storage outright")
+    {
+        DynamicArray<i32> int_arr(8, 42);
+        int_arr.Clear();
+        int_arr.ShrinkToFit();
+        REQUIRE(int_arr.GetCapacity() == 0);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetData() == nullptr);
+        // Still usable afterwards.
+        int_arr.PushBack(7);
+        REQUIRE(int_arr.GetSize() == 1);
+        REQUIRE(int_arr[0] == 7);
+    }
+    SECTION("Non-POD elements carry over and the originals are destroyed")
+    {
+        g_live_count = 0;
+        {
+            DynamicArray<CountedLive> arr;
+            arr.Reserve(16);
+            arr.PushBack(CountedLive(1));
+            arr.PushBack(CountedLive(2));
+            arr.ShrinkToFit();
+            REQUIRE(g_live_count == 2);
+            REQUIRE(arr.GetCapacity() == 2);
+            REQUIRE(arr[0].value == 1);
+            REQUIRE(arr[1].value == 2);
+        }
+        REQUIRE(g_live_count == 0);
+    }
+}
+
+TEST_CASE("Swap two arrays", "[Array]")
+{
+    // Opal::Swap already picks its move-based overload for DynamicArray, so the array needs no
+    // Swap of its own. This pins that, and that it stays a handful of pointer moves.
+    SECTION("Exchanges contents, capacity and allocator")
+    {
+        MallocAllocator allocator;
+        DynamicArray<i32> left(&allocator);
+        left.Reserve(8);
+        left.PushBack(1);
+        DynamicArray<i32> right;
+        right.PushBack(2);
+        right.PushBack(3);
+
+        Swap(left, right);
+
+        REQUIRE(left.GetSize() == 2);
+        REQUIRE(left[0] == 2);
+        REQUIRE(left[1] == 3);
+        REQUIRE(left.GetAllocator() == GetDefaultAllocator());
+        REQUIRE(right.GetSize() == 1);
+        REQUIRE(right[0] == 1);
+        REQUIRE(right.GetCapacity() == 8);
+        REQUIRE(right.GetAllocator() == &allocator);
+    }
+    SECTION("Does not touch the elements themselves")
+    {
+        g_live_count = 0;
+        {
+            DynamicArray<CountedLive> left;
+            left.PushBack(CountedLive(1));
+            DynamicArray<CountedLive> right;
+            right.PushBack(CountedLive(2));
+            const i32 live_before = g_live_count;
+            Swap(left, right);
+            REQUIRE(g_live_count == live_before);
+            REQUIRE(left[0].value == 2);
+            REQUIRE(right[0].value == 1);
+        }
+        REQUIRE(g_live_count == 0);
+    }
+}
+
 TEST_CASE("Set allocator", "[Array]")
 {
     SECTION("An array always has an allocator")
