@@ -753,6 +753,18 @@ TEST_CASE("Access element with At", "[Array]")
         REQUIRE(int_arr.At(2) == 42);
         REQUIRE_THROWS_AS(int_arr.At(3), OutOfBoundsException);
     }
+    SECTION("Empty array reports being empty rather than a wrapped upper bound")
+    {
+        DynamicArray<i32> int_arr;
+        REQUIRE_THROWS_WITH(int_arr.At(0), Catch::Matchers::ContainsSubstring("empty"));
+        const DynamicArray<i32> const_int_arr;
+        REQUIRE_THROWS_WITH(const_int_arr.At(0), Catch::Matchers::ContainsSubstring("empty"));
+    }
+    SECTION("Out of bounds names the range the array actually has")
+    {
+        DynamicArray<i32> int_arr(3, 42);
+        REQUIRE_THROWS_WITH(int_arr.At(7), Catch::Matchers::ContainsSubstring("[0, 2]"));
+    }
     SECTION("Non-POD data")
     {
         g_value_call_count = 0;
@@ -2202,6 +2214,19 @@ TEST_CASE("Insert", "[Array]")
             REQUIRE(int_arr[0] == 42);
             REQUIRE(int_arr[1] == 42);
             REQUIRE(int_arr[2] == 42);
+        }
+        SECTION("Bad position names the range every overload actually accepts")
+        {
+            // A position may be anywhere from cbegin() to cend() inclusive, so on three elements
+            // the reported range is [0, 3]. Every overload used to report a different one.
+            DynamicArray<i32> int_arr(3, 42);
+            DynamicArray<i32> other(2, 5);
+            const i32 val = 25;
+            REQUIRE_THROWS_WITH(int_arr.Insert(int_arr.cend() + 1, val), Catch::Matchers::ContainsSubstring("[0, 3]"));
+            REQUIRE_THROWS_WITH(int_arr.Insert(int_arr.cend() + 1, 25), Catch::Matchers::ContainsSubstring("[0, 3]"));
+            REQUIRE_THROWS_WITH(int_arr.Insert(int_arr.cend() + 1, 2, val), Catch::Matchers::ContainsSubstring("[0, 3]"));
+            REQUIRE_THROWS_WITH(int_arr.Insert(int_arr.cend() + 1, other.cbegin(), other.cend()),
+                                Catch::Matchers::ContainsSubstring("[0, 3]"));
         }
         SECTION("Bad other iterator")
         {

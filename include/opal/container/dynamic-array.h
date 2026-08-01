@@ -816,7 +816,11 @@ typename CLASS_HEADER::reference CLASS_HEADER::At(size_type index)
 {
     if (index >= m_size) [[unlikely]]
     {
-        throw OutOfBoundsException(index, 0, m_size - 1);
+        if (m_size == 0)
+        {
+            throw OutOfBoundsException("The array is empty!");
+        }
+        throw OutOfBoundsException(index, u64{0}, m_size - 1);
     }
     return m_data[index];
 }
@@ -826,7 +830,11 @@ typename CLASS_HEADER::const_reference CLASS_HEADER::At(size_type index) const
 {
     if (index >= m_size) [[unlikely]]
     {
-        throw OutOfBoundsException(index, 0, m_size - 1);
+        if (m_size == 0)
+        {
+            throw OutOfBoundsException("The array is empty!");
+        }
+        throw OutOfBoundsException(index, u64{0}, m_size - 1);
     }
     return m_data[index];
 }
@@ -963,7 +971,6 @@ void CLASS_HEADER::Resize(DynamicArray::size_type new_size, const T& default_val
         }
         m_size = new_size;
     }
-    return;
 }
 
 TEMPLATE_HEADER
@@ -1135,7 +1142,7 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, co
 {
     if (position < cbegin() || position > cend()) [[unlikely]]
     {
-        throw OutOfBoundsException(position - cbegin(), 0, cend() - cbegin() + 1);
+        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
     }
     difference_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
@@ -1154,7 +1161,7 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(DynamicArray::const_iterato
 {
     if (position < cbegin() || position > cend()) [[unlikely]]
     {
-        throw OutOfBoundsException(position - cbegin(), 0, cend() - cbegin() + 1);
+        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
     }
     difference_type pos_offset = position - cbegin();
     if (m_size == m_capacity)
@@ -1171,7 +1178,7 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, si
 {
     if (position < cbegin() || position > cend()) [[unlikely]]
     {
-        throw OutOfBoundsException(position - cbegin(), 0, cend() - cbegin() - 1);
+        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
     }
     if (count == 0)
     {
@@ -1196,7 +1203,7 @@ typename CLASS_HEADER::iterator CLASS_HEADER::Insert(const_iterator position, In
 {
     if (position < cbegin() || position > cend()) [[unlikely]]
     {
-        throw OutOfBoundsException(position - cbegin(), 0, cend() - cbegin() - 1);
+        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
     }
     if (start_it > end_it)
     {
@@ -1313,7 +1320,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     {
         (*it).~T();  // Invokes destructor on allocated memory
     }
-    m_size += Narrow<size_type>(start_offset - end_offset);
+    m_size -= Narrow<size_type>(end_offset - start_offset);
     using ReturnType = Expected<iterator, ErrorCode>;
     return ReturnType{begin() + start_offset};
 }
@@ -1378,7 +1385,7 @@ typename CLASS_HEADER::size_type CLASS_HEADER::GetNextCapacity(size_type current
     {
         return 1;
     }
-    return static_cast<size_type>((Narrow<f64>(m_capacity) * k_resize_factor) + 1.0);
+    return static_cast<size_type>((Narrow<f64>(current_capacity) * k_resize_factor) + 1.0);
 }
 
 #undef TEMPLATE_HEADER
