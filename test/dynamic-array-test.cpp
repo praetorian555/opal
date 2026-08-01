@@ -1,3 +1,6 @@
+#include <algorithm>
+#include <iterator>
+
 #include "opal/container/string.h"
 #include "opal/defines.h"
 
@@ -941,6 +944,62 @@ static_assert(!CopyConstructable<DynamicArray<i32>>);
 static_assert(!CopyAssignable<DynamicArray<i32>>);
 static_assert(MoveConstructable<DynamicArray<i32>>);
 static_assert(MoveAssignable<DynamicArray<i32>>);
+
+// The iterators carry no iterator_category of their own. C++20 lets std::iterator_traits work that
+// out from what they can do, which is why the standard algorithms accept them, but it means the
+// guarantee rests on every one of those operations staying put: drop operator--, or make
+// difference_type unsigned, and the category quietly degrades or disappears. These pin it.
+static_assert(std::random_access_iterator<DynamicArray<i32>::iterator>);
+static_assert(std::random_access_iterator<DynamicArray<i32>::const_iterator>);
+static_assert(std::random_access_iterator<DynamicArray<i32>::reverse_iterator>);
+static_assert(std::random_access_iterator<DynamicArray<i32>::const_reverse_iterator>);
+static_assert(std::is_same_v<std::iterator_traits<DynamicArray<i32>::iterator>::iterator_category, std::random_access_iterator_tag>);
+static_assert(
+    std::is_same_v<std::iterator_traits<DynamicArray<i32>::const_iterator>::iterator_category, std::random_access_iterator_tag>);
+static_assert(std::is_same_v<std::iterator_traits<DynamicArray<i32>::iterator>::value_type, i32>);
+static_assert(std::is_same_v<std::iterator_traits<DynamicArray<i32>::iterator>::difference_type, i64>);
+
+// A non-POD element type has to work the same way.
+static_assert(std::random_access_iterator<DynamicArray<OwnedCopy>::iterator>);
+static_assert(std::random_access_iterator<DynamicArray<OwnedCopy>::const_reverse_iterator>);
+
+TEST_CASE("Standard algorithms over the iterators", "[Array]")
+{
+    SECTION("Sorting through the forward iterators")
+    {
+        DynamicArray<i32> int_arr{5, 1, 4, 2, 3};
+        std::sort(int_arr.begin(), int_arr.end());
+        REQUIRE(int_arr[0] == 1);
+        REQUIRE(int_arr[1] == 2);
+        REQUIRE(int_arr[4] == 5);
+    }
+    SECTION("Sorting through the reverse iterators puts it the other way round")
+    {
+        DynamicArray<i32> int_arr{5, 1, 4, 2, 3};
+        std::sort(int_arr.rbegin(), int_arr.rend());
+        REQUIRE(int_arr[0] == 5);
+        REQUIRE(int_arr[4] == 1);
+    }
+    SECTION("Reading algorithms take the const iterators")
+    {
+        const DynamicArray<i32> int_arr{5, 1, 4, 2, 3};
+        REQUIRE(std::find(int_arr.cbegin(), int_arr.cend(), 4) == int_arr.cbegin() + 2);
+        REQUIRE(std::count(int_arr.cbegin(), int_arr.cend(), 2) == 1);
+        REQUIRE(*std::max_element(int_arr.cbegin(), int_arr.cend()) == 5);
+        REQUIRE(*std::min_element(int_arr.crbegin(), int_arr.crend()) == 1);
+    }
+    SECTION("Random access is what it claims, not a forward walk")
+    {
+        // binary_search only gives its log n behaviour on a genuine random access iterator, and
+        // reverse would not compile at all without operator-- and the ordering operators.
+        DynamicArray<i32> int_arr{1, 2, 3, 4, 5, 6, 7, 8};
+        REQUIRE(std::binary_search(int_arr.begin(), int_arr.end(), 6));
+        REQUIRE(!std::binary_search(int_arr.begin(), int_arr.end(), 9));
+        std::reverse(int_arr.begin(), int_arr.end());
+        REQUIRE(int_arr[0] == 8);
+        REQUIRE(int_arr[7] == 1);
+    }
+}
 
 TEST_CASE("Reverse iterator", "[Array]")
 {
