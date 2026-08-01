@@ -942,6 +942,105 @@ static_assert(!CopyAssignable<DynamicArray<i32>>);
 static_assert(MoveConstructable<DynamicArray<i32>>);
 static_assert(MoveAssignable<DynamicArray<i32>>);
 
+TEST_CASE("Find and Contains", "[Array]")
+{
+    SECTION("Finds the first match")
+    {
+        DynamicArray<i32> int_arr{5, 7, 9, 7};
+        REQUIRE(int_arr.Find(7) == int_arr.begin() + 1);
+        REQUIRE(int_arr.Find(5) == int_arr.begin());
+        REQUIRE(int_arr.Find(9) == int_arr.begin() + 2);
+    }
+    SECTION("Reports no match as the end")
+    {
+        DynamicArray<i32> int_arr{5, 7, 9};
+        REQUIRE(int_arr.Find(4) == int_arr.end());
+        DynamicArray<i32> empty_arr;
+        REQUIRE(empty_arr.Find(4) == empty_arr.end());
+    }
+    SECTION("Reads through a const array")
+    {
+        const DynamicArray<i32> int_arr{5, 7, 9};
+        REQUIRE(int_arr.Find(7) == int_arr.cbegin() + 1);
+        REQUIRE(int_arr.Find(4) == int_arr.cend());
+        REQUIRE(int_arr.Contains(7));
+        REQUIRE(!int_arr.Contains(4));
+    }
+    SECTION("Contains answers for an empty array")
+    {
+        DynamicArray<i32> int_arr;
+        REQUIRE(!int_arr.Contains(0));
+    }
+    SECTION("FindIf takes a predicate")
+    {
+        DynamicArray<i32> int_arr{5, 7, 9, 12};
+        auto is_even = [](const i32& value) { return value % 2 == 0; };
+        REQUIRE(int_arr.FindIf(is_even) == int_arr.begin() + 3);
+        auto is_negative = [](const i32& value) { return value < 0; };
+        REQUIRE(int_arr.FindIf(is_negative) == int_arr.end());
+    }
+    SECTION("The iterator found is a live one")
+    {
+        DynamicArray<i32> int_arr{5, 7, 9};
+        *int_arr.Find(7) = 8;
+        REQUIRE(int_arr[1] == 8);
+    }
+}
+
+TEST_CASE("Remove if", "[Array]")
+{
+    SECTION("Removes every match and keeps the order")
+    {
+        DynamicArray<i32> int_arr{1, 2, 3, 4, 5, 6};
+        const u64 removed = int_arr.RemoveIf([](const i32& value) { return value % 2 == 0; });
+        REQUIRE(removed == 3);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr[0] == 1);
+        REQUIRE(int_arr[1] == 3);
+        REQUIRE(int_arr[2] == 5);
+    }
+    SECTION("Removing nothing leaves the array alone")
+    {
+        DynamicArray<i32> int_arr{1, 3, 5};
+        REQUIRE(int_arr.RemoveIf([](const i32& value) { return value % 2 == 0; }) == 0);
+        REQUIRE(int_arr.GetSize() == 3);
+        REQUIRE(int_arr[0] == 1);
+        REQUIRE(int_arr[2] == 5);
+    }
+    SECTION("Removing everything empties it without giving up the memory")
+    {
+        DynamicArray<i32> int_arr{1, 2, 3};
+        REQUIRE(int_arr.RemoveIf([](const i32&) { return true; }) == 3);
+        REQUIRE(int_arr.GetSize() == 0);
+        REQUIRE(int_arr.GetCapacity() == 3);
+    }
+    SECTION("Removing from the front and the back")
+    {
+        DynamicArray<i32> int_arr{1, 2, 3, 4};
+        REQUIRE(int_arr.RemoveIf([](const i32& value) { return value == 1 || value == 4; }) == 2);
+        REQUIRE(int_arr.GetSize() == 2);
+        REQUIRE(int_arr[0] == 2);
+        REQUIRE(int_arr[1] == 3);
+    }
+    SECTION("Owning elements are destroyed exactly once")
+    {
+        g_live_count = 0;
+        {
+            DynamicArray<CountedLive> arr;
+            arr.Reserve(4);
+            arr.PushBack(CountedLive(1));
+            arr.PushBack(CountedLive(2));
+            arr.PushBack(CountedLive(3));
+            arr.PushBack(CountedLive(4));
+            REQUIRE(arr.RemoveIf([](const CountedLive& element) { return element.value % 2 == 0; }) == 2);
+            REQUIRE(g_live_count == 2);
+            REQUIRE(arr[0].value == 1);
+            REQUIRE(arr[1].value == 3);
+        }
+        REQUIRE(g_live_count == 0);
+    }
+}
+
 TEST_CASE("Shrink to fit", "[Array]")
 {
     SECTION("Gives up the spare room")

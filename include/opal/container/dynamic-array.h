@@ -469,6 +469,42 @@ public:
     Expected<iterator, ErrorCode> Erase(const_iterator start_it, const_iterator end_it);
 
     /**
+     * Find the first element equal to `value`.
+     * @param value Value to look for. Uses equality operator of the type T.
+     * @return Iterator to the first match, or @ref end() when nothing matches.
+     */
+    iterator Find(const T& value);
+    const_iterator Find(const T& value) const;
+
+    /**
+     * Find the first element the predicate accepts.
+     * @tparam Predicate Callable taking a `const T&` and returning bool.
+     * @param predicate Test to apply to each element in order.
+     * @return Iterator to the first match, or @ref end() when nothing matches.
+     */
+    template <typename Predicate>
+    iterator FindIf(Predicate predicate);
+    template <typename Predicate>
+    const_iterator FindIf(Predicate predicate) const;
+
+    /**
+     * Check whether any element equals `value`.
+     * @param value Value to look for. Uses equality operator of the type T.
+     * @return True when at least one element matches.
+     */
+    bool Contains(const T& value) const;
+
+    /**
+     * Remove every element the predicate accepts. The order of the remaining elements stays the
+     * same. Does not deallocate memory.
+     * @tparam Predicate Callable taking a `const T&` and returning bool.
+     * @param predicate Test to apply to each element.
+     * @return How many elements were removed.
+     */
+    template <typename Predicate>
+    size_type RemoveIf(Predicate predicate);
+
+    /**
      * Remove the first element matching the value argument. Do nothing if no element matches. Later
      * matches are left in place. The order of the elements stays the same.
      * @param value Value to find. Uses equality operator of the type T.
@@ -1570,6 +1606,83 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
     m_size -= Narrow<size_type>(end_offset - start_offset);
     using ReturnType = Expected<iterator, ErrorCode>;
     return ReturnType{begin() + start_offset};
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::iterator CLASS_HEADER::Find(const T& value)
+{
+    return FindIf([&value](const T& element) { return element == value; });
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::const_iterator CLASS_HEADER::Find(const T& value) const
+{
+    return FindIf([&value](const T& element) { return element == value; });
+}
+
+TEMPLATE_HEADER
+template <typename Predicate>
+typename CLASS_HEADER::iterator CLASS_HEADER::FindIf(Predicate predicate)
+{
+    for (size_type i = 0; i < m_size; i++)
+    {
+        if (predicate(m_data[i]))
+        {
+            return begin() + Narrow<difference_type>(i);
+        }
+    }
+    return end();
+}
+
+TEMPLATE_HEADER
+template <typename Predicate>
+typename CLASS_HEADER::const_iterator CLASS_HEADER::FindIf(Predicate predicate) const
+{
+    for (size_type i = 0; i < m_size; i++)
+    {
+        if (predicate(m_data[i]))
+        {
+            return cbegin() + Narrow<difference_type>(i);
+        }
+    }
+    return cend();
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::Contains(const T& value) const
+{
+    return Find(value) != cend();
+}
+
+TEMPLATE_HEADER
+template <typename Predicate>
+typename CLASS_HEADER::size_type CLASS_HEADER::RemoveIf(Predicate predicate)
+{
+    // Shift the survivors down over the removed ones while every element is still alive, then
+    // destroy the slots left vacated at the back, as the range Erase does.
+    size_type kept = 0;
+    for (size_type i = 0; i < m_size; i++)
+    {
+        if (predicate(m_data[i]))
+        {
+            continue;
+        }
+        if (kept != i)
+        {
+            m_data[kept] = Move(m_data[i]);
+        }
+        kept++;
+    }
+    const size_type removed = m_size - kept;
+    if constexpr (!IsPOD<T>)
+    {
+        for (size_type i = kept; i < m_size; i++)
+        {
+            m_data[i].~T();  // Invokes destructor on allocated memory
+        }
+    }
+    m_size = kept;
+    return removed;
 }
 
 TEMPLATE_HEADER
