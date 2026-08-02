@@ -122,11 +122,8 @@ struct InvalidArgumentException : Exception
 
 struct OutOfMemoryException : Exception
 {
-    OutOfMemoryException(const char* allocator_name, i64 size)
-        : Exception(StringEx("Out of memory in allocator ") + allocator_name + " trying to allocate " + size + " bytes.")
-    {
-    }
-
+    // Deliberately the only size overload. An allocation size is never negative, and offering a signed one as well made every size_t
+    // argument ambiguous on platforms where size_t is neither i64 nor u64, which is every 64 bit platform other than Windows.
     OutOfMemoryException(const char* allocator_name, u64 size)
         : Exception(StringEx("Out of memory in allocator ") + allocator_name + " trying to allocate " + static_cast<i64>(size) + " bytes.")
     {
