@@ -100,6 +100,47 @@ TEST_CASE("Hash set move assignment", "[hash-set]")
     REQUIRE(!set.Contains(10));
 }
 
+TEST_CASE("Hash set self move assignment", "[hash-set]")
+{
+    HashSet<StringUtf8> set(4);
+    set.Insert("Hello");
+    set.Insert("World");
+
+    HashSet<StringUtf8>& alias = set;
+    set = Move(alias);
+
+    REQUIRE(set.GetSize() == 2);
+    REQUIRE(set.Contains("Hello"));
+    REQUIRE(set.Contains("World"));
+}
+
+TEST_CASE("Hash set use after move", "[hash-set]")
+{
+    HashSet<StringUtf8> set(4);
+    set.Insert("Hello");
+    const HashSet<StringUtf8> moved(Move(set));
+
+    SECTION("Queries on a moved from set are well defined")
+    {
+        REQUIRE(set.GetSize() == 0);
+        REQUIRE(set.GetCapacity() == 0);
+        REQUIRE(!set.Contains("Hello"));
+        REQUIRE(set.Find("Hello") == set.end());
+        REQUIRE(set.begin() == set.end());
+        REQUIRE(set.ToArray().GetSize() == 0);
+        set.Clear();
+        REQUIRE(set.GetSize() == 0);
+    }
+    SECTION("A moved from set can be filled again")
+    {
+        REQUIRE(set.Insert("Again") == ErrorCode::Success);
+        REQUIRE(set.GetSize() == 1);
+        REQUIRE(set.Contains("Again"));
+        // The set must not come back as a degenerate table that cannot hold a key.
+        REQUIRE(set.GetCapacity() >= HashSet<StringUtf8>::k_default_capacity);
+    }
+}
+
 TEST_CASE("Hash set automatic growth", "[hash-set]")
 {
     HashSet<i32> set(120);

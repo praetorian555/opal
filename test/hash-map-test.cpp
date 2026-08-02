@@ -83,6 +83,48 @@ TEST_CASE("Create a hash map", "[HashMap]")
     }
 }
 
+TEST_CASE("Hash map self move assignment", "[HashMap]")
+{
+    HashMap<StringUtf8, StringUtf8> map(4);
+    map.Insert("Hello", "World");
+    map.Insert("name", "Marko");
+
+    HashMap<StringUtf8, StringUtf8>& alias = map;
+    map = Move(alias);
+
+    REQUIRE(map.GetSize() == 2);
+    REQUIRE(map.Contains("Hello"));
+    REQUIRE(map.GetValue("Hello") == "World");
+    REQUIRE(map.Contains("name"));
+    REQUIRE(map.GetValue("name") == "Marko");
+}
+
+TEST_CASE("Hash map use after move", "[HashMap]")
+{
+    HashMap<StringUtf8, StringUtf8> map(4);
+    map.Insert("Hello", "World");
+    const HashMap<StringUtf8, StringUtf8> moved(Move(map));
+
+    SECTION("Queries on a moved from map are well defined")
+    {
+        REQUIRE(map.GetSize() == 0);
+        REQUIRE(map.GetCapacity() == 0);
+        REQUIRE(!map.Contains("Hello"));
+        REQUIRE(map.Find("Hello") == map.end());
+        REQUIRE(map.begin() == map.end());
+        map.Clear();
+        REQUIRE(map.GetSize() == 0);
+    }
+    SECTION("A moved from map can be filled again")
+    {
+        map.Insert("Again", "Value");
+        REQUIRE(map.GetSize() == 1);
+        REQUIRE(map.GetValue("Again") == "Value");
+        // The map must not come back as a degenerate table that cannot hold a pair.
+        REQUIRE(map.GetCapacity() >= (HashMap<StringUtf8, StringUtf8>::k_default_capacity));
+    }
+}
+
 TEST_CASE("Hash map insert", "[HashMap]")
 {
     HashMap<i32, i32> map(5);

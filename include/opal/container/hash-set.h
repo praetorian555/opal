@@ -190,6 +190,7 @@ private:
     void OccupySlot(const key_type& key, u64 index) requires IsPOD<KeyType>;
     void OccupySlot(key_type&& key, u64 index);
     void DeleteSlot(u64 index);
+    void DestroyAllKeys();
 
     AllocatorBase* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
@@ -205,7 +206,7 @@ template <typename KeyType>
 Opal::HashSet<KeyType>::HashSet(size_type capacity, AllocatorBase* allocator)
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
-    Reserve(capacity < k_default_capacity ? k_default_capacity : capacity);
+    Reserve(capacity);
 }
 
 template <typename KeyType>
@@ -222,13 +223,19 @@ Opal::HashSet<KeyType>::HashSet(HashSet&& other) noexcept
     other.m_capacity = 0;
     other.m_size = 0;
     other.m_growth_left = 0;
-    other.Reserve(4);
 }
 
 template <typename KeyType>
 Opal::HashSet<KeyType>& Opal::HashSet<KeyType>::operator=(HashSet&& other) noexcept
 {
+    if (this == &other)
+    {
+        return *this;
+    }
+
+    DestroyAllKeys();
     m_allocator->Free(m_control_bytes);
+
     m_allocator = other.m_allocator;
     m_control_bytes = other.m_control_bytes;
     m_slots = other.m_slots;
@@ -241,7 +248,6 @@ Opal::HashSet<KeyType>& Opal::HashSet<KeyType>::operator=(HashSet&& other) noexc
     other.m_growth_left = 0;
     other.m_size = 0;
     other.m_capacity = 0;
-    other.Reserve(4);
 
     return *this;
 }
@@ -249,17 +255,30 @@ Opal::HashSet<KeyType>& Opal::HashSet<KeyType>::operator=(HashSet&& other) noexc
 template <typename KeyType>
 Opal::HashSet<KeyType>::~HashSet()
 {
-    for (key_type& key : *this)
-    {
-        key.~key_type();
-    }
+    DestroyAllKeys();
     m_allocator->Free(m_control_bytes);
+}
+
+template <typename KeyType>
+void Opal::HashSet<KeyType>::DestroyAllKeys()
+{
+    if (m_control_bytes == nullptr)
+    {
+        return;
+    }
+    for (u64 i = 0; i < m_capacity; ++i)
+    {
+        if (IsControlFull(m_control_bytes[i]))
+        {
+            m_slots[i].~key_type();
+        }
+    }
 }
 
 template <typename KeyType>
 Opal::ErrorCode Opal::HashSet<KeyType>::Reserve(size_type capacity)
 {
-    u64 new_capacity = GetNextPowerOf2MinusOne(capacity);
+    u64 new_capacity = GetNextPowerOf2MinusOne(capacity < k_default_capacity ? k_default_capacity : capacity);
     u64 new_size = 0;
     // Since we are storing control bytes and the keys in the same memory block we need to make sure
     // that keys start at the address that is aligned with their size.
@@ -327,6 +346,10 @@ Opal::HashSet<KeyType> Opal::HashSet<KeyType>::Clone(AllocatorBase* allocator) c
 template <typename KeyType>
 bool Opal::HashSet<KeyType>::FindIndex(const key_type& key, u64& out_index) const
 {
+    if (m_control_bytes == nullptr)
+    {
+        return false;
+    }
     u64 hash = CalculateHash(key);
     u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
     while (true)
@@ -565,10 +588,11 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Erase(const_iterator first, const_iterat
 template <typename KeyType>
 void Opal::HashSet<KeyType>::Clear()
 {
-    for (auto it = begin(); it != end(); ++it)
+    if (m_control_bytes == nullptr)
     {
-        (*it).~key_type();
+        return;
     }
+    DestroyAllKeys();
     memset(m_control_bytes, k_control_bitmask_empty, m_capacity + k_group_width);
     m_control_bytes[m_capacity] = k_control_bitmask_sentinel;
     m_growth_left = m_capacity;
@@ -626,6 +650,10 @@ void Opal::HashSet<KeyType>::SetControlByte(u64 index, i8 hash2, i8* control_byt
 template <typename KeyType>
 Opal::HashSet<KeyType>::iterator Opal::HashSet<KeyType>::FindFirstIterator()
 {
+    if (m_control_bytes == nullptr)
+    {
+        return iterator(this, ~u64{});
+    }
     u64 index = 0;
     while (m_control_bytes[index] != k_control_bitmask_sentinel)
     {
@@ -641,6 +669,10 @@ Opal::HashSet<KeyType>::iterator Opal::HashSet<KeyType>::FindFirstIterator()
 template <typename KeyType>
 Opal::HashSet<KeyType>::const_iterator Opal::HashSet<KeyType>::FindFirstIterator() const
 {
+    if (m_control_bytes == nullptr)
+    {
+        return const_iterator(this, ~u64{});
+    }
     u64 index = 0;
     while (m_control_bytes[index] != k_control_bitmask_sentinel)
     {
@@ -656,7 +688,7 @@ Opal::HashSet<KeyType>::const_iterator Opal::HashSet<KeyType>::FindFirstIterator
 template <typename KeyType>
 Opal::HashSet<KeyType>::iterator Opal::HashSet<KeyType>::FindNextIterator(iterator pos)
 {
-    if (pos == end())
+    if (pos == end() || m_control_bytes == nullptr)
     {
         return end();
     }
@@ -676,7 +708,7 @@ template <typename KeyType>
 Opal::HashSet<KeyType>::const_iterator Opal::HashSet<KeyType>::FindNextIterator(
     HashSet::const_iterator pos) const
 {
-    if (pos == cend())
+    if (pos == cend() || m_control_bytes == nullptr)
     {
         return cend();
     }

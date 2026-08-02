@@ -243,6 +243,7 @@ private:
     void OccupySlot(key_type&& key, const value_type& value, u64 index)
         requires IsPOD<value_type>;
     void DeleteSlot(u64 index);
+    void DestroyAllPairs();
 
     AllocatorBase* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
@@ -306,7 +307,7 @@ template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::HashMap(size_type capacity, AllocatorBase* allocator)
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
-    Reserve(capacity < k_default_capacity ? k_default_capacity : capacity);
+    Reserve(capacity);
 }
 
 template <typename KeyType, typename ValueType>
@@ -345,13 +346,19 @@ Opal::HashMap<KeyType, ValueType>::HashMap(HashMap&& other) noexcept
     other.m_capacity = 0;
     other.m_size = 0;
     other.m_growth_left = 0;
-    other.Reserve(4);
 }
 
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>& Opal::HashMap<KeyType, ValueType>::operator=(HashMap&& other) noexcept
 {
+    if (this == &other)
+    {
+        return *this;
+    }
+
+    DestroyAllPairs();
     m_allocator->Free(m_control_bytes);
+
     m_allocator = other.m_allocator;
     m_control_bytes = other.m_control_bytes;
     m_slots = other.m_slots;
@@ -364,7 +371,6 @@ Opal::HashMap<KeyType, ValueType>& Opal::HashMap<KeyType, ValueType>::operator=(
     other.m_growth_left = 0;
     other.m_size = 0;
     other.m_capacity = 0;
-    other.Reserve(4);
 
     return *this;
 }
@@ -372,12 +378,25 @@ Opal::HashMap<KeyType, ValueType>& Opal::HashMap<KeyType, ValueType>::operator=(
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::~HashMap()
 {
-    for (const auto& pair : *this)
-    {
-        pair.key.~KeyType();
-        pair.value.~ValueType();
-    }
+    DestroyAllPairs();
     m_allocator->Free(m_control_bytes);
+}
+
+template <typename KeyType, typename ValueType>
+void Opal::HashMap<KeyType, ValueType>::DestroyAllPairs()
+{
+    if (m_control_bytes == nullptr)
+    {
+        return;
+    }
+    for (u64 i = 0; i < m_capacity; ++i)
+    {
+        if (IsControlFull(m_control_bytes[i]))
+        {
+            m_slots[i].key.~KeyType();
+            m_slots[i].value.~ValueType();
+        }
+    }
 }
 
 template <typename KeyType, typename ValueType>
@@ -394,7 +413,7 @@ Opal::HashMap<KeyType, ValueType> Opal::HashMap<KeyType, ValueType>::Clone() con
 template <typename KeyType, typename ValueType>
 void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
 {
-    const u64 new_capacity = GetNextPowerOf2MinusOne(capacity);
+    const u64 new_capacity = GetNextPowerOf2MinusOne(capacity < k_default_capacity ? k_default_capacity : capacity);
     u64 new_size = 0;
     // Since we are storing control bytes and the keys in the same memory block we need to make sure
     // that keys start at the address that is aligned with their size.
@@ -450,6 +469,10 @@ void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
 template <typename KeyType, typename ValueType>
 bool Opal::HashMap<KeyType, ValueType>::FindIndex(const key_type& key, u64& out_index) const
 {
+    if (m_control_bytes == nullptr)
+    {
+        return false;
+    }
     const u64 hash = CalculateHash(key);
     u64 offset = GetHash1(hash, m_control_bytes) & m_capacity;
     while (true)
@@ -715,11 +738,11 @@ void Opal::HashMap<KeyType, ValueType>::Erase(const_iterator it)
 template <typename KeyType, typename ValueType>
 void Opal::HashMap<KeyType, ValueType>::Clear()
 {
-    for (auto it = begin(); it != end(); ++it)
+    if (m_control_bytes == nullptr)
     {
-        it.GetKey().~key_type();
-        it.GetValue().~value_type();
+        return;
     }
+    DestroyAllPairs();
     memset(m_control_bytes, k_control_bitmask_empty, m_capacity + k_group_width);
     m_control_bytes[m_capacity] = k_control_bitmask_sentinel;
     m_growth_left = m_capacity;
@@ -779,6 +802,10 @@ Opal::DynamicArray<ValueType> Opal::HashMap<KeyType, ValueType>::ToArrayOfValues
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::iterator Opal::HashMap<KeyType, ValueType>::FindFirstIterator()
 {
+    if (m_control_bytes == nullptr)
+    {
+        return iterator(this, ~u64{});
+    }
     u64 index = 0;
     while (m_control_bytes[index] != k_control_bitmask_sentinel)
     {
@@ -794,6 +821,10 @@ Opal::HashMap<KeyType, ValueType>::iterator Opal::HashMap<KeyType, ValueType>::F
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::const_iterator Opal::HashMap<KeyType, ValueType>::FindFirstIterator() const
 {
+    if (m_control_bytes == nullptr)
+    {
+        return const_iterator(this, ~u64{});
+    }
     u64 index = 0;
     while (m_control_bytes[index] != k_control_bitmask_sentinel)
     {
@@ -809,7 +840,7 @@ Opal::HashMap<KeyType, ValueType>::const_iterator Opal::HashMap<KeyType, ValueTy
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::iterator Opal::HashMap<KeyType, ValueType>::FindNextIterator(HashMap::iterator pos)
 {
-    if (pos == end())
+    if (pos == end() || m_control_bytes == nullptr)
     {
         return end();
     }
@@ -828,7 +859,7 @@ Opal::HashMap<KeyType, ValueType>::iterator Opal::HashMap<KeyType, ValueType>::F
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::const_iterator Opal::HashMap<KeyType, ValueType>::FindNextIterator(HashMap::const_iterator pos) const
 {
-    if (pos == cend())
+    if (pos == cend() || m_control_bytes == nullptr)
     {
         return cend();
     }
