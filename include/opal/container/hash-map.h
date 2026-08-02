@@ -170,6 +170,8 @@ public:
     [[nodiscard]] u64 GetSize() const { return m_size; }
     [[nodiscard]] u64 GetCapacity() const { return m_capacity; }
     [[nodiscard]] u64 GetGrowthLeft() const { return m_growth_left; }
+    [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
+    [[nodiscard]] bool empty() const { return m_size == 0; }
 
     iterator Find(const key_type& key);
     const_iterator Find(const key_type& key) const;
@@ -189,6 +191,8 @@ public:
     void Erase(const key_type& key);
     void Erase(iterator it);
     void Erase(const_iterator it);
+    void Erase(iterator first, iterator last);
+    void Erase(const_iterator first, const_iterator last);
 
     void Clear();
 
@@ -755,6 +759,40 @@ void Opal::HashMap<KeyType, ValueType>::Erase(const_iterator it)
     if (IsControlFull(m_control_bytes[index]))
     {
         DeleteSlot(index);
+    }
+}
+
+template <typename KeyType, typename ValueType>
+void Opal::HashMap<KeyType, ValueType>::Erase(iterator first, iterator last)
+{
+    if (first < begin() || first > end() || last < first || last > end())
+    {
+        return;
+    }
+    for (auto it = first; it != last; ++it)
+    {
+        const u64 index = it.GetIndex();
+        if (IsControlFull(m_control_bytes[index]))
+        {
+            DeleteSlot(index);
+        }
+    }
+}
+
+template <typename KeyType, typename ValueType>
+void Opal::HashMap<KeyType, ValueType>::Erase(const_iterator first, const_iterator last)
+{
+    if (first < cbegin() || first > cend() || last < first || last > cend())
+    {
+        return;
+    }
+    for (auto it = first; it != last; ++it)
+    {
+        const u64 index = it.GetIndex();
+        if (IsControlFull(m_control_bytes[index]))
+        {
+            DeleteSlot(index);
+        }
     }
 }
 

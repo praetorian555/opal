@@ -224,6 +224,24 @@ struct alignas(64) CacheLineAligned
 OPAL_END_DISABLE_WARNINGS
 }  // namespace
 
+TEST_CASE("Hash set emptiness", "[hash-set]")
+{
+    HashSet<i32> set;
+    REQUIRE(set.IsEmpty());
+    REQUIRE(set.empty());
+
+    set.Insert(5);
+    REQUIRE(!set.IsEmpty());
+    REQUIRE(!set.empty());
+
+    set.Erase(5);
+    REQUIRE(set.IsEmpty());
+
+    set.Insert(5);
+    set.Clear();
+    REQUIRE(set.IsEmpty());
+}
+
 TEST_CASE("Hash set with keys aligned more strictly than the block", "[hash-set]")
 {
     static_assert(IsPOD<CacheLineAligned>, "alignas must not cost the type its POD hasher");

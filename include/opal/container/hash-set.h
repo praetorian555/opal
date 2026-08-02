@@ -129,7 +129,9 @@ public:
 
     explicit HashSet(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
 
+    HashSet(const HashSet& other) = delete;
     HashSet(HashSet&& other) noexcept;
+    HashSet& operator=(const HashSet& other) = delete;
     HashSet& operator=(HashSet&& other) noexcept;
 
     ErrorCode Reserve(size_type capacity);
@@ -141,6 +143,8 @@ public:
     [[nodiscard]] u64 GetSize() const { return m_size; }
     [[nodiscard]] u64 GetCapacity() const { return m_capacity; }
     [[nodiscard]] u64 GetGrowthLeft() const { return m_growth_left; }
+    [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
+    [[nodiscard]] bool empty() const { return m_size == 0; }
 
     iterator Find(const key_type& key);
     const_iterator Find(const key_type& key) const;
@@ -166,6 +170,10 @@ public:
     const_iterator end() const { return const_iterator{this, ~u64{}}; }
     const_iterator cend() const { return const_iterator{this, ~u64{}}; }
 
+private:
+    friend class HashSetIterator<HashSet>;
+    friend class HashSetConstIterator<HashSet>;
+
     iterator FindFirstIterator();
     const_iterator FindFirstIterator() const;
 
@@ -175,7 +183,6 @@ public:
     key_type& GetKey(u64 index);
     const key_type& GetKey(u64 index) const;
 
-private:
     static u64 GetNextPowerOf2MinusOne(u64 value);
     [[nodiscard]] static bool IsControlFull(i8 control) { return control >= 0; }
     static u64 CalculateHash(const key_type& key) { Hasher<key_type> hasher; return hasher(key); }

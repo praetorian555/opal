@@ -154,6 +154,63 @@ struct alignas(64) CacheLineAligned
 OPAL_END_DISABLE_WARNINGS
 }  // namespace
 
+TEST_CASE("Hash map emptiness", "[HashMap]")
+{
+    HashMap<i32, i32> map;
+    REQUIRE(map.IsEmpty());
+    REQUIRE(map.empty());
+
+    map.Insert(5, 10);
+    REQUIRE(!map.IsEmpty());
+    REQUIRE(!map.empty());
+
+    map.Erase(5);
+    REQUIRE(map.IsEmpty());
+
+    map.Insert(5, 10);
+    map.Clear();
+    REQUIRE(map.IsEmpty());
+}
+
+TEST_CASE("Hash map erase by range", "[HashMap]")
+{
+    SECTION("Erasing the whole range empties the map")
+    {
+        HashMap<i32, i32> map;
+        map.Insert(1, 10);
+        map.Insert(2, 20);
+        map.Insert(3, 30);
+
+        map.Erase(map.begin(), map.end());
+        REQUIRE(map.IsEmpty());
+        REQUIRE(!map.Contains(1));
+        REQUIRE(!map.Contains(2));
+        REQUIRE(!map.Contains(3));
+
+        // Erasing an already empty range is not an error.
+        map.Erase(map.begin(), map.end());
+        REQUIRE(map.IsEmpty());
+    }
+    SECTION("An inverted range leaves the map alone")
+    {
+        HashMap<i32, i32> map;
+        map.Insert(1, 10);
+        map.Insert(2, 20);
+
+        map.Erase(map.end(), map.begin());
+        REQUIRE(map.GetSize() == 2);
+    }
+    SECTION("Through const iterators")
+    {
+        HashMap<i32, i32> map;
+        map.Insert(1, 10);
+        map.Insert(2, 20);
+
+        map.Erase(map.cbegin(), map.cend());
+        REQUIRE(map.IsEmpty());
+    }
+}
+
 TEST_CASE("Hash map with pairs aligned more strictly than the block", "[HashMap]")
 {
     static_assert(IsPOD<CacheLineAligned>, "alignas must not cost the type its POD hasher");
