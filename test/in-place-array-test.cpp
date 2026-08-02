@@ -103,16 +103,38 @@ TEST_CASE("Comparison", "[InPlaceArray][Comparison]")
 TEST_CASE("At", "[InPlaceArray]")
 {
     InPlaceArray<int32_t, 3> array = {1, 2, 3};
-    REQUIRE(array.At(0).GetValue() == 1);
-    REQUIRE(array.At(1).GetValue() == 2);
-    REQUIRE(array.At(2).GetValue() == 3);
-    REQUIRE(array.At(3).GetError() == ErrorCode::OutOfBounds);
+    REQUIRE(array.At(0) == 1);
+    REQUIRE(array.At(1) == 2);
+    REQUIRE(array.At(2) == 3);
 
     const InPlaceArray<int32_t, 3> const_array = {1, 2, 3};
-    REQUIRE(const_array.At(0).GetValue() == 1);
-    REQUIRE(const_array.At(1).GetValue() == 2);
-    REQUIRE(const_array.At(2).GetValue() == 3);
-    REQUIRE(const_array.At(3).GetError() == ErrorCode::OutOfBounds);
+    REQUIRE(const_array.At(0) == 1);
+    REQUIRE(const_array.At(1) == 2);
+    REQUIRE(const_array.At(2) == 3);
+}
+
+TEST_CASE("TryAt", "[InPlaceArray]")
+{
+    InPlaceArray<int32_t, 3> array = {1, 2, 3};
+    REQUIRE(array.TryAt(0).GetValue() == 1);
+    REQUIRE(array.TryAt(2).GetValue() == 3);
+    REQUIRE(array.TryAt(3).GetError() == ErrorCode::OutOfBounds);
+
+    const InPlaceArray<int32_t, 3> const_array = {1, 2, 3};
+    REQUIRE(const_array.TryAt(0).GetValue() == 1);
+    REQUIRE(const_array.TryAt(2).GetValue() == 3);
+    REQUIRE(const_array.TryAt(3).GetError() == ErrorCode::OutOfBounds);
+}
+
+TEST_CASE("Subscript is bounds checked", "[InPlaceArray]")
+{
+    InPlaceArray<int32_t, 3> array = {1, 2, 3};
+    REQUIRE(array[0] == 1);
+    REQUIRE_THROWS_AS(array[3], OutOfBoundsException);
+
+    const InPlaceArray<int32_t, 3> const_array = {1, 2, 3};
+    REQUIRE(const_array[2] == 3);
+    REQUIRE_THROWS_AS(const_array[3], OutOfBoundsException);
 }
 
 TEST_CASE("Front", "[InPlaceArray]")
@@ -546,10 +568,10 @@ TEST_CASE("Access with Clonable elements", "[InPlaceArray]")
     REQUIRE(array[1].name == "B");
     REQUIRE(array[2].name == "C");
 
-    REQUIRE(array.At(0).GetValue().name == "A");
-    REQUIRE(array.At(1).GetValue().name == "B");
-    REQUIRE(array.At(2).GetValue().name == "C");
-    REQUIRE(array.At(3).HasValue() == false);
+    REQUIRE(array.At(0).name == "A");
+    REQUIRE(array.At(1).name == "B");
+    REQUIRE(array.At(2).name == "C");
+    REQUIRE(array.TryAt(3).HasValue() == false);
 
     REQUIRE(array.Front().name == "A");
     REQUIRE(array.Back().name == "C");

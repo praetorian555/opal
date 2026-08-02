@@ -7,6 +7,7 @@
 #include "opal/common.h"
 #include "opal/container/expected.h"
 #include "opal/error-codes.h"
+#include "opal/exceptions.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -220,20 +221,29 @@ public:
     bool operator==(const InPlaceArray& other) const;
 
     /**
-     * Access an element of the array. If the index is out of bounds, an assertion is triggered in debug builds.
+     * Access an element of the array.
      * @param index The index of the element.
      * @return A reference to the element.
+     * @throw OutOfBoundsException when index is out of bounds.
      */
     T& operator[](size_type index);
     const T& operator[](size_type index) const;
 
     /**
-     * Access an element of the array.
+     * Access an element of the array. If the index is out of bounds, an assertion is triggered in debug builds.
+     * @param index The index of the element.
+     * @return A reference to the element.
+     */
+    T& At(size_type index);
+    const T& At(size_type index) const;
+
+    /**
+     * Access an element of the array without throwing.
      * @param index The index of the element.
      * @return A reference to the element if the index is in bounds, an ErrorCode::OutOfBounds otherwise.
      */
-    Expected<T&, ErrorCode> At(size_type index);
-    Expected<const T&, ErrorCode> At(size_type index) const;
+    Expected<T&, ErrorCode> TryAt(size_type index);
+    Expected<const T&, ErrorCode> TryAt(size_type index) const;
 
     /**
      * Get reference to the first element of the array.
@@ -334,19 +344,39 @@ bool Opal::InPlaceArray<T, N>::operator==(const InPlaceArray& other) const
 template <typename T, Opal::u64 N>
 T& Opal::InPlaceArray<T, N>::operator[](size_type index)
 {
-    OPAL_ASSERT(index < N, "Index out of bounds");
+    if (index >= N) [[unlikely]]
+    {
+        throw OutOfBoundsException(index, u64{0}, N - 1);
+    }
     return m_data[index];
 }
 
 template <typename T, Opal::u64 N>
 const T& Opal::InPlaceArray<T, N>::operator[](size_type index) const
 {
+    if (index >= N) [[unlikely]]
+    {
+        throw OutOfBoundsException(index, u64{0}, N - 1);
+    }
+    return m_data[index];
+}
+
+template <typename T, Opal::u64 N>
+T& Opal::InPlaceArray<T, N>::At(InPlaceArray::size_type index)
+{
     OPAL_ASSERT(index < N, "Index out of bounds");
     return m_data[index];
 }
 
 template <typename T, Opal::u64 N>
-Opal::Expected<T&, Opal::ErrorCode> Opal::InPlaceArray<T, N>::At(InPlaceArray::size_type index)
+const T& Opal::InPlaceArray<T, N>::At(InPlaceArray::size_type index) const
+{
+    OPAL_ASSERT(index < N, "Index out of bounds");
+    return m_data[index];
+}
+
+template <typename T, Opal::u64 N>
+Opal::Expected<T&, Opal::ErrorCode> Opal::InPlaceArray<T, N>::TryAt(InPlaceArray::size_type index)
 {
     if (index < N)
     {
@@ -356,7 +386,7 @@ Opal::Expected<T&, Opal::ErrorCode> Opal::InPlaceArray<T, N>::At(InPlaceArray::s
 }
 
 template <typename T, Opal::u64 N>
-Opal::Expected<const T&, Opal::ErrorCode> Opal::InPlaceArray<T, N>::At(InPlaceArray::size_type index) const
+Opal::Expected<const T&, Opal::ErrorCode> Opal::InPlaceArray<T, N>::TryAt(InPlaceArray::size_type index) const
 {
     if (index < N)
     {

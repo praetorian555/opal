@@ -135,7 +135,7 @@ struct BoundedFormatIterator
     {
         if (*m_size < m_buffer->GetSize())
         {
-            m_buffer->At(*m_size).GetValue() = static_cast<char8>(c);
+            m_buffer->At(*m_size) = static_cast<char8>(c);
             *m_size += 1;
         }
         return *this;
