@@ -410,17 +410,6 @@ void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
     new_control_bytes[new_capacity] = k_control_bitmask_sentinel;
     pair_type* new_slots = reinterpret_cast<pair_type*>(new_control_bytes + control_bytes_size);
 
-    // We have just allocated this memory, no need to trigger expansive constructors since
-    // new objects will be moved into this memory before use
-#ifdef OPAL_COMPILER_GCC
-    OPAL_START_DISABLE_WARNINGS
-    OPAL_DISABLE_WARNING("-Wclass-memaccess")
-#endif  // OPAL_COMPILER_GCC
-    memset(static_cast<void*>(new_slots), 0, new_capacity * sizeof(pair_type));
-#ifdef OPAL_COMPILER_GCC
-    OPAL_END_DISABLE_WARNINGS
-#endif  // OPAL_COMPILER_GCC
-
     if (m_capacity > 0)
     {
         for (pair_type& pair : *this)
@@ -435,12 +424,17 @@ void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
                     u64 slot_index = offset + not_full_mask.GetLowestSetBitIndex();
                     slot_index &= new_capacity;
                     SetControlByte(slot_index, GetHash2(hash), new_control_bytes, new_capacity);
-                    new_slots[slot_index] = std::move(pair);
+                    // Invokes move constructors on allocated memory
+                    new (&new_slots[slot_index].key) KeyType(Move(pair.key));
+                    new (&new_slots[slot_index].value) ValueType(Move(pair.value));
                     new_size++;
                     break;
                 }
                 offset = (offset + k_group_width) & new_capacity;
             }
+            // Invokes destructors on the slot we just moved out of
+            pair.key.~KeyType();
+            pair.value.~ValueType();
         }
     }
 

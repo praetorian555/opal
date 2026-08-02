@@ -275,17 +275,6 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Reserve(size_type capacity)
     new_control_bytes[new_capacity] = k_control_bitmask_sentinel;
     key_type* new_slots = reinterpret_cast<key_type*>(new_control_bytes + control_bytes_size);
 
-    // We have just allocated this memory, no need to trigger expansive constructors since
-    // new objects will be moved into this memory before use
-#if defined(OPAL_COMPILER_GCC)
-    OPAL_START_DISABLE_WARNINGS
-    OPAL_DISABLE_WARNING("-Wclass-memaccess")
-#endif // OPAL_COMPILER_GCC
-    memset(static_cast<void*>(new_slots), 0, new_capacity * sizeof(key_type));
-#if defined(OPAL_COMPILER_GCC)
-    OPAL_END_DISABLE_WARNINGS
-#endif // OPAL_COMPILER_GCC
-
     if (m_capacity > 0)
     {
         for (key_type& key : *this)
@@ -301,12 +290,13 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Reserve(size_type capacity)
                     u64 slot_index = offset + not_full_mask.GetLowestSetBitIndex();
                     slot_index &= new_capacity;
                     SetControlByte(slot_index, GetHash2(hash), new_control_bytes, new_capacity);
-                    new_slots[slot_index] = std::move(key);
+                    new (&new_slots[slot_index]) key_type(Move(key));  // Invokes move constructor on allocated memory
                     new_size++;
                     break;
                 }
                 offset = (offset + k_group_width) & new_capacity;
             }
+            key.~key_type();  // Invokes destructor on the slot we just moved out of
         }
     }
 
@@ -401,7 +391,7 @@ void Opal::HashSet<KeyType>::OccupySlot(const key_type& key, u64 index) requires
 {
     const u64 hash = CalculateHash(key);
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
-    m_slots[index] = key;
+    new (&m_slots[index]) key_type(key);  // Invokes copy constructor on allocated memory
     m_size++;
     m_growth_left--;
 }
@@ -411,7 +401,7 @@ void Opal::HashSet<KeyType>::OccupySlot(key_type&& key, u64 index)
 {
     const u64 hash = CalculateHash(key);
     SetControlByte(index, GetHash2(hash), m_control_bytes, m_capacity);
-    m_slots[index] = std::move(key);
+    new (&m_slots[index]) key_type(Move(key));  // Invokes move constructor on allocated memory
     m_size++;
     m_growth_left--;
 }
