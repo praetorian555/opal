@@ -141,6 +141,30 @@ TEST_CASE("Hash map insert", "[HashMap]")
     REQUIRE(map.GetValue(key) == value);
 }
 
+TEST_CASE("Hash map capacity survives insert and erase churn", "[HashMap]")
+{
+    constexpr i32 k_live_keys = 50;
+    HashMap<i32, i32> map;
+    for (i32 i = 0; i < k_live_keys; i++)
+    {
+        map.Insert(i, i * 2);
+    }
+
+    for (i32 i = k_live_keys; i < 10000; i++)
+    {
+        map.Insert(i, i * 2);
+        map.Erase(i - k_live_keys);
+    }
+
+    REQUIRE(map.GetSize() == k_live_keys);
+    // Capacity has to track the live pairs, not the number of insertions ever made.
+    REQUIRE(map.GetCapacity() < 1000);
+    for (i32 i = 10000 - k_live_keys; i < 10000; i++)
+    {
+        REQUIRE(map.GetValue(i) == i * 2);
+    }
+}
+
 TEST_CASE("Hash map erase", "[HashMap]")
 {
     SECTION("Erase with key and iterator")

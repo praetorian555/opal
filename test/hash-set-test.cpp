@@ -211,6 +211,49 @@ TEST_CASE("Hash set automatic growth", "[hash-set]")
     }
 }
 
+TEST_CASE("Hash set capacity survives insert and erase churn", "[hash-set]")
+{
+    SECTION("A set that never holds more than one key never grows")
+    {
+        HashSet<i32> set;
+        set.Insert(0);
+        REQUIRE(set.Erase(0) == ErrorCode::Success);
+        const u64 stable_capacity = set.GetCapacity();
+
+        for (i32 i = 1; i < 10000; i++)
+        {
+            REQUIRE(set.Insert(i) == ErrorCode::Success);
+            REQUIRE(set.Erase(i) == ErrorCode::Success);
+        }
+
+        REQUIRE(set.GetSize() == 0);
+        REQUIRE(set.GetCapacity() == stable_capacity);
+    }
+    SECTION("A set holding a steady population stays bounded")
+    {
+        constexpr i32 k_live_keys = 50;
+        HashSet<i32> set;
+        for (i32 i = 0; i < k_live_keys; i++)
+        {
+            set.Insert(i);
+        }
+
+        for (i32 i = k_live_keys; i < 10000; i++)
+        {
+            REQUIRE(set.Insert(i) == ErrorCode::Success);
+            REQUIRE(set.Erase(i - k_live_keys) == ErrorCode::Success);
+        }
+
+        REQUIRE(set.GetSize() == k_live_keys);
+        // Capacity has to track the live keys, not the number of insertions ever made.
+        REQUIRE(set.GetCapacity() < 1000);
+        for (i32 i = 10000 - k_live_keys; i < 10000; i++)
+        {
+            REQUIRE(set.Contains(i));
+        }
+    }
+}
+
 TEST_CASE("Hash set contains", "[hash-set]")
 {
     HashSet<i32> set(120);

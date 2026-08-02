@@ -191,6 +191,7 @@ private:
     void OccupySlot(key_type&& key, u64 index);
     void DeleteSlot(u64 index);
     void DestroyAllKeys();
+    ErrorCode Grow();
 
     AllocatorBase* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
@@ -331,6 +332,18 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Reserve(size_type capacity)
 }
 
 template <typename KeyType>
+Opal::ErrorCode Opal::HashSet<KeyType>::Grow()
+{
+    // Erasing a key frees a slot but not the growth budget, since the slot it leaves behind still has to be probed through. When those
+    // deleted slots, rather than live keys, are what filled the table, reallocate at the same capacity to drop them instead of growing.
+    if (m_size + 1 <= GetGrowthThreshold(m_capacity) / 2)
+    {
+        return Reserve(m_capacity);
+    }
+    return Reserve(m_capacity + 1);
+}
+
+template <typename KeyType>
 Opal::HashSet<KeyType> Opal::HashSet<KeyType>::Clone(AllocatorBase* allocator) const
 {
     allocator = allocator == nullptr ? m_allocator : allocator;
@@ -449,7 +462,7 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Insert(const key_type& key) requires IsP
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        const ErrorCode status = Reserve(m_capacity + 1);
+        const ErrorCode status = Grow();
         if (status != ErrorCode::Success)
         {
             return status;
@@ -475,7 +488,7 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Insert(key_type&& key)
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        const ErrorCode status = Reserve(m_capacity + 1);
+        const ErrorCode status = Grow();
         if (status != ErrorCode::Success)
         {
             return status;

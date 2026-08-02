@@ -244,6 +244,7 @@ private:
         requires IsPOD<value_type>;
     void DeleteSlot(u64 index);
     void DestroyAllPairs();
+    void Grow();
 
     AllocatorBase* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
@@ -468,6 +469,19 @@ void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
 }
 
 template <typename KeyType, typename ValueType>
+void Opal::HashMap<KeyType, ValueType>::Grow()
+{
+    // Erasing a pair frees a slot but not the growth budget, since the slot it leaves behind still has to be probed through. When those
+    // deleted slots, rather than live pairs, are what filled the table, reallocate at the same capacity to drop them instead of growing.
+    if (m_size + 1 <= GetGrowthThreshold(m_capacity) / 2)
+    {
+        Reserve(m_capacity);
+        return;
+    }
+    Reserve(m_capacity + 1);
+}
+
+template <typename KeyType, typename ValueType>
 bool Opal::HashMap<KeyType, ValueType>::FindIndex(const key_type& key, u64& out_index) const
 {
     if (m_control_bytes == nullptr)
@@ -624,7 +638,7 @@ void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, const value_
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Reserve(m_capacity + 1);
+        Grow();
 
         // We have to get the index again since we rehashed the table
         FindIndex(key, index);
@@ -646,7 +660,7 @@ void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, value_type&& valu
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Reserve(m_capacity + 1);
+        Grow();
         // We have to get the index again since we rehashed the table
         FindIndex(key, index);
     }
@@ -668,7 +682,7 @@ void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, value_type&&
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Reserve(m_capacity + 1);
+        Grow();
         // We have to get the index again since we rehashed the table
         FindIndex(key, index);
     }
@@ -690,7 +704,7 @@ void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, const value_type&
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Reserve(m_capacity + 1);
+        Grow();
         // We have to get the index again since we rehashed the table
         FindIndex(key, index);
     }
