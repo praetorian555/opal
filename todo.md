@@ -89,12 +89,15 @@ reproduced against a debug build.
 
 ## String missing API
 
-- [ ] `Clear`, `PopBack`, `ShrinkToFit`, `Replace`, `Contains`.
-- [ ] Relational operators or `operator<=>`. Only `operator==` exists, so strings cannot be sorted
+- [x] `Clear`, `PopBack`, `ShrinkToFit`, `Replace`, `Contains`.
+      `Replace` covers both a positional range and `ReplaceAll`/`ReplaceFirst` by sub-string.
+- [x] Relational operators or `operator<=>`. Only `operator==` exists, so strings cannot be sorted
       without calling `Compare`.
-- [ ] `operator==(const CodeUnitType*)`.
-- [ ] Reverse iterators, to match `DynamicArray`.
-- [ ] `std::initializer_list` constructor and assignment, to match `DynamicArray`.
-- [ ] A member `GetSubString`.
-- [ ] Explicitly `= delete` the copy constructor and copy assignment. They are already implicitly
+- [x] `operator==(const CodeUnitType*)`.
+- [x] Reverse iterators, to match `DynamicArray`.
+- [x] `std::initializer_list` constructor and assignment, to match `DynamicArray`.
+- [x] A member `GetSubString`.
+- [x] Explicitly `= delete` the copy constructor and copy assignment. They are already implicitly
       deleted by the move constructor, so this is only about following the convention in `CLAUDE.md`.
+
+- [ ] `StringView` has no relational operators either, so a view still cannot be sorted.

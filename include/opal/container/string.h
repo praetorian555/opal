@@ -514,6 +514,25 @@ public:
     Expected<iterator, ErrorCode> Replace(const_iterator first, const_iterator last, const String& other);
 
     /**
+     * Replace every occurrence of a sub-string. Scanning continues after the replacement, so a replacement that contains the needle does
+     * not feed back into the search.
+     * @param needle Sub-string to look for. An empty needle matches nothing.
+     * @param replacement String to put in place of each occurrence.
+     * @return How many occurrences were replaced.
+     * @throw OutOfMemoryException when there is no more memory.
+     */
+    size_type ReplaceAll(const String& needle, const String& replacement);
+
+    /**
+     * Replace the first occurrence of a sub-string.
+     * @param needle Sub-string to look for. An empty needle matches nothing.
+     * @param replacement String to put in place of the occurrence.
+     * @return True when an occurrence was found and replaced.
+     * @throw OutOfMemoryException when there is no more memory.
+     */
+    bool ReplaceFirst(const String& needle, const String& replacement);
+
+    /**
      * Get a sub-string of this string.
      * @param start_pos Position to start the sub-string from. May be equal to the size of the string, which yields an empty sub-string.
      * @param count Number of code units to include. If count is equal to k_npos, or reaches past the end, the rest of the string is used.
@@ -1933,6 +1952,58 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::R
     const size_type start_pos = Narrow<size_type>(first - ConstBegin());
     const size_type count = Narrow<size_type>(last - first);
     return Replace(start_pos, count, other);
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::size_type CLASS_HEADER::ReplaceAll(const String& needle, const String& replacement)
+{
+    if (needle.IsEmpty())
+    {
+        return 0;
+    }
+    if (&needle == this || &replacement == this)
+    {
+        const String needle_copy = needle.Clone(GetAllocatorPtr());
+        const String replacement_copy = replacement.Clone(GetAllocatorPtr());
+        return ReplaceAll(needle_copy, replacement_copy);
+    }
+    const size_type needle_size = needle.GetSize();
+    const size_type replacement_size = replacement.GetSize();
+    size_type replaced = 0;
+    size_type start_pos = 0;
+    while (true)
+    {
+        const size_type pos = Find(*this, needle, start_pos);
+        if (pos == k_npos)
+        {
+            return replaced;
+        }
+        Replace(pos, needle_size, replacement);
+        ++replaced;
+        start_pos = pos + replacement_size;
+    }
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::ReplaceFirst(const String& needle, const String& replacement)
+{
+    if (needle.IsEmpty())
+    {
+        return false;
+    }
+    if (&needle == this || &replacement == this)
+    {
+        const String needle_copy = needle.Clone(GetAllocatorPtr());
+        const String replacement_copy = replacement.Clone(GetAllocatorPtr());
+        return ReplaceFirst(needle_copy, replacement_copy);
+    }
+    const size_type pos = Find(*this, needle);
+    if (pos == k_npos)
+    {
+        return false;
+    }
+    Replace(pos, needle.GetSize(), replacement);
+    return true;
 }
 
 TEMPLATE_HEADER

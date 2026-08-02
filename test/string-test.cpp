@@ -4915,6 +4915,88 @@ TEST_CASE("Replace a range", "[String]")
     }
 }
 
+TEST_CASE("ReplaceAll and ReplaceFirst", "[String]")
+{
+    SECTION("Every occurrence")
+    {
+        StringUtf8 str("a,b,c");
+        REQUIRE(str.ReplaceAll(StringUtf8(","), StringUtf8(" - ")) == 2);
+        REQUIRE(str == "a - b - c");
+    }
+    SECTION("Shorter replacement")
+    {
+        StringUtf8 str("aXXbXXc");
+        REQUIRE(str.ReplaceAll(StringUtf8("XX"), StringUtf8("-")) == 2);
+        REQUIRE(str == "a-b-c");
+    }
+    SECTION("Replacement that erases")
+    {
+        StringUtf8 str("a b c");
+        REQUIRE(str.ReplaceAll(StringUtf8(" "), StringUtf8("")) == 2);
+        REQUIRE(str == "abc");
+    }
+    SECTION("Needle not found")
+    {
+        StringUtf8 str("abc");
+        REQUIRE(str.ReplaceAll(StringUtf8("x"), StringUtf8("y")) == 0);
+        REQUIRE(str == "abc");
+    }
+    SECTION("Empty needle matches nothing")
+    {
+        StringUtf8 str("abc");
+        REQUIRE(str.ReplaceAll(StringUtf8(""), StringUtf8("x")) == 0);
+        REQUIRE(str == "abc");
+    }
+    SECTION("A replacement containing the needle does not loop")
+    {
+        StringUtf8 str("aaa");
+        REQUIRE(str.ReplaceAll(StringUtf8("a"), StringUtf8("aa")) == 3);
+        REQUIRE(str == "aaaaaa");
+    }
+    SECTION("Overlapping candidates are consumed left to right")
+    {
+        StringUtf8 str("aaaa");
+        REQUIRE(str.ReplaceAll(StringUtf8("aa"), StringUtf8("b")) == 2);
+        REQUIRE(str == "bb");
+    }
+    SECTION("Occurrence at the end")
+    {
+        StringUtf8 str("abc,");
+        REQUIRE(str.ReplaceAll(StringUtf8(","), StringUtf8(";")) == 1);
+        REQUIRE(str == "abc;");
+    }
+    SECTION("Growing past the inline buffer")
+    {
+        StringUtf8 str("a.b.c.d");
+        REQUIRE(str.ReplaceAll(StringUtf8("."), StringUtf8(" and also ")) == 3);
+        REQUIRE(str == "a and also b and also c and also d");
+    }
+    SECTION("Replacing with the string itself")
+    {
+        StringUtf8 str("aXa");
+        REQUIRE(str.ReplaceAll(StringUtf8("X"), str) == 1);
+        REQUIRE(str == "aaXaa");
+    }
+    SECTION("First occurrence only")
+    {
+        StringUtf8 str("a,b,c");
+        REQUIRE(str.ReplaceFirst(StringUtf8(","), StringUtf8(";")));
+        REQUIRE(str == "a;b,c");
+    }
+    SECTION("First occurrence not found")
+    {
+        StringUtf8 str("abc");
+        REQUIRE(!str.ReplaceFirst(StringUtf8("x"), StringUtf8("y")));
+        REQUIRE(str == "abc");
+    }
+    SECTION("First with an empty needle")
+    {
+        StringUtf8 str("abc");
+        REQUIRE(!str.ReplaceFirst(StringUtf8(""), StringUtf8("x")));
+        REQUIRE(str == "abc");
+    }
+}
+
 TEST_CASE("Member GetSubString", "[String]")
 {
     SECTION("Start position and count")
