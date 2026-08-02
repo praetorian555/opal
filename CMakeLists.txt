@@ -103,6 +103,7 @@ set(OPAL_FILES
         include/opal/container/dynamic-array.h
         include/opal/container/in-place-array.h
         include/opal/container/priority-queue.h
+        include/opal/container/hash-table-base.h
         include/opal/container/hash-set.h
         include/opal/container/hash-map.h
         include/opal/container/scope-ptr.h
