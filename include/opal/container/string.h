@@ -974,7 +974,7 @@ bool EndsWith(const StringClass& str, const StringClass& suffix);
  * @param first String contents before the delimiter.
  * @param second String contents after the delimiter.
  * @return Returns true if delimiter is found and there are no errors extracting two parts of the string,
- * false otherwise.
+ * false otherwise. An empty delimiter never matches, in which case first receives the whole string.
  */
 template <StringLike StringClass>
 bool Split(const StringClass& str, const StringClass& delimiter, StringClass& first, StringClass& second);
@@ -987,7 +987,8 @@ bool Split(const StringClass& str, const StringClass& delimiter, StringClass& fi
  * @param delimiter Pattern to find for the split.
  * @param result Array of string parts after the splitting.
  * @return Returns true if delimiter is found at least once and there are no errors extracting two parts
- * of the string, false otherwise.
+ * of the string, false otherwise. An empty delimiter never matches, in which case result receives the
+ * whole string as a single part.
  */
 template <StringLike StringClass>
 bool SplitToArray(const StringClass& str, const StringClass& delimiter, DynamicArray<StringClass>& result);
@@ -2886,7 +2887,7 @@ bool Opal::EndsWith(const StringClass& str, const StringClass& suffix)
 template <Opal::StringLike StringClass>
 bool Opal::Split(const StringClass& str, const StringClass& delimiter, StringClass& first, StringClass& second)
 {
-    typename StringClass::size_type pos = Opal::Find(str, delimiter);
+    typename StringClass::size_type pos = delimiter.IsEmpty() ? StringClass::k_npos : Opal::Find(str, delimiter);
     if (pos == StringClass::k_npos)
     {
         first = str.Clone();
@@ -2898,7 +2899,7 @@ bool Opal::Split(const StringClass& str, const StringClass& delimiter, StringCla
         return false;
     }
     first = std::move(first_it.GetValue());
-    auto second_it = Opal::GetSubString(str, pos + 1, Opal::StringUtf8::k_npos);
+    auto second_it = Opal::GetSubString(str, pos + delimiter.GetSize(), StringClass::k_npos);
     if (!second_it.HasValue())
     {
         return false;
@@ -2913,10 +2914,10 @@ bool Opal::SplitToArray(const StringClass& str, const StringClass& delimiter, Dy
     typename StringClass::size_type start_pos = 0;
     while (true)
     {
-        typename StringClass::size_type pos = Find(str, delimiter, start_pos);
+        typename StringClass::size_type pos = delimiter.IsEmpty() ? StringClass::k_npos : Find(str, delimiter, start_pos);
         if (pos == StringClass::k_npos)
         {
-            auto it = GetSubString(str, start_pos, Opal::StringUtf8::k_npos);
+            auto it = GetSubString(str, start_pos, StringClass::k_npos);
             if (!it.HasValue())
             {
                 return false;
@@ -2930,7 +2931,7 @@ bool Opal::SplitToArray(const StringClass& str, const StringClass& delimiter, Dy
             return false;
         }
         result.PushBack(std::move(it.GetValue()));
-        start_pos = pos + 1;
+        start_pos = pos + delimiter.GetSize();
     }
 }
 

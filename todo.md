@@ -14,7 +14,7 @@ reproduced against a debug build.
       `GetSize() - 1` where the `StringClass` overload clamps to `GetSize()`, so a match ending on the
       last code unit is missed. `ReverseFind("abc", "bc")` returns `k_npos`, the `StringClass`
       overload returns 1.
-- [ ] `Split` and `SplitToArray` assume a one-code-unit delimiter (`string.h:2928`, `string.h:2960`).
+- [x] `Split` and `SplitToArray` assume a one-code-unit delimiter (`string.h:2928`, `string.h:2960`).
       Both advance by `pos + 1` instead of `pos + delimiter.GetSize()`.
       `Split("a::b", "::")` produces a second part of `":b"`.
 - [x] `GetSubString` rejects `start_pos == size` (`string.h:2855`), so `Split`/`SplitToArray` drop a

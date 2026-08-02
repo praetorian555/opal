@@ -3642,6 +3642,33 @@ TEST_CASE("Split", "[String]")
     REQUIRE(second == "");
     first = "";
     second = "";
+    REQUIRE(!Opal::Split<StringUtf8>(str, "", first, second));
+    REQUIRE(first == "Hello there");
+    REQUIRE(second == "");
+}
+
+TEST_CASE("Split on a multi code unit delimiter", "[String]")
+{
+    StringUtf8 first;
+    StringUtf8 second;
+    SECTION("Delimiter in the middle")
+    {
+        REQUIRE(Opal::Split<StringUtf8>("a::b", "::", first, second));
+        REQUIRE(first == "a");
+        REQUIRE(second == "b");
+    }
+    SECTION("Delimiter at the end")
+    {
+        REQUIRE(Opal::Split<StringUtf8>("a::", "::", first, second));
+        REQUIRE(first == "a");
+        REQUIRE(second == "");
+    }
+    SECTION("Only the first occurrence splits")
+    {
+        REQUIRE(Opal::Split<StringUtf8>("a::b::c", "::", first, second));
+        REQUIRE(first == "a");
+        REQUIRE(second == "b::c");
+    }
 }
 
 TEST_CASE("Reverse", "[String]")
@@ -4351,10 +4378,42 @@ TEST_CASE("SplitToArray", "[String]")
         const StringUtf8 str("Hello there ");
         const StringUtf8 delimiter(" ");
         DynamicArray<StringUtf8> result;
-        Opal::SplitToArray(str, delimiter, result);
-        REQUIRE(result.GetSize() >= 2);
+        REQUIRE(Opal::SplitToArray(str, delimiter, result));
+        REQUIRE(result.GetSize() == 3);
         REQUIRE(result[0] == "Hello");
         REQUIRE(result[1] == "there");
+        REQUIRE(result[2] == "");
+    }
+    SECTION("Multi code unit delimiter")
+    {
+        const StringUtf8 str("a::b::c");
+        const StringUtf8 delimiter("::");
+        DynamicArray<StringUtf8> result;
+        REQUIRE(Opal::SplitToArray(str, delimiter, result));
+        REQUIRE(result.GetSize() == 3);
+        REQUIRE(result[0] == "a");
+        REQUIRE(result[1] == "b");
+        REQUIRE(result[2] == "c");
+    }
+    SECTION("Multi code unit delimiter at the end")
+    {
+        const StringUtf8 str("a::b::");
+        const StringUtf8 delimiter("::");
+        DynamicArray<StringUtf8> result;
+        REQUIRE(Opal::SplitToArray(str, delimiter, result));
+        REQUIRE(result.GetSize() == 3);
+        REQUIRE(result[0] == "a");
+        REQUIRE(result[1] == "b");
+        REQUIRE(result[2] == "");
+    }
+    SECTION("Empty delimiter never matches")
+    {
+        const StringUtf8 str("Hello");
+        const StringUtf8 delimiter("");
+        DynamicArray<StringUtf8> result;
+        REQUIRE(!Opal::SplitToArray(str, delimiter, result));
+        REQUIRE(result.GetSize() == 1);
+        REQUIRE(result[0] == "Hello");
     }
 }
 
