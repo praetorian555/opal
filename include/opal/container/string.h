@@ -248,7 +248,8 @@ public:
     /**
      * @brief Override a string with a substring of another string.
      * @param other String to assign.
-     * @param pos Position in the other string to start assigning from.
+     * @param pos Position in the other string to start assigning from. May be equal to the size of the other string, which assigns an
+     * empty string.
      * @param count Number of code units to assign. If count is equal to k_npos, the entire string starting from pos will be assigned.
      * Default is k_npos.
      * @return ErrorCode::Success in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the other string or count is
@@ -484,8 +485,9 @@ public:
      * @brief Erase a range of code units from the string.
      * @param start_pos Position in the string to start erasing from.
      * @param count Number of code units to erase. If count is equal to k_npos, the entire string starting from start_pos will be erased.
+     * A start_pos equal to the size of the string erases nothing.
      * @return Iterator pointing to the code unit after the last erased code unit in case of a success. ErrorCode::OutOfBounds if start_pos
-     * is out of bounds of the string.
+     * is greater than the size of the string.
      */
     Expected<iterator, ErrorCode> Erase(size_type start_pos = 0, size_type count = k_npos);
 
@@ -502,7 +504,8 @@ public:
      * @param first Iterator pointing to the first code unit to erase.
      * @param last Iterator pointing to the code unit after the last code unit to erase.
      * @return Iterator pointing to the code unit after the last erased code unit in case of a success. ErrorCode::OutOfBounds if first or
-     * last are out of bounds of the string. ErrorCode::InvalidArgument if first is greater than last.
+     * last are out of bounds of the string. ErrorCode::InvalidArgument if first is greater than last. An empty range at the end of the
+     * string erases nothing.
      */
     Expected<iterator, ErrorCode> Erase(iterator first, iterator last);
     Expected<iterator, ErrorCode> Erase(const_iterator first, const_iterator last);
@@ -832,9 +835,8 @@ StringClass operator+(typename StringClass::value_type ch, const StringClass& rh
  * @param needle String to search for.
  * @param start_pos Position in the haystack to start searching from.
  * @return Position of the first occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If
- * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is less than the size
- * of the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns
- * StringClass::k_npos.
+ * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is not greater than
+ * the size of the haystack, returns start_pos, so an empty needle matches at the end of the haystack.
  */
 template <StringLike StringClass>
 typename StringClass::size_type Find(const StringClass& haystack, const StringClass& needle, typename StringClass::size_type start_pos = 0);
@@ -848,9 +850,8 @@ typename StringClass::size_type Find(const StringClass& haystack, const StringCl
  * @param needle_count Number of code units to search for in the needle. Includes the null-terminator characters. If needle_count is
  * equal to StringClass::k_npos, the entire needle will be searched for until the first null-terminator character.
  * @return Position of the first occurrence of the needle in the haystack. If the needle is not found, returns StringClass::k_npos. If
- * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is less than the size
- * of the haystack, returns start_pos. If needle is empty and start_pos is greater than the size of the haystack, returns
- * StringClass::k_npos.
+ * start_pos is greater than the size of the haystack, returns StringClass::k_npos. If needle is empty and start_pos is not greater than
+ * the size of the haystack, returns start_pos, so an empty needle matches at the end of the haystack.
  */
 template <StringLike StringClass>
 typename StringClass::size_type Find(const StringClass& haystack, const typename StringClass::value_type* needle,
@@ -1272,7 +1273,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other, size_type pos, size_ty
         return ErrorCode::SelfNotAllowed;
     }
     const size_type other_size = other.GetSize();
-    if (pos >= other_size)
+    if (pos > other_size)
     {
         return ErrorCode::OutOfBounds;
     }
@@ -1958,7 +1959,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::E
 {
     using ReturnType = Expected<iterator, ErrorCode>;
     size_type sz = GetSize();
-    if (start_pos >= sz)
+    if (start_pos > sz)
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
@@ -2022,7 +2023,7 @@ TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(iterator first, iterator last)
 {
     using ReturnType = Expected<iterator, ErrorCode>;
-    if (first < Begin() || first >= End())
+    if (first < Begin() || first > End())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
@@ -2057,7 +2058,7 @@ TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Erase(const_iterator first, const_iterator last)
 {
     using ReturnType = Expected<iterator, ErrorCode>;
-    if (first < ConstBegin() || first >= ConstEnd())
+    if (first < ConstBegin() || first > ConstEnd())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
@@ -2673,7 +2674,7 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const St
 {
     if (needle.IsEmpty())
     {
-        if (start_pos >= haystack.GetSize())
+        if (start_pos > haystack.GetSize())
         {
             return StringClass::k_npos;
         }
@@ -2700,7 +2701,7 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const ty
     }
     if (needle_count == 0)
     {
-        if (start_pos >= haystack.GetSize())
+        if (start_pos > haystack.GetSize())
         {
             return StringClass::k_npos;
         }

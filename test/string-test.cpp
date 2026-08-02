@@ -429,7 +429,8 @@ TEST_CASE("Assign", "[String]")
                 StringUtf8 str("Hello there");
                 const StringUtf8 other;
                 const ErrorCode err = str.Assign(other, 0);
-                REQUIRE(err == ErrorCode::OutOfBounds);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.IsEmpty());
             }
             SECTION("Same string")
             {
@@ -744,7 +745,8 @@ TEST_CASE("Assign", "[String]")
                 StringUtf8 str("Hello there and then some more");
                 const StringUtf8 other;
                 const ErrorCode err = str.Assign(other, 0);
-                REQUIRE(err == ErrorCode::OutOfBounds);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str.IsEmpty());
             }
             SECTION("Same string")
             {
@@ -3108,6 +3110,21 @@ TEST_CASE("Erase", "[String]")
             REQUIRE(str == "Hellohere");
             REQUIRE(result.GetValue() == str.Begin() + 5);
         }
+        SECTION("Start position at the end erases nothing")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(11, 5);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "Hello there");
+            REQUIRE(result.GetValue() == str.End());
+        }
+        SECTION("Empty string")
+        {
+            StringLocale str;
+            auto result = str.Erase(0);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str.IsEmpty());
+        }
     }
     SECTION("Erase with single iterator")
     {
@@ -3182,9 +3199,16 @@ TEST_CASE("Erase", "[String]")
         SECTION("Bad start iterator")
         {
             StringLocale str("Hello there");
-            auto result = str.Erase(str.End(), str.End());
+            auto result = str.Erase(str.End() + 1, str.End());
             REQUIRE(result.HasValue() == false);
             REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Empty range at the end")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.End(), str.End());
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "Hello there");
         }
         SECTION("Bad end iterator")
         {
@@ -3241,9 +3265,16 @@ TEST_CASE("Erase", "[String]")
         SECTION("Bad start iterator")
         {
             StringLocale str("Hello there");
-            auto result = str.Erase(str.ConstEnd(), str.ConstEnd());
+            auto result = str.Erase(str.ConstEnd() + 1, str.ConstEnd());
             REQUIRE(result.HasValue() == false);
             REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        }
+        SECTION("Empty range at the end")
+        {
+            StringLocale str("Hello there");
+            auto result = str.Erase(str.ConstEnd(), str.ConstEnd());
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "Hello there");
         }
         SECTION("Bad end iterator")
         {
@@ -4760,6 +4791,48 @@ TEST_CASE("Erase long string", "[String]")
         auto result = str.Erase(str.ConstBegin() + 5, str.ConstBegin() + 11);
         REQUIRE(result.HasValue() == true);
         REQUIRE(str == "Hello and then some more");
+    }
+    SECTION("Erase an empty range at the end")
+    {
+        StringUtf8 str("Hello there and then some more");
+        auto result = str.Erase(str.End(), str.End());
+        REQUIRE(result.HasValue() == true);
+        REQUIRE(str == "Hello there and then some more");
+        auto const_result = str.Erase(str.ConstEnd(), str.ConstEnd());
+        REQUIRE(const_result.HasValue() == true);
+        REQUIRE(str == "Hello there and then some more");
+    }
+}
+
+TEST_CASE("Empty range operations at the end of a string", "[String]")
+{
+    SECTION("Assign from the end of another string")
+    {
+        StringUtf8 str("Hello");
+        StringUtf8 other("there");
+        REQUIRE(str.Assign(other, other.GetSize()) == ErrorCode::Success);
+        REQUIRE(str.IsEmpty());
+    }
+    SECTION("Assign past the end of another string")
+    {
+        StringUtf8 str("Hello");
+        StringUtf8 other("there");
+        REQUIRE(str.Assign(other, other.GetSize() + 1) == ErrorCode::OutOfBounds);
+        REQUIRE(str == StringUtf8("Hello"));
+    }
+    SECTION("An empty needle matches at the end")
+    {
+        const StringUtf8 str("Hello");
+        REQUIRE(Find(str, StringUtf8("")) == 0);
+        REQUIRE(Find(str, StringUtf8(""), str.GetSize()) == str.GetSize());
+        REQUIRE(Find(str, StringUtf8(""), str.GetSize() + 1) == StringUtf8::k_npos);
+        REQUIRE(Find<StringUtf8>(str, "", str.GetSize()) == str.GetSize());
+    }
+    SECTION("An empty needle in an empty haystack")
+    {
+        const StringUtf8 str;
+        REQUIRE(Find(str, StringUtf8("")) == 0);
+        REQUIRE(Find(str, StringUtf8(""), 1) == StringUtf8::k_npos);
     }
 }
 

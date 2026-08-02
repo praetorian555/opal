@@ -79,10 +79,11 @@ reproduced against a debug build.
       itself corrupts the result. No self-check. `Insert(iterator, InputIt, InputIt)` and its
       `const_iterator` overload have the same hole, and unlike `Append(InputIt, InputIt)` and
       `Assign(InputIt, InputIt)` they do not return `SelfNotAllowed` for iterators into the string.
-- [ ] Pin the deliberate `std::string` deviations in tests, or fix them: `Assign(other, pos, count)`
+- [x] Pin the deliberate `std::string` deviations in tests, or fix them: `Assign(other, pos, count)`
       and `Erase(pos, count)` reject `pos == size`; `Erase(first, last)` rejects `first == End()`, so an
       empty range erase at the end fails; `Find` with an empty needle at `start_pos == size` returns
       `k_npos` rather than `size`.
+      All four fixed to match `std::string`.
 
 ## String missing API
 
