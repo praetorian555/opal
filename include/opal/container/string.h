@@ -926,7 +926,8 @@ ErrorCode Transcode(const InputStringClass& input, OutputStringClass& output);
  * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @tparam Allocator Type of the allocator to use for allocating the result. If nullptr, the default allocator will be used.
  * @param str String to get the substring from.
- * @param start_pos Position in the string to start the substring from. Default is 0.
+ * @param start_pos Position in the string to start the substring from. Default is 0. May be equal to the size of the string, which yields
+ * an empty substring.
  * @param count Number of code units to include in the substring. If count is equal to StringClass::k_npos, the entire string starting from
  * start_pos will be included.
  * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
@@ -2824,7 +2825,7 @@ Opal::Expected<StringClass, Opal::ErrorCode> Opal::GetSubString(const StringClas
                                                                 typename StringClass::size_type count, Allocator* allocator)
 {
     using ReturnType = Expected<StringClass, ErrorCode>;
-    if (start_pos >= str.GetSize())
+    if (start_pos > str.GetSize())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }

@@ -17,7 +17,7 @@ reproduced against a debug build.
 - [ ] `Split` and `SplitToArray` assume a one-code-unit delimiter (`string.h:2928`, `string.h:2960`).
       Both advance by `pos + 1` instead of `pos + delimiter.GetSize()`.
       `Split("a::b", "::")` produces a second part of `":b"`.
-- [ ] `GetSubString` rejects `start_pos == size` (`string.h:2855`), so `Split`/`SplitToArray` drop a
+- [x] `GetSubString` rejects `start_pos == size` (`string.h:2855`), so `Split`/`SplitToArray` drop a
       trailing empty field and report failure. `SplitToArray("a,b,", ",")` returns false with 2 parts.
       Guard should be `start_pos > str.GetSize()`.
 - [ ] `NumberToString` leading zeros do nothing for hex and octal (`string.h:2995`). The format is

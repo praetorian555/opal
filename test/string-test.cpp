@@ -2359,8 +2359,18 @@ TEST_CASE("Sub string", "[String]")
         {
             StringLocale str("");
             auto result = Opal::GetSubString(str, 0, 0);
-            REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == Opal::ErrorCode::OutOfBounds);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue().GetSize() == 0);
+        }
+        SECTION("Start position at the end")
+        {
+            StringLocale str("Hello");
+            auto result = Opal::GetSubString(str, 5);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue().GetSize() == 0);
+            auto counted = Opal::GetSubString(str, 5, 3);
+            REQUIRE(counted.HasValue() == true);
+            REQUIRE(counted.GetValue().GetSize() == 0);
         }
         SECTION("All defaults")
         {
@@ -2422,8 +2432,21 @@ TEST_CASE("Sub string", "[String]")
         {
             StringLocale str("");
             auto result = Opal::GetSubString(str, 0, 0);
-            REQUIRE(result.HasValue() == false);
-            REQUIRE(result.GetError() == Opal::ErrorCode::OutOfBounds);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue().GetSize() == 0);
+        }
+        SECTION("Start position at the end")
+        {
+            StringLocale str(
+                "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard "
+                "dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen "
+                "book.");
+            auto result = Opal::GetSubString(str, str.GetSize());
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(result.GetValue().GetSize() == 0);
+            auto past_end = Opal::GetSubString(str, str.GetSize() + 1);
+            REQUIRE(past_end.HasValue() == false);
+            REQUIRE(past_end.GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("All defaults")
         {
