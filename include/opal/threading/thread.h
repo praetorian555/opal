@@ -18,7 +18,6 @@ namespace Impl
 struct ThreadDataBase
 {
     AllocatorBase* allocator = nullptr;
-    std::atomic<u64> thread_id{0};
 
     ThreadDataBase(AllocatorBase* a) : allocator(a) {}
     virtual ~ThreadDataBase() = default;

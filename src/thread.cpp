@@ -28,10 +28,21 @@ DWORD WINAPI WindowsThread(LPVOID param)
     return 0;
 }
 #elif defined(OPAL_PLATFORM_LINUX)
+// Handed to a new thread so it can report its kernel id back. Lives on the frame of the launcher rather than in the thread's own data,
+// which the thread frees as it finishes and which the launcher would otherwise still be reading.
+struct ThreadLaunch
+{
+    Opal::Impl::ThreadDataBase* data = nullptr;
+    std::atomic<Opal::u64> thread_id{0};
+};
+
 void* ThreadFunction(void* param)
 {
-    Opal::Impl::ThreadDataBase* data = static_cast<Opal::Impl::ThreadDataBase*>(param);
-    data->thread_id.store(static_cast<Opal::u64>(syscall(SYS_gettid)), std::memory_order_release);
+    ThreadLaunch* launch = static_cast<ThreadLaunch*>(param);
+    Opal::Impl::ThreadDataBase* data = launch->data;
+    // Everything needed from `launch` is read above, because publishing the id releases the launcher, and its frame goes with it.
+    launch->thread_id.store(static_cast<Opal::u64>(syscall(SYS_gettid)), std::memory_order_release);
+    launch = nullptr;
     Opal::PushDefaultAllocator(data->allocator);
     data->Invoke();
     Delete(data->allocator, data);
@@ -46,18 +57,27 @@ Opal::ThreadHandle Opal::Impl::CreateThread(ThreadDataBase* data)
     HANDLE thread_handle = ::CreateThread(nullptr, 0, WindowsThread, data, 0, &thread_id);
     if (thread_handle == nullptr)
     {
+        // The thread that would have freed this never started.
+        Delete(data->allocator, data);
         throw Exception("Failed to create thread!");
     }
     return {.native_handle = thread_handle, .id = static_cast<u64>(thread_id)};
 #elif defined(OPAL_PLATFORM_LINUX)
+    ThreadLaunch launch;
+    launch.data = data;
     pthread_t native_handle;
-    pthread_create(&native_handle, nullptr, ThreadFunction, data);
-    // Spin until the thread has stored its kernel thread ID.
-    while (data->thread_id.load(std::memory_order_acquire) == 0)
+    if (pthread_create(&native_handle, nullptr, ThreadFunction, &launch) != 0)
+    {
+        Delete(data->allocator, data);
+        throw Exception("Failed to create thread!");
+    }
+    // Spin until the thread has stored its kernel thread id, and keep what it stored. Reading it a second time afterwards is not an
+    // option: the thread may have finished and freed its data by then, and `launch` is only alive for as long as this loop.
+    u64 thread_id = 0;
+    while ((thread_id = launch.thread_id.load(std::memory_order_acquire)) == 0)
     {
     }
-    ThreadHandle handle = {.native_handle = reinterpret_cast<void*>(native_handle), .id = data->thread_id.load(std::memory_order_relaxed)};
-    return handle;
+    return {.native_handle = reinterpret_cast<void*>(native_handle), .id = thread_id};
 #else
     throw NotImplementedException(__FUNCTION__);
 #endif
