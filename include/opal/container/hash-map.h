@@ -381,13 +381,13 @@ Opal::HashMap<KeyType, ValueType>::HashMap(std::initializer_list<pair_type> pair
 {
     if (Reserve(pairs.size()) != ErrorCode::Success)
     {
-        throw OutOfMemoryException(m_allocator->GetName(), pairs.size() * sizeof(pair_type));
+        throw OutOfMemoryException(m_allocator->GetName(), static_cast<u64>(pairs.size() * sizeof(pair_type)));
     }
     for (const auto& pair : pairs)
     {
         if (Insert(Opal::Clone(pair.key, m_allocator), Opal::Clone(pair.value, m_allocator)) != ErrorCode::Success)
         {
-            throw OutOfMemoryException(m_allocator->GetName(), pairs.size() * sizeof(pair_type));
+            throw OutOfMemoryException(m_allocator->GetName(), static_cast<u64>(pairs.size() * sizeof(pair_type)));
         }
     }
 }
