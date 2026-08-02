@@ -2902,6 +2902,19 @@ TEST_CASE("Reverse Find", "[String]")
             auto result = ReverseFind(str, search);
             REQUIRE(result == StringLocale::k_npos);
         }
+        SECTION("Match ending on the last code unit")
+        {
+            const StringLocale str("Hello there");
+            const StringLocale search("there");
+            REQUIRE(ReverseFind(str, search) == 6);
+            REQUIRE(ReverseFind(str, search, str.GetSize()) == 6);
+        }
+        SECTION("Main string is empty")
+        {
+            const StringLocale str;
+            const StringLocale search("a");
+            REQUIRE(ReverseFind(str, search) == StringLocale::k_npos);
+        }
     }
     SECTION("With char pointer")
     {
@@ -2946,6 +2959,25 @@ TEST_CASE("Reverse Find", "[String]")
             const StringLocale str("Hello there");
             auto result = ReverseFind(str, "world");
             REQUIRE(result == StringLocale::k_npos);
+        }
+        SECTION("Match ending on the last code unit")
+        {
+            const StringLocale str("Hello there");
+            REQUIRE(ReverseFind(str, "there") == 6);
+            REQUIRE(ReverseFind(str, "there", str.GetSize()) == 6);
+            REQUIRE(ReverseFind(str, "e") == 10);
+        }
+        SECTION("Main string is empty")
+        {
+            const StringLocale str;
+            REQUIRE(ReverseFind(str, "a") == StringLocale::k_npos);
+        }
+        SECTION("Same result as the string object overload")
+        {
+            const StringLocale str("abcabc");
+            const StringLocale search("bc");
+            REQUIRE(ReverseFind(str, "bc") == ReverseFind(str, search));
+            REQUIRE(ReverseFind(str, "bc") == 4);
         }
     }
     SECTION("Character")

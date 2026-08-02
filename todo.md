@@ -10,7 +10,7 @@ reproduced against a debug build.
       `count = other_size` should subtract `other_start_pos`, the copy loop should read
       `other[other_start_pos + i - start_pos]`, and `count > other_size - other_start_pos` is unchecked.
       Repro: `Insert(1, "0123456789", 5, 3)` on `"AB"` yields `"A012B"`, expected `"A567B"`.
-- [ ] `ReverseFind(haystack, const char*, ...)` is off by one (`string.h:2803`). Clamps to
+- [x] `ReverseFind(haystack, const char*, ...)` is off by one (`string.h:2803`). Clamps to
       `GetSize() - 1` where the `StringClass` overload clamps to `GetSize()`, so a match ending on the
       last code unit is missed. `ReverseFind("abc", "bc")` returns `k_npos`, the `StringClass`
       overload returns 1.
