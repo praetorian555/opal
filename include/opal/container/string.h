@@ -269,7 +269,7 @@ public:
      * @param str Pointer to the null-terminated string to assign.
      * @param count Number of code units to assign. If count is equal to k_npos, the entire string starting from str will be assigned.
      * Default is k_npos.
-     * @return ErrorCode::Success in case of a success. ErrorCode::BadInput if str is nullptr. ErrorCode::OutOfBounds if count is larger
+     * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if str is nullptr. ErrorCode::OutOfBounds if count is larger
      * then the size of the null-terminated string.
      * @throw OutOfMemoryException if allocator runs out of memory.
      */
@@ -431,7 +431,7 @@ public:
      * @param str Pointer to the string to insert.
      * @param count Number of code units to insert. If count is equal to k_npos, the entire string starting from str will be inserted.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
-     * of the string. ErrorCode::BadInput if str is nullptr.
+     * of the string. ErrorCode::InvalidArgument if str is nullptr.
      * @throw OutOfMemoryException when there is no more memory.
      */
     Expected<iterator, ErrorCode> Insert(size_type start_pos, const CodeUnitType* str, size_type count = k_npos);
@@ -469,7 +469,7 @@ public:
      * @param begin Iterator pointing to the first code unit in the string to insert.
      * @param end Iterator pointing to the code unit after the last code unit in the string to insert.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start is out of bounds of
-     * the string. ErrorCode::BadInput if begin is greater than end.
+     * the string. ErrorCode::InvalidArgument if begin is greater than end.
      * @throw OutOfMemoryException when there is no more memory.
      */
     template <typename InputIt>
@@ -501,7 +501,7 @@ public:
      * @param first Iterator pointing to the first code unit to erase.
      * @param last Iterator pointing to the code unit after the last code unit to erase.
      * @return Iterator pointing to the code unit after the last erased code unit in case of a success. ErrorCode::OutOfBounds if first or
-     * last are out of bounds of the string. ErrorCode::BadInput if first is greater than last.
+     * last are out of bounds of the string. ErrorCode::InvalidArgument if first is greater than last.
      */
     Expected<iterator, ErrorCode> Erase(iterator first, iterator last);
     Expected<iterator, ErrorCode> Erase(const_iterator first, const_iterator last);
@@ -785,7 +785,7 @@ Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass:
  * will be compared.
  * @param second Null-terminated string to compare.
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
- * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
+ * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::InvalidArgument if second is nullptr.
  */
 template <StringLike StringClass>
 Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
@@ -803,7 +803,7 @@ Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass:
  * @param count2 Number of code units to compare in the second string. If count2 is equal to k_npos, the entire string starting from
  * second will be compared.
  * @return 0 if strings are equal, negative value if first is less than second, positive value if first is greater than second. Returns
- * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::BadInput if second is nullptr.
+ * ErrorCode::OutOfBounds if pos1 is greater than the size of the first string. Returns ErrorCode::InvalidArgument if second is nullptr.
  */
 template <StringLike StringClass>
 Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,

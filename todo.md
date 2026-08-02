@@ -69,9 +69,12 @@ reproduced against a debug build.
       Deviates from both `std::string` and `DynamicArray`, and is undocumented.
 - [x] `Reserve(0)` throws `InvalidArgumentException`, which makes `Reserve(computed_size)` unsafe in
       generic code.
-- [ ] Doc and code disagree on error codes: `Assign(const CodeUnitType*, count)` documents `BadInput`
+- [x] Doc and code disagree on error codes: `Assign(const CodeUnitType*, count)` documents `BadInput`
       and returns `InvalidArgument` (`string.h:260` vs `string.h:1281`), same for
       `Insert(pos, str, count)` (`string.h:422` vs `string.h:1746`).
+      `ErrorCode::BadInput` does not exist at all; all six mentions in `string.h` were stale.
+- [ ] The same stale `ErrorCode::BadInput` appears in `deque.h` (3 mentions), `string-encoding.h` (5)
+      and `sort/key-indexed-counting.h` (1).
 - [ ] `Insert(pos, const String& other, ...)` shifts data before reading it, so inserting a string into
       itself corrupts the result. No self-check. `Insert(iterator, InputIt, InputIt)` and its
       `const_iterator` overload have the same hole, and unlike `Append(InputIt, InputIt)` and
