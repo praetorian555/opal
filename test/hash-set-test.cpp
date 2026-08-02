@@ -211,6 +211,56 @@ TEST_CASE("Hash set automatic growth", "[hash-set]")
     }
 }
 
+namespace
+{
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_MSVC_WARNING(4324)  // Padding the type is the whole point of this one.
+struct alignas(64) CacheLineAligned
+{
+    i32 value = 0;
+
+    bool operator==(const CacheLineAligned& other) const { return value == other.value; }
+};
+OPAL_END_DISABLE_WARNINGS
+}  // namespace
+
+TEST_CASE("Hash set with keys aligned more strictly than the block", "[hash-set]")
+{
+    static_assert(IsPOD<CacheLineAligned>, "alignas must not cost the type its POD hasher");
+
+    // The control bytes occupy a power of two sized run, 32 bytes for the smallest tables and growing from there. A key aligned more
+    // strictly than that run is long has to be pushed past it, so the smallest tables are where the offset arithmetic matters.
+    SECTION("Smallest table")
+    {
+        HashSet<CacheLineAligned> set;
+        REQUIRE(set.Insert(CacheLineAligned{1}) == ErrorCode::Success);
+        REQUIRE(set.GetCapacity() == 7);
+
+        for (const CacheLineAligned& key : set)
+        {
+            REQUIRE(reinterpret_cast<u64>(&key) % alignof(CacheLineAligned) == 0);
+        }
+    }
+    SECTION("After growing")
+    {
+        HashSet<CacheLineAligned> set;
+        for (i32 i = 0; i < 100; i++)
+        {
+            REQUIRE(set.Insert(CacheLineAligned{i}) == ErrorCode::Success);
+        }
+        REQUIRE(set.GetSize() == 100);
+
+        for (i32 i = 0; i < 100; i++)
+        {
+            REQUIRE(set.Contains(CacheLineAligned{i}));
+        }
+        for (const CacheLineAligned& key : set)
+        {
+            REQUIRE(reinterpret_cast<u64>(&key) % alignof(CacheLineAligned) == 0);
+        }
+    }
+}
+
 TEST_CASE("Hash set reserve never drops below what the set holds", "[hash-set]")
 {
     HashSet<i32> set(100);

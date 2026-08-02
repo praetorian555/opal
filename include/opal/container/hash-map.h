@@ -423,19 +423,21 @@ void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
         new_capacity = (new_capacity << 1) | 1;
     }
     u64 new_size = 0;
-    // Since we are storing control bytes and the keys in the same memory block we need to make sure
-    // that keys start at the address that is aligned with their size.
+    // Control bytes and pairs share one allocation, so the block has to satisfy whichever of the two needs the stricter alignment, and the
+    // pairs have to start at an offset that keeps it.
+    constexpr u64 k_slot_alignment = alignof(pair_type) > 16 ? alignof(pair_type) : 16;
     const u64 control_bytes_size = GetNextPowerOf2MinusOne(new_capacity + k_group_width) + 1;
-    u64 size_to_allocate = control_bytes_size + (new_capacity * sizeof(pair_type));
+    const u64 slots_offset = (control_bytes_size + k_slot_alignment - 1) & ~(k_slot_alignment - 1);
+    const u64 size_to_allocate = slots_offset + (new_capacity * sizeof(pair_type));
 
-    i8* new_control_bytes = static_cast<i8*>(m_allocator->Alloc(size_to_allocate, 16u));
+    i8* new_control_bytes = static_cast<i8*>(m_allocator->Alloc(size_to_allocate, k_slot_alignment));
     if (new_control_bytes == nullptr)
     {
         throw OutOfMemoryException(m_allocator->GetName(), size_to_allocate);
     }
     memset(new_control_bytes, k_control_bitmask_empty, control_bytes_size);
     new_control_bytes[new_capacity] = k_control_bitmask_sentinel;
-    pair_type* new_slots = reinterpret_cast<pair_type*>(new_control_bytes + control_bytes_size);
+    pair_type* new_slots = reinterpret_cast<pair_type*>(new_control_bytes + slots_offset);
 
     if (m_capacity > 0)
     {

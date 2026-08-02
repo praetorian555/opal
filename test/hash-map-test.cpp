@@ -141,6 +141,37 @@ TEST_CASE("Hash map insert", "[HashMap]")
     REQUIRE(map.GetValue(key) == value);
 }
 
+namespace
+{
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_MSVC_WARNING(4324)  // Padding the type is the whole point of this one.
+struct alignas(64) CacheLineAligned
+{
+    i32 value = 0;
+
+    bool operator==(const CacheLineAligned& other) const { return value == other.value; }
+};
+OPAL_END_DISABLE_WARNINGS
+}  // namespace
+
+TEST_CASE("Hash map with pairs aligned more strictly than the block", "[HashMap]")
+{
+    static_assert(IsPOD<CacheLineAligned>, "alignas must not cost the type its POD hasher");
+
+    HashMap<CacheLineAligned, i32> map;
+    for (i32 i = 0; i < 100; i++)
+    {
+        map.Insert(CacheLineAligned{i}, i * 2);
+    }
+    REQUIRE(map.GetSize() == 100);
+
+    for (const auto& pair : map)
+    {
+        REQUIRE(reinterpret_cast<u64>(&pair) % alignof(Pair<CacheLineAligned, i32>) == 0);
+        REQUIRE(map.GetValue(pair.key) == pair.key.value * 2);
+    }
+}
+
 TEST_CASE("Hash map reserve never drops below what the map holds", "[HashMap]")
 {
     HashMap<i32, i32> map(100);
