@@ -417,6 +417,64 @@ TEST_CASE("Non-POD type")
     set.Insert(SomeType(5, 10));
 }
 
+TEST_CASE("HashSet Clone", "[hash-set]")
+{
+    SECTION("POD type")
+    {
+        HashSet<i32> set(100);
+        for (i32 i = 0; i < 20; i++)
+        {
+            set.Insert(i);
+        }
+
+        HashSet<i32> clone = set.Clone();
+        REQUIRE(clone.GetSize() == set.GetSize());
+        for (i32 i = 0; i < 20; i++)
+        {
+            REQUIRE(clone.Contains(i));
+        }
+
+        // The clone is independent of the set it came from.
+        set.Clear();
+        REQUIRE(clone.GetSize() == 20);
+        REQUIRE(clone.Contains(5));
+    }
+    SECTION("Non-POD type")
+    {
+        HashSet<StringUtf8> set;
+        set.Insert("Hello");
+        set.Insert("World");
+
+        HashSet<StringUtf8> clone = set.Clone();
+        REQUIRE(clone.GetSize() == 2);
+        REQUIRE(clone.Contains("Hello"));
+        REQUIRE(clone.Contains("World"));
+
+        // Dropping the original must leave the clone's keys intact, so the copy has to be deep.
+        set.Clear();
+        REQUIRE(clone.GetSize() == 2);
+        REQUIRE(clone.Contains("Hello"));
+        REQUIRE(clone.Contains("World"));
+    }
+    SECTION("Empty set")
+    {
+        HashSet<StringUtf8> set;
+        HashSet<StringUtf8> clone = set.Clone();
+        REQUIRE(clone.GetSize() == 0);
+        REQUIRE(clone.begin() == clone.end());
+    }
+    SECTION("Into a different allocator")
+    {
+        MallocAllocator allocator;
+        HashSet<StringUtf8> set;
+        set.Insert("Hello");
+
+        HashSet<StringUtf8> clone = set.Clone(&allocator);
+        REQUIRE(clone.GetSize() == 1);
+        REQUIRE(clone.Contains("Hello"));
+    }
+}
+
 TEST_CASE("HashSet ToArray", "[hash-set]")
 {
     SECTION("POD type")

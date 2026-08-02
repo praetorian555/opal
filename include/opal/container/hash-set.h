@@ -334,11 +334,10 @@ template <typename KeyType>
 Opal::HashSet<KeyType> Opal::HashSet<KeyType>::Clone(AllocatorBase* allocator) const
 {
     allocator = allocator == nullptr ? m_allocator : allocator;
-    HashSet clone(allocator);
-    clone.Reserve(m_capacity);
-    for (key_type& key : *this)
+    HashSet clone(m_capacity, allocator);
+    for (const key_type& key : *this)
     {
-        clone.Insert(key);
+        clone.Insert(Opal::Clone(key, allocator));
     }
     return clone;
 }
@@ -745,14 +744,7 @@ Opal::DynamicArray<KeyType> Opal::HashSet<KeyType>::ToArray() const
     result.Reserve(m_size);
     for (const key_type& key : *this)
     {
-        if constexpr (IsPOD<KeyType>)
-        {
-            result.PushBack(key);
-        }
-        else
-        {
-            result.PushBack(key.Clone());
-        }
+        result.PushBack(Opal::Clone(key, m_allocator));
     }
     return result;
 }

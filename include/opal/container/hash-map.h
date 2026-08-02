@@ -163,7 +163,7 @@ public:
     HashMap& operator=(const HashMap& other) = delete;
     HashMap& operator=(HashMap&& other) noexcept;
 
-    HashMap Clone() const;
+    HashMap Clone(AllocatorBase* allocator = nullptr) const;
 
     void Reserve(size_type capacity);
 
@@ -315,9 +315,9 @@ Opal::HashMap<KeyType, ValueType>::HashMap(const ArrayView<Pair<KeyType, ValueTy
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
     Reserve(pairs.GetSize());
-    for (auto& pair : pairs)
+    for (const auto& pair : pairs)
     {
-        Insert(pair.key, pair.value);
+        Insert(Opal::Clone(pair.key, m_allocator), Opal::Clone(pair.value, m_allocator));
     }
 }
 
@@ -328,7 +328,7 @@ Opal::HashMap<KeyType, ValueType>::HashMap(std::initializer_list<pair_type> pair
     Reserve(pairs.size());
     for (const auto& pair : pairs)
     {
-        Insert(Opal::Clone(pair.key), Opal::Clone(pair.value));
+        Insert(Opal::Clone(pair.key, m_allocator), Opal::Clone(pair.value, m_allocator));
     }
 }
 
@@ -400,12 +400,13 @@ void Opal::HashMap<KeyType, ValueType>::DestroyAllPairs()
 }
 
 template <typename KeyType, typename ValueType>
-Opal::HashMap<KeyType, ValueType> Opal::HashMap<KeyType, ValueType>::Clone() const
+Opal::HashMap<KeyType, ValueType> Opal::HashMap<KeyType, ValueType>::Clone(AllocatorBase* allocator) const
 {
-    HashMap clone(m_capacity, m_allocator);
+    allocator = allocator == nullptr ? m_allocator : allocator;
+    HashMap clone(m_capacity, allocator);
     for (const auto& pair : *this)
     {
-        clone.Insert(pair.key, pair.value);
+        clone.Insert(Opal::Clone(pair.key, allocator), Opal::Clone(pair.value, allocator));
     }
     return clone;
 }
@@ -754,9 +755,9 @@ Opal::DynamicArray<Opal::Pair<KeyType, ValueType>> Opal::HashMap<KeyType, ValueT
 {
     DynamicArray<pair_type> result;
     result.Reserve(m_size);
-    for (auto& pair : *this)
+    for (const auto& pair : *this)
     {
-        result.PushBack(pair);
+        result.PushBack(Opal::Clone(pair, m_allocator));
     }
     return result;
 }
@@ -766,16 +767,9 @@ Opal::DynamicArray<KeyType> Opal::HashMap<KeyType, ValueType>::ToArrayOfKeys() c
 {
     DynamicArray<key_type> result;
     result.Reserve(m_size);
-    for (auto& pair : *this)
+    for (const auto& pair : *this)
     {
-        if constexpr (IsPOD<KeyType>)
-        {
-            result.PushBack(pair.key);
-        }
-        else
-        {
-            result.PushBack(pair.key.Clone());
-        }
+        result.PushBack(Opal::Clone(pair.key, m_allocator));
     }
     return result;
 }
@@ -785,16 +779,9 @@ Opal::DynamicArray<ValueType> Opal::HashMap<KeyType, ValueType>::ToArrayOfValues
 {
     DynamicArray<value_type> result;
     result.Reserve(m_size);
-    for (auto& pair : *this)
+    for (const auto& pair : *this)
     {
-        if constexpr (IsPOD<ValueType>)
-        {
-        result.PushBack(pair.value);
-        }
-        else
-        {
-            result.PushBack(pair.value.Clone());
-        }
+        result.PushBack(Opal::Clone(pair.value, m_allocator));
     }
     return result;
 }

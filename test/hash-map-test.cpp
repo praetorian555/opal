@@ -176,6 +176,68 @@ TEST_CASE("Hash map erase", "[HashMap]")
     }
 }
 
+TEST_CASE("Hash map clone", "[HashMap]")
+{
+    SECTION("Non-POD key and value")
+    {
+        HashMap<StringUtf8, StringUtf8> map;
+        map.Insert("Hello", "World");
+        map.Insert("name", "Marko");
+
+        HashMap<StringUtf8, StringUtf8> clone = map.Clone();
+        REQUIRE(clone.GetSize() == 2);
+        REQUIRE(clone.GetValue("Hello") == "World");
+        REQUIRE(clone.GetValue("name") == "Marko");
+
+        // Dropping the original must leave the clone intact, so the copy has to be deep.
+        map.Clear();
+        REQUIRE(clone.GetSize() == 2);
+        REQUIRE(clone.GetValue("Hello") == "World");
+        REQUIRE(clone.GetValue("name") == "Marko");
+    }
+    SECTION("Empty map")
+    {
+        HashMap<StringUtf8, StringUtf8> map;
+        HashMap<StringUtf8, StringUtf8> clone = map.Clone();
+        REQUIRE(clone.GetSize() == 0);
+        REQUIRE(clone.begin() == clone.end());
+    }
+    SECTION("Into a different allocator")
+    {
+        MallocAllocator allocator;
+        HashMap<StringUtf8, StringUtf8> map;
+        map.Insert("Hello", "World");
+
+        HashMap<StringUtf8, StringUtf8> clone = map.Clone(&allocator);
+        REQUIRE(clone.GetSize() == 1);
+        REQUIRE(clone.GetValue("Hello") == "World");
+    }
+}
+
+TEST_CASE("Hash map to array with non-POD pairs", "[HashMap]")
+{
+    HashMap<StringUtf8, StringUtf8> map;
+    map.Insert("Hello", "World");
+    map.Insert("name", "Marko");
+
+    DynamicArray<Pair<StringUtf8, StringUtf8>> pairs = map.ToArray();
+    REQUIRE(pairs.GetSize() == 2);
+
+    map.Clear();
+    for (const auto& pair : pairs)
+    {
+        REQUIRE((pair.key == "Hello" || pair.key == "name"));
+        if (pair.key == "Hello")
+        {
+            REQUIRE(pair.value == "World");
+        }
+        else
+        {
+            REQUIRE(pair.value == "Marko");
+        }
+    }
+}
+
 TEST_CASE("Convert to array", "[HashMap]")
 {
     SECTION("To array")
