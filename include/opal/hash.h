@@ -30,7 +30,8 @@ template <typename T>
 u64 CalcPOD(const T& value, u64 seed = 0);
 
 /**
- * Calculates 64-bit hash using container data.
+ * Calculates 64-bit hash using container data. Ranges holding the same elements produce the same hash regardless of the container they
+ * come from. Only meaningful for ranges of plain old data, since the bytes of the elements are what gets hashed.
  * @tparam T Type of the container.
  * @param range Container object to use.
  * @param seed Specific seed to use. Default is 0.
@@ -95,10 +96,10 @@ template <typename T>
     requires Opal::Range<T>
 Opal::u64 Opal::Hash::CalcRange(const T& range, Opal::u64 seed)
 {
-    const size_t size = Narrow<size_t>(end(range) - begin(range));
     if (range.empty())
     {
-        return CalcPOD<T>(range);
+        return CalcRawArray(nullptr, 0, seed);
     }
-    return CalcRawArray(reinterpret_cast<const u8*>(&(*begin(range))), size, seed);
+    const u64 count = Narrow<u64>(end(range) - begin(range));
+    return CalcRawArray(reinterpret_cast<const u8*>(&(*begin(range))), count * sizeof(*begin(range)), seed);
 }

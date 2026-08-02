@@ -32,6 +32,61 @@ TEST_CASE("Hash", "[hash]")
     REQUIRE(hash != 0);
 }
 
+TEST_CASE("Hash of a range covers every byte of every element", "[hash]")
+{
+    // Both arrays share their first element, and differ only past the first byte of the second one.
+    DynamicArray<i32> first = {1, 2};
+    DynamicArray<i32> second = {1, 258};
+    REQUIRE(Hash::CalcRange(first) != Hash::CalcRange(second));
+}
+
+TEST_CASE("Hash of a range depends only on its elements", "[hash]")
+{
+    SECTION("Equal empty ranges hash the same")
+    {
+        const StringUtf8 first;
+        const StringUtf8 second;
+        REQUIRE(Hash::CalcRange(first) == Hash::CalcRange(second));
+
+        const DynamicArray<i32> first_array;
+        const DynamicArray<i32> second_array;
+        REQUIRE(Hash::CalcRange(first_array) == Hash::CalcRange(second_array));
+    }
+    SECTION("Equal non empty ranges hash the same")
+    {
+        const StringUtf8 first = "Hello there";
+        const StringUtf8 second = "Hello there";
+        REQUIRE(Hash::CalcRange(first) == Hash::CalcRange(second));
+    }
+    SECTION("An empty range does not hash like a populated one")
+    {
+        const StringUtf8 empty;
+        const StringUtf8 populated = "Hello there";
+        REQUIRE(Hash::CalcRange(empty) != Hash::CalcRange(populated));
+    }
+}
+
+TEST_CASE("Hash set with empty keys", "[hash-set]")
+{
+    HashSet<StringUtf8> set;
+    set.Insert(StringUtf8(""));
+    REQUIRE(set.GetSize() == 1);
+    REQUIRE(set.Contains(StringUtf8("")));
+
+    // A second empty key is the same key, so it must not add an entry.
+    set.Insert(StringUtf8(""));
+    REQUIRE(set.GetSize() == 1);
+
+    set.Insert("Hello");
+    REQUIRE(set.GetSize() == 2);
+    REQUIRE(set.Contains(StringUtf8("")));
+    REQUIRE(set.Contains("Hello"));
+
+    REQUIRE(set.Erase(StringUtf8("")) == ErrorCode::Success);
+    REQUIRE(!set.Contains(StringUtf8("")));
+    REQUIRE(set.Contains("Hello"));
+}
+
 TEST_CASE("Hash Set", "[hash-set]")
 {
     HashSet<i32> set(100);
