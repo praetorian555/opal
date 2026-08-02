@@ -66,6 +66,45 @@ TEST_CASE("Hash of a range depends only on its elements", "[hash]")
     }
 }
 
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_MSVC_WARNING(4324)
+struct PaddedPod
+{
+    i8 a = 0;
+    i64 b = 0;
+
+    bool operator==(const PaddedPod& other) const { return a == other.a && b == other.b; }
+};
+OPAL_END_DISABLE_WARNINGS
+
+TEST_CASE("Types whose bytes do not determine their value get no default hasher", "[hash]")
+{
+    // Trivially copyable and standard layout, so it is plain old data, but the seven bytes between the
+    // members are indeterminate. Hashing its bytes would let two equal values hash differently.
+    static_assert(IsPOD<PaddedPod>);
+    static_assert(!HasUniqueObjectRepresentations<PaddedPod>);
+
+    Hasher<PaddedPod> hasher;
+    REQUIRE_THROWS_AS(hasher(PaddedPod{1, 2}), NotImplementedException);
+}
+
+TEST_CASE("Floating point keys hash by value, not by bytes", "[hash]")
+{
+    // Positive and negative zero compare equal but do not share a representation.
+    REQUIRE(0.0F == -0.0F);
+    REQUIRE(Hasher<f32>{}(0.0F) == Hasher<f32>{}(-0.0F));
+    REQUIRE(Hasher<f64>{}(0.0) == Hasher<f64>{}(-0.0));
+
+    REQUIRE(Hasher<f32>{}(1.5F) != Hasher<f32>{}(2.5F));
+
+    HashSet<f32> set;
+    set.Insert(0.0F);
+    REQUIRE(set.Contains(-0.0F));
+    // Inserting the value that already compares equal must not add a second key.
+    set.Insert(-0.0F);
+    REQUIRE(set.GetSize() == 1);
+}
+
 TEST_CASE("Hash set with empty keys", "[hash-set]")
 {
     HashSet<StringUtf8> set;

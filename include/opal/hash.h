@@ -45,6 +45,11 @@ u64 CalcRange(const T& range, u64 seed = 0);
 
 /**
  * @brief Class used to generate 64-bit hash value for a given type.
+ *
+ * Specialize this for any type used as a `HashSet` or `HashMap` key that is not covered below. Equal keys must produce equal hashes, so a
+ * hasher should read the members that carry the value rather than the object's bytes. Reaching this primary template throws, which is what
+ * a type with padding does.
+ *
  * @tparam T Type of value for which to generate hash.
  */
 template <typename T>
@@ -57,16 +62,36 @@ struct Hasher
 };
 
 /**
- * Specialization for plain old data types.
- * @tparam T Plain old data type.
+ * Specialization for types whose value is fully determined by their bytes.
+ *
+ * Deliberately narrower than plain old data. A type with padding is trivially copyable and standard layout, but its padding bytes are
+ * indeterminate, so two objects that compare equal can hash differently. Such a type falls through to the primary template and has to be
+ * given a hasher of its own.
+ *
+ * @tparam T Type with a unique object representation.
  */
 template <typename T>
-    requires IsPOD<T> && (!Range<T>)
+    requires HasUniqueObjectRepresentations<T> && (!Range<T>)
 struct Hasher<T>
 {
     u64 operator()(const T& value) const
     {
         return Hash::CalcPOD(value);
+    }
+};
+
+/**
+ * Specialization for floating-point types, which have no unique object representation of their own: positive and negative zero compare
+ * equal while their bytes differ. Both hash alike here.
+ * @tparam T Floating-point type.
+ */
+template <typename T>
+    requires FloatingPoint<T>
+struct Hasher<T>
+{
+    u64 operator()(const T& value) const
+    {
+        return Hash::CalcPOD(value == T{0} ? T{0} : value);
     }
 };
 
