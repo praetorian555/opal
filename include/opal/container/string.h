@@ -478,6 +478,17 @@ public:
     void Strip();
 
     /**
+     * Get a sub-string of this string.
+     * @param start_pos Position to start the sub-string from. May be equal to the size of the string, which yields an empty sub-string.
+     * @param count Number of code units to include. If count is equal to k_npos, or reaches past the end, the rest of the string is used.
+     * @param allocator Allocator to use for the result. If nullptr, the default allocator will be used.
+     * @return Sub-string in case of a success. ErrorCode::OutOfBounds if start_pos is greater than the size of the string.
+     * @throw OutOfMemoryException when there is no more memory.
+     */
+    [[nodiscard]] Expected<String, ErrorCode> GetSubString(size_type start_pos = 0, size_type count = k_npos,
+                                                           allocator_type* allocator = nullptr) const;
+
+    /**
      * Check whether the string contains a sub-string. An empty needle is always contained.
      * @param needle Sub-string to look for.
      * @return True when the needle occurs in the string.
@@ -1807,6 +1818,13 @@ void CLASS_HEADER::ShrinkToFit()
     Deallocate(old_data);
     m_storage.large.data = new_data;
     m_storage.large.capacity = sz + 1;
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::GetSubString(size_type start_pos, size_type count,
+                                                                        allocator_type* allocator) const
+{
+    return Opal::GetSubString(*this, start_pos, count, allocator);
 }
 
 TEMPLATE_HEADER

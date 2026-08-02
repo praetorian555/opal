@@ -4809,6 +4809,63 @@ TEST_CASE("Erase long string", "[String]")
 static_assert(std::random_access_iterator<StringUtf8::reverse_iterator>);
 static_assert(std::random_access_iterator<StringUtf8::const_reverse_iterator>);
 
+TEST_CASE("Member GetSubString", "[String]")
+{
+    SECTION("Start position and count")
+    {
+        const StringUtf8 str("Hello there");
+        auto result = str.GetSubString(6, 5);
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue() == "there");
+    }
+    SECTION("Defaults give back the whole string")
+    {
+        const StringUtf8 str("Hello");
+        REQUIRE(str.GetSubString().GetValue() == "Hello");
+        REQUIRE(str.GetSubString(2).GetValue() == "llo");
+    }
+    SECTION("Count past the end is clamped")
+    {
+        const StringUtf8 str("Hello");
+        REQUIRE(str.GetSubString(2, 100).GetValue() == "llo");
+    }
+    SECTION("Start at the end")
+    {
+        const StringUtf8 str("Hello");
+        auto result = str.GetSubString(5);
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue().IsEmpty());
+    }
+    SECTION("Start past the end")
+    {
+        const StringUtf8 str("Hello");
+        auto result = str.GetSubString(6);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Result owns its own memory")
+    {
+        const StringUtf8 str("Hello there and then some more, long enough to be on the heap");
+        auto result = str.GetSubString(6);
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue().GetData() != str.GetData() + 6);
+    }
+    SECTION("Custom allocator")
+    {
+        MallocAllocator allocator;
+        const StringUtf8 str("Hello there");
+        auto result = str.GetSubString(0, 5, &allocator);
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue() == "Hello");
+        REQUIRE(&result.GetValue().GetAllocator() == &allocator);
+    }
+    SECTION("Matches the free function")
+    {
+        const StringUtf8 str("Hello there");
+        REQUIRE(str.GetSubString(6, 5).GetValue() == Opal::GetSubString(str, 6, 5).GetValue());
+    }
+}
+
 TEST_CASE("Initializer list", "[String]")
 {
     SECTION("Construction")
