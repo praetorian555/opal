@@ -207,13 +207,19 @@ Thread-local allocator stacks with RAII guards: `PushDefault`, `PushScratch`, `S
 
 ### Error Handling
 
-Two patterns used:
-1. **Expected<T, ErrorCode>** for recoverable errors (returned from methods)
-2. **Exceptions** (inheriting from `Opal::Exception`) for programming errors and unrecoverable situations
+A failure the caller can act on is returned. A failure that means the caller broke a contract is thrown.
+
+1. **`ErrorCode`** when the operation has no value to hand back - `Reserve`, `Insert`, `Erase`.
+2. **`Expected<T, ErrorCode>`** when it does - `TryAt`, `Front`, `Back`, an `Insert` that yields an iterator.
+3. **Exceptions** (inheriting from `Opal::Exception`) for contract violations, and for constructors, which have no way to return anything. `GetValue` on a key that is not in the map throws; so does a constructor that cannot allocate.
+
+Allocation failure is recoverable, not exceptional. Allocators are pluggable and often budgeted (`LinearAllocator`, `NullAllocator`), so exhausting one is an ordinary event to branch on: return `ErrorCode::OutOfMemory` instead of throwing. `AllocatorBase::Alloc` returns `nullptr` for the same reason.
 
 `ErrorCode` enum in `error-codes.h`. Exception types in `exceptions.h`.
 
 `OPAL_ASSERT(condition, message)` - active only in debug builds (`OPAL_DEBUG`), maps to `assert()`.
+
+Not everything follows this yet. `Deque`, `HashSet` and `HashMap` do. `DynamicArray` and `String` still throw from mutators such as `Reserve` and `PushBack`, and predate the rule - do not copy them.
 
 ### OPAL_EXPORT Macro
 
