@@ -139,6 +139,11 @@ public:
     static constexpr size_type k_npos = static_cast<size_type>(-1);
 
     /**
+     * @brief Largest number of code units a string can hold, not counting the null terminator.
+     */
+    static constexpr size_type k_max_size = (k_npos / sizeof(CodeUnitType)) - 1;
+
+    /**
      * @brief Default constructor.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
      */
@@ -149,16 +154,17 @@ public:
      * @param count Number of code units to initialize the string with.
      * @param value Value of the code unit to initialize the string with.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
-     * @throw OutOfMemoryException if allocator runs out of memory.
+     * @throw OutOfMemoryException if count is larger than k_max_size or the allocator runs out of memory.
      */
     String(size_type count, CodeUnitType value, allocator_type* allocator = nullptr);
 
     /**
-     * @brief Construct a string using 'count' code units from a null-terminated string.
+     * @brief Construct a string using 'count' code units read from str. str does not need to be null-terminated.
      * @param count Number of code units to initialize the string with.
-     * @param str Pointer to the null-terminated string to initialize the string with.
+     * @param str Pointer to the code units to initialize the string with. May be nullptr only when count is 0.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
-     * @throw OutOfMemoryException if allocator runs out of memory.
+     * @throw InvalidArgumentException if str is nullptr and count is not 0.
+     * @throw OutOfMemoryException if count is larger than k_max_size or the allocator runs out of memory.
      */
     String(const CodeUnitType* str, size_type count, allocator_type* allocator = nullptr);
 
@@ -173,8 +179,9 @@ public:
     /**
      * @brief Construct a string using a substring of another string.
      * @param other String to copy from.
-     * @param pos Position in the other string to start copying from.
+     * @param pos Position in the other string to start copying from. May be equal to the size of other, which yields an empty string.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     * @throw OutOfBoundsException if pos is greater than the size of other.
      * @throw OutOfMemoryException if allocator runs out of memory.
      */
     String(const String& other, size_type pos, allocator_type* allocator = nullptr);
@@ -583,6 +590,85 @@ private:
         return m_storage.large.data;
     }
 
+    // Ensures the buffer holds at least required_capacity code units, terminator included. Capacity
+    // grows by half on every reallocation so that repeated appends stay amortized constant time.
+    void Grow(size_type required_capacity)
+    {
+        const size_type current_capacity = GetCapacity();
+        if (required_capacity <= current_capacity)
+        {
+            return;
+        }
+        size_type new_capacity = required_capacity;
+        if (current_capacity <= k_max_size / 2)
+        {
+            const size_type scaled = current_capacity + (current_capacity / 2) + 1;
+            new_capacity = scaled > new_capacity ? scaled : new_capacity;
+        }
+        Reserve(new_capacity);
+    }
+
+    // Ensures room for current_size + added code units plus a terminator.
+    void GrowForAppend(size_type current_size, size_type added)
+    {
+        if (added > k_max_size - current_size)
+        {
+            throw OutOfMemoryException("requested string size exceeds String::k_max_size");
+        }
+        Grow(current_size + added + 1);
+    }
+
+    // Builds the initial storage for a string of exactly count code units and writes the terminator.
+    // The code units themselves are left uninitialized. Only valid on a freshly default-initialized
+    // object, since it assumes m_storage is still zeroed.
+    void InitStorage(allocator_type* alloc, size_type count)
+    {
+        ValidateSize(count);
+        if (count + 1 <= k_sso_capacity)
+        {
+            InitSmall(alloc, count);
+            GetSmallData()[count] = 0;
+            return;
+        }
+        InitLarge(alloc);
+        value_type* new_data = Allocate(count + 1);
+        m_storage.large.data = new_data;
+        m_storage.large.size = count;
+        m_storage.large.capacity = count + 1;
+        new_data[count] = 0;
+    }
+
+    // Makes room for new_size code units plus a terminator, discarding the current contents. The new
+    // buffer is allocated before the old one is released so that a throwing allocator leaves the
+    // string unchanged rather than holding a dangling pointer.
+    void PrepareForOverwrite(size_type new_size)
+    {
+        ValidateSize(new_size);
+        if (new_size + 1 <= GetCapacity())
+        {
+            return;
+        }
+        value_type* new_data = Allocate(new_size + 1);
+        if (!IsSmall() && m_storage.large.data != nullptr)
+        {
+            Deallocate(m_storage.large.data);
+        }
+        allocator_type* alloc = GetAllocatorPtr();
+        InitLarge(alloc);
+        m_storage.large.data = new_data;
+        m_storage.large.size = 0;
+        m_storage.large.capacity = new_size + 1;
+    }
+
+    // Rejects sizes that would overflow the byte count or the null-terminator slot.
+    static void ValidateSize(size_type new_size)
+    {
+        if (new_size > k_max_size)
+        {
+            throw OutOfMemoryException("requested string size exceeds String::k_max_size");
+        }
+    }
+
     inline value_type* Allocate(size_type size);
     inline void Deallocate(value_type* data);
 
@@ -947,56 +1033,29 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(size_type count, CodeUnitType value, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
-    if (count + 1 <= k_sso_capacity)
+    InitStorage(allocator, count);
+    value_type* buf = GetData();
+    for (size_type i = 0; i < count; i++)
     {
-        InitSmall(allocator, count);
-        value_type* buf = GetSmallData();
-        for (size_type i = 0; i < count; i++)
-        {
-            buf[i] = value;
-        }
-        buf[count] = 0;
-    }
-    else
-    {
-        InitLarge(allocator);
-        m_storage.large.data = Allocate(count + 1);
-        m_storage.large.size = count;
-        m_storage.large.capacity = count + 1;
-        for (size_type i = 0; i < count; i++)
-        {
-            m_storage.large.data[i] = value;
-        }
-        m_storage.large.data[count] = 0;
+        buf[i] = value;
     }
 }
 
 TEMPLATE_HEADER CLASS_HEADER::String(const String& other, size_type pos, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
-    const size_type count = other.GetSize() - pos;
-    const value_type* other_data = other.GetData();
-    if (count + 1 <= k_sso_capacity)
+    const size_type other_size = other.GetSize();
+    if (pos > other_size)
     {
-        InitSmall(allocator, count);
-        value_type* buf = GetSmallData();
-        for (size_type i = 0; i < count; i++)
-        {
-            buf[i] = other_data[pos + i];
-        }
-        buf[count] = 0;
+        throw OutOfBoundsException(pos, 0, other_size);
     }
-    else
+    const size_type count = other_size - pos;
+    const value_type* other_data = other.GetData();
+    InitStorage(allocator, count);
+    value_type* buf = GetData();
+    for (size_type i = 0; i < count; i++)
     {
-        InitLarge(allocator);
-        m_storage.large.data = Allocate(count + 1);
-        m_storage.large.size = count;
-        m_storage.large.capacity = count + 1;
-        for (size_type i = 0; i < count; i++)
-        {
-            m_storage.large.data[i] = other_data[pos + i];
-        }
-        m_storage.large.data[count] = 0;
+        buf[i] = other_data[pos + i];
     }
 }
 
@@ -1004,27 +1063,15 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(const CodeUnitType* str, size_type count, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
-    if (count + 1 <= k_sso_capacity)
+    if (str == nullptr && count > 0)
     {
-        InitSmall(allocator, count);
-        value_type* buf = GetSmallData();
-        for (size_type i = 0; i < count; i++)
-        {
-            buf[i] = str[i];
-        }
-        buf[count] = 0;
+        throw InvalidArgumentException(__FUNCTION__, "str", count);
     }
-    else
+    InitStorage(allocator, count);
+    value_type* buf = GetData();
+    for (size_type i = 0; i < count; i++)
     {
-        InitLarge(allocator);
-        m_storage.large.data = Allocate(count + 1);
-        m_storage.large.size = count;
-        m_storage.large.capacity = count + 1;
-        for (size_type i = 0; i < count; i++)
-        {
-            m_storage.large.data[i] = str[i];
-        }
-        m_storage.large.data[count] = 0;
+        buf[i] = str[i];
     }
 }
 
@@ -1033,27 +1080,11 @@ CLASS_HEADER::String(const CodeUnitType* str, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
     const size_type count = GetStringLength(str);
-    if (count + 1 <= k_sso_capacity)
+    InitStorage(allocator, count);
+    value_type* buf = GetData();
+    for (size_type i = 0; i < count; i++)
     {
-        InitSmall(allocator, count);
-        value_type* buf = GetSmallData();
-        for (size_type i = 0; i < count; i++)
-        {
-            buf[i] = str[i];
-        }
-        buf[count] = 0;
-    }
-    else
-    {
-        InitLarge(allocator);
-        m_storage.large.data = Allocate(count + 1);
-        m_storage.large.size = count;
-        m_storage.large.capacity = count + 1;
-        for (size_type i = 0; i < count; i++)
-        {
-            m_storage.large.data[i] = str[i];
-        }
-        m_storage.large.data[count] = 0;
+        buf[i] = str[i];
     }
 }
 
@@ -1178,17 +1209,7 @@ bool CLASS_HEADER::operator==(const String& other) const
 TEMPLATE_HEADER
 void CLASS_HEADER::Assign(size_type count, CodeUnitType value)
 {
-    if (count + 1 > GetCapacity())
-    {
-        if (!IsSmall() && m_storage.large.data != nullptr)
-        {
-            Deallocate(m_storage.large.data);
-        }
-        allocator_type* alloc = GetAllocatorPtr();
-        InitLarge(alloc);
-        m_storage.large.data = Allocate(count + 1);
-        m_storage.large.capacity = count + 1;
-    }
+    PrepareForOverwrite(count);
     value_type* data = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1206,17 +1227,7 @@ void CLASS_HEADER::Assign(const String& other)
         return;
     }
     const size_type other_size = other.GetSize();
-    if (other_size + 1 > GetCapacity())
-    {
-        if (!IsSmall() && m_storage.large.data != nullptr)
-        {
-            Deallocate(m_storage.large.data);
-        }
-        allocator_type* alloc = GetAllocatorPtr();
-        InitLarge(alloc);
-        m_storage.large.data = Allocate(other_size + 1);
-        m_storage.large.capacity = other_size + 1;
-    }
+    PrepareForOverwrite(other_size);
     value_type* data = GetData();
     if (other_size > 0)
     {
@@ -1246,17 +1257,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other, size_type pos, size_ty
     {
         return ErrorCode::OutOfBounds;
     }
-    if (count + 1 > GetCapacity())
-    {
-        if (!IsSmall() && m_storage.large.data != nullptr)
-        {
-            Deallocate(m_storage.large.data);
-        }
-        allocator_type* alloc = GetAllocatorPtr();
-        InitLarge(alloc);
-        m_storage.large.data = Allocate(count + 1);
-        m_storage.large.capacity = count + 1;
-    }
+    PrepareForOverwrite(count);
     value_type* data = GetData();
     if (count > 0)
     {
@@ -1289,17 +1290,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const CodeUnitType* str, size_type count)
     {
         return ErrorCode::OutOfBounds;
     }
-    if (count + 1 > GetCapacity())
-    {
-        if (!IsSmall() && m_storage.large.data != nullptr)
-        {
-            Deallocate(m_storage.large.data);
-        }
-        allocator_type* alloc = GetAllocatorPtr();
-        InitLarge(alloc);
-        m_storage.large.data = Allocate(count + 1);
-        m_storage.large.capacity = count + 1;
-    }
+    PrepareForOverwrite(count);
     value_type* data = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1326,17 +1317,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start_it, InputIt end_it)
         return ErrorCode::SelfNotAllowed;
     }
     u64 count = static_cast<u64>(end_it - start_it);
-    if (count + 1 > GetCapacity())
-    {
-        if (!IsSmall() && m_storage.large.data != nullptr)
-        {
-            Deallocate(m_storage.large.data);
-        }
-        allocator_type* alloc = GetAllocatorPtr();
-        InitLarge(alloc);
-        m_storage.large.data = Allocate(count + 1);
-        m_storage.large.capacity = count + 1;
-    }
+    PrepareForOverwrite(count);
     value_type* data = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1354,7 +1335,7 @@ CodeUnitType& CLASS_HEADER::At(size_type pos)
     const size_type sz = GetSize();
     if (pos >= sz)
     {
-        throw OutOfBoundsException(pos, 0, sz - 1);
+        throw OutOfBoundsException(pos, 0, sz == 0 ? 0 : sz - 1);
     }
     return GetData()[pos];
 }
@@ -1365,7 +1346,7 @@ const CodeUnitType& CLASS_HEADER::At(size_type pos) const
     const size_type sz = GetSize();
     if (pos >= sz)
     {
-        throw OutOfBoundsException(pos, 0, sz - 1);
+        throw OutOfBoundsException(pos, 0, sz == 0 ? 0 : sz - 1);
     }
     return GetData()[pos];
 }
@@ -1487,10 +1468,8 @@ Opal::ErrorCode CLASS_HEADER::Resize(size_type new_size, CodeUnitType value)
         GetData()[new_size] = 0;
         return ErrorCode::Success;
     }
-    if (new_size + 1 > GetCapacity())
-    {
-        Reserve(new_size + 1);
-    }
+    ValidateSize(new_size);
+    Grow(new_size + 1);
     value_type* data = GetData();
     for (size_type i = old_size; i < new_size; i++)
     {
@@ -1555,10 +1534,7 @@ TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Append(const value_type& ch)
 {
     size_type sz = GetSize();
-    if (sz + 2 > GetCapacity())
-    {
-        Reserve(sz + 2);
-    }
+    GrowForAppend(sz, 1);
     value_type* data = GetData();
     data[sz] = ch;
     sz += 1;
@@ -1579,10 +1555,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const value_type* str, size_type size)
         size = GetStringLength(str);
     }
     size_type sz = GetSize();
-    if (sz + size + 1 > GetCapacity())
-    {
-        Reserve(sz + size + 1);
-    }
+    GrowForAppend(sz, size);
     value_type* data = GetData();
     if (size > 0)
     {
@@ -1598,10 +1571,7 @@ TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Append(size_type count, CodeUnitType value)
 {
     size_type sz = GetSize();
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = sz; i < sz + count; i++)
     {
@@ -1618,10 +1588,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other)
 {
     size_type sz = GetSize();
     const size_type other_size = other.GetSize();
-    if (sz + other_size + 1 > GetCapacity())
-    {
-        Reserve(sz + other_size + 1);
-    }
+    GrowForAppend(sz, other_size);
     value_type* data = GetData();
     if (other_size > 0)
     {
@@ -1650,10 +1617,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, size_type pos, size_ty
         return ErrorCode::OutOfBounds;
     }
     size_type sz = GetSize();
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     if (count > 0)
     {
@@ -1682,10 +1646,7 @@ Opal::ErrorCode CLASS_HEADER::Append(InputIt begin_it, InputIt end_it)
     }
     u64 count = static_cast<u64>(end_it - begin_it);
     size_type sz = GetSize();
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1712,10 +1673,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(iterator(GetData() + start_pos));
     }
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1757,10 +1715,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(iterator(GetData() + start_pos));
     }
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1799,10 +1754,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(iterator(GetData() + start_pos));
     }
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1832,10 +1784,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     const size_type start_pos = Narrow<size_type>(start - Begin());
     size_type sz = GetSize();
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1866,10 +1815,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     const size_type start_pos = Narrow<size_type>(start - ConstBegin());
     size_type sz = GetSize();
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1906,10 +1852,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     const size_type start_pos = Narrow<size_type>(start - Begin());
     size_type sz = GetSize();
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -1946,10 +1889,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     const size_type start_pos = Narrow<size_type>(start - ConstBegin());
     size_type sz = GetSize();
-    if (sz + count + 1 > GetCapacity())
-    {
-        Reserve(sz + count + 1);
-    }
+    GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -2159,8 +2099,17 @@ CodeUnitType* CLASS_HEADER::Allocate(size_type size)
         throw OutOfMemoryException("Allocator is not set!");
     }
     constexpr u64 k_alignment = alignof(CodeUnitType);
+    if (size > k_max_size + 1)
+    {
+        throw OutOfMemoryException(alloc->GetName(), size);
+    }
     const u64 size_bytes = size * sizeof(value_type);
-    return reinterpret_cast<value_type*>(alloc->Alloc(size_bytes, k_alignment));
+    value_type* new_data = reinterpret_cast<value_type*>(alloc->Alloc(size_bytes, k_alignment));
+    if (new_data == nullptr)
+    {
+        throw OutOfMemoryException(alloc->GetName(), size_bytes);
+    }
+    return new_data;
 }
 
 TEMPLATE_HEADER

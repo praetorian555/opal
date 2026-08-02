@@ -91,7 +91,7 @@ public:
     {
         if (pos >= m_size)
         {
-            throw OutOfBoundsException(pos, 0, m_size - 1);
+            throw OutOfBoundsException(pos, 0, m_size == 0 ? 0 : m_size - 1);
         }
         return m_data[pos];
     }

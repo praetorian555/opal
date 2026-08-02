@@ -1420,7 +1420,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str(ref);
             ErrorCode err = str.Append(" there");
             REQUIRE(err == ErrorCode::Success);
-            REQUIRE(str.GetCapacity() == 581);
+            REQUIRE(str.GetCapacity() >= 581);
             REQUIRE(str.GetSize() == 580);
             REQUIRE(strcmp(str.GetData(), ref_final) == 0);
         }
@@ -1455,7 +1455,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str(ref);
             ErrorCode err = str.Append(" there", 5);
             REQUIRE(err == ErrorCode::Success);
-            REQUIRE(str.GetCapacity() == 580);
+            REQUIRE(str.GetCapacity() >= 580);
             REQUIRE(str.GetSize() == 579);
         }
         SECTION("Null sub string literal")
@@ -1489,7 +1489,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str(ref);
             StringLocale str2(" there");
             str.Append(str2);
-            REQUIRE(str.GetCapacity() == 581);
+            REQUIRE(str.GetCapacity() >= 581);
             REQUIRE(str.GetSize() == 580);
             REQUIRE(strcmp(str.GetData(), ref_final) == 0);
         }
@@ -1507,7 +1507,7 @@ TEST_CASE("Append", "[String]")
             StringLocale str(ref);
             StringLocale str2(" there");
             str.Append(str2, 0, 5);
-            REQUIRE(str.GetCapacity() == 580);
+            REQUIRE(str.GetCapacity() >= 580);
             REQUIRE(str.GetSize() == 579);
         }
         SECTION("Sub string bad position")
@@ -4881,4 +4881,115 @@ TEST_CASE("Clonable with user-defined constructor", "[String]")
     // Verify deep copy.
     original.a = "Changed";
     REQUIRE(cloned.a == "Hello");
+}
+
+TEST_CASE("Amortized growth", "[String]")
+{
+    SECTION("Repeated single code unit appends reallocate rarely")
+    {
+        StringUtf8 str;
+        const char8* previous = str.GetData();
+        u64 reallocation_count = 0;
+        for (i32 i = 0; i < 2000; ++i)
+        {
+            REQUIRE(str.Append('x') == ErrorCode::Success);
+            if (str.GetData() != previous)
+            {
+                ++reallocation_count;
+                previous = str.GetData();
+            }
+        }
+        REQUIRE(str.GetSize() == 2000);
+        REQUIRE(str.GetCapacity() >= 2001);
+        REQUIRE(reallocation_count < 32);
+        for (u64 i = 0; i < str.GetSize(); ++i)
+        {
+            REQUIRE(str[i] == 'x');
+        }
+        REQUIRE(str.GetData()[str.GetSize()] == 0);
+    }
+    SECTION("Reserve is still honoured exactly")
+    {
+        StringUtf8 str;
+        str.Reserve(1000);
+        REQUIRE(str.GetCapacity() == 1000);
+    }
+}
+
+TEST_CASE("Substring constructor bounds", "[String]")
+{
+    SECTION("Position equal to size yields an empty string")
+    {
+        StringUtf8 source("Hello");
+        StringUtf8 str(source, 5);
+        REQUIRE(str.GetSize() == 0);
+        REQUIRE(str.IsEmpty());
+    }
+    SECTION("Position past the end throws")
+    {
+        StringUtf8 source("Hello");
+        REQUIRE_THROWS_AS(StringUtf8(source, 6), OutOfBoundsException);
+        REQUIRE_THROWS_AS(StringUtf8(source, StringUtf8::k_npos), OutOfBoundsException);
+    }
+    SECTION("Empty source")
+    {
+        StringUtf8 source;
+        StringUtf8 str(source, 0);
+        REQUIRE(str.IsEmpty());
+        REQUIRE_THROWS_AS(StringUtf8(source, 1), OutOfBoundsException);
+    }
+}
+
+TEST_CASE("Oversized requests are rejected", "[String]")
+{
+    SECTION("Constructor with count of k_npos")
+    {
+        REQUIRE_THROWS_AS(StringUtf8(StringUtf8::k_npos, 'a'), OutOfMemoryException);
+    }
+    SECTION("Pointer constructor with count of k_npos")
+    {
+        REQUIRE_THROWS_AS(StringUtf8("abc", StringUtf8::k_npos), OutOfMemoryException);
+    }
+    SECTION("Assign with count of k_npos")
+    {
+        StringUtf8 str("abc");
+        REQUIRE_THROWS_AS(str.Assign(StringUtf8::k_npos, 'a'), OutOfMemoryException);
+    }
+    SECTION("Resize with a size of k_npos")
+    {
+        StringUtf8 str("abc");
+        REQUIRE_THROWS_AS(str.Resize(StringUtf8::k_npos), OutOfMemoryException);
+    }
+    SECTION("Append that would overflow the size")
+    {
+        StringUtf8 str("abc");
+        REQUIRE_THROWS_AS(str.Append(StringUtf8::k_max_size, 'a'), OutOfMemoryException);
+    }
+}
+
+TEST_CASE("Null pointer construction", "[String]")
+{
+    const char8* null_str = nullptr;
+    SECTION("Null with a non-zero count throws")
+    {
+        REQUIRE_THROWS_AS(StringUtf8(null_str, 5), InvalidArgumentException);
+    }
+    SECTION("Null with a zero count is empty")
+    {
+        StringUtf8 str(null_str, StringUtf8::size_type{0});
+        REQUIRE(str.IsEmpty());
+    }
+    SECTION("Null null-terminated pointer is empty")
+    {
+        StringUtf8 str(static_cast<const char8*>(nullptr));
+        REQUIRE(str.IsEmpty());
+    }
+}
+
+TEST_CASE("At on an empty string reports a sane range", "[String]")
+{
+    StringUtf8 str;
+    REQUIRE_THROWS_AS(str.At(0), OutOfBoundsException);
+    const StringUtf8& const_str = str;
+    REQUIRE_THROWS_AS(const_str.At(0), OutOfBoundsException);
 }
