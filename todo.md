@@ -48,8 +48,8 @@ reproduced against a debug build.
       (`path.GetSize() * 2`, `MAX_PATH`), which is now pointless and could be dropped.
 - [x] `At()` constructs `OutOfBoundsException(pos, 0, sz - 1)` on an empty string (`string.h:1357`,
       `string.h:1368`), underflowing the upper bound in the message.
-- [ ] `using const_pointer = CodeUnitType*;` is missing its `const` (`string.h:128`).
-- [ ] The explicit instantiation at `string.h:603` precedes the member definitions that start at
+- [x] `using const_pointer = CodeUnitType*;` is missing its `const` (`string.h:128`).
+- [x] The explicit instantiation at `string.h:603` precedes the member definitions that start at
       `string.h:938`, so the instantiation point sees no definitions. Use `extern template` in the
       header and `template class` in `src/string.cpp`.
 

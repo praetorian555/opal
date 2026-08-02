@@ -125,7 +125,7 @@ public:
     using reference = CodeUnitType&;
     using const_reference = const CodeUnitType&;
     using pointer = CodeUnitType*;
-    using const_pointer = CodeUnitType*;
+    using const_pointer = const CodeUnitType*;
     using encoding_type = EncodingType;
     using iterator = StringIterator<String>;
     using const_iterator = StringConstIterator<String>;
@@ -702,7 +702,7 @@ private:
     } m_storage = {};
 };
 
-template class OPAL_EXPORT String<char8, EncodingUtf8<char8>>;
+extern template class OPAL_EXPORT String<char8, EncodingUtf8<char8>>;
 
 // Forward declare StringView so the StringLike concept can reference it.
 template <typename CodeUnitType, typename EncodingType>
