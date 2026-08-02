@@ -1,3 +1,4 @@
+#include <cstring>
 #include <iostream>
 
 #include "test-helpers.h"
@@ -1938,6 +1939,47 @@ TEST_CASE("From const UTF8 to locale", "[String]")
     ErrorCode error = Transcode(utf8, locale_result);
     REQUIRE(error == ErrorCode::Success);
     REQUIRE(locale_result == str_locale);
+}
+
+TEST_CASE("Locale encoder stays inside the output span", "[String]")
+{
+    SECTION("A code point that does not fit is rejected")
+    {
+        EncodingLocale encoding;
+        char8 buffer[8] = {};
+        ArrayView<char8> span(buffer, 1);
+        const ErrorCode error = encoding.EncodeOne(U'日', span);
+        REQUIRE(error == ErrorCode::InsufficientSpace);
+        REQUIRE(span.GetSize() == 1);
+        REQUIRE(buffer[1] == 0);
+    }
+    SECTION("A code point that fits is written")
+    {
+        EncodingLocale encoding;
+        char8 buffer[8] = {};
+        ArrayView<char8> span(buffer, 8);
+        const ErrorCode error = encoding.EncodeOne(U'A', span);
+        REQUIRE(error == ErrorCode::Success);
+        REQUIRE(buffer[0] == 'A');
+        REQUIRE(span.GetSize() == 7);
+    }
+    SECTION("Retrying after a rejection produces the same result")
+    {
+        EncodingLocale encoding;
+        char8 small_buffer[1] = {};
+        ArrayView<char8> small_span(small_buffer, 1);
+        REQUIRE(encoding.EncodeOne(U'日', small_span) == ErrorCode::InsufficientSpace);
+        char8 buffer[8] = {};
+        ArrayView<char8> span(buffer, 8);
+        REQUIRE(encoding.EncodeOne(U'日', span) == ErrorCode::Success);
+
+        EncodingLocale fresh_encoding;
+        char8 reference[8] = {};
+        ArrayView<char8> reference_span(reference, 8);
+        REQUIRE(fresh_encoding.EncodeOne(U'日', reference_span) == ErrorCode::Success);
+        REQUIRE(span.GetSize() == reference_span.GetSize());
+        REQUIRE(std::memcmp(buffer, reference, sizeof(buffer)) == 0);
+    }
 }
 
 TEST_CASE("Transcode with empty destination", "[String]")
