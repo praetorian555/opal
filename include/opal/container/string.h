@@ -199,6 +199,10 @@ public:
         requires RandomAccessIterator<InputIt>
     String(InputIt start, InputIt end, allocator_type* allocator = nullptr);
 
+    /** The string does not copy. Use Clone to make an owning copy, or move it. */
+    String(const String& other) = delete;
+    String& operator=(const String& other) = delete;
+
     String Clone(AllocatorBase* allocator = nullptr) const;
 
     ~String();
