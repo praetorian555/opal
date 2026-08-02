@@ -914,8 +914,10 @@ typename StringClass::size_type ReverseFind(const StringClass& haystack, const t
  * @tparam InputStringClass Type of the input string. Defines code unit type and encoding. Needs to be DecodableEncoding.
  * @tparam InputStringClass Type of the output string. Defines code unit type and encoding. Needs to be EncodableEncoding.
  * @param input Input string to transcode.
- * @param output Output string to store the transcoded result.
+ * @param output Output string to store the transcoded result. Grown as needed and resized to the length of the result, so it does not
+ * need to be sized by the caller. Its contents are unspecified if transcoding fails.
  * @return ErrorCode::Success if transcoding was successful, other error codes depend on the encoding implementation.
+ * @throw OutOfMemoryException when the output string cannot be grown.
  */
 template <typename InputStringClass, typename OutputStringClass>
     requires Opal::DecodableEncoding<typename InputStringClass::encoding_type> &&
@@ -2158,10 +2160,15 @@ template <typename InputStringClass, typename OutputStringClass>
              Opal::EncodableEncoding<typename OutputStringClass::encoding_type>
 Opal::ErrorCode Opal::Transcode(const InputStringClass& input, OutputStringClass& output)
 {
+    using output_value_type = typename OutputStringClass::value_type;
     typename InputStringClass::encoding_type src_decoder;
     typename OutputStringClass::encoding_type dst_encoder;
     ArrayView<const typename InputStringClass::value_type> input_span(input.GetData(), input.GetSize());
-    ArrayView<typename OutputStringClass::value_type> output_span(output.GetData(), output.GetSize());
+    if (output.GetSize() < input.GetSize())
+    {
+        output.Resize(input.GetSize());
+    }
+    ArrayView<output_value_type> output_span(output.GetData(), output.GetSize());
     while (true)
     {
         uchar32 code_point = 0;
@@ -2175,6 +2182,13 @@ Opal::ErrorCode Opal::Transcode(const InputStringClass& input, OutputStringClass
             return error;
         }
         error = dst_encoder.EncodeOne(code_point, output_span);
+        if (error == ErrorCode::InsufficientSpace)
+        {
+            const typename OutputStringClass::size_type written = output.GetSize() - output_span.GetSize();
+            output.Resize(output.GetSize() * 2 + 8);
+            output_span = ArrayView<output_value_type>(output.GetData() + written, output.GetData() + output.GetSize());
+            error = dst_encoder.EncodeOne(code_point, output_span);
+        }
         if (error != ErrorCode::Success)
         {
             return error;

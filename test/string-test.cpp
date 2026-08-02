@@ -1986,38 +1986,61 @@ TEST_CASE("Transcode with empty destination", "[String]")
 {
     SECTION("Output is StringUtf8")
     {
-        StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+        const StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+        const StringUtf8 utf8("での日本語文字コードを扱うために使用されている従来の");
         StringUtf8 utf8_result;
         ErrorCode error = Transcode(utf32, utf8_result);
-        REQUIRE(error == ErrorCode::InsufficientSpace);
-    }
-    SECTION("Output is StringUtf16")
-    {
-        StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
-        StringUtf8 utf8_result;
-        ErrorCode error = Transcode(utf32, utf8_result);
-        REQUIRE(error == ErrorCode::InsufficientSpace);
+        REQUIRE(error == ErrorCode::Success);
+        REQUIRE(utf8_result == utf8);
     }
     SECTION("Output is StringUtf32")
     {
-        StringUtf8 utf8("での日本語文字コードを扱うために使用されている従来の");
+        const StringUtf8 utf8("での日本語文字コードを扱うために使用されている従来の");
+        const StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
         StringUtf32 utf32_result;
         ErrorCode error = Transcode(utf8, utf32_result);
-        REQUIRE(error == ErrorCode::InsufficientSpace);
+        REQUIRE(error == ErrorCode::Success);
+        REQUIRE(utf32_result == utf32);
     }
     SECTION("Output is StringWide")
     {
-        StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+#if defined(OPAL_PLATFORM_WINDOWS)
+        const StringWide wide(L"での日本語文字コードを扱うために使用されている従来の");
+#elif defined(OPAL_PLATFORM_LINUX)
+        const StringWide wide(u"での日本語文字コードを扱うために使用されている従来の");
+#endif
+        const StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
         StringWide wide_result;
         ErrorCode error = Transcode(utf32, wide_result);
-        REQUIRE(error == ErrorCode::InsufficientSpace);
+        REQUIRE(error == ErrorCode::Success);
+        REQUIRE(wide_result == wide);
     }
     SECTION("Output is StringLocale")
     {
-        StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+        const StringLocale str_locale(reinterpret_cast<const char8*>(u8"での日本語文字コードを扱うために使用されている従来の"));
+        const StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
         StringLocale locale_result;
         ErrorCode error = Transcode(utf32, locale_result);
-        REQUIRE(error == ErrorCode::InsufficientSpace);
+        REQUIRE(error == ErrorCode::Success);
+        REQUIRE(locale_result == str_locale);
+    }
+    SECTION("Destination shorter than the result")
+    {
+        const StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
+        const StringUtf8 utf8("での日本語文字コードを扱うために使用されている従来の");
+        StringUtf8 utf8_result;
+        utf8_result.Resize(3);
+        ErrorCode error = Transcode(utf32, utf8_result);
+        REQUIRE(error == ErrorCode::Success);
+        REQUIRE(utf8_result == utf8);
+    }
+    SECTION("Empty input")
+    {
+        const StringUtf32 utf32;
+        StringUtf8 utf8_result;
+        ErrorCode error = Transcode(utf32, utf8_result);
+        REQUIRE(error == ErrorCode::Success);
+        REQUIRE(utf8_result.IsEmpty());
     }
 }
 

@@ -41,9 +41,11 @@ reproduced against a debug build.
 - [x] `StringToNumber(const StringClass&)` reads past the end for `StringView` (`string.h:3162`).
       `strtoll` needs a null terminator that a view has no obligation to provide. The local `end` is
       initialized and then immediately overwritten by `strtoll`.
-- [ ] `Transcode` requires the caller to pre-size the output and says so nowhere (`string.h:2180`).
+- [x] `Transcode` requires the caller to pre-size the output and says so nowhere (`string.h:2180`).
       `output_span` spans `output.GetSize()` and is never grown; the tests only pass because they call
       `Resize(200)` first. On `InsufficientSpace` the output is left partially written.
+      Fixed by growing the output on demand. The callers in `src/` still pre-size with guesses
+      (`path.GetSize() * 2`, `MAX_PATH`), which is now pointless and could be dropped.
 - [x] `At()` constructs `OutOfBoundsException(pos, 0, sz - 1)` on an empty string (`string.h:1357`,
       `string.h:1368`), underflowing the upper bound in the message.
 - [ ] `using const_pointer = CodeUnitType*;` is missing its `const` (`string.h:128`).
