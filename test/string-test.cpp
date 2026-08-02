@@ -4809,6 +4809,65 @@ TEST_CASE("Erase long string", "[String]")
 static_assert(std::random_access_iterator<StringUtf8::reverse_iterator>);
 static_assert(std::random_access_iterator<StringUtf8::const_reverse_iterator>);
 
+TEST_CASE("Initializer list", "[String]")
+{
+    SECTION("Construction")
+    {
+        StringUtf8 str{'a', 'b', 'c'};
+        REQUIRE(str.GetSize() == 3);
+        REQUIRE(str == "abc");
+        REQUIRE(str.GetData()[3] == 0);
+    }
+    SECTION("Empty list")
+    {
+        StringUtf8 str(std::initializer_list<char8>{});
+        REQUIRE(str.IsEmpty());
+        REQUIRE(str.GetData()[0] == 0);
+    }
+    SECTION("List longer than the inline buffer")
+    {
+        StringUtf8 str{'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                       'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+        REQUIRE(str.GetSize() == 26);
+        REQUIRE(str == "abcdefghijklmnopqrstuvwxyz");
+    }
+    SECTION("Construction with an allocator")
+    {
+        MallocAllocator allocator;
+        StringUtf8 str({'a', 'b', 'c'}, &allocator);
+        REQUIRE(str == "abc");
+        REQUIRE(&str.GetAllocator() == &allocator);
+    }
+    SECTION("Assign")
+    {
+        StringUtf8 str("Hello there");
+        str.Assign({'a', 'b'});
+        REQUIRE(str.GetSize() == 2);
+        REQUIRE(str == "ab");
+    }
+    SECTION("Assignment operator")
+    {
+        StringUtf8 str("Hello there");
+        str = {'x', 'y', 'z'};
+        REQUIRE(str == "xyz");
+    }
+    SECTION("Assignment keeps the allocator")
+    {
+        MallocAllocator allocator;
+        StringUtf8 str("Hello there", &allocator);
+        str = {'x'};
+        REQUIRE(str == "x");
+        REQUIRE(&str.GetAllocator() == &allocator);
+    }
+    SECTION("Assigning an empty list")
+    {
+        StringUtf8 str("Hello there");
+        str = {};
+        REQUIRE(str.IsEmpty());
+        REQUIRE(str.GetData()[0] == 0);
+    }
+}
+
 TEST_CASE("Reverse iterators", "[String]")
 {
     SECTION("Walk backwards over the code units")

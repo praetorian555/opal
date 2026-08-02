@@ -2,6 +2,7 @@
 
 #include <cinttypes>
 #include <compare>
+#include <initializer_list>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -253,6 +254,14 @@ public:
         requires RandomAccessIterator<InputIt>
     String(InputIt start, InputIt end, allocator_type* allocator = nullptr);
 
+    /**
+     * Construct a string from a list of code units.
+     * @param init_list Code units to initialize the string with.
+     * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
+     * @throw OutOfMemoryException if allocator runs out of memory.
+     */
+    String(std::initializer_list<CodeUnitType> init_list, allocator_type* allocator = nullptr);
+
     /** The string does not copy. Use Clone to make an owning copy, or move it. */
     String(const String& other) = delete;
     String& operator=(const String& other) = delete;
@@ -344,6 +353,21 @@ public:
      * @param other String to move.
      */
     void Assign(String&& other);
+
+    /**
+     * Override a string with a list of code units.
+     * @param init_list Code units to assign.
+     * @throw OutOfMemoryException if allocator runs out of memory.
+     */
+    void Assign(std::initializer_list<CodeUnitType> init_list);
+
+    /**
+     * Override a string with a list of code units. Keeps the current allocator.
+     * @param init_list Code units to assign.
+     * @return Reference to this string.
+     * @throw OutOfMemoryException if allocator runs out of memory.
+     */
+    String& operator=(std::initializer_list<CodeUnitType> init_list);
 
     /**
      * @brief Override a string with a specific number of code units from a null-terminated string.
@@ -1246,6 +1270,19 @@ CLASS_HEADER::String(const CodeUnitType* str, size_type count, allocator_type* a
 }
 
 TEMPLATE_HEADER
+CLASS_HEADER::String(std::initializer_list<CodeUnitType> init_list, allocator_type* allocator)
+{
+    allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
+    const size_type count = init_list.size();
+    InitStorage(allocator, count);
+    value_type* buf = GetData();
+    for (size_type i = 0; i < count; i++)
+    {
+        buf[i] = *(init_list.begin() + i);
+    }
+}
+
+TEMPLATE_HEADER
 CLASS_HEADER::String(const CodeUnitType* str, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
@@ -1493,6 +1530,27 @@ TEMPLATE_HEADER
 void CLASS_HEADER::Assign(String&& other)
 {
     *this = Move(other);
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::Assign(std::initializer_list<CodeUnitType> init_list)
+{
+    const size_type count = init_list.size();
+    PrepareForOverwrite(count);
+    value_type* data = GetData();
+    for (size_type i = 0; i < count; i++)
+    {
+        data[i] = *(init_list.begin() + i);
+    }
+    SetSize(count);
+    data[count] = 0;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator=(std::initializer_list<CodeUnitType> init_list)
+{
+    Assign(init_list);
+    return *this;
 }
 
 TEMPLATE_HEADER
