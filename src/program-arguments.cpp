@@ -41,8 +41,14 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         StringUtf8 name;
         StringUtf8 value;
         Split<StringUtf8>(arguments[i], "=", name, value);
-        names.PushBack(std::move(name));
-        values.PushBack(std::move(value));
+        if (names.PushBack(std::move(name)) != ErrorCode::Success) [[unlikely]]
+        {
+            throw OutOfMemoryException(__FUNCTION__);
+        }
+        if (values.PushBack(std::move(value)) != ErrorCode::Success) [[unlikely]]
+        {
+            throw OutOfMemoryException(__FUNCTION__);
+        }
     }
 
     for (const auto& name : names)

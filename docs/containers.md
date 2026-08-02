@@ -58,16 +58,18 @@ arr.GetData();       // Raw pointer to underlying storage
 ### Modification
 
 ```cpp
-arr.PushBack(42);                  // Append
-arr.EmplaceBack(arg1, arg2);       // Construct in place
+arr.PushBack(42);                  // Append, returns ErrorCode
+arr.EmplaceBack(arg1, arg2);       // Construct in place, returns Expected<T&, ErrorCode>
 arr.PopBack();                     // Remove last
-arr.Insert(pos, value);            // Insert at iterator position
-arr.Insert(pos, count, value);     // Insert N copies at position
+arr.Insert(pos, value);            // Returns Expected<iterator, ErrorCode>
+arr.Insert(pos, count, value);     // Returns Expected<iterator, ErrorCode>
+arr.Emplace(pos, arg1, arg2);      // Returns Expected<iterator, ErrorCode>
 arr.Erase(pos);                    // Remove at position
 arr.EraseWithSwap(pos);            // O(1) erase by swapping with last element
 arr.Remove(value);                 // Remove first matching value
 arr.RemoveWithSwap(value);         // O(1) remove first matching value
-arr.Append(other_container);       // Append all elements from another container
+arr.Append(other_container);       // Returns ErrorCode
+arr.Assign(count, value);          // Returns ErrorCode
 arr.Clear();                       // Remove all elements
 ```
 
@@ -77,17 +79,23 @@ arr.Clear();                       // Remove all elements
 arr.GetSize();                     // Current element count
 arr.GetCapacity();                 // Allocated capacity
 arr.IsEmpty();                     // True if size == 0
-arr.Reserve(100);                  // Pre-allocate capacity
-arr.Resize(50);                    // Change size (default-init new elements)
-arr.Resize(50, 0);                 // Change size (init new elements to 0)
+arr.Reserve(100);                  // Pre-allocate capacity, returns ErrorCode
+arr.Resize(50);                    // Change size, returns ErrorCode
+arr.Resize(50, 0);                 // Change size, returns ErrorCode
+arr.ShrinkToFit();                 // Give up spare capacity, returns ErrorCode
 ```
 
 ### Allocator
 
 ```cpp
 arr.GetAllocator();                // Get current allocator
-arr.SetAllocator(&new_alloc);     // Change allocator (copies data)
+arr.SetAllocator(&new_alloc);      // Change allocator (moves data), returns ErrorCode
 ```
+
+Mutators that can allocate return `ErrorCode`, or `Expected<..., ErrorCode>` when they also have a
+value to hand back. Constructors, `Clone` and `operator=` have nowhere to put a code and still throw
+`OutOfMemoryException`. Out-of-range access throws, since that is a caller bug rather than a
+recoverable condition.
 
 ---
 
@@ -754,8 +762,8 @@ Containers use two error handling approaches depending on the severity:
 
 | Style | Used By | Example |
 |-------|---------|---------|
-| **Exceptions** | `DynamicArray`, `String`, `SharedPtr` | `OutOfBoundsException`, `OutOfMemoryException`, `InvalidArgumentException` |
-| **ErrorCode returns** | `Deque`, `HashSet`, `HashMap`, `ArrayView` | `ErrorCode::OutOfBounds`, `ErrorCode::OutOfMemory`, `ErrorCode::InvalidArgument` |
+| **Exceptions** | `String`, `SharedPtr` | `OutOfBoundsException`, `OutOfMemoryException`, `InvalidArgumentException` |
+| **ErrorCode returns** | `Deque`, `DynamicArray`, `HashSet`, `HashMap`, `ArrayView` | `ErrorCode::OutOfBounds`, `ErrorCode::OutOfMemory`, `ErrorCode::InvalidArgument` |
 
 `Expected<T, ErrorCode>` is used for operations that need to return both a value and an error status, such as `Deque::At()` or `ArrayView::SubSpan()`.
 
@@ -788,9 +796,9 @@ happens, since they have nothing to return. See the error handling section of `C
 
 **1. Inconsistent error handling across containers.**
 
-`DynamicArray` and `String` throw exceptions on out-of-bounds access, while `Deque` and `ArrayView` return `Expected<T&, ErrorCode>`. `DynamicArray::Reserve` and `PushBack` throw when the allocator runs out, where `Deque`, `HashSet` and `HashMap` return `ErrorCode::OutOfMemory` for the same failure. This inconsistency means the caller must remember which style each container uses.
+`DynamicArray` and `String` throw exceptions on out-of-bounds access, while `Deque` and `ArrayView` return `Expected<T&, ErrorCode>`. That part is deliberate: an out-of-range index is a caller bug, not a recoverable condition.
 
-`HashSet` and `HashMap` no longer disagree with each other, and the rule they follow is written down in the error handling section of `CLAUDE.md`. `DynamicArray` and `String` predate it and are the ones still left to move.
+Allocation failure is where they used to disagree, and mostly no longer do. `Deque`, `DynamicArray`, `HashSet` and `HashMap` all return `ErrorCode::OutOfMemory`. `String` is the one still left to move; its mutators throw.
 
 **2. Inconsistent naming conventions.**
 

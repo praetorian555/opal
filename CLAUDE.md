@@ -219,7 +219,7 @@ Allocation failure is recoverable, not exceptional. Allocators are pluggable and
 
 `OPAL_ASSERT(condition, message)` - active only in debug builds (`OPAL_DEBUG`), maps to `assert()`.
 
-Not everything follows this yet. `Deque`, `HashSet` and `HashMap` do. `DynamicArray` and `String` still throw from mutators such as `Reserve` and `PushBack`, and predate the rule - do not copy them.
+Not everything follows this yet. `Deque`, `DynamicArray`, `HashSet` and `HashMap` do. `String` still throws from mutators such as `Reserve` and `Append`, and predates the rule - do not copy it.
 
 ### OPAL_EXPORT Macro
 

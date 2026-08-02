@@ -316,7 +316,10 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUt
     }
 
     DynamicArray<StringWide> directories;
-    directories.PushBack(Move(path_wide));
+    if (directories.PushBack(Move(path_wide)) != ErrorCode::Success) [[unlikely]]
+    {
+        throw OutOfMemoryException(__FUNCTION__);
+    }
 
     DynamicArray<DirectoryEntry> out_contents;
     while (!directories.IsEmpty())
@@ -351,22 +354,34 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUt
             const bool is_directory = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
             if (is_directory && desc.include_directories)
             {
-                out_contents.PushBack({.path = std::move(child_path), .is_directory = true});
+                if (out_contents.PushBack({.path = std::move(child_path), .is_directory = true}) != ErrorCode::Success) [[unlikely]]
+                {
+                    throw OutOfMemoryException(__FUNCTION__);
+                }
             }
             if (!is_directory)
             {
-                out_contents.PushBack({.path = std::move(child_path), .is_directory = false});
+                if (out_contents.PushBack({.path = std::move(child_path), .is_directory = false}) != ErrorCode::Success) [[unlikely]]
+                {
+                    throw OutOfMemoryException(__FUNCTION__);
+                }
             }
             if (desc.recursive && is_directory)
             {
-                directories.PushBack(Move(child_path_wide));
+                if (directories.PushBack(Move(child_path_wide)) != ErrorCode::Success) [[unlikely]]
+                {
+                    throw OutOfMemoryException(__FUNCTION__);
+                }
             }
         } while (FindNextFileW(find_handle, &find_data) != 0);
     }
     return out_contents;
 #elif defined(OPAL_PLATFORM_LINUX)
     DynamicArray<StringUtf8> directories;
-    directories.PushBack(std::move(path));
+    if (directories.PushBack(std::move(path)) != ErrorCode::Success) [[unlikely]]
+    {
+        throw OutOfMemoryException(__FUNCTION__);
+    }
 
     DynamicArray<DirectoryEntry> out_contents;
 
@@ -406,17 +421,26 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUt
             {
                 if (S_ISREG(statbuf.st_mode))
                 {
-                    out_contents.PushBack({.path = std::move(entry_path), .is_directory = false});
+                    if (out_contents.PushBack({.path = std::move(entry_path), .is_directory = false}) != ErrorCode::Success) [[unlikely]]
+                    {
+                        throw OutOfMemoryException(__FUNCTION__);
+                    }
                 }
                 else if (S_ISDIR(statbuf.st_mode))
                 {
                     if (desc.include_directories)
                     {
-                        out_contents.PushBack({.path = entry_path.Clone(), .is_directory = true});
+                        if (out_contents.PushBack({.path = entry_path.Clone(), .is_directory = true}) != ErrorCode::Success) [[unlikely]]
+                        {
+                            throw OutOfMemoryException(__FUNCTION__);
+                        }
                     }
                     if (desc.recursive)
                     {
-                        directories.PushBack(std::move(entry_path));
+                        if (directories.PushBack(std::move(entry_path)) != ErrorCode::Success) [[unlikely]]
+                        {
+                            throw OutOfMemoryException(__FUNCTION__);
+                        }
                     }
                 }
             }

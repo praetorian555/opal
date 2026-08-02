@@ -561,7 +561,10 @@ private:
                     ++m_column;
                     return JsonValue(JsonArray(m_allocator));
                 }
-                m_stack.EmplaceBack(ParseFrame{JsonArray(m_allocator), JsonObject{}, StringViewUtf8{}, false});
+                if (!(m_stack.EmplaceBack(ParseFrame{JsonArray(m_allocator), JsonObject{}, StringViewUtf8{}, false})).HasValue()) [[unlikely]]
+                {
+                    throw OutOfMemoryException(__FUNCTION__);
+                }
                 return ParseLeafOrOpenContainer();
             }
             case '{':
@@ -582,7 +585,10 @@ private:
                 SkipWhitespace();
                 Expect(':');
                 SkipWhitespace();
-                m_stack.EmplaceBack(JsonArray{}, JsonObject(m_allocator), key, true);
+                if (!(m_stack.EmplaceBack(JsonArray{}, JsonObject(m_allocator), key, true)).HasValue()) [[unlikely]]
+                {
+                    throw OutOfMemoryException(__FUNCTION__);
+                }
                 return ParseLeafOrOpenContainer();
             }
             default:

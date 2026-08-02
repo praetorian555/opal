@@ -1087,7 +1087,7 @@ TEST_CASE("Emplace at a position", "[Array]")
     SECTION("At the front, in the middle and at the end")
     {
         DynamicArray<i32> int_arr{1, 2, 3};
-        DynamicArray<i32>::iterator it = int_arr.Emplace(int_arr.cbegin(), 9);
+        DynamicArray<i32>::iterator it = int_arr.Emplace(int_arr.cbegin(), 9).GetValue();
         REQUIRE(it == int_arr.begin());
         REQUIRE(*it == 9);
         int_arr.Emplace(int_arr.cbegin() + 2, 8);
@@ -1445,7 +1445,7 @@ TEST_CASE("Allocation failure", "[Array]")
     {
         BudgetedAllocator allocator(0);
         DynamicArray<i32> int_arr(&allocator);
-        REQUIRE_THROWS_AS(int_arr.Reserve(4), OutOfMemoryException);
+        REQUIRE(int_arr.Reserve(4) == ErrorCode::OutOfMemory);
         REQUIRE(int_arr.GetSize() == 0);
         REQUIRE(int_arr.GetCapacity() == 0);
     }
@@ -1453,14 +1453,14 @@ TEST_CASE("Allocation failure", "[Array]")
     {
         BudgetedAllocator allocator(0);
         DynamicArray<i32> int_arr(&allocator);
-        REQUIRE_THROWS_AS(int_arr.PushBack(1), OutOfMemoryException);
+        REQUIRE(int_arr.PushBack(1) == ErrorCode::OutOfMemory);
         REQUIRE(int_arr.GetSize() == 0);
     }
     SECTION("Resize reports an allocator that hands back nothing")
     {
         BudgetedAllocator allocator(0);
         DynamicArray<i32> int_arr(&allocator);
-        REQUIRE_THROWS_AS(int_arr.Resize(4), OutOfMemoryException);
+        REQUIRE(int_arr.Resize(4) == ErrorCode::OutOfMemory);
         REQUIRE(int_arr.GetSize() == 0);
     }
     SECTION("Assign holds on to a buffer it owns when the allocation fails")
@@ -1469,13 +1469,13 @@ TEST_CASE("Allocation failure", "[Array]")
         BudgetedAllocator allocator(1);
         DynamicArray<i32> int_arr(2, 42, &allocator);
         REQUIRE(int_arr.GetSize() == 2);
-        REQUIRE_THROWS_AS(int_arr.Assign(8, 7), OutOfMemoryException);
+        REQUIRE(int_arr.Assign(8, 7) == ErrorCode::OutOfMemory);
         REQUIRE(int_arr.GetSize() == 0);
         REQUIRE(int_arr.GetCapacity() == 2);
         // The buffer it kept has to be one it still owns, so that growing again works and the
         // destructor frees live storage rather than storage already handed back.
         allocator.allowed = 1;
-        int_arr.Assign(8, 7);
+        REQUIRE(int_arr.Assign(8, 7) == ErrorCode::Success);
         REQUIRE(int_arr.GetSize() == 8);
         REQUIRE(int_arr.GetCapacity() == 8);
         REQUIRE(int_arr[0] == 7);
@@ -1486,7 +1486,7 @@ TEST_CASE("Allocation failure", "[Array]")
         BudgetedAllocator allocator(1);
         DynamicArray<i32> int_arr(2, 42, &allocator);
         const DynamicArray<i32> source(8, 7);
-        REQUIRE_THROWS_AS(int_arr.Assign(source.cbegin(), source.cend()), OutOfMemoryException);
+        REQUIRE(int_arr.Assign(source.cbegin(), source.cend()) == ErrorCode::OutOfMemory);
         REQUIRE(int_arr.GetSize() == 0);
         REQUIRE(int_arr.GetCapacity() == 2);
         allocator.allowed = 1;
@@ -2156,7 +2156,7 @@ TEST_CASE("Emplace back", "[Array]")
         SECTION("With enough capacity")
         {
             DynamicArray<i32> int_arr(3, 42);
-            i32& ref = int_arr.EmplaceBack(25);
+            i32& ref = int_arr.EmplaceBack(25).GetValue();
             REQUIRE(int_arr.GetSize() == 4);
             REQUIRE(int_arr[3] == 25);
             REQUIRE(ref == 25);
@@ -2164,7 +2164,7 @@ TEST_CASE("Emplace back", "[Array]")
         SECTION("Without enough capacity")
         {
             DynamicArray<i32> int_arr(4, 42);
-            i32& ref = int_arr.EmplaceBack(25);
+            i32& ref = int_arr.EmplaceBack(25).GetValue();
             REQUIRE(int_arr.GetSize() == 5);
             REQUIRE(int_arr[4] == 25);
             REQUIRE(ref == 25);
@@ -2181,7 +2181,7 @@ TEST_CASE("Emplace back", "[Array]")
                 DynamicArray<NonPod> non_pod_arr(3, NonPod(42));
                 g_value_call_count = 0;
                 g_clone_call_count = 0;
-                NonPod& ref = non_pod_arr.EmplaceBack(25);
+                NonPod& ref = non_pod_arr.EmplaceBack(25).GetValue();
                 REQUIRE(non_pod_arr.GetSize() == 4);
                 REQUIRE(*non_pod_arr[3].ptr == 25);
                 REQUIRE(*ref.ptr == 25);
@@ -2198,7 +2198,7 @@ TEST_CASE("Emplace back", "[Array]")
                 DynamicArray<NonPod> non_pod_arr(4, NonPod(42));
                 g_value_call_count = 0;
                 g_clone_call_count = 0;
-                NonPod& ref = non_pod_arr.EmplaceBack(25);
+                NonPod& ref = non_pod_arr.EmplaceBack(25).GetValue();
                 REQUIRE(non_pod_arr.GetSize() == 5);
                 REQUIRE(*non_pod_arr[4].ptr == 25);
                 REQUIRE(*ref.ptr == 25);
@@ -2603,7 +2603,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, val));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, val).GetValue());
             REQUIRE(*it == val);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
@@ -2617,7 +2617,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, 25));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, 25).GetValue());
             REQUIRE(*it == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
@@ -2632,7 +2632,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), val));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), val).GetValue());
             REQUIRE(*it == val);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
@@ -2646,7 +2646,7 @@ TEST_CASE("Insert", "[Array]")
         {
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), 25));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), 25).GetValue());
             REQUIRE(*it == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
             REQUIRE(int_arr.GetSize() == 4);
@@ -2687,7 +2687,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, 2, val));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, 2, val).GetValue());
             REQUIRE(*it == 25);
             REQUIRE(*(it + 1) == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
@@ -2704,7 +2704,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), 2, val));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), 2, val).GetValue());
             REQUIRE(*it == 25);
             REQUIRE(*(it + 1) == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
@@ -2721,7 +2721,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             const i32 val = 25;
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin(), 2, val));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin(), 2, val).GetValue());
             REQUIRE(*it == 25);
             REQUIRE(*(it + 1) == 25);
             REQUIRE(int_arr.GetCapacity() == 5);
@@ -2750,7 +2750,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             i32 val = 25;
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin(), 0, val));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin(), 0, val).GetValue());
             REQUIRE(it == int_arr.begin());
             REQUIRE(int_arr.GetCapacity() == 3);
             REQUIRE(int_arr.GetSize() == 3);
@@ -2767,7 +2767,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             const DynamicArray<i32> other(2, 5);
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, other.cbegin(), other.cend()));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, other.cbegin(), other.cend()).GetValue());
             REQUIRE(*it == 5);
             REQUIRE(*(it + 1) == 5);
             REQUIRE(int_arr.GetCapacity() == 5);
@@ -2784,7 +2784,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             const DynamicArray<i32> other(2, 5);
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()).GetValue());
             REQUIRE(*it == 5);
             REQUIRE(*(it + 1) == 5);
             REQUIRE(int_arr.GetCapacity() == 5);
@@ -2801,7 +2801,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(100, 5);
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cend(), other.cbegin(), other.cend()).GetValue());
             for (int i = 0; i < 100; ++i)
             {
                 REQUIRE(*(it + i) == 5);
@@ -2822,7 +2822,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             DynamicArray<i32> other(2, 5);
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin(), other.cbegin(), other.cend()).GetValue());
             REQUIRE(*it == 5);
             REQUIRE(*(it + 1) == 5);
             REQUIRE(int_arr.GetCapacity() == 5);
@@ -2876,7 +2876,7 @@ TEST_CASE("Insert", "[Array]")
             DynamicArray<i32> int_arr(3, 42);
             i32 other[] = {5, 5};
             DynamicArray<i32>::iterator it;
-            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, other, other + 2));
+            REQUIRE_NOTHROW(it = int_arr.Insert(int_arr.cbegin() + 1, other, other + 2).GetValue());
             REQUIRE(*it == 5);
             REQUIRE(*(it + 1) == 5);
             REQUIRE(int_arr.GetCapacity() == 5);
@@ -3340,7 +3340,7 @@ TEST_CASE("Insert of an owning element type", "[Array]")
         DynamicArray<OwnedCopy> source = make_copyable(2);
         DynamicArray<OwnedCopy> arr = make_copyable(4);
         DynamicArray<OwnedCopy>::iterator it;
-        REQUIRE_NOTHROW(it = arr.Insert(arr.cbegin() + 1, source.begin(), source.begin()));
+        REQUIRE_NOTHROW(it = arr.Insert(arr.cbegin() + 1, source.begin(), source.begin()).GetValue());
         REQUIRE(it == arr.begin() + 1);
         REQUIRE(arr.GetSize() == 4);
         REQUIRE(*arr[0].ptr == 1);

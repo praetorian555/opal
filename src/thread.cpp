@@ -238,7 +238,10 @@ Opal::CpuInfo Opal::GetCpuInfo()
         }
         if (!found)
         {
-            accums.PushBack({package_id, core_id, 1ULL << logical_id});
+            if (accums.PushBack({package_id, core_id, 1ULL << logical_id}) != ErrorCode::Success) [[unlikely]]
+            {
+                throw OutOfMemoryException(__FUNCTION__);
+            }
         }
     }
     closedir(cpu_dir);
