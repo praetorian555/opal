@@ -445,7 +445,7 @@ public:
      * inserted.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
      * of the string, if other_start_pos is out of bounds of the other string, or if count exceeds what is left in the other string after
-     * other_start_pos.
+     * other_start_pos. Inserting a string into itself is allowed.
      * @throw OutOfMemoryException when there is no more memory.
      */
     Expected<iterator, ErrorCode> Insert(size_type start_pos, const String& other, size_type other_start_pos = 0, size_type count = k_npos);
@@ -469,7 +469,8 @@ public:
      * @param begin Iterator pointing to the first code unit in the string to insert.
      * @param end Iterator pointing to the code unit after the last code unit in the string to insert.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start is out of bounds of
-     * the string. ErrorCode::InvalidArgument if begin is greater than end.
+     * the string. ErrorCode::InvalidArgument if begin is greater than end. ErrorCode::SelfNotAllowed if begin points into this string,
+     * matching Append and Assign.
      * @throw OutOfMemoryException when there is no more memory.
      */
     template <typename InputIt>
@@ -1787,6 +1788,10 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(iterator(GetData() + start_pos));
     }
+    if (&other == this)
+    {
+        return Insert(start_pos, other.GetData() + other_start_pos, count);
+    }
     GrowForAppend(sz, count);
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
@@ -1883,6 +1888,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(start);
     }
+    const value_type* my_data = GetData();
+    if (&(*begin) >= my_data && &(*begin) < my_data + GetSize())
+    {
+        return ReturnType(ErrorCode::SelfNotAllowed);
+    }
     const size_type start_pos = Narrow<size_type>(start - Begin());
     size_type sz = GetSize();
     GrowForAppend(sz, count);
@@ -1919,6 +1929,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     if (count == 0)
     {
         return ReturnType(iterator(GetData() + (start - ConstBegin())));
+    }
+    const value_type* my_data = GetData();
+    if (&(*begin) >= my_data && &(*begin) < my_data + GetSize())
+    {
+        return ReturnType(ErrorCode::SelfNotAllowed);
     }
     const size_type start_pos = Narrow<size_type>(start - ConstBegin());
     size_type sz = GetSize();

@@ -75,7 +75,7 @@ reproduced against a debug build.
       `ErrorCode::BadInput` does not exist at all; all six mentions in `string.h` were stale.
 - [ ] The same stale `ErrorCode::BadInput` appears in `deque.h` (3 mentions), `string-encoding.h` (5)
       and `sort/key-indexed-counting.h` (1).
-- [ ] `Insert(pos, const String& other, ...)` shifts data before reading it, so inserting a string into
+- [x] `Insert(pos, const String& other, ...)` shifts data before reading it, so inserting a string into
       itself corrupts the result. No self-check. `Insert(iterator, InputIt, InputIt)` and its
       `const_iterator` overload have the same hole, and unlike `Append(InputIt, InputIt)` and
       `Assign(InputIt, InputIt)` they do not return `SelfNotAllowed` for iterators into the string.

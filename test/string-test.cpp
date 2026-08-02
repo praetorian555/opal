@@ -5341,4 +5341,31 @@ TEST_CASE("Appending and inserting a string into itself", "[String]")
         REQUIRE(result.HasValue());
         REQUIRE(str == StringUtf8("aabbc"));
     }
+    SECTION("Insert the string object into itself")
+    {
+        StringUtf8 str(k_long);
+        auto result = str.Insert(0, str);
+        REQUIRE(result.HasValue());
+        REQUIRE(str == StringUtf8(k_long) + StringUtf8(k_long));
+    }
+    SECTION("Insert part of the string object into its own middle")
+    {
+        StringUtf8 str("abcdef");
+        auto result = str.Insert(3, str, 1, 2);
+        REQUIRE(result.HasValue());
+        REQUIRE(str == StringUtf8("abcbcdef"));
+    }
+    SECTION("Iterators into the string are rejected")
+    {
+        StringUtf8 str("abcdef");
+        auto result = str.Insert(str.Begin(), str.Begin(), str.Begin() + 2);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::SelfNotAllowed);
+        REQUIRE(str == StringUtf8("abcdef"));
+
+        auto const_result = str.Insert(str.ConstBegin(), str.Begin(), str.Begin() + 2);
+        REQUIRE(const_result.HasValue() == false);
+        REQUIRE(const_result.GetError() == ErrorCode::SelfNotAllowed);
+        REQUIRE(str == StringUtf8("abcdef"));
+    }
 }
