@@ -176,6 +176,30 @@ TEST_CASE("Hash map erase", "[HashMap]")
     }
 }
 
+TEST_CASE("Hash map iterator member access", "[HashMap]")
+{
+    HashMap<StringUtf8, StringUtf8> map;
+    map.Insert("Hello", "World");
+
+    SECTION("Through a mutable iterator")
+    {
+        HashMap<StringUtf8, StringUtf8>::iterator it = map.Find("Hello");
+        REQUIRE(it != map.end());
+        REQUIRE(it->key == "Hello");
+        REQUIRE(it->value == "World");
+        REQUIRE((*it).value == "World");
+    }
+    SECTION("Through a const iterator")
+    {
+        const HashMap<StringUtf8, StringUtf8>& const_map = map;
+        HashMap<StringUtf8, StringUtf8>::const_iterator it = const_map.Find("Hello");
+        REQUIRE(it != const_map.end());
+        REQUIRE(it->key == "Hello");
+        REQUIRE(it->value == "World");
+        REQUIRE((*it).value == "World");
+    }
+}
+
 TEST_CASE("Hash map clone", "[HashMap]")
 {
     SECTION("Non-POD key and value")

@@ -110,7 +110,7 @@ public:
     }
 
     const pair_type& operator*() const { return m_hash_map->Get(m_index); }
-    pair_type* operator->() const { return &m_hash_map->Get(m_index); }
+    const pair_type* operator->() const { return &m_hash_map->Get(m_index); }
     const key_type& GetKey() const { return m_hash_map->GetKey(m_index); }
     const value_type& GetValue() const { return m_hash_map->GetValue(m_index); }
 

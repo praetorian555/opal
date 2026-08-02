@@ -64,9 +64,9 @@ public:
     using hash_set_type = HashSetType;
     using value_type = typename hash_set_type::value_type;
     using difference_type = typename hash_set_type::difference_type;
-    using reference = typename hash_set_type::reference;
+    using reference = typename hash_set_type::const_reference;
     using const_reference = typename hash_set_type::const_reference;
-    using pointer = typename hash_set_type::pointer;
+    using pointer = typename hash_set_type::const_pointer;
 
     HashSetConstIterator() = default;
     HashSetConstIterator(const hash_set_type* hash_set, u64 index) : m_hash_set(hash_set), m_index(index) {}

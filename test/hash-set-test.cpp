@@ -417,6 +417,28 @@ TEST_CASE("Non-POD type")
     set.Insert(SomeType(5, 10));
 }
 
+TEST_CASE("HashSet iterator member access", "[hash-set]")
+{
+    HashSet<StringUtf8> set;
+    set.Insert("Hello");
+
+    SECTION("Through a mutable iterator")
+    {
+        HashSet<StringUtf8>::iterator it = set.Find("Hello");
+        REQUIRE(it != set.end());
+        REQUIRE(it->GetSize() == 5);
+        REQUIRE((*it).GetSize() == 5);
+    }
+    SECTION("Through a const iterator")
+    {
+        const HashSet<StringUtf8>& const_set = set;
+        HashSet<StringUtf8>::const_iterator it = const_set.Find("Hello");
+        REQUIRE(it != const_set.end());
+        REQUIRE(it->GetSize() == 5);
+        REQUIRE((*it).GetSize() == 5);
+    }
+}
+
 TEST_CASE("HashSet Clone", "[hash-set]")
 {
     SECTION("POD type")
