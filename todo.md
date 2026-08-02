@@ -62,9 +62,11 @@ reproduced against a debug build.
       the default way to index is the safe one. `String` was changed to match.
 - [ ] `DynamicArray`, `InPlaceArray` and `Deque` still use the opposite convention, where `At()` is the
       checked accessor. Either flip them the same way or accept that strings and arrays differ.
-- [ ] `GetSubString`, `Split`, `SplitToArray` and the five `operator+` overloads are constrained on
+- [x] `GetSubString`, `Split`, `SplitToArray` and the five `operator+` overloads are constrained on
       `StringLike` but hard error for `StringView`, which has no allocator-taking constructor, `Clone`
       or `operator+=`.
+      `GetSubString`, `Split` and `SplitToArray` now work for views and return views into the same
+      buffer. `operator+` is constrained on the new `OwningStringLike` concept instead.
 - [x] `Reserve` and `GetCapacity` count the null terminator, so `Reserve(n)` holds `n - 1` code units.
       Deviates from both `std::string` and `DynamicArray`, and is undocumented.
 - [x] `Reserve(0)` throws `InvalidArgumentException`, which makes `Reserve(computed_size)` unsafe in

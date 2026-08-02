@@ -4804,6 +4804,62 @@ TEST_CASE("Erase long string", "[String]")
     }
 }
 
+TEST_CASE("Substring and split on a view", "[String]")
+{
+    SECTION("GetSubString returns a view into the same buffer")
+    {
+        const StringUtf8 source("Hello there");
+        const StringViewUtf8 view(source);
+        auto result = Opal::GetSubString(view, 6, 5);
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue() == StringViewUtf8("there"));
+        REQUIRE(result.GetValue().GetData() == source.GetData() + 6);
+    }
+    SECTION("GetSubString on a view clamps the count and accepts the end")
+    {
+        const StringUtf8 source("Hello");
+        const StringViewUtf8 view(source);
+        REQUIRE(Opal::GetSubString(view, 2).GetValue() == StringViewUtf8("llo"));
+        REQUIRE(Opal::GetSubString(view, 2, 100).GetValue() == StringViewUtf8("llo"));
+        REQUIRE(Opal::GetSubString(view, 5).GetValue().GetSize() == 0);
+        REQUIRE(Opal::GetSubString(view, 6).GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Split produces views")
+    {
+        const StringUtf8 source("a::b");
+        const StringViewUtf8 view(source);
+        StringViewUtf8 first;
+        StringViewUtf8 second;
+        REQUIRE(Opal::Split(view, StringViewUtf8("::"), first, second));
+        REQUIRE(first == StringViewUtf8("a"));
+        REQUIRE(second == StringViewUtf8("b"));
+        REQUIRE(first.GetData() == source.GetData());
+        REQUIRE(second.GetData() == source.GetData() + 3);
+    }
+    SECTION("Split without a match yields the whole view")
+    {
+        const StringUtf8 source("abc");
+        const StringViewUtf8 view(source);
+        StringViewUtf8 first;
+        StringViewUtf8 second;
+        REQUIRE(!Opal::Split(view, StringViewUtf8("::"), first, second));
+        REQUIRE(first == view);
+        REQUIRE(second.GetSize() == 0);
+    }
+    SECTION("SplitToArray produces views")
+    {
+        const StringUtf8 source("a,b,");
+        const StringViewUtf8 view(source);
+        DynamicArray<StringViewUtf8> result;
+        REQUIRE(Opal::SplitToArray(view, StringViewUtf8(","), result));
+        REQUIRE(result.GetSize() == 3);
+        REQUIRE(result[0] == StringViewUtf8("a"));
+        REQUIRE(result[1] == StringViewUtf8("b"));
+        REQUIRE(result[2].GetSize() == 0);
+        REQUIRE(result[0].GetData() == source.GetData());
+    }
+}
+
 TEST_CASE("Empty range operations at the end of a string", "[String]")
 {
     SECTION("Assign from the end of another string")

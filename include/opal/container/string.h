@@ -737,6 +737,13 @@ template <typename T>
 concept StringLike = k_is_string_value<T> || k_is_string_view_value<T>;
 
 /**
+ * @brief Concept that checks if a type is a string that owns its code units, so it can be grown, cloned and allocated into.
+ * @tparam T The type to be evaluated.
+ */
+template <typename T>
+concept OwningStringLike = k_is_string_value<T>;
+
+/**
  * @brief Compare two strings lexicographically.
  * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @param first First string to compare.
@@ -813,19 +820,19 @@ template <StringLike StringClass>
 Expected<i32, ErrorCode> Compare(const StringClass& first, typename StringClass::size_type pos1, typename StringClass::size_type count1,
                                  const typename StringClass::value_type* second, typename StringClass::size_type count2);
 
-template <StringLike StringClass>
+template <OwningStringLike StringClass>
 StringClass operator+(const StringClass& lhs, const StringClass& rhs);
 
-template <StringLike StringClass>
+template <OwningStringLike StringClass>
 StringClass operator+(const StringClass& lhs, const typename StringClass::value_type* rhs);
 
-template <StringLike StringClass>
+template <OwningStringLike StringClass>
 StringClass operator+(const StringClass& lhs, typename StringClass::value_type ch);
 
-template <StringLike StringClass>
+template <OwningStringLike StringClass>
 StringClass operator+(const typename StringClass::value_type* lhs, const StringClass& rhs);
 
-template <StringLike StringClass>
+template <OwningStringLike StringClass>
 StringClass operator+(typename StringClass::value_type ch, const StringClass& rhs);
 
 /**
@@ -940,7 +947,8 @@ ErrorCode Transcode(const InputStringClass& input, OutputStringClass& output);
  * an empty substring.
  * @param count Number of code units to include in the substring. If count is equal to StringClass::k_npos, the entire string starting from
  * start_pos will be included.
- * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used.
+ * @param allocator Allocator to use for allocating the result. If nullptr, the default allocator will be used. Ignored when StringClass
+ * is a view, in which case the result is a view into the same buffer and nothing is allocated.
  * @return Substring in case of a success. ErrorCode::OutOfBounds if start_pos is greater than the size of the string.
  */
 template <StringLike StringClass, typename Allocator = AllocatorBase>
@@ -981,6 +989,7 @@ bool EndsWith(const StringClass& str, const StringClass& suffix);
  * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @param str String to split.
  * @param delimiter Pattern to find for the split.
+ * @note When StringClass is a view, both parts are views into the buffer of str.
  * @param first String contents before the delimiter.
  * @param second String contents after the delimiter.
  * @return Returns true if delimiter is found and there are no errors extracting two parts of the string,
@@ -995,6 +1004,7 @@ bool Split(const StringClass& str, const StringClass& delimiter, StringClass& fi
  * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @param str String to split.
  * @param delimiter Pattern to find for the split.
+ * @note When StringClass is a view, the parts are views into the buffer of str.
  * @param result Array of string parts after the splitting.
  * @return Returns true if delimiter is found at least once and there are no errors extracting two parts
  * of the string, false otherwise. An empty delimiter never matches, in which case result receives the
@@ -2626,7 +2636,7 @@ Opal::Expected<Opal::i32, Opal::ErrorCode> Opal::Compare(const StringClass& firs
     return ReturnType(0);
 }
 
-template <Opal::StringLike StringClass>
+template <Opal::OwningStringLike StringClass>
 StringClass Opal::operator+(const StringClass& lhs, const StringClass& rhs)
 {
     StringClass result = lhs.Clone();
@@ -2634,7 +2644,7 @@ StringClass Opal::operator+(const StringClass& lhs, const StringClass& rhs)
     return result;
 }
 
-template <Opal::StringLike StringClass>
+template <Opal::OwningStringLike StringClass>
 StringClass Opal::operator+(const StringClass& lhs, const typename StringClass::value_type* rhs)
 {
     StringClass result = lhs.Clone();
@@ -2642,7 +2652,7 @@ StringClass Opal::operator+(const StringClass& lhs, const typename StringClass::
     return result;
 }
 
-template <Opal::StringLike StringClass>
+template <Opal::OwningStringLike StringClass>
 StringClass Opal::operator+(const StringClass& lhs, typename StringClass::value_type ch)
 {
     StringClass result = lhs.Clone();
@@ -2650,7 +2660,7 @@ StringClass Opal::operator+(const StringClass& lhs, typename StringClass::value_
     return result;
 }
 
-template <Opal::StringLike StringClass>
+template <Opal::OwningStringLike StringClass>
 StringClass Opal::operator+(const typename StringClass::value_type* lhs, const StringClass& rhs)
 {
     StringClass result;
@@ -2659,7 +2669,7 @@ StringClass Opal::operator+(const typename StringClass::value_type* lhs, const S
     return result;
 }
 
-template <Opal::StringLike StringClass>
+template <Opal::OwningStringLike StringClass>
 StringClass Opal::operator+(typename StringClass::value_type ch, const StringClass& rhs)
 {
     StringClass result;
@@ -2862,12 +2872,20 @@ Opal::Expected<StringClass, Opal::ErrorCode> Opal::GetSubString(const StringClas
                                                                 typename StringClass::size_type count, Allocator* allocator)
 {
     using ReturnType = Expected<StringClass, ErrorCode>;
+    static_cast<void>(allocator);
     if (start_pos > str.GetSize())
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
     count = StringClass::Min(count, str.GetSize() - start_pos);
-    return ReturnType(StringClass(str.GetData() + start_pos, count, allocator));
+    if constexpr (k_is_string_view_value<StringClass>)
+    {
+        return ReturnType(StringClass(str.GetData() + start_pos, count));
+    }
+    else
+    {
+        return ReturnType(StringClass(str.GetData() + start_pos, count, allocator));
+    }
 }
 
 template <typename CodeUnitType>
@@ -2926,7 +2944,14 @@ bool Opal::Split(const StringClass& str, const StringClass& delimiter, StringCla
     typename StringClass::size_type pos = delimiter.IsEmpty() ? StringClass::k_npos : Opal::Find(str, delimiter);
     if (pos == StringClass::k_npos)
     {
-        first = str.Clone();
+        if constexpr (k_is_string_view_value<StringClass>)
+        {
+            first = str;
+        }
+        else
+        {
+            first = str.Clone();
+        }
         return false;
     }
     auto first_it = Opal::GetSubString(str, 0, pos);
