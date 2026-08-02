@@ -18,6 +18,40 @@ cd build && ctest
 
 CMake options: `OPAL_BUILD_TESTS` (ON), `OPAL_HARDENING` (ON), `OPAL_SHARED_LIBS` (OFF).
 
+### Building with GCC and Clang from Windows
+
+MSVC alone does not exercise the whole library. Two classes of bug are invisible to it:
+
+- `size_t` is `unsigned long long` on Windows, the same type as `u64`, and `unsigned long` everywhere
+  else. An overload set taking both `u64` and `i64` resolves on MSVC and is ambiguous on Linux.
+- A Debug MSVC build tends to zero padding bytes, hiding code that reads them. Release and other
+  compilers do not.
+
+Both GCC and Clang are available through WSL and can be driven from a Windows shell, so check there
+before pushing anything that touches templates, overloads or raw bytes:
+
+```bash
+# GCC. CLion generates this directory with Makefiles, so do not pass -G Ninja.
+wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&
+  cmake -S . -B build/debug-wsl-gcc -DCMAKE_BUILD_TYPE=Debug -DOPAL_HARDENING=ON &&
+  cmake --build build/debug-wsl-gcc -j "$(nproc)" &&
+  cd build/debug-wsl-gcc && ctest --output-on-failure'
+
+# Clang.
+wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&
+  cmake -S . -B build/debug-wsl-clang -G Ninja -DCMAKE_BUILD_TYPE=Debug -DOPAL_HARDENING=ON \
+    -DCMAKE_C_COMPILER=/bin/clang-20 -DCMAKE_CXX_COMPILER=/bin/clang++-20 &&
+  cmake --build build/debug-wsl-clang -j "$(nproc)" &&
+  cd build/debug-wsl-clang && ctest --output-on-failure'
+```
+
+`OPAL_HARDENING=ON` turns on the sanitizers, so the Clang build above is also the only place
+AddressSanitizer runs. CI passes `-DOPAL_HARDENING=OFF` to every job, which means no CI job runs a
+sanitizer and a use-after-free can reach `main` green. Treat a local sanitizer run as part of testing
+anything touching lifetimes or threading, not as an optional extra.
+
+The build directories match the CLion profiles of the same name and are gitignored.
+
 Test framework: Catch2 (amalgamated, vendored). Custom `main` in `test/main-test.cpp`. Test helpers in `test/test-helpers.h` (custom Catch matchers for math types). When adding a new test file, it must be added to `OPAL_TEST_FILES` in `CMakeLists.txt`.
 
 When adding a new source/header file, it must be added to `OPAL_FILES` in `CMakeLists.txt`.
