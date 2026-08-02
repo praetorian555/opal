@@ -20,7 +20,7 @@ reproduced against a debug build.
 - [x] `GetSubString` rejects `start_pos == size` (`string.h:2855`), so `Split`/`SplitToArray` drop a
       trailing empty field and report failure. `SplitToArray("a,b,", ",")` returns false with 2 parts.
       Guard should be `start_pos > str.GetSize()`.
-- [ ] `NumberToString` leading zeros do nothing for hex and octal (`string.h:2995`). The format is
+- [x] `NumberToString` leading zeros do nothing for hex and octal (`string.h:2995`). The format is
       built as `"%0" PRIX32` - a zero flag with no width. Needs an explicit width.
       `NumberToString<u32>(0xAB, Hexadecimal, true)` returns `"AB"`, not `"000000AB"`.
 - [x] `String` has no geometric growth, making `Append` quadratic (`string.h:1434`). Every append

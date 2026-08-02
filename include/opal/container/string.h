@@ -2971,7 +2971,13 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
 {
     constexpr size_t k_type_size = sizeof(T);
     StringUtf8 out_str("%");
-    out_str += add_leading_zeros ? "0" : "";
+    if (add_leading_zeros && number_system_base != NumberSystemBase::Decimal)
+    {
+        const i32 width = number_system_base == NumberSystemBase::Hexadecimal ? static_cast<i32>(k_type_size * 2)
+                                                                             : static_cast<i32>((k_type_size * 8 + 2) / 3);
+        out_str += "0";
+        out_str += NumberToString(width);
+    }
     if constexpr (k_type_size == 8)
     {
         switch (number_system_base)

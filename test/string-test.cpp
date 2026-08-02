@@ -4865,6 +4865,38 @@ TEST_CASE("NumberToString with leading zeros", "[String]")
         StringUtf8 str = NumberToString(static_cast<u8>(0), NumberSystemBase::Binary, true);
         REQUIRE(str == "00000000");
     }
+    SECTION("Hexadecimal with leading zeros")
+    {
+        REQUIRE(NumberToString(static_cast<u8>(0xAB), NumberSystemBase::Hexadecimal, true) == "AB");
+        REQUIRE(NumberToString(static_cast<u16>(0xAB), NumberSystemBase::Hexadecimal, true) == "00AB");
+        REQUIRE(NumberToString(static_cast<u32>(0xAB), NumberSystemBase::Hexadecimal, true) == "000000AB");
+        REQUIRE(NumberToString(static_cast<u64>(0xAB), NumberSystemBase::Hexadecimal, true) == "00000000000000AB");
+        REQUIRE(NumberToString(static_cast<u32>(0), NumberSystemBase::Hexadecimal, true) == "00000000");
+    }
+    SECTION("Hexadecimal without leading zeros")
+    {
+        REQUIRE(NumberToString(static_cast<u32>(0xAB), NumberSystemBase::Hexadecimal, false) == "AB");
+    }
+    SECTION("Octal with leading zeros")
+    {
+        REQUIRE(NumberToString(static_cast<u8>(5), NumberSystemBase::Octal, true) == "005");
+        REQUIRE(NumberToString(static_cast<u16>(5), NumberSystemBase::Octal, true) == "000005");
+        REQUIRE(NumberToString(static_cast<u32>(5), NumberSystemBase::Octal, true) == "00000000005");
+        REQUIRE(NumberToString(static_cast<u64>(5), NumberSystemBase::Octal, true) == "0000000000000000000005");
+    }
+    SECTION("Octal without leading zeros")
+    {
+        REQUIRE(NumberToString(static_cast<u32>(5), NumberSystemBase::Octal, false) == "5");
+    }
+    SECTION("A value that already fills the width is unchanged")
+    {
+        REQUIRE(NumberToString(std::numeric_limits<u32>::max(), NumberSystemBase::Hexadecimal, true) == "FFFFFFFF");
+        REQUIRE(NumberToString(std::numeric_limits<u32>::max(), NumberSystemBase::Octal, true) == "37777777777");
+    }
+    SECTION("Decimal ignores leading zeros")
+    {
+        REQUIRE(NumberToString(static_cast<u32>(5), NumberSystemBase::Decimal, true) == "5");
+    }
 }
 
 TEST_CASE("Append long string character", "[String]")
