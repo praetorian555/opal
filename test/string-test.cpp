@@ -4804,6 +4804,136 @@ TEST_CASE("Erase long string", "[String]")
     }
 }
 
+TEST_CASE("Clear", "[String]")
+{
+    SECTION("Small string")
+    {
+        StringUtf8 str("Hello");
+        const u64 old_capacity = str.GetCapacity();
+        str.Clear();
+        REQUIRE(str.GetSize() == 0);
+        REQUIRE(str.IsEmpty());
+        REQUIRE(str.GetData()[0] == 0);
+        REQUIRE(str.GetCapacity() == old_capacity);
+    }
+    SECTION("Large string keeps its memory")
+    {
+        StringUtf8 str("Hello there and then some more, long enough to be on the heap");
+        const u64 old_capacity = str.GetCapacity();
+        str.Clear();
+        REQUIRE(str.IsEmpty());
+        REQUIRE(str.GetCapacity() == old_capacity);
+        str.Append("back again");
+        REQUIRE(str == StringUtf8("back again"));
+    }
+    SECTION("Already empty")
+    {
+        StringUtf8 str;
+        REQUIRE_NOTHROW(str.Clear());
+        REQUIRE(str.IsEmpty());
+    }
+}
+
+TEST_CASE("PopBack", "[String]")
+{
+    SECTION("Removes the last code unit")
+    {
+        StringUtf8 str("abc");
+        str.PopBack();
+        REQUIRE(str == StringUtf8("ab"));
+        REQUIRE(str.GetSize() == 2);
+        REQUIRE(str.GetData()[2] == 0);
+    }
+    SECTION("Down to empty")
+    {
+        StringUtf8 str("a");
+        str.PopBack();
+        REQUIRE(str.IsEmpty());
+    }
+    SECTION("Empty string does nothing")
+    {
+        StringUtf8 str;
+        REQUIRE_NOTHROW(str.PopBack());
+        REQUIRE(str.IsEmpty());
+    }
+    SECTION("Long string")
+    {
+        StringUtf8 str("Hello there and then some more, long enough to be on the heap");
+        const u64 old_size = str.GetSize();
+        str.PopBack();
+        REQUIRE(str.GetSize() == old_size - 1);
+        REQUIRE(str.GetData()[str.GetSize()] == 0);
+    }
+}
+
+TEST_CASE("ShrinkToFit", "[String]")
+{
+    SECTION("Gives up spare capacity")
+    {
+        StringUtf8 str("Hello there and then some more, long enough to be on the heap");
+        const u64 size = str.GetSize();
+        str.Reserve(500);
+        REQUIRE(str.GetCapacity() == 500);
+        str.ShrinkToFit();
+        REQUIRE(str.GetCapacity() == size + 1);
+        REQUIRE(str.GetSize() == size);
+        REQUIRE(str == StringUtf8("Hello there and then some more, long enough to be on the heap"));
+    }
+    SECTION("Moves back to inline storage")
+    {
+        StringUtf8 str;
+        str.Reserve(500);
+        str.Append("abc");
+        str.ShrinkToFit();
+        REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+        REQUIRE(str == StringUtf8("abc"));
+    }
+    SECTION("Small string does nothing")
+    {
+        StringUtf8 str("abc");
+        str.ShrinkToFit();
+        REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+        REQUIRE(str == StringUtf8("abc"));
+    }
+    SECTION("Nothing to give up")
+    {
+        StringUtf8 str("Hello there and then some more, long enough to be on the heap");
+        const u64 old_capacity = str.GetCapacity();
+        str.ShrinkToFit();
+        REQUIRE(str.GetCapacity() == old_capacity);
+    }
+}
+
+TEST_CASE("Contains", "[String]")
+{
+    const StringUtf8 str("Hello there");
+    SECTION("String object needle")
+    {
+        REQUIRE(str.Contains(StringUtf8("there")));
+        REQUIRE(str.Contains(StringUtf8("Hello")));
+        REQUIRE(!str.Contains(StringUtf8("world")));
+        REQUIRE(str.Contains(StringUtf8("")));
+    }
+    SECTION("Pointer needle")
+    {
+        REQUIRE(str.Contains("there"));
+        REQUIRE(!str.Contains("world"));
+        REQUIRE(!str.Contains(static_cast<const char8*>(nullptr)));
+    }
+    SECTION("Code unit needle")
+    {
+        REQUIRE(str.Contains('H'));
+        REQUIRE(str.Contains('e'));
+        REQUIRE(!str.Contains('w'));
+    }
+    SECTION("Empty string")
+    {
+        const StringUtf8 empty;
+        REQUIRE(!empty.Contains(StringUtf8("a")));
+        REQUIRE(!empty.Contains('a'));
+    }
+}
+
 TEST_CASE("Substring and split on a view", "[String]")
 {
     SECTION("GetSubString returns a view into the same buffer")

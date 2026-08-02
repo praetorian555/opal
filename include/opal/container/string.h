@@ -350,6 +350,23 @@ public:
     ErrorCode Resize(size_type new_size, CodeUnitType value);
 
     /**
+     * Set the size of the string to 0. Does not deallocate memory.
+     */
+    void Clear();
+
+    /**
+     * Remove the last code unit from the string. Does nothing when the string is empty.
+     */
+    void PopBack();
+
+    /**
+     * Give up any capacity beyond what the current contents need. Does nothing when the string is small enough to live inline. Invalidates
+     * every iterator and pointer into the string when it moves the code units.
+     * @throw OutOfMemoryException when there is no more memory.
+     */
+    void ShrinkToFit();
+
+    /**
      * Shrink the size of the string to fit the data. This will only reduce the size of the string so that there is only one null-terminator
      * character at the end of the string and the size of the string will not count it.
      */
@@ -359,6 +376,27 @@ public:
      * Remove leading and trailing whitespace characters from the string. Characters removed are: space, tab, newline, and carriage return.
      */
     void Strip();
+
+    /**
+     * Check whether the string contains a sub-string. An empty needle is always contained.
+     * @param needle Sub-string to look for.
+     * @return True when the needle occurs in the string.
+     */
+    [[nodiscard]] bool Contains(const String& needle) const;
+
+    /**
+     * Check whether the string contains a sub-string.
+     * @param needle Null-terminated sub-string to look for. A nullptr is never contained.
+     * @return True when the needle occurs in the string.
+     */
+    [[nodiscard]] bool Contains(const CodeUnitType* needle) const;
+
+    /**
+     * Check whether the string contains a code unit.
+     * @param ch Code unit to look for.
+     * @return True when the code unit occurs in the string.
+     */
+    [[nodiscard]] bool Contains(CodeUnitType ch) const;
 
     /**
      * Append a code unit to the end of the string.
@@ -1522,6 +1560,72 @@ TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Resize(size_type new_size)
 {
     return Resize(new_size, CodeUnitType());
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::Clear()
+{
+    SetSize(0);
+    GetData()[0] = 0;
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::PopBack()
+{
+    const size_type sz = GetSize();
+    if (sz == 0)
+    {
+        return;
+    }
+    SetSize(sz - 1);
+    GetData()[sz - 1] = 0;
+}
+
+TEMPLATE_HEADER
+void CLASS_HEADER::ShrinkToFit()
+{
+    if (IsSmall())
+    {
+        return;
+    }
+    const size_type sz = GetSize();
+    if (sz + 1 == m_storage.large.capacity)
+    {
+        return;
+    }
+    value_type* old_data = m_storage.large.data;
+    if (sz + 1 <= k_sso_capacity)
+    {
+        allocator_type* alloc = GetAllocatorPtr();
+        InitSmall(alloc, sz);
+        value_type* buf = GetSmallData();
+        std::memcpy(buf, old_data, (sz + 1) * sizeof(value_type));
+        Deallocate(old_data);
+        return;
+    }
+    value_type* new_data = Allocate(sz + 1);
+    std::memcpy(new_data, old_data, (sz + 1) * sizeof(value_type));
+    Deallocate(old_data);
+    m_storage.large.data = new_data;
+    m_storage.large.capacity = sz + 1;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::Contains(const String& needle) const
+{
+    return Find(*this, needle) != k_npos;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::Contains(const CodeUnitType* needle) const
+{
+    return Find(*this, needle) != k_npos;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::Contains(CodeUnitType ch) const
+{
+    return Find(*this, ch) != k_npos;
 }
 
 TEMPLATE_HEADER
