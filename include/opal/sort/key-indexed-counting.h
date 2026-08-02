@@ -36,25 +36,25 @@ ErrorCode KeyIndexedCounting(const ArrayView<Key>& in_keys, ArrayView<Value>& in
     for (u64 i = 0; i < in_keys.GetSize(); ++i)
     {
         OPAL_ASSERT(in_keys[i] >= 0 && in_keys[i] < k_number_of_unique_keys, "Key out of range");
-        count[in_keys[i] + 1]++;
+        count.At(in_keys[i] + 1)++;
     }
 
     // Transform count into indices
     for (u64 r = 0; r < k_number_of_unique_keys; ++r)
     {
-        count[r + 1] += count[r];
+        count.At(r + 1) += count.At(r);
     }
 
     // Distribute the input values
     for (u64 i = 0; i < in_keys.GetSize(); ++i)
     {
-        aux[count[in_keys[i]]++] = in_out_value[i];
+        aux.At(count.At(in_keys[i])++) = in_out_value[i];
     }
 
     // Copy back
     for (u64 i = 0; i < in_out_value.GetSize(); ++i)
     {
-        in_out_value[i] = aux[i];
+        in_out_value[i] = aux.At(i);
     }
     return ErrorCode::Success;
 }

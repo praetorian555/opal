@@ -746,7 +746,7 @@ TEST_CASE("Access element with At", "[Array]")
         REQUIRE(int_arr.At(0) == 42);
         REQUIRE(int_arr.At(1) == 42);
         REQUIRE(int_arr.At(2) == 42);
-        REQUIRE_THROWS_AS(int_arr.At(3), OutOfBoundsException);
+        REQUIRE_THROWS_AS(int_arr[3], OutOfBoundsException);
     }
     SECTION("Const POD data")
     {
@@ -754,19 +754,19 @@ TEST_CASE("Access element with At", "[Array]")
         REQUIRE(int_arr.At(0) == 42);
         REQUIRE(int_arr.At(1) == 42);
         REQUIRE(int_arr.At(2) == 42);
-        REQUIRE_THROWS_AS(int_arr.At(3), OutOfBoundsException);
+        REQUIRE_THROWS_AS(int_arr[3], OutOfBoundsException);
     }
     SECTION("Empty array reports being empty rather than a wrapped upper bound")
     {
         DynamicArray<i32> int_arr;
-        REQUIRE_THROWS_WITH(int_arr.At(0), Catch::Matchers::ContainsSubstring("empty"));
+        REQUIRE_THROWS_WITH(int_arr[0], Catch::Matchers::ContainsSubstring("empty"));
         const DynamicArray<i32> const_int_arr;
-        REQUIRE_THROWS_WITH(const_int_arr.At(0), Catch::Matchers::ContainsSubstring("empty"));
+        REQUIRE_THROWS_WITH(const_int_arr[0], Catch::Matchers::ContainsSubstring("empty"));
     }
     SECTION("Out of bounds names the range the array actually has")
     {
         DynamicArray<i32> int_arr(3, 42);
-        REQUIRE_THROWS_WITH(int_arr.At(7), Catch::Matchers::ContainsSubstring("[0, 2]"));
+        REQUIRE_THROWS_WITH(int_arr[7], Catch::Matchers::ContainsSubstring("[0, 2]"));
     }
     SECTION("Non-POD data")
     {
@@ -778,7 +778,7 @@ TEST_CASE("Access element with At", "[Array]")
             REQUIRE(*non_pod_arr.At(0).ptr == 42);
             REQUIRE(*non_pod_arr.At(1).ptr == 42);
             REQUIRE(*non_pod_arr.At(2).ptr == 42);
-            REQUIRE_THROWS_AS(non_pod_arr.At(3), OutOfBoundsException);
+            REQUIRE_THROWS_AS(non_pod_arr[3], OutOfBoundsException);
             REQUIRE(g_value_call_count == 1);
             REQUIRE(g_clone_call_count == 3);
         }

@@ -317,18 +317,18 @@ public:
     DynamicArray& operator=(std::initializer_list<T> init_list);
 
     /**
-     * Get a reference to the element at specified index.
+     * Get a reference to the element at specified index. No index bounds checking outside of debug builds.
      * @param index Index of the element in the array.
-     * @return Returns a reference to the element in the array at the given index.
-     * @throw OutOfBoundsException when index is out of bounds.
+     * @return Reference to the element.
      */
     reference At(size_type index);
     const_reference At(size_type index) const;
 
     /**
-     * Get a reference to the element at specified index. No index bounds checking.
+     * Get a reference to the element at specified index.
      * @param index Index of the element in the array.
-     * @return Reference to the element.
+     * @return Returns a reference to the element in the array at the given index.
+     * @throw OutOfBoundsException when index is out of bounds.
      */
     reference operator[](size_type index);
     const_reference operator[](size_type index) const;
@@ -1074,20 +1074,20 @@ CLASS_HEADER& CLASS_HEADER::operator=(std::initializer_list<T> init_list)
 TEMPLATE_HEADER
 typename CLASS_HEADER::reference CLASS_HEADER::At(size_type index)
 {
-    if (index >= m_size) [[unlikely]]
-    {
-        if (m_size == 0)
-        {
-            throw OutOfBoundsException("The array is empty!");
-        }
-        throw OutOfBoundsException(index, u64{0}, m_size - 1);
-    }
+    OPAL_ASSERT(index < m_size, "Index out of bounds");
     return m_data[index];
 }
 
 TEMPLATE_HEADER
 typename CLASS_HEADER::const_reference CLASS_HEADER::At(size_type index) const
 {
+    OPAL_ASSERT(index < m_size, "Index out of bounds");
+    return m_data[index];
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](DynamicArray::size_type index)
+{
     if (index >= m_size) [[unlikely]]
     {
         if (m_size == 0)
@@ -1100,16 +1100,16 @@ typename CLASS_HEADER::const_reference CLASS_HEADER::At(size_type index) const
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::reference CLASS_HEADER::operator[](DynamicArray::size_type index)
-{
-    OPAL_ASSERT(index < m_size, "Index out of bounds");
-    return m_data[index];
-}
-
-TEMPLATE_HEADER
 typename CLASS_HEADER::const_reference CLASS_HEADER::operator[](DynamicArray::size_type index) const
 {
-    OPAL_ASSERT(index < m_size, "Index out of bounds");
+    if (index >= m_size) [[unlikely]]
+    {
+        if (m_size == 0)
+        {
+            throw OutOfBoundsException("The array is empty!");
+        }
+        throw OutOfBoundsException(index, u64{0}, m_size - 1);
+    }
     return m_data[index];
 }
 
