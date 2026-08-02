@@ -164,7 +164,7 @@ public:
      * @tparam InputIt Type of the input iterator.
      * @param first Iterator to the first element in the range.
      * @param last Iterator to the element past the last element in the range.
-     * @return ErrorCode::Success if the operation was successful, ErrorCode::BadInput if first > last, ErrorCode::OutOfMemory if memory
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::InvalidArgument if first > last, ErrorCode::OutOfMemory if memory
      * allocation failed.
      */
     template <typename InputIt>
@@ -272,7 +272,7 @@ public:
      * @param first Iterator to the first element in the range.
      * @param last Iterator to the element past the last element in the range.
      * @return Expected containing an iterator to the first inserted element if the operation was successful, ErrorCode::OutOfBounds if the
-     * position is invalid, ErrorCode::BadInput if first > last, ErrorCode::OutOfMemory if memory allocation failed.
+     * position is invalid, ErrorCode::InvalidArgument if first > last, ErrorCode::OutOfMemory if memory allocation failed.
      */
     template <typename InputIt>
     Expected<IteratorType, ErrorCode> InsertIt(ConstIteratorType pos, InputIt first, InputIt last);
@@ -308,7 +308,7 @@ public:
      * @param first Iterator to the first element in the range.
      * @param last Iterator to the element past the last element in the range.
      * @return Expected containing an iterator to the element after the last removed element if the operation was successful,
-     * ErrorCode::BadInput if first > last, ErrorCode::OutOfBounds if the range is invalid.
+     * ErrorCode::InvalidArgument if first > last, ErrorCode::OutOfBounds if the range is invalid.
      */
     Expected<IteratorType, ErrorCode> Erase(ConstIteratorType first, ConstIteratorType last);
     Expected<IteratorType, ErrorCode> Erase(IteratorType first, IteratorType last);

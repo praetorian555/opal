@@ -75,7 +75,7 @@ reproduced against a debug build.
       and returns `InvalidArgument` (`string.h:260` vs `string.h:1281`), same for
       `Insert(pos, str, count)` (`string.h:422` vs `string.h:1746`).
       `ErrorCode::BadInput` does not exist at all; all six mentions in `string.h` were stale.
-- [ ] The same stale `ErrorCode::BadInput` appears in `deque.h` (3 mentions), `string-encoding.h` (5)
+- [x] The same stale `ErrorCode::BadInput` appears in `deque.h` (3 mentions), `string-encoding.h` (5)
       and `sort/key-indexed-counting.h` (1).
 - [x] `Insert(pos, const String& other, ...)` shifts data before reading it, so inserting a string into
       itself corrupts the result. No self-check. `Insert(iterator, InputIt, InputIt)` and its
