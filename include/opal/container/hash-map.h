@@ -9,6 +9,8 @@
 #include "opal/common.h"
 #include "opal/container/array-view.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/error-codes.h"
+#include "opal/exceptions.h"
 #include "opal/hash.h"
 
 namespace Opal
@@ -165,7 +167,7 @@ public:
 
     HashMap Clone(AllocatorBase* allocator = nullptr) const;
 
-    void Reserve(size_type capacity);
+    ErrorCode Reserve(size_type capacity);
 
     [[nodiscard]] u64 GetSize() const { return m_size; }
     [[nodiscard]] u64 GetCapacity() const { return m_capacity; }
@@ -180,19 +182,19 @@ public:
     value_type& GetValue(const key_type& key);
     const value_type& GetValue(const key_type& key) const;
 
-    void Insert(const key_type& key, const value_type& value)
+    ErrorCode Insert(const key_type& key, const value_type& value)
         requires(IsPOD<key_type> && IsPOD<value_type>);
-    void Insert(key_type&& key, value_type&& value);
-    void Insert(const key_type& key, value_type&& value)
+    ErrorCode Insert(key_type&& key, value_type&& value);
+    ErrorCode Insert(const key_type& key, value_type&& value)
         requires IsPOD<key_type>;
-    void Insert(key_type&& key, const value_type& value)
+    ErrorCode Insert(key_type&& key, const value_type& value)
         requires IsPOD<value_type>;
 
-    void Erase(const key_type& key);
-    void Erase(iterator it);
-    void Erase(const_iterator it);
-    void Erase(iterator first, iterator last);
-    void Erase(const_iterator first, const_iterator last);
+    ErrorCode Erase(const key_type& key);
+    ErrorCode Erase(iterator it);
+    ErrorCode Erase(const_iterator it);
+    ErrorCode Erase(iterator first, iterator last);
+    ErrorCode Erase(const_iterator first, const_iterator last);
 
     void Clear();
 
@@ -248,7 +250,7 @@ private:
         requires IsPOD<value_type>;
     void DeleteSlot(u64 index);
     void DestroyAllPairs();
-    void Grow();
+    ErrorCode Grow();
 
     AllocatorBase* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
@@ -312,17 +314,26 @@ template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::HashMap(size_type capacity, AllocatorBase* allocator)
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
-    Reserve(capacity);
+    if (Reserve(capacity) != ErrorCode::Success)
+    {
+        throw OutOfMemoryException(m_allocator->GetName(), capacity * sizeof(pair_type));
+    }
 }
 
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::HashMap(const ArrayView<Pair<KeyType, ValueType>>& pairs, AllocatorBase* allocator)
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
-    Reserve(pairs.GetSize());
+    if (Reserve(pairs.GetSize()) != ErrorCode::Success)
+    {
+        throw OutOfMemoryException(m_allocator->GetName(), pairs.GetSize() * sizeof(pair_type));
+    }
     for (const auto& pair : pairs)
     {
-        Insert(Opal::Clone(pair.key, m_allocator), Opal::Clone(pair.value, m_allocator));
+        if (Insert(Opal::Clone(pair.key, m_allocator), Opal::Clone(pair.value, m_allocator)) != ErrorCode::Success)
+        {
+            throw OutOfMemoryException(m_allocator->GetName(), pairs.GetSize() * sizeof(pair_type));
+        }
     }
 }
 
@@ -330,10 +341,16 @@ template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::HashMap(std::initializer_list<pair_type> pairs, AllocatorBase* allocator)
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
-    Reserve(pairs.size());
+    if (Reserve(pairs.size()) != ErrorCode::Success)
+    {
+        throw OutOfMemoryException(m_allocator->GetName(), pairs.size() * sizeof(pair_type));
+    }
     for (const auto& pair : pairs)
     {
-        Insert(Opal::Clone(pair.key, m_allocator), Opal::Clone(pair.value, m_allocator));
+        if (Insert(Opal::Clone(pair.key, m_allocator), Opal::Clone(pair.value, m_allocator)) != ErrorCode::Success)
+        {
+            throw OutOfMemoryException(m_allocator->GetName(), pairs.size() * sizeof(pair_type));
+        }
     }
 }
 
@@ -417,7 +434,7 @@ Opal::HashMap<KeyType, ValueType> Opal::HashMap<KeyType, ValueType>::Clone(Alloc
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
 {
     u64 new_capacity = GetNextPowerOf2MinusOne(capacity < k_default_capacity ? k_default_capacity : capacity);
     // Probing walks until it meets a slot that was never occupied, so a table that cannot hold the pairs already in the map with room to
@@ -437,7 +454,7 @@ void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
     i8* new_control_bytes = static_cast<i8*>(m_allocator->Alloc(size_to_allocate, k_slot_alignment));
     if (new_control_bytes == nullptr)
     {
-        throw OutOfMemoryException(m_allocator->GetName(), size_to_allocate);
+        return ErrorCode::OutOfMemory;
     }
     memset(new_control_bytes, k_control_bitmask_empty, control_bytes_size);
     new_control_bytes[new_capacity] = k_control_bitmask_sentinel;
@@ -478,19 +495,20 @@ void Opal::HashMap<KeyType, ValueType>::Reserve(size_type capacity)
     m_growth_left = m_capacity - m_size;
     m_control_bytes = new_control_bytes;
     m_slots = new_slots;
+
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Grow()
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Grow()
 {
     // Erasing a pair frees a slot but not the growth budget, since the slot it leaves behind still has to be probed through. When those
     // deleted slots, rather than live pairs, are what filled the table, reallocate at the same capacity to drop them instead of growing.
     if (m_size + 1 <= GetGrowthThreshold(m_capacity) / 2)
     {
-        Reserve(m_capacity);
-        return;
+        return Reserve(m_capacity);
     }
-    Reserve(m_capacity + 1);
+    return Reserve(m_capacity + 1);
 }
 
 template <typename KeyType, typename ValueType>
@@ -637,7 +655,7 @@ const typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyT
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, const value_type& value)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, const value_type& value)
     requires(IsPOD<key_type> && IsPOD<value_type>)
 {
     u64 index = 0;
@@ -645,43 +663,52 @@ void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, const value_
     {
         m_slots[index].key = key;
         m_slots[index].value = value;
-        return;
+        return ErrorCode::Success;
     }
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Grow();
-
+        const ErrorCode status = Grow();
+        if (status != ErrorCode::Success)
+        {
+            return status;
+        }
         // We have to get the index again since we rehashed the table
         FindIndex(key, index);
     }
 
     OccupySlot(key, value, index);
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, value_type&& value)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, value_type&& value)
 {
     u64 index = 0;
     if (FindIndex(key, index))
     {
         m_slots[index].key = std::move(key);
         m_slots[index].value = std::move(value);
-        return;
+        return ErrorCode::Success;
     }
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Grow();
+        const ErrorCode status = Grow();
+        if (status != ErrorCode::Success)
+        {
+            return status;
+        }
         // We have to get the index again since we rehashed the table
         FindIndex(key, index);
     }
 
     OccupySlot(std::move(key), std::move(value), index);
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, value_type&& value)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, value_type&& value)
     requires IsPOD<key_type>
 {
     u64 index = 0;
@@ -689,21 +716,26 @@ void Opal::HashMap<KeyType, ValueType>::Insert(const key_type& key, value_type&&
     {
         m_slots[index].key = key;
         m_slots[index].value = std::move(value);
-        return;
+        return ErrorCode::Success;
     }
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Grow();
+        const ErrorCode status = Grow();
+        if (status != ErrorCode::Success)
+        {
+            return status;
+        }
         // We have to get the index again since we rehashed the table
         FindIndex(key, index);
     }
 
     OccupySlot(key, std::move(value), index);
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, const value_type& value)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, const value_type& value)
     requires IsPOD<value_type>
 {
     u64 index = 0;
@@ -711,63 +743,74 @@ void Opal::HashMap<KeyType, ValueType>::Insert(key_type&& key, const value_type&
     {
         m_slots[index].key = std::move(key);
         m_slots[index].value = value;
-        return;
+        return ErrorCode::Success;
     }
 
     if (m_capacity - m_growth_left >= GetGrowthThreshold(m_capacity))
     {
-        Grow();
+        const ErrorCode status = Grow();
+        if (status != ErrorCode::Success)
+        {
+            return status;
+        }
         // We have to get the index again since we rehashed the table
         FindIndex(key, index);
     }
 
     OccupySlot(std::move(key), value, index);
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Erase(const key_type& key)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Erase(const key_type& key)
 {
     u64 index = 0;
     if (FindIndex(key, index))
     {
         DeleteSlot(index);
+        return ErrorCode::Success;
     }
+    return ErrorCode::InvalidArgument;
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Erase(iterator it)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Erase(iterator it)
 {
     if (it < begin() || it >= end())
     {
-        return;
+        return ErrorCode::OutOfBounds;
     }
     const u64 index = it.GetIndex();
     if (IsControlFull(m_control_bytes[index]))
     {
         DeleteSlot(index);
+        return ErrorCode::Success;
     }
+    return ErrorCode::InvalidArgument;
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Erase(const_iterator it)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Erase(const_iterator it)
 {
     if (it < cbegin() || it >= cend())
     {
-        return;
+        return ErrorCode::OutOfBounds;
     }
     const u64 index = it.GetIndex();
     if (IsControlFull(m_control_bytes[index]))
     {
         DeleteSlot(index);
+        return ErrorCode::Success;
     }
+    return ErrorCode::InvalidArgument;
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Erase(iterator first, iterator last)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Erase(iterator first, iterator last)
 {
     if (first < begin() || first > end() || last < first || last > end())
     {
-        return;
+        return ErrorCode::OutOfBounds;
     }
     for (auto it = first; it != last; ++it)
     {
@@ -776,15 +819,20 @@ void Opal::HashMap<KeyType, ValueType>::Erase(iterator first, iterator last)
         {
             DeleteSlot(index);
         }
+        else
+        {
+            return ErrorCode::InvalidArgument;
+        }
     }
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename ValueType>
-void Opal::HashMap<KeyType, ValueType>::Erase(const_iterator first, const_iterator last)
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Erase(const_iterator first, const_iterator last)
 {
     if (first < cbegin() || first > cend() || last < first || last > cend())
     {
-        return;
+        return ErrorCode::OutOfBounds;
     }
     for (auto it = first; it != last; ++it)
     {
@@ -793,7 +841,12 @@ void Opal::HashMap<KeyType, ValueType>::Erase(const_iterator first, const_iterat
         {
             DeleteSlot(index);
         }
+        else
+        {
+            return ErrorCode::InvalidArgument;
+        }
     }
+    return ErrorCode::Success;
 }
 
 template <typename KeyType, typename ValueType>

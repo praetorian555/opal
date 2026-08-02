@@ -154,6 +154,86 @@ struct alignas(64) CacheLineAligned
 OPAL_END_DISABLE_WARNINGS
 }  // namespace
 
+TEST_CASE("Hash map reports failures through error codes", "[HashMap]")
+{
+    HashMap<i32, i32> map;
+
+    SECTION("Insert and reserve succeed")
+    {
+        REQUIRE(map.Reserve(64) == ErrorCode::Success);
+        REQUIRE(map.Insert(1, 10) == ErrorCode::Success);
+        // Inserting over an existing key is an overwrite, not a failure.
+        REQUIRE(map.Insert(1, 20) == ErrorCode::Success);
+        REQUIRE(map.GetSize() == 1);
+        REQUIRE(map.GetValue(1) == 20);
+    }
+    SECTION("Erasing a key that is not there is reported")
+    {
+        map.Insert(1, 10);
+        REQUIRE(map.Erase(1) == ErrorCode::Success);
+        REQUIRE(map.Erase(1) == ErrorCode::InvalidArgument);
+        REQUIRE(map.Erase(99) == ErrorCode::InvalidArgument);
+    }
+    SECTION("Erasing outside the map is reported")
+    {
+        map.Insert(1, 10);
+        REQUIRE(map.Erase(map.end()) == ErrorCode::OutOfBounds);
+        REQUIRE(map.Erase(map.cend()) == ErrorCode::OutOfBounds);
+        REQUIRE(map.Erase(map.end(), map.begin()) == ErrorCode::OutOfBounds);
+        REQUIRE(map.Erase(map.cend(), map.cbegin()) == ErrorCode::OutOfBounds);
+        REQUIRE(map.GetSize() == 1);
+
+        REQUIRE(map.Erase(map.begin()) == ErrorCode::Success);
+        REQUIRE(map.IsEmpty());
+    }
+    SECTION("Allocation failure after construction is returned, not thrown")
+    {
+        // Hands out the first block the map asks for and refuses every one after it, so the map is
+        // built but cannot grow.
+        struct OneShotAllocator : AllocatorBase
+        {
+            OneShotAllocator() : AllocatorBase("OneShotAllocator") {}
+
+            void* Alloc(u64 size, u64 alignment) override
+            {
+                if (m_exhausted)
+                {
+                    return nullptr;
+                }
+                m_exhausted = true;
+                return m_inner.Alloc(size, alignment);
+            }
+            void Free(void* ptr) override { m_inner.Free(ptr); }
+            [[nodiscard]] bool IsThreadSafe() const override { return false; }
+
+            MallocAllocator m_inner;
+            bool m_exhausted = false;
+        };
+
+        OneShotAllocator allocator;
+        HashMap<i32, i32> starved(4, &allocator);
+        REQUIRE(starved.GetCapacity() == 7);
+
+        REQUIRE(starved.Reserve(64) == ErrorCode::OutOfMemory);
+        // The failed reserve must leave the map exactly as it was.
+        REQUIRE(starved.GetCapacity() == 7);
+
+        // Filling it past the growth threshold now fails instead of throwing.
+        ErrorCode status = ErrorCode::Success;
+        for (i32 i = 0; i < 32 && status == ErrorCode::Success; i++)
+        {
+            status = starved.Insert(i, i);
+        }
+        REQUIRE(status == ErrorCode::OutOfMemory);
+    }
+    SECTION("A constructor that cannot allocate throws")
+    {
+        NullAllocator allocator;
+        using Map = HashMap<i32, i32>;
+        REQUIRE_THROWS_AS(Map(4, &allocator), OutOfMemoryException);
+    }
+}
+
 TEST_CASE("Hash map emptiness", "[HashMap]")
 {
     HashMap<i32, i32> map;

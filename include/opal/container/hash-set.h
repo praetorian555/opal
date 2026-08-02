@@ -7,6 +7,7 @@
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/error-codes.h"
+#include "opal/exceptions.h"
 #include "opal/hash.h"
 #include "opal/common.h"
 
@@ -214,7 +215,10 @@ template <typename KeyType>
 Opal::HashSet<KeyType>::HashSet(size_type capacity, AllocatorBase* allocator)
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
 {
-    Reserve(capacity);
+    if (Reserve(capacity) != ErrorCode::Success)
+    {
+        throw OutOfMemoryException(m_allocator->GetName(), capacity * sizeof(key_type));
+    }
 }
 
 template <typename KeyType>
