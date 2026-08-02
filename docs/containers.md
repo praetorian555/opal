@@ -395,11 +395,28 @@ map.GetValue(key);                 // Returns reference (throws if not found)
 ### Modification
 
 ```cpp
-map.Insert(key, value);            // Insert or update
-map.Erase(key);                    // Remove by key
-map.Erase(it);                     // Remove by iterator
+map.Insert(key, value);            // Insert or update, returns ErrorCode
+map.Erase(key);                    // Remove by key, returns ErrorCode
+map.Erase(it);                     // Remove by iterator, returns ErrorCode
+map.Erase(first, last);            // Remove range, returns ErrorCode
 map.Clear();
-map.Reserve(capacity);
+map.Reserve(capacity);             // Returns ErrorCode
+```
+
+### Size and Capacity
+
+```cpp
+map.GetSize();
+map.GetCapacity();
+map.GetGrowthLeft();               // Insertions left before the map has to grow
+map.IsEmpty();
+```
+
+### Copying
+
+```cpp
+auto clone = map.Clone();          // Deep copy, same allocator
+auto clone = map.Clone(&alloc);    // Deep copy onto another allocator
 ```
 
 ### Conversion
@@ -415,15 +432,19 @@ map.ToArrayOfValues();             // DynamicArray<V>
 ```cpp
 for (auto& pair : map)
 {
-    pair.key;       // Key reference
-    pair.value;     // Value reference
+    pair.key;       // Do not assign to this, see below
+    pair.value;     // Writable
 }
 
 // Or via iterator
 auto it = map.Find(key);
-it.GetKey();
-it.GetValue();
+it.GetKey();        // const reference
+it.GetValue();      // Writable reference
 ```
+
+A key decides where its pair is found, so a key that is changed in place can no longer be looked up.
+`GetKey` hands out a `const` reference to enforce that. The pair from `operator*` is handed out whole
+so that values stay writable, which leaves `pair.key` assignable; do not assign to it.
 
 ---
 
@@ -457,11 +478,39 @@ set.Clear();
 set.Reserve(capacity);             // Returns ErrorCode
 ```
 
+### Size and Capacity
+
+```cpp
+set.GetSize();
+set.GetCapacity();
+set.GetGrowthLeft();               // Insertions left before the set has to grow
+set.IsEmpty();
+```
+
+### Copying
+
+```cpp
+auto clone = set.Clone();          // Deep copy, same allocator
+auto clone = set.Clone(&alloc);    // Deep copy onto another allocator
+```
+
 ### Conversion
 
 ```cpp
 set.ToArray();                     // DynamicArray<KeyType>
 ```
+
+### Iteration
+
+```cpp
+for (const auto& key : set)        // Keys are always handed out const
+{
+    // ...
+}
+```
+
+A key decides where it is found, so a key that is changed in place could no longer be looked up. Both
+`HashSet` iterators dereference to a `const` key for that reason.
 
 ### Custom Hashing
 
@@ -706,9 +755,14 @@ Containers use two error handling approaches depending on the severity:
 | Style | Used By | Example |
 |-------|---------|---------|
 | **Exceptions** | `DynamicArray`, `String`, `SharedPtr` | `OutOfBoundsException`, `OutOfMemoryException`, `InvalidArgumentException` |
-| **ErrorCode returns** | `Deque`, `HashSet`, `ArrayView` | `ErrorCode::OutOfBounds`, `ErrorCode::OutOfMemory`, `ErrorCode::InvalidArgument` |
+| **ErrorCode returns** | `Deque`, `HashSet`, `HashMap`, `ArrayView` | `ErrorCode::OutOfBounds`, `ErrorCode::OutOfMemory`, `ErrorCode::InvalidArgument` |
 
 `Expected<T, ErrorCode>` is used for operations that need to return both a value and an error status, such as `Deque::At()` or `ArrayView::SubSpan()`.
+
+The two styles are not alternatives picked per container, they answer different questions. A failure the
+caller can act on, such as an allocator running out, is returned. A failure that means the caller broke a
+contract, such as `HashMap::GetValue` on a key that is not there, is thrown. Constructors throw whatever
+happens, since they have nothing to return. See the error handling section of `CLAUDE.md`.
 
 ---
 
@@ -734,7 +788,9 @@ Containers use two error handling approaches depending on the severity:
 
 **1. Inconsistent error handling across containers.**
 
-`DynamicArray` and `String` throw exceptions on out-of-bounds access, while `Deque` and `ArrayView` return `Expected<T&, ErrorCode>`. `HashMap` throws on `GetValue` for missing keys, while `HashSet::Insert` returns `ErrorCode`. This inconsistency means the caller must remember which style each container uses.
+`DynamicArray` and `String` throw exceptions on out-of-bounds access, while `Deque` and `ArrayView` return `Expected<T&, ErrorCode>`. `DynamicArray::Reserve` and `PushBack` throw when the allocator runs out, where `Deque`, `HashSet` and `HashMap` return `ErrorCode::OutOfMemory` for the same failure. This inconsistency means the caller must remember which style each container uses.
+
+`HashSet` and `HashMap` no longer disagree with each other, and the rule they follow is written down in the error handling section of `CLAUDE.md`. `DynamicArray` and `String` predate it and are the ones still left to move.
 
 **2. Inconsistent naming conventions.**
 

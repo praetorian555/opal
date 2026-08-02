@@ -14,6 +14,10 @@
 namespace Opal
 {
 
+/**
+ * @brief Forward iterator over the keys of a HashSet, in unspecified order.
+ * @tparam HashSetType Set this iterator refers into.
+ */
 template <typename HashSetType>
 class HashSetIterator
 {
@@ -21,7 +25,7 @@ public:
     using hash_set_type = HashSetType;
     using value_type = typename hash_set_type::value_type;
     using difference_type = typename hash_set_type::difference_type;
-    // A key decides which slot it lives in, so changing one in place would strand it. Both iterators hand out const keys.
+    // Keys are handed out read only, see the note on HashSet.
     using reference = typename hash_set_type::const_reference;
     using pointer = typename hash_set_type::const_pointer;
 
@@ -59,6 +63,10 @@ private:
     u64 m_index = 0;
 };
 
+/**
+ * @brief Forward iterator over the keys of a const HashSet, in unspecified order.
+ * @tparam HashSetType Set this iterator refers into.
+ */
 template <typename HashSetType>
 class HashSetConstIterator
 {
@@ -104,6 +112,14 @@ private:
     u64 m_index = 0;
 };
 
+/**
+ * @brief Unordered collection of unique keys, with average constant time lookup, insertion and removal.
+ *
+ * `KeyType` needs an equality operator and a `Hasher` specialization. Keys are read only once inserted, since a key that changed would no
+ * longer be findable. Any insertion that makes the set grow invalidates every iterator into it, as does Reserve.
+ *
+ * @tparam KeyType Type of the stored keys.
+ */
 template <typename KeyType>
 class HashSet
 {
@@ -129,6 +145,12 @@ public:
 
     constexpr static u64 k_default_capacity = 4;
 
+    /**
+     * Creates a set able to hold at least `capacity` keys before it has to grow.
+     * @param capacity How many keys the set should make room for. Smaller requests are raised to a usable minimum.
+     * @param allocator Allocator to use, or nullptr to use the default one.
+     * @throw OutOfMemoryException when the allocator runs out of memory.
+     */
     explicit HashSet(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
 
     HashSet(const HashSet& other) = delete;
@@ -136,33 +158,90 @@ public:
     HashSet& operator=(const HashSet& other) = delete;
     HashSet& operator=(HashSet&& other) noexcept;
 
-    ErrorCode Reserve(size_type capacity);
-
-    HashSet Clone(AllocatorBase* allocator = nullptr) const;
-
     ~HashSet();
 
+    /**
+     * Makes room for at least `capacity` keys. Never makes the set smaller than what it already holds, and does nothing useful when the
+     * room is already there. Invalidates every iterator into the set.
+     * @param capacity How many keys the set should make room for.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
+    ErrorCode Reserve(size_type capacity);
+
+    /**
+     * Creates a set holding a copy of every key in this one.
+     * @param allocator Allocator the copy should use, or nullptr to use the same one as this set. Copied keys are given the same allocator.
+     * @return The new set.
+     * @throw OutOfMemoryException when the allocator runs out of memory.
+     */
+    HashSet Clone(AllocatorBase* allocator = nullptr) const;
+
+    /** @return Number of keys in the set. */
     [[nodiscard]] u64 GetSize() const { return m_size; }
+    /** @return How many keys the set can hold before it has to grow. */
     [[nodiscard]] u64 GetCapacity() const { return m_capacity; }
+    /** @return How many more keys can be inserted before the set has to grow. Erasing a key does not give this budget back. */
     [[nodiscard]] u64 GetGrowthLeft() const { return m_growth_left; }
+    /** @return True when the set holds no keys. */
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
+    /** @return True when the set holds no keys. */
     [[nodiscard]] bool empty() const { return m_size == 0; }
 
+    /**
+     * Looks for a key.
+     * @param key Key to look for.
+     * @return Iterator to the key, or end() when the set does not hold it.
+     */
     iterator Find(const key_type& key);
     const_iterator Find(const key_type& key) const;
+
+    /**
+     * @param key Key to look for.
+     * @return True when the set holds the key.
+     */
     bool Contains(const key_type& key) const;
 
+    /**
+     * Adds a key. A key equal to one already in the set replaces it.
+     * @param key Key to add.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode Insert(const key_type& key) requires IsPOD<KeyType>;
     ErrorCode Insert(key_type&& key);
 
+    /**
+     * Removes a key.
+     * @param key Key to remove.
+     * @return ErrorCode::Success if the key was removed, ErrorCode::InvalidArgument if the set does not hold it.
+     */
     ErrorCode Erase(const key_type& key);
+
+    /**
+     * Removes the key an iterator refers to.
+     * @param it Iterator into this set.
+     * @return ErrorCode::Success if the key was removed, ErrorCode::OutOfBounds if the iterator is not in [begin(), end()),
+     * ErrorCode::InvalidArgument if it does not refer to a key.
+     */
     ErrorCode Erase(iterator it);
     ErrorCode Erase(const_iterator it);
+
+    /**
+     * Removes every key in [first, last).
+     * @param first Iterator to the first key to remove.
+     * @param last Iterator past the last key to remove.
+     * @return ErrorCode::Success if the keys were removed, ErrorCode::OutOfBounds if the range is not a valid range of this set,
+     * ErrorCode::InvalidArgument if the range covers a position that does not refer to a key.
+     */
     ErrorCode Erase(iterator first, iterator last);
     ErrorCode Erase(const_iterator first, const_iterator last);
 
+    /** Removes every key. Keeps the room the set has already made. */
     void Clear();
 
+    /**
+     * Copies every key into an array. The order is unspecified.
+     * @return Array holding a copy of every key.
+     */
     DynamicArray<key_type> ToArray() const;
 
     iterator begin() { return FindFirstIterator(); }

@@ -16,6 +16,11 @@
 namespace Opal
 {
 
+/**
+ * @brief A key and a value held together. What a HashMap stores and what its iterators refer to.
+ * @tparam KeyType Type of the key.
+ * @tparam ValueType Type of the value.
+ */
 template <typename KeyType, typename ValueType>
 struct Pair
 {
@@ -28,6 +33,10 @@ struct Pair
     }
 };
 
+/**
+ * @brief Forward iterator over the pairs of a HashMap, in unspecified order.
+ * @tparam HashMapClass Map this iterator refers into.
+ */
 template <typename HashMapClass>
 class HashMapIterator
 {
@@ -63,8 +72,8 @@ public:
         return rtn_it;
     }
 
-    // The pair is handed out whole so that values stay writable. The key inside it decides which slot the pair lives in and must be left
-    // alone; GetKey is the accessor that enforces it.
+    // The pair is handed out whole so that values stay writable, which leaves the key writable too. Do not write it, see the note on
+    // HashMap. GetKey is the accessor that enforces the rule.
     pair_type& operator*() const { return m_hash_map->Get(m_index); }
     pair_type* operator->() const { return &m_hash_map->Get(m_index); }
     const key_type& GetKey() const { return m_hash_map->GetKey(m_index); }
@@ -77,6 +86,10 @@ private:
     u64 m_index = 0;
 };
 
+/**
+ * @brief Forward iterator over the pairs of a const HashMap, in unspecified order.
+ * @tparam HashMapClass Map this iterator refers into.
+ */
 template <typename HashMapClass>
 class HashMapConstIterator
 {
@@ -129,6 +142,15 @@ namespace Impl
 {
 }  // namespace Impl
 
+/**
+ * @brief Unordered collection of values stored under unique keys, with average constant time lookup, insertion and removal.
+ *
+ * `KeyType` needs an equality operator and a `Hasher` specialization. Values may be written through an iterator, keys may not: a key that
+ * changed would no longer be findable. Any insertion that makes the map grow invalidates every iterator into it, as does Reserve.
+ *
+ * @tparam KeyType Type of the stored keys.
+ * @tparam ValueType Type of the stored values.
+ */
 template <typename KeyType, typename ValueType>
 class HashMap
 {
@@ -155,7 +177,20 @@ public:
 
     constexpr static u64 k_default_capacity = 4;
 
+    /**
+     * Creates a map able to hold at least `capacity` pairs before it has to grow.
+     * @param capacity How many pairs the map should make room for. Smaller requests are raised to a usable minimum.
+     * @param allocator Allocator to use, or nullptr to use the default one.
+     * @throw OutOfMemoryException when the allocator runs out of memory.
+     */
     explicit HashMap(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
+
+    /**
+     * Creates a map holding a copy of every given pair. Later pairs replace earlier ones with an equal key.
+     * @param pairs Pairs to copy in. Copies are given the map's allocator.
+     * @param allocator Allocator to use, or nullptr to use the default one.
+     * @throw OutOfMemoryException when the allocator runs out of memory.
+     */
     HashMap(const ArrayView<Pair<KeyType, ValueType>>& pairs, AllocatorBase* allocator = nullptr);
     HashMap(std::initializer_list<pair_type> pairs, AllocatorBase* allocator = nullptr);
 
@@ -167,23 +202,63 @@ public:
     HashMap& operator=(const HashMap& other) = delete;
     HashMap& operator=(HashMap&& other) noexcept;
 
+    /**
+     * Creates a map holding a copy of every pair in this one.
+     * @param allocator Allocator the copy should use, or nullptr to use the same one as this map. Copied keys and values are given the
+     * same allocator.
+     * @return The new map.
+     * @throw OutOfMemoryException when the allocator runs out of memory.
+     */
     HashMap Clone(AllocatorBase* allocator = nullptr) const;
 
+    /**
+     * Makes room for at least `capacity` pairs. Never makes the map smaller than what it already holds, and does nothing useful when the
+     * room is already there. Invalidates every iterator into the map.
+     * @param capacity How many pairs the map should make room for.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode Reserve(size_type capacity);
 
+    /** @return Number of pairs in the map. */
     [[nodiscard]] u64 GetSize() const { return m_size; }
+    /** @return How many pairs the map can hold before it has to grow. */
     [[nodiscard]] u64 GetCapacity() const { return m_capacity; }
+    /** @return How many more pairs can be inserted before the map has to grow. Erasing a pair does not give this budget back. */
     [[nodiscard]] u64 GetGrowthLeft() const { return m_growth_left; }
+    /** @return True when the map holds no pairs. */
     [[nodiscard]] bool IsEmpty() const { return m_size == 0; }
+    /** @return True when the map holds no pairs. */
     [[nodiscard]] bool empty() const { return m_size == 0; }
 
+    /**
+     * Looks for the pair with the given key.
+     * @param key Key to look for.
+     * @return Iterator to the pair, or end() when the map does not hold the key.
+     */
     iterator Find(const key_type& key);
     const_iterator Find(const key_type& key) const;
+
+    /**
+     * @param key Key to look for.
+     * @return True when the map holds the key.
+     */
     bool Contains(const key_type& key) const;
 
+    /**
+     * Reads the value stored under a key. Check with Contains or Find when the key might be absent.
+     * @param key Key to look for.
+     * @return The value stored under the key.
+     * @throw OutOfBoundsException when the map does not hold the key.
+     */
     value_type& GetValue(const key_type& key);
     const value_type& GetValue(const key_type& key) const;
 
+    /**
+     * Stores a value under a key, replacing the pair already stored under an equal key.
+     * @param key Key to store under.
+     * @param value Value to store.
+     * @return ErrorCode::Success if the operation was successful, ErrorCode::OutOfMemory if memory allocation failed.
+     */
     ErrorCode Insert(const key_type& key, const value_type& value)
         requires(IsPOD<key_type> && IsPOD<value_type>);
     ErrorCode Insert(key_type&& key, value_type&& value);
@@ -192,14 +267,39 @@ public:
     ErrorCode Insert(key_type&& key, const value_type& value)
         requires IsPOD<value_type>;
 
+    /**
+     * Removes the pair stored under a key.
+     * @param key Key to remove.
+     * @return ErrorCode::Success if the pair was removed, ErrorCode::InvalidArgument if the map does not hold the key.
+     */
     ErrorCode Erase(const key_type& key);
+
+    /**
+     * Removes the pair an iterator refers to.
+     * @param it Iterator into this map.
+     * @return ErrorCode::Success if the pair was removed, ErrorCode::OutOfBounds if the iterator is not in [begin(), end()),
+     * ErrorCode::InvalidArgument if it does not refer to a pair.
+     */
     ErrorCode Erase(iterator it);
     ErrorCode Erase(const_iterator it);
+
+    /**
+     * Removes every pair in [first, last).
+     * @param first Iterator to the first pair to remove.
+     * @param last Iterator past the last pair to remove.
+     * @return ErrorCode::Success if the pairs were removed, ErrorCode::OutOfBounds if the range is not a valid range of this map,
+     * ErrorCode::InvalidArgument if the range covers a position that does not refer to a pair.
+     */
     ErrorCode Erase(iterator first, iterator last);
     ErrorCode Erase(const_iterator first, const_iterator last);
 
+    /** Removes every pair. Keeps the room the map has already made. */
     void Clear();
 
+    /**
+     * Copies the contents into an array. The order is unspecified, and is the same for all three.
+     * @return Array holding a copy of every pair, key or value.
+     */
     DynamicArray<pair_type> ToArray() const;
     DynamicArray<key_type> ToArrayOfKeys() const;
     DynamicArray<value_type> ToArrayOfValues() const;
