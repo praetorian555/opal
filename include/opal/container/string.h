@@ -439,7 +439,8 @@ public:
      * @param count Number of code units to insert. If count is equal to k_npos, the entire string starting from other_start_pos will be
      * inserted.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
-     * of the string. ErrorCode::OutOfBounds if other_start_pos is out of bounds of the other string.
+     * of the string, if other_start_pos is out of bounds of the other string, or if count exceeds what is left in the other string after
+     * other_start_pos.
      * @throw OutOfMemoryException when there is no more memory.
      */
     Expected<iterator, ErrorCode> Insert(size_type start_pos, const String& other, size_type other_start_pos = 0, size_type count = k_npos);
@@ -1773,7 +1774,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     if (count == k_npos)
     {
-        count = other_size;
+        count = other_size - other_start_pos;
+    }
+    if (count > other_size - other_start_pos)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
     }
     if (count == 0)
     {
@@ -1787,7 +1792,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     for (size_type i = start_pos; i < start_pos + count; ++i)
     {
-        data[i] = other[i - start_pos];
+        data[i] = other[other_start_pos + i - start_pos];
     }
     sz += count;
     data[sz] = 0;

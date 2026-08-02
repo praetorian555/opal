@@ -6,7 +6,7 @@
 Bugs found during a review pass of `include/opal/container/string.h`. The first seven were
 reproduced against a debug build.
 
-- [ ] `Insert(pos, other, other_start_pos, count)` ignores `other_start_pos` (`string.h:1794`, `string.h:1813`).
+- [x] `Insert(pos, other, other_start_pos, count)` ignores `other_start_pos` (`string.h:1794`, `string.h:1813`).
       `count = other_size` should subtract `other_start_pos`, the copy loop should read
       `other[other_start_pos + i - start_pos]`, and `count > other_size - other_start_pos` is unchecked.
       Repro: `Insert(1, "0123456789", 5, 3)` on `"AB"` yields `"A012B"`, expected `"A567B"`.

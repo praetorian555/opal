@@ -3365,7 +3365,7 @@ TEST_CASE("Insert", "[String]")
         {
             StringLocale str("Hello there");
             StringLocale in("aa");
-            auto result = str.Insert(5, in, 2);
+            auto result = str.Insert(5, in);
             REQUIRE(result.HasValue() == true);
             REQUIRE(str == "Helloaa there");
             REQUIRE(result.GetValue() == str.Begin() + 5);
@@ -3374,10 +3374,52 @@ TEST_CASE("Insert", "[String]")
         {
             StringLocale str("Hello there");
             StringLocale in("aa");
-            auto result = str.Insert(11, in, 2);
+            auto result = str.Insert(11, in);
             REQUIRE(result.HasValue() == true);
             REQUIRE(str == "Hello thereaa");
             REQUIRE(result.GetValue() == str.End() - 2);
+        }
+        SECTION("Start position in the inserted string")
+        {
+            StringLocale str("AB");
+            StringLocale in("0123456789");
+            auto result = str.Insert(1, in, 5, 3);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "A567B");
+            REQUIRE(result.GetValue() == str.Begin() + 1);
+        }
+        SECTION("Start position in the inserted string without a count")
+        {
+            StringLocale str("AB");
+            StringLocale in("0123456789");
+            auto result = str.Insert(1, in, 7);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "A789B");
+        }
+        SECTION("Start position at the end of the inserted string")
+        {
+            StringLocale str("AB");
+            StringLocale in("0123456789");
+            auto result = str.Insert(1, in, 10);
+            REQUIRE(result.HasValue() == true);
+            REQUIRE(str == "AB");
+        }
+        SECTION("Count past the end of the inserted string")
+        {
+            StringLocale str("AB");
+            StringLocale in("0123456789");
+            auto result = str.Insert(1, in, 5, 6);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+            REQUIRE(str == "AB");
+        }
+        SECTION("Bad start position in the inserted string")
+        {
+            StringLocale str("Hello there");
+            StringLocale in("aa");
+            auto result = str.Insert(0, in, 3);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
         }
     }
     SECTION("With single iterator")
