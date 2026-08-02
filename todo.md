@@ -55,9 +55,13 @@ reproduced against a debug build.
 
 ## String API consistency
 
-- [ ] `StringView` inverts the bounds-checking convention: `operator[]` throws and `At()` is unchecked
+- [x] `StringView` inverts the bounds-checking convention: `operator[]` throws and `At()` is unchecked
       (`string-view.h:87`, `string-view.h:100`), the opposite of `String`. Generic `StringLike` code
       changes behavior with the type.
+      Resolved in favour of the `StringView` convention: `operator[]` throws, `At()` is unchecked, so
+      the default way to index is the safe one. `String` was changed to match.
+- [ ] `DynamicArray`, `InPlaceArray` and `Deque` still use the opposite convention, where `At()` is the
+      checked accessor. Either flip them the same way or accept that strings and arrays differ.
 - [ ] `GetSubString`, `Split`, `SplitToArray` and the five `operator+` overloads are constrained on
       `StringLike` but hard error for `StringView`, which has no allocator-taking constructor, `Clone`
       or `operator+=`.

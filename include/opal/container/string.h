@@ -284,18 +284,18 @@ public:
     ErrorCode Assign(InputIt start_it, InputIt end_it);
 
     /**
-     * @brief Get the code unit at a specific position in the string.
+     * @brief Get the code unit at a specific position in the string. Bounds checking only in debug mode.
      * @param pos Position in the string to get the code unit from.
      * @return Reference to the code unit.
-     * @throw OutOfBoundsException
      */
     CodeUnitType& At(size_type pos);
     [[nodiscard]] const CodeUnitType& At(size_type pos) const;
 
     /**
-     * @brief Get the code unit at a specific position in the string. Bounds checking only in debug mode.
+     * @brief Get the code unit at a specific position in the string. Bounds-checked.
      * @param pos Position in the string to get the code unit from.
      * @return Reference to the code unit.
+     * @throw OutOfBoundsException if pos is out of bounds.
      */
     CodeUnitType& operator[](size_type pos);
     const CodeUnitType& operator[](size_type pos) const;
@@ -1353,17 +1353,20 @@ Opal::ErrorCode CLASS_HEADER::Assign(InputIt start_it, InputIt end_it)
 TEMPLATE_HEADER
 CodeUnitType& CLASS_HEADER::At(size_type pos)
 {
-    const size_type sz = GetSize();
-    if (pos >= sz)
-    {
-        throw OutOfBoundsException(pos, 0, sz == 0 ? 0 : sz - 1);
-    }
+    OPAL_ASSERT(pos < GetSize(), "Index out of bounds");
     return GetData()[pos];
 }
 
 TEMPLATE_HEADER
 const CodeUnitType& CLASS_HEADER::At(size_type pos) const
 {
+    OPAL_ASSERT(pos < GetSize(), "Index out of bounds");
+    return GetData()[pos];
+}
+
+TEMPLATE_HEADER
+CodeUnitType& CLASS_HEADER::operator[](size_type pos)
+{
     const size_type sz = GetSize();
     if (pos >= sz)
     {
@@ -1373,16 +1376,13 @@ const CodeUnitType& CLASS_HEADER::At(size_type pos) const
 }
 
 TEMPLATE_HEADER
-CodeUnitType& CLASS_HEADER::operator[](size_type pos)
-{
-    OPAL_ASSERT(pos < GetSize(), "Index out of bounds");
-    return GetData()[pos];
-}
-
-TEMPLATE_HEADER
 const CodeUnitType& CLASS_HEADER::operator[](size_type pos) const
 {
-    OPAL_ASSERT(pos < GetSize(), "Index out of bounds");
+    const size_type sz = GetSize();
+    if (pos >= sz)
+    {
+        throw OutOfBoundsException(pos, 0, sz == 0 ? 0 : sz - 1);
+    }
     return GetData()[pos];
 }
 
@@ -1794,7 +1794,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     for (size_type i = start_pos; i < start_pos + count; ++i)
     {
-        data[i] = other[other_start_pos + i - start_pos];
+        data[i] = other.At(other_start_pos + i - start_pos);
     }
     sz += count;
     data[sz] = 0;
@@ -2700,7 +2700,7 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const ty
         for (typename StringClass::size_type needle_pos = 0; needle_pos < needle_count; ++needle_pos)
         {
             // We found the symbol only if there is enough of a haystack to find it
-            is_found = haystack_pos + needle_pos < haystack.GetSize() && needle[needle_pos] == haystack[haystack_pos + needle_pos];
+            is_found = haystack_pos + needle_pos < haystack.GetSize() && needle[needle_pos] == haystack.At(haystack_pos + needle_pos);
             if (!is_found)
             {
                 break;
@@ -2728,7 +2728,7 @@ typename StringClass::size_type Opal::Find(const StringClass& haystack, const ty
     }
     for (typename StringClass::size_type haystack_pos = start_pos; haystack_pos < haystack.GetSize(); ++haystack_pos)
     {
-        if (haystack[haystack_pos] == ch)
+        if (haystack.At(haystack_pos) == ch)
         {
             return haystack_pos;
         }
@@ -2757,7 +2757,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
         bool is_found = true;
         for (typename StringClass::size_type needle_pos = 0; needle_pos < needle.GetSize(); ++needle_pos)
         {
-            if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
+            if (needle[needle_pos] != haystack.At(haystack_pos + needle_pos))
             {
                 is_found = false;
                 break;
@@ -2804,7 +2804,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
         bool is_found = true;
         for (typename StringClass::size_type needle_pos = 0; needle_pos < needle_count; ++needle_pos)
         {
-            if (needle[needle_pos] != haystack[haystack_pos + needle_pos])
+            if (needle[needle_pos] != haystack.At(haystack_pos + needle_pos))
             {
                 is_found = false;
                 break;
@@ -2832,7 +2832,7 @@ typename StringClass::size_type Opal::ReverseFind(const StringClass& haystack, c
     }
     for (typename StringClass::size_type haystack_pos = start_pos; haystack_pos != StringClass::k_npos; --haystack_pos)
     {
-        if (haystack[haystack_pos] == ch)
+        if (haystack.At(haystack_pos) == ch)
         {
             return haystack_pos;
         }
@@ -2878,7 +2878,7 @@ bool Opal::StartsWith(const StringClass& str, const StringClass& prefix)
     }
     for (typename StringClass::size_type i = 0; i < prefix.GetSize(); ++i)
     {
-        if (prefix[i] != str[i])
+        if (prefix.At(i) != str.At(i))
         {
             return false;
         }
@@ -2895,7 +2895,7 @@ bool Opal::EndsWith(const StringClass& str, const StringClass& suffix)
     }
     for (typename StringClass::size_type i = 0; i < suffix.GetSize(); ++i)
     {
-        if (suffix[i] != str[str.GetSize() - suffix.GetSize() + i])
+        if (suffix.At(i) != str.At(str.GetSize() - suffix.GetSize() + i))
         {
             return false;
         }
@@ -2965,16 +2965,16 @@ void ToBinary(Opal::StringUtf8& out_str, T number, bool leading_zeros)
     while (number != 0 && count < k_max_digit_count)
     {
         char digit = number & 0x01 ? '1' : '0';
-        out_str[count++] = digit;
+        out_str.At(count++) = digit;
         number >>= 1;
     }
     while (count < k_max_digit_count && leading_zeros)
     {
-        out_str[count++] = '0';
+        out_str.At(count++) = '0';
     }
     if (count == 0)
     {
-        out_str[0] = '0';
+        out_str.At(0) = '0';
     }
     out_str.Trim();
     out_str.Reverse();

@@ -988,10 +988,10 @@ TEST_CASE("Accessors", "[String]")
             REQUIRE(str.At(9) == 'r');
             REQUIRE(str.At(10) == 'e');
         }
-        SECTION("Out of bounds At")
+        SECTION("Out of bounds array operator")
         {
             StringUtf8 str("Hello there");
-            REQUIRE_THROWS_AS(!str.At(12), OutOfBoundsException);
+            REQUIRE_THROWS_AS(!str[12], OutOfBoundsException);
         }
         SECTION("Const At")
         {
@@ -1008,10 +1008,10 @@ TEST_CASE("Accessors", "[String]")
             REQUIRE(str.At(9) == 'r');
             REQUIRE(str.At(10) == 'e');
         }
-        SECTION("Out of bounds const At")
+        SECTION("Out of bounds const array operator")
         {
             const StringUtf8 str("Hello there");
-            REQUIRE_THROWS_AS(!str.At(11), OutOfBoundsException);
+            REQUIRE_THROWS_AS(!str[11], OutOfBoundsException);
         }
         SECTION("Array operator")
         {
@@ -5269,12 +5269,12 @@ TEST_CASE("Null pointer construction", "[String]")
     }
 }
 
-TEST_CASE("At on an empty string reports a sane range", "[String]")
+TEST_CASE("Subscript on an empty string reports a sane range", "[String]")
 {
     StringUtf8 str;
-    REQUIRE_THROWS_AS(str.At(0), OutOfBoundsException);
+    REQUIRE_THROWS_AS(str[0], OutOfBoundsException);
     const StringUtf8& const_str = str;
-    REQUIRE_THROWS_AS(const_str.At(0), OutOfBoundsException);
+    REQUIRE_THROWS_AS(const_str[0], OutOfBoundsException);
 }
 
 TEST_CASE("Appending and inserting a string into itself", "[String]")
