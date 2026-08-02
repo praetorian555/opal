@@ -26,7 +26,7 @@ reproduced against a debug build.
 - [x] `String` has no geometric growth, making `Append` quadratic (`string.h:1434`). Every append
       calls `Reserve(sz + n + 1)`, which allocates exactly that. 2000 single-character appends cause
       1977 reallocations. Mirror `DynamicArray`'s `k_resize_factor`.
-- [ ] `Append(const value_type*)` and `Insert(pos, const CodeUnitType*, count)` break on self-aliasing
+- [x] `Append(const value_type*)` and `Insert(pos, const CodeUnitType*, count)` break on self-aliasing
       (`string.h:1571`). `Reserve` reallocates and the caller's pointer dangles before the `memcpy`.
 - [x] `Allocate` never checks the result of `alloc->Alloc` (`string.h:2154`). `MallocAllocator` returns
       `nullptr` on failure, so the documented `OutOfMemoryException` is really a null dereference.
@@ -67,7 +67,9 @@ reproduced against a debug build.
       and returns `InvalidArgument` (`string.h:260` vs `string.h:1281`), same for
       `Insert(pos, str, count)` (`string.h:422` vs `string.h:1746`).
 - [ ] `Insert(pos, const String& other, ...)` shifts data before reading it, so inserting a string into
-      itself corrupts the result. No self-check.
+      itself corrupts the result. No self-check. `Insert(iterator, InputIt, InputIt)` and its
+      `const_iterator` overload have the same hole, and unlike `Append(InputIt, InputIt)` and
+      `Assign(InputIt, InputIt)` they do not return `SelfNotAllowed` for iterators into the string.
 - [ ] Pin the deliberate `std::string` deviations in tests, or fix them: `Assign(other, pos, count)`
       and `Erase(pos, count)` reject `pos == size`; `Erase(first, last)` rejects `first == End()`, so an
       empty range erase at the end fails; `Find` with an empty needle at `start_pos == size` returns

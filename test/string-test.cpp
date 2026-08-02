@@ -4993,3 +4993,55 @@ TEST_CASE("At on an empty string reports a sane range", "[String]")
     const StringUtf8& const_str = str;
     REQUIRE_THROWS_AS(const_str.At(0), OutOfBoundsException);
 }
+
+TEST_CASE("Appending and inserting a string into itself", "[String]")
+{
+    const char8* k_long = "0123456789012345678901234567890123456789";
+    SECTION("Append the whole string to itself")
+    {
+        StringUtf8 str(k_long);
+        const StringUtf8::size_type old_capacity = str.GetCapacity();
+        str.Append(str.GetData(), str.GetSize());
+        REQUIRE(str.GetCapacity() > old_capacity);
+        REQUIRE(str == StringUtf8(k_long) + StringUtf8(k_long));
+    }
+    SECTION("Append a suffix of the string to itself")
+    {
+        StringUtf8 str(k_long);
+        str.Append(str.GetData() + 30, 10);
+        REQUIRE(str == StringUtf8(k_long) + StringUtf8("0123456789"));
+    }
+    SECTION("Append a null-terminated view of the string to itself")
+    {
+        StringUtf8 str(k_long);
+        str.Append(str.GetData());
+        REQUIRE(str == StringUtf8(k_long) + StringUtf8(k_long));
+    }
+    SECTION("Append to a small string that does not reallocate")
+    {
+        StringUtf8 str("abc");
+        str.Append(str.GetData(), 3);
+        REQUIRE(str == StringUtf8("abcabc"));
+    }
+    SECTION("Insert the whole string into itself at the front")
+    {
+        StringUtf8 str(k_long);
+        auto result = str.Insert(0, str.GetData(), str.GetSize());
+        REQUIRE(result.HasValue());
+        REQUIRE(str == StringUtf8(k_long) + StringUtf8(k_long));
+    }
+    SECTION("Insert a prefix of the string into its own middle")
+    {
+        StringUtf8 str(k_long);
+        auto result = str.Insert(20, str.GetData(), 5);
+        REQUIRE(result.HasValue());
+        REQUIRE(str == StringUtf8("01234567890123456789") + StringUtf8("01234") + StringUtf8("01234567890123456789"));
+    }
+    SECTION("Insert into a small string that does not reallocate")
+    {
+        StringUtf8 str("abc");
+        auto result = str.Insert(1, str.GetData(), 2);
+        REQUIRE(result.HasValue());
+        REQUIRE(str == StringUtf8("aabbc"));
+    }
+}

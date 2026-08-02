@@ -660,6 +660,21 @@ private:
         m_storage.large.capacity = new_size + 1;
     }
 
+    // Returns the offset of str into this string's own buffer, or k_npos when str points somewhere
+    // else. Used to re-derive caller pointers that would dangle once the buffer is reallocated.
+    [[nodiscard]] size_type GetInternalOffset(const value_type* str) const
+    {
+        const value_type* data = GetData();
+        const uintptr_t address = reinterpret_cast<uintptr_t>(str);
+        const uintptr_t buffer_begin = reinterpret_cast<uintptr_t>(data);
+        const uintptr_t buffer_end = buffer_begin + GetCapacity() * sizeof(value_type);
+        if (address < buffer_begin || address >= buffer_end)
+        {
+            return k_npos;
+        }
+        return static_cast<size_type>(str - data);
+    }
+
     // Rejects sizes that would overflow the byte count or the null-terminator slot.
     static void ValidateSize(size_type new_size)
     {
@@ -1555,11 +1570,13 @@ Opal::ErrorCode CLASS_HEADER::Append(const value_type* str, size_type size)
         size = GetStringLength(str);
     }
     size_type sz = GetSize();
+    const size_type alias_offset = GetInternalOffset(str);
     GrowForAppend(sz, size);
     value_type* data = GetData();
     if (size > 0)
     {
-        std::memcpy(data + sz, str, size * sizeof(value_type));
+        const value_type* source = alias_offset == k_npos ? str : data + alias_offset;
+        std::memmove(data + sz, source, size * sizeof(value_type));
     }
     sz += size;
     data[sz] = 0;
@@ -1714,6 +1731,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     if (count == 0)
     {
         return ReturnType(iterator(GetData() + start_pos));
+    }
+    if (GetInternalOffset(str) != k_npos)
+    {
+        const String source(str, count, GetAllocatorPtr());
+        return Insert(start_pos, source.GetData(), count);
     }
     GrowForAppend(sz, count);
     value_type* data = GetData();
