@@ -141,18 +141,24 @@ TEST_CASE("Hash map insert", "[HashMap]")
     REQUIRE(map.GetValue(key) == value);
 }
 
-namespace
-{
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_MSVC_WARNING(4324)  // Padding the type is the whole point of this one.
-struct alignas(64) CacheLineAligned
+struct alignas(64) CacheLineAlignedMapKey
 {
     i32 value = 0;
 
-    bool operator==(const CacheLineAligned& other) const { return value == other.value; }
+    bool operator==(const CacheLineAlignedMapKey& other) const { return value == other.value; }
 };
 OPAL_END_DISABLE_WARNINGS
-}  // namespace
+
+// Four bytes of value and sixty of padding. The default hasher for plain old data hashes the object's
+// bytes, padding included, and padding is indeterminate, so two keys that compare equal would not hash
+// equal. Hash the member that actually carries the value.
+template <>
+struct Opal::Hasher<CacheLineAlignedMapKey>
+{
+    u64 operator()(const CacheLineAlignedMapKey& key) const { return Hash::CalcPOD(key.value); }
+};
 
 TEST_CASE("Hash map reports failures through error codes", "[HashMap]")
 {
@@ -293,18 +299,18 @@ TEST_CASE("Hash map erase by range", "[HashMap]")
 
 TEST_CASE("Hash map with pairs aligned more strictly than the block", "[HashMap]")
 {
-    static_assert(IsPOD<CacheLineAligned>, "alignas must not cost the type its POD hasher");
+    static_assert(IsPOD<CacheLineAlignedMapKey>, "alignas must not cost the type its POD hasher");
 
-    HashMap<CacheLineAligned, i32> map;
+    HashMap<CacheLineAlignedMapKey, i32> map;
     for (i32 i = 0; i < 100; i++)
     {
-        map.Insert(CacheLineAligned{i}, i * 2);
+        map.Insert(CacheLineAlignedMapKey{i}, i * 2);
     }
     REQUIRE(map.GetSize() == 100);
 
     for (const auto& pair : map)
     {
-        REQUIRE(reinterpret_cast<u64>(&pair) % alignof(Pair<CacheLineAligned, i32>) == 0);
+        REQUIRE(reinterpret_cast<u64>(&pair) % alignof(Pair<CacheLineAlignedMapKey, i32>) == 0);
         REQUIRE(map.GetValue(pair.key) == pair.key.value * 2);
     }
 }

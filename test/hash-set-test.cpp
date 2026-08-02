@@ -211,18 +211,24 @@ TEST_CASE("Hash set automatic growth", "[hash-set]")
     }
 }
 
-namespace
-{
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_MSVC_WARNING(4324)  // Padding the type is the whole point of this one.
-struct alignas(64) CacheLineAligned
+struct alignas(64) CacheLineAlignedKey
 {
     i32 value = 0;
 
-    bool operator==(const CacheLineAligned& other) const { return value == other.value; }
+    bool operator==(const CacheLineAlignedKey& other) const { return value == other.value; }
 };
 OPAL_END_DISABLE_WARNINGS
-}  // namespace
+
+// Four bytes of value and sixty of padding. The default hasher for plain old data hashes the object's
+// bytes, padding included, and padding is indeterminate, so two keys that compare equal would not hash
+// equal. Hash the member that actually carries the value.
+template <>
+struct Opal::Hasher<CacheLineAlignedKey>
+{
+    u64 operator()(const CacheLineAlignedKey& key) const { return Hash::CalcPOD(key.value); }
+};
 
 TEST_CASE("Hash set emptiness", "[hash-set]")
 {
@@ -244,37 +250,37 @@ TEST_CASE("Hash set emptiness", "[hash-set]")
 
 TEST_CASE("Hash set with keys aligned more strictly than the block", "[hash-set]")
 {
-    static_assert(IsPOD<CacheLineAligned>, "alignas must not cost the type its POD hasher");
+    static_assert(IsPOD<CacheLineAlignedKey>, "alignas must not cost the type its POD hasher");
 
     // The control bytes occupy a power of two sized run, 32 bytes for the smallest tables and growing from there. A key aligned more
     // strictly than that run is long has to be pushed past it, so the smallest tables are where the offset arithmetic matters.
     SECTION("Smallest table")
     {
-        HashSet<CacheLineAligned> set;
-        REQUIRE(set.Insert(CacheLineAligned{1}) == ErrorCode::Success);
+        HashSet<CacheLineAlignedKey> set;
+        REQUIRE(set.Insert(CacheLineAlignedKey{1}) == ErrorCode::Success);
         REQUIRE(set.GetCapacity() == 7);
 
-        for (const CacheLineAligned& key : set)
+        for (const CacheLineAlignedKey& key : set)
         {
-            REQUIRE(reinterpret_cast<u64>(&key) % alignof(CacheLineAligned) == 0);
+            REQUIRE(reinterpret_cast<u64>(&key) % alignof(CacheLineAlignedKey) == 0);
         }
     }
     SECTION("After growing")
     {
-        HashSet<CacheLineAligned> set;
+        HashSet<CacheLineAlignedKey> set;
         for (i32 i = 0; i < 100; i++)
         {
-            REQUIRE(set.Insert(CacheLineAligned{i}) == ErrorCode::Success);
+            REQUIRE(set.Insert(CacheLineAlignedKey{i}) == ErrorCode::Success);
         }
         REQUIRE(set.GetSize() == 100);
 
         for (i32 i = 0; i < 100; i++)
         {
-            REQUIRE(set.Contains(CacheLineAligned{i}));
+            REQUIRE(set.Contains(CacheLineAlignedKey{i}));
         }
-        for (const CacheLineAligned& key : set)
+        for (const CacheLineAlignedKey& key : set)
         {
-            REQUIRE(reinterpret_cast<u64>(&key) % alignof(CacheLineAligned) == 0);
+            REQUIRE(reinterpret_cast<u64>(&key) % alignof(CacheLineAlignedKey) == 0);
         }
     }
 }
