@@ -211,6 +211,29 @@ TEST_CASE("Hash set automatic growth", "[hash-set]")
     }
 }
 
+TEST_CASE("Hash set reserve never drops below what the set holds", "[hash-set]")
+{
+    HashSet<i32> set(100);
+    for (i32 i = 0; i < 100; i++)
+    {
+        set.Insert(i);
+    }
+    REQUIRE(set.GetSize() == 100);
+
+    // Asking for less room than the set already uses must not lose keys.
+    REQUIRE(set.Reserve(4) == ErrorCode::Success);
+    REQUIRE(set.GetSize() == 100);
+    REQUIRE(set.GetCapacity() > 100);
+    for (i32 i = 0; i < 100; i++)
+    {
+        REQUIRE(set.Contains(i));
+    }
+
+    // The set is still usable afterwards.
+    REQUIRE(set.Insert(100) == ErrorCode::Success);
+    REQUIRE(set.Contains(100));
+}
+
 TEST_CASE("Hash set capacity survives insert and erase churn", "[hash-set]")
 {
     SECTION("A set that never holds more than one key never grows")

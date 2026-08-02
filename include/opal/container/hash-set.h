@@ -280,6 +280,12 @@ template <typename KeyType>
 Opal::ErrorCode Opal::HashSet<KeyType>::Reserve(size_type capacity)
 {
     u64 new_capacity = GetNextPowerOf2MinusOne(capacity < k_default_capacity ? k_default_capacity : capacity);
+    // Probing walks until it meets a slot that was never occupied, so a table that cannot hold the keys already in the set with room to
+    // spare would corrupt them and never terminate. Raise the request rather than honour it.
+    while (GetGrowthThreshold(new_capacity) < m_size)
+    {
+        new_capacity = (new_capacity << 1) | 1;
+    }
     u64 new_size = 0;
     // Since we are storing control bytes and the keys in the same memory block we need to make sure
     // that keys start at the address that is aligned with their size.

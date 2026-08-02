@@ -141,6 +141,29 @@ TEST_CASE("Hash map insert", "[HashMap]")
     REQUIRE(map.GetValue(key) == value);
 }
 
+TEST_CASE("Hash map reserve never drops below what the map holds", "[HashMap]")
+{
+    HashMap<i32, i32> map(100);
+    for (i32 i = 0; i < 100; i++)
+    {
+        map.Insert(i, i * 2);
+    }
+    REQUIRE(map.GetSize() == 100);
+
+    // Asking for less room than the map already uses must not lose pairs.
+    map.Reserve(4);
+    REQUIRE(map.GetSize() == 100);
+    REQUIRE(map.GetCapacity() > 100);
+    for (i32 i = 0; i < 100; i++)
+    {
+        REQUIRE(map.GetValue(i) == i * 2);
+    }
+
+    // The map is still usable afterwards.
+    map.Insert(100, 200);
+    REQUIRE(map.GetValue(100) == 200);
+}
+
 TEST_CASE("Hash map capacity survives insert and erase churn", "[HashMap]")
 {
     constexpr i32 k_live_keys = 50;
