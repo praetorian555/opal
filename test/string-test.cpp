@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <cstring>
 #include <iostream>
+#include <iterator>
 
 #include "test-helpers.h"
 
@@ -4801,6 +4803,73 @@ TEST_CASE("Erase long string", "[String]")
         auto const_result = str.Erase(str.ConstEnd(), str.ConstEnd());
         REQUIRE(const_result.HasValue() == true);
         REQUIRE(str == "Hello there and then some more");
+    }
+}
+
+static_assert(std::random_access_iterator<StringUtf8::reverse_iterator>);
+static_assert(std::random_access_iterator<StringUtf8::const_reverse_iterator>);
+
+TEST_CASE("Reverse iterators", "[String]")
+{
+    SECTION("Walk backwards over the code units")
+    {
+        StringUtf8 str("abcd");
+        StringUtf8 reversed;
+        for (auto it = str.rbegin(); it != str.rend(); ++it)
+        {
+            reversed.Append(*it);
+        }
+        REQUIRE(reversed == "dcba");
+    }
+    SECTION("Const walk")
+    {
+        const StringUtf8 str("abcd");
+        StringUtf8 reversed;
+        for (auto it = str.crbegin(); it != str.crend(); ++it)
+        {
+            reversed.Append(*it);
+        }
+        REQUIRE(reversed == "dcba");
+        REQUIRE(str.rbegin() == str.crbegin());
+    }
+    SECTION("Empty string")
+    {
+        StringUtf8 str;
+        REQUIRE(str.rbegin() == str.rend());
+    }
+    SECTION("Random access")
+    {
+        StringUtf8 str("abcd");
+        auto it = str.rbegin();
+        REQUIRE(*it == 'd');
+        REQUIRE(it[1] == 'c');
+        REQUIRE(*(it + 3) == 'a');
+        REQUIRE(str.rend() - str.rbegin() == 4);
+        it += 3;
+        REQUIRE(*it == 'a');
+        it -= 2;
+        REQUIRE(*it == 'c');
+        REQUIRE(str.rbegin() < str.rend());
+    }
+    SECTION("The base iterator is one past the code unit")
+    {
+        StringUtf8 str("abcd");
+        auto it = str.rbegin();
+        REQUIRE(it.GetBase() == str.end());
+        REQUIRE(*(it.GetBase() - 1) == 'd');
+    }
+    SECTION("Writing through a reverse iterator")
+    {
+        StringUtf8 str("abcd");
+        *str.rbegin() = 'z';
+        REQUIRE(str == "abcz");
+    }
+    SECTION("Standard algorithms")
+    {
+        StringUtf8 str("hello");
+        REQUIRE(std::find(str.crbegin(), str.crend(), 'e') == str.crbegin() + 3);
+        std::reverse(str.rbegin(), str.rend());
+        REQUIRE(str == "olleh");
     }
 }
 

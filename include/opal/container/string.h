@@ -111,6 +111,57 @@ StringConstIterator<StringClass> operator+(typename StringConstIterator<StringCl
                                            const StringConstIterator<StringClass>& it);
 
 /**
+ * @brief Iterator that walks a string backwards. Refers to the code unit before the forward iterator it holds.
+ * @tparam StringClass Type of the string being iterated.
+ * @tparam BaseIterator Forward iterator this one is built on.
+ */
+template <typename StringClass, typename BaseIterator>
+class StringReverseIteratorBase
+{
+public:
+    using value_type = typename BaseIterator::value_type;
+    using difference_type = typename BaseIterator::difference_type;
+    using reference = typename BaseIterator::reference;
+    using pointer = typename BaseIterator::pointer;
+
+    StringReverseIteratorBase() = default;
+    explicit StringReverseIteratorBase(BaseIterator base) : m_base(base) {}
+
+    /** Get the underlying forward iterator, one past the code unit this refers to. */
+    BaseIterator GetBase() const { return m_base; }
+
+    bool operator==(const StringReverseIteratorBase& other) const { return m_base == other.m_base; }
+    bool operator>(const StringReverseIteratorBase& other) const;
+    bool operator>=(const StringReverseIteratorBase& other) const;
+    bool operator<(const StringReverseIteratorBase& other) const;
+    bool operator<=(const StringReverseIteratorBase& other) const;
+
+    StringReverseIteratorBase& operator++();
+    StringReverseIteratorBase operator++(int);
+    StringReverseIteratorBase& operator--();
+    StringReverseIteratorBase operator--(int);
+
+    StringReverseIteratorBase operator+(difference_type n) const;
+    StringReverseIteratorBase operator-(difference_type n) const;
+    StringReverseIteratorBase& operator+=(difference_type n);
+    StringReverseIteratorBase& operator-=(difference_type n);
+
+    difference_type operator-(const StringReverseIteratorBase& other) const;
+
+    reference operator[](difference_type n) const;
+    reference operator*() const;
+    pointer operator->() const;
+
+private:
+    BaseIterator m_base = {};
+};
+
+template <typename StringClass, typename BaseIterator>
+StringReverseIteratorBase<StringClass, BaseIterator> operator+(
+    typename StringReverseIteratorBase<StringClass, BaseIterator>::difference_type n,
+    const StringReverseIteratorBase<StringClass, BaseIterator>& it);
+
+/**
  * @brief String class that stores a sequence of code units.
  * @tparam CodeUnitType Type of the code unit used in the string.
  * @tparam EncodingType Type of the encoding used in the string.
@@ -130,6 +181,8 @@ public:
     using encoding_type = EncodingType;
     using iterator = StringIterator<String>;
     using const_iterator = StringConstIterator<String>;
+    using reverse_iterator = StringReverseIteratorBase<String, iterator>;
+    using const_reverse_iterator = StringReverseIteratorBase<String, const_iterator>;
 
     static_assert(k_is_same_value<value_type, typename encoding_type::CodeUnitType>,
                   "Encoding code unit type needs to match string code unit type");
@@ -597,6 +650,20 @@ public:
     [[nodiscard]] const_iterator end() const { return const_iterator(MutableData() + GetSize()); }
     [[nodiscard]] const_iterator cbegin() const { return const_iterator(MutableData()); }
     [[nodiscard]] const_iterator cend() const { return const_iterator(MutableData() + GetSize()); }
+
+    /**
+     * @brief Get a reverse iterator pointing to the last code unit. Advancing it steps towards the front.
+     */
+    reverse_iterator rbegin() { return reverse_iterator(end()); }
+    [[nodiscard]] const_reverse_iterator rbegin() const { return const_reverse_iterator(cend()); }
+    [[nodiscard]] const_reverse_iterator crbegin() const { return const_reverse_iterator(cend()); }
+
+    /**
+     * @brief Get a reverse iterator pointing one before the first code unit.
+     */
+    reverse_iterator rend() { return reverse_iterator(begin()); }
+    [[nodiscard]] const_reverse_iterator rend() const { return const_reverse_iterator(cbegin()); }
+    [[nodiscard]] const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
 
     [[nodiscard]] static constexpr size_type Min(size_type a, size_type b) { return a > b ? b : a; }
 
@@ -2635,6 +2702,127 @@ typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
 
 TEMPLATE_HEADER
 CLASS_HEADER Opal::operator+(typename StringConstIterator<StringClass>::difference_type n, const StringConstIterator<StringClass>& it)
+{
+    return it + n;
+}
+
+#undef TEMPLATE_HEADER
+#undef CLASS_HEADER
+
+#define TEMPLATE_HEADER template <typename StringClass, typename BaseIterator>
+#define CLASS_HEADER Opal::StringReverseIteratorBase<StringClass, BaseIterator>
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator>(const StringReverseIteratorBase& other) const
+{
+    return m_base < other.m_base;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator>=(const StringReverseIteratorBase& other) const
+{
+    return m_base <= other.m_base;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator<(const StringReverseIteratorBase& other) const
+{
+    return m_base > other.m_base;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator<=(const StringReverseIteratorBase& other) const
+{
+    return m_base >= other.m_base;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator++()
+{
+    --m_base;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator++(int)
+{
+    StringReverseIteratorBase temp = *this;
+    --m_base;
+    return temp;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator--()
+{
+    ++m_base;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator--(int)
+{
+    StringReverseIteratorBase temp = *this;
+    ++m_base;
+    return temp;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator+(difference_type n) const
+{
+    return StringReverseIteratorBase(m_base - n);
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER CLASS_HEADER::operator-(difference_type n) const
+{
+    return StringReverseIteratorBase(m_base + n);
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator+=(difference_type n)
+{
+    m_base -= n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER& CLASS_HEADER::operator-=(difference_type n)
+{
+    m_base += n;
+    return *this;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::difference_type CLASS_HEADER::operator-(const StringReverseIteratorBase& other) const
+{
+    return other.m_base - m_base;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](difference_type n) const
+{
+    return *(*this + n);
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::reference CLASS_HEADER::operator*() const
+{
+    BaseIterator element = m_base;
+    --element;
+    return *element;
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::pointer CLASS_HEADER::operator->() const
+{
+    BaseIterator element = m_base;
+    --element;
+    return element.operator->();
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER Opal::operator+(typename StringReverseIteratorBase<StringClass, BaseIterator>::difference_type n,
+                             const StringReverseIteratorBase<StringClass, BaseIterator>& it)
 {
     return it + n;
 }
