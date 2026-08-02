@@ -4,7 +4,9 @@
 #include "opal/casts.h"
 #include "opal/common.h"
 #include "opal/container/expected.h"
+#include "opal/assert.h"
 #include "opal/error-codes.h"
+#include "opal/exceptions.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -171,17 +173,26 @@ public:
     ErrorCode AssignIt(InputIt first, InputIt last);
 
     /**
-     * Accesses the element at the specified index.
+     * Accesses the element at the specified index, with no error checking outside of debug builds.
+     * @param index Index of the element to access.
+     * @return Reference to the element at the specified index.
+     */
+    T& At(SizeType index);
+    const T& At(SizeType index) const;
+
+    /**
+     * Accesses the element at the specified index without throwing.
      * @param index Index of the element to access.
      * @return Expected containing a reference to the element if the index is valid, ErrorCode::OutOfBounds otherwise.
      */
-    Expected<T&, ErrorCode> At(SizeType index);
-    Expected<const T&, ErrorCode> At(SizeType index) const;
+    Expected<T&, ErrorCode> TryAt(SizeType index);
+    Expected<const T&, ErrorCode> TryAt(SizeType index) const;
 
     /**
-     * Accesses the element at the specified index, with no error checking.
+     * Accesses the element at the specified index.
      * @param index Index of the element to access.
      * @return Reference to the element at the specified index.
+     * @throw OutOfBoundsException when index is out of bounds.
      */
     T& operator[](SizeType index);
     const T& operator[](SizeType index) const;
@@ -581,63 +592,89 @@ Opal::ErrorCode CLASS_HEADER::AssignIt(InputIt first, InputIt last)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::At(SizeType index)
+T& CLASS_HEADER::At(SizeType index)
 {
-    const SizeType final_index = (m_first + index) & (m_capacity - 1);
-    const SizeType last = (m_first + m_size) & (m_capacity - 1);
-    if (final_index >= last)
-    {
-        return Expected<T&, ErrorCode>(ErrorCode::OutOfBounds);
-    }
-    return Expected<T&, ErrorCode>(m_data[final_index]);
+    OPAL_ASSERT(index < m_size, "Index out of bounds");
+    return m_data[(m_first + index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::At(SizeType index) const
+const T& CLASS_HEADER::At(SizeType index) const
 {
-    const SizeType final_index = (m_first + index) & (m_capacity - 1);
-    const SizeType last = (m_first + m_size) & (m_capacity - 1);
-    if (final_index >= last)
+    OPAL_ASSERT(index < m_size, "Index out of bounds");
+    return m_data[(m_first + index) & (m_capacity - 1)];
+}
+
+TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::TryAt(SizeType index)
+{
+    if (index >= m_size)
+    {
+        return Expected<T&, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    return Expected<T&, ErrorCode>(m_data[(m_first + index) & (m_capacity - 1)]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::TryAt(SizeType index) const
+{
+    if (index >= m_size)
     {
         return Expected<const T&, ErrorCode>(ErrorCode::OutOfBounds);
     }
-    return Expected<const T&, ErrorCode>(m_data[final_index]);
+    return Expected<const T&, ErrorCode>(m_data[(m_first + index) & (m_capacity - 1)]);
 }
 
 TEMPLATE_HEADER
 T& CLASS_HEADER::operator[](SizeType index)
 {
+    if (index >= m_size) [[unlikely]]
+    {
+        if (m_size == 0)
+        {
+            throw OutOfBoundsException("The deque is empty!");
+        }
+        throw OutOfBoundsException(index, u64{0}, m_size - 1);
+    }
     return m_data[(m_first + index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
 const T& CLASS_HEADER::operator[](SizeType index) const
 {
+    if (index >= m_size) [[unlikely]]
+    {
+        if (m_size == 0)
+        {
+            throw OutOfBoundsException("The deque is empty!");
+        }
+        throw OutOfBoundsException(index, u64{0}, m_size - 1);
+    }
     return m_data[(m_first + index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
 Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::Front()
 {
-    return At(0);
+    return TryAt(0);
 }
 
 TEMPLATE_HEADER
 Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::Front() const
 {
-    return At(0);
+    return TryAt(0);
 }
 
 TEMPLATE_HEADER
 Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::Back()
 {
-    return At(m_size - 1);
+    return TryAt(m_size - 1);
 }
 
 TEMPLATE_HEADER
 Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::Back() const
 {
-    return At(m_size - 1);
+    return TryAt(m_size - 1);
 }
 
 TEMPLATE_HEADER

@@ -259,47 +259,85 @@ TEST_CASE("At", "[Deque]")
     SECTION("Good access")
     {
         Deque<i32> deque(5, 10);
-        REQUIRE(deque.At(0).GetValue() == 10);
-        REQUIRE(deque.At(1).GetValue() == 10);
-        REQUIRE(deque.At(2).GetValue() == 10);
-        REQUIRE(deque.At(3).GetValue() == 10);
-        REQUIRE(deque.At(4).GetValue() == 10);
+        REQUIRE(deque.At(0) == 10);
+        REQUIRE(deque.At(4) == 10);
     }
     SECTION("Modify with good access")
     {
         Deque<i32> deque(5, 10);
-        deque.At(0).GetValue() = 20;
-        deque.At(1).GetValue() = 30;
-        deque.At(2).GetValue() = 40;
-        deque.At(3).GetValue() = 50;
-        deque.At(4).GetValue() = 60;
-        REQUIRE(deque.At(0).GetValue() == 20);
-        REQUIRE(deque.At(1).GetValue() == 30);
-        REQUIRE(deque.At(2).GetValue() == 40);
-        REQUIRE(deque.At(3).GetValue() == 50);
-        REQUIRE(deque.At(4).GetValue() == 60);
+        deque.At(0) = 20;
+        deque.At(4) = 60;
+        REQUIRE(deque.At(0) == 20);
+        REQUIRE(deque.At(4) == 60);
     }
     SECTION("Good access const")
     {
         const Deque<i32> deque(5, 10);
-        REQUIRE(deque.At(0).GetValue() == 10);
-        REQUIRE(deque.At(1).GetValue() == 10);
-        REQUIRE(deque.At(2).GetValue() == 10);
-        REQUIRE(deque.At(3).GetValue() == 10);
-        REQUIRE(deque.At(4).GetValue() == 10);
+        REQUIRE(deque.At(0) == 10);
+        REQUIRE(deque.At(4) == 10);
+    }
+}
+
+TEST_CASE("TryAt", "[Deque]")
+{
+    SECTION("Good access")
+    {
+        Deque<i32> deque(5, 10);
+        REQUIRE(deque.TryAt(0).GetValue() == 10);
+        REQUIRE(deque.TryAt(4).GetValue() == 10);
     }
     SECTION("Bad access")
     {
         Deque<i32> deque(5, 10);
-        REQUIRE(deque.At(5).HasValue() == false);
-        REQUIRE(deque.At(5).GetError() == ErrorCode::OutOfBounds);
+        REQUIRE(deque.TryAt(5).HasValue() == false);
+        REQUIRE(deque.TryAt(5).GetError() == ErrorCode::OutOfBounds);
     }
     SECTION("Bad access const")
     {
         const Deque<i32> deque(5, 10);
-        REQUIRE(deque.At(5).HasValue() == false);
-        REQUIRE(deque.At(5).GetError() == ErrorCode::OutOfBounds);
+        REQUIRE(deque.TryAt(5).HasValue() == false);
+        REQUIRE(deque.TryAt(5).GetError() == ErrorCode::OutOfBounds);
     }
+    SECTION("A deque whose contents wrap around the buffer")
+    {
+        Deque<i32> deque;
+        for (i32 i = 0; i < 8; ++i)
+        {
+            deque.PushBack(i);
+        }
+        for (i32 i = 0; i < 6; ++i)
+        {
+            deque.PopFront();
+        }
+        for (i32 i = 0; i < 4; ++i)
+        {
+            deque.PushBack(100 + i);
+        }
+        REQUIRE(deque.GetSize() == 6);
+        for (u64 i = 0; i < deque.GetSize(); ++i)
+        {
+            REQUIRE(deque.TryAt(i).HasValue());
+        }
+        REQUIRE(deque.TryAt(deque.GetSize()).HasValue() == false);
+        REQUIRE(deque.TryAt(0).GetValue() == 6);
+        REQUIRE(deque.TryAt(5).GetValue() == 103);
+        REQUIRE(deque.Front().GetValue() == 6);
+        REQUIRE(deque.Back().GetValue() == 103);
+    }
+}
+
+TEST_CASE("Subscript is bounds checked", "[Deque]")
+{
+    Deque<i32> deque(5, 10);
+    REQUIRE(deque[0] == 10);
+    REQUIRE_THROWS_AS(deque[5], OutOfBoundsException);
+
+    const Deque<i32> const_deque(5, 10);
+    REQUIRE(const_deque[4] == 10);
+    REQUIRE_THROWS_AS(const_deque[5], OutOfBoundsException);
+
+    Deque<i32> empty_deque;
+    REQUIRE_THROWS_AS(empty_deque[0], OutOfBoundsException);
 }
 
 TEST_CASE("Front access", "[Deque]")
@@ -319,7 +357,7 @@ TEST_CASE("Front access", "[Deque]")
     SECTION("Non-empty deque")
     {
         Deque<i32> deque(5, 10);
-        deque.At(0).GetValue() = 20;
+        deque.At(0) = 20;
         REQUIRE(deque.Front().GetValue() == 20);
     }
     SECTION("Non-empty const deque")
@@ -346,7 +384,7 @@ TEST_CASE("Back access", "[Deque]")
     SECTION("Non-empty deque")
     {
         Deque<i32> deque(5, 10);
-        deque.At(4).GetValue() = 20;
+        deque.At(4) = 20;
         REQUIRE(deque.Back().GetValue() == 20);
     }
     SECTION("Non-empty const deque")

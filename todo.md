@@ -60,8 +60,10 @@ reproduced against a debug build.
       changes behavior with the type.
       Resolved in favour of the `StringView` convention: `operator[]` throws, `At()` is unchecked, so
       the default way to index is the safe one. `String` was changed to match.
-- [ ] `DynamicArray`, `InPlaceArray` and `Deque` still use the opposite convention, where `At()` is the
+- [x] `DynamicArray`, `InPlaceArray` and `Deque` still use the opposite convention, where `At()` is the
       checked accessor. Either flip them the same way or accept that strings and arrays differ.
+      All three flipped: `operator[]` throws, `At()` is unchecked. The non-throwing checked access that
+      `InPlaceArray` and `Deque` had under `At()` is now `TryAt`.
 - [x] `GetSubString`, `Split`, `SplitToArray` and the five `operator+` overloads are constrained on
       `StringLike` but hard error for `StringView`, which has no allocator-taking constructor, `Clone`
       or `operator+=`.
