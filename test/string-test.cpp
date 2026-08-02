@@ -4809,6 +4809,112 @@ TEST_CASE("Erase long string", "[String]")
 static_assert(std::random_access_iterator<StringUtf8::reverse_iterator>);
 static_assert(std::random_access_iterator<StringUtf8::const_reverse_iterator>);
 
+TEST_CASE("Replace a range", "[String]")
+{
+    SECTION("Same length")
+    {
+        StringUtf8 str("Hello there");
+        auto result = str.Replace(6, 5, StringUtf8("world"));
+        REQUIRE(result.HasValue());
+        REQUIRE(str == "Hello world");
+        REQUIRE(result.GetValue() == str.Begin() + 6);
+    }
+    SECTION("Longer replacement")
+    {
+        StringUtf8 str("Hello there");
+        REQUIRE(str.Replace(0, 5, StringUtf8("Greetings")).HasValue());
+        REQUIRE(str == "Greetings there");
+    }
+    SECTION("Shorter replacement")
+    {
+        StringUtf8 str("Hello there");
+        REQUIRE(str.Replace(0, 5, StringUtf8("Hi")).HasValue());
+        REQUIRE(str == "Hi there");
+        REQUIRE(str.GetSize() == 8);
+        REQUIRE(str.GetData()[8] == 0);
+    }
+    SECTION("Empty replacement erases")
+    {
+        StringUtf8 str("Hello there");
+        REQUIRE(str.Replace(5, 6, StringUtf8("")).HasValue());
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Empty range inserts")
+    {
+        StringUtf8 str("Hello there");
+        REQUIRE(str.Replace(5, 0, StringUtf8(" big")).HasValue());
+        REQUIRE(str == "Hello big there");
+    }
+    SECTION("Count past the end is clamped")
+    {
+        StringUtf8 str("Hello there");
+        REQUIRE(str.Replace(5, 100, StringUtf8("!")).HasValue());
+        REQUIRE(str == "Hello!");
+    }
+    SECTION("At the end of the string")
+    {
+        StringUtf8 str("Hello");
+        REQUIRE(str.Replace(5, 0, StringUtf8(" there")).HasValue());
+        REQUIRE(str == "Hello there");
+    }
+    SECTION("Start past the end")
+    {
+        StringUtf8 str("Hello");
+        auto result = str.Replace(6, 1, StringUtf8("x"));
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::OutOfBounds);
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Null-terminated replacement")
+    {
+        StringUtf8 str("Hello there");
+        REQUIRE(str.Replace(6, 5, "world").HasValue());
+        REQUIRE(str == "Hello world");
+        REQUIRE(str.Replace(0, 5, "Hi", 2).HasValue());
+        REQUIRE(str == "Hi world");
+    }
+    SECTION("Null replacement is rejected")
+    {
+        StringUtf8 str("Hello");
+        auto result = str.Replace(0, 1, static_cast<const char8*>(nullptr));
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::InvalidArgument);
+        REQUIRE(str == "Hello");
+    }
+    SECTION("Iterator range")
+    {
+        StringUtf8 str("Hello there");
+        auto result = str.Replace(str.ConstBegin() + 6, str.ConstEnd(), StringUtf8("world"));
+        REQUIRE(result.HasValue());
+        REQUIRE(str == "Hello world");
+    }
+    SECTION("Reversed iterator range is rejected")
+    {
+        StringUtf8 str("Hello there");
+        auto result = str.Replace(str.ConstEnd(), str.ConstBegin(), StringUtf8("x"));
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::InvalidArgument);
+    }
+    SECTION("Replacing with the string itself")
+    {
+        StringUtf8 str("abcd");
+        REQUIRE(str.Replace(1, 2, str).HasValue());
+        REQUIRE(str == "aabcdd");
+    }
+    SECTION("Replacing with part of itself")
+    {
+        StringUtf8 str("abcd");
+        REQUIRE(str.Replace(0, 1, str.GetData() + 2, 2).HasValue());
+        REQUIRE(str == "cdbcd");
+    }
+    SECTION("Replacement that forces a reallocation")
+    {
+        StringUtf8 str("abc");
+        REQUIRE(str.Replace(1, 1, "0123456789012345678901234567890123456789").HasValue());
+        REQUIRE(str == "a0123456789012345678901234567890123456789c");
+    }
+}
+
 TEST_CASE("Member GetSubString", "[String]")
 {
     SECTION("Start position and count")

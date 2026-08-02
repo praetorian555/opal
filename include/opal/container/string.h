@@ -478,6 +478,42 @@ public:
     void Strip();
 
     /**
+     * Replace a range of the string with another string. The range may be empty, in which case this inserts, and the replacement may be
+     * empty, in which case this erases.
+     * @param start_pos Position where the replaced range starts. May be equal to the size of the string.
+     * @param count Number of code units to replace. Clamped to what is left in the string.
+     * @param other String to put in place of the range. May be this string.
+     * @return Iterator pointing to the first code unit of the replacement in case of a success. ErrorCode::OutOfBounds if start_pos is
+     * greater than the size of the string.
+     * @throw OutOfMemoryException when there is no more memory.
+     */
+    Expected<iterator, ErrorCode> Replace(size_type start_pos, size_type count, const String& other);
+
+    /**
+     * Replace a range of the string with a null-terminated string.
+     * @param start_pos Position where the replaced range starts. May be equal to the size of the string.
+     * @param count Number of code units to replace. Clamped to what is left in the string.
+     * @param other Code units to put in place of the range. May point into this string.
+     * @param other_count Number of code units to read from other. If equal to k_npos, everything up to the null terminator is used.
+     * @return Iterator pointing to the first code unit of the replacement in case of a success. ErrorCode::OutOfBounds if start_pos is
+     * greater than the size of the string. ErrorCode::InvalidArgument if other is nullptr.
+     * @throw OutOfMemoryException when there is no more memory.
+     */
+    Expected<iterator, ErrorCode> Replace(size_type start_pos, size_type count, const CodeUnitType* other,
+                                          size_type other_count = k_npos);
+
+    /**
+     * Replace a range of the string with another string.
+     * @param first Iterator pointing to the first code unit to replace.
+     * @param last Iterator pointing one past the last code unit to replace.
+     * @param other String to put in place of the range. May be this string.
+     * @return Iterator pointing to the first code unit of the replacement in case of a success. ErrorCode::OutOfBounds if first or last are
+     * out of bounds of the string. ErrorCode::InvalidArgument if first is greater than last.
+     * @throw OutOfMemoryException when there is no more memory.
+     */
+    Expected<iterator, ErrorCode> Replace(const_iterator first, const_iterator last, const String& other);
+
+    /**
      * Get a sub-string of this string.
      * @param start_pos Position to start the sub-string from. May be equal to the size of the string, which yields an empty sub-string.
      * @param count Number of code units to include. If count is equal to k_npos, or reaches past the end, the rest of the string is used.
@@ -1818,6 +1854,85 @@ void CLASS_HEADER::ShrinkToFit()
     Deallocate(old_data);
     m_storage.large.data = new_data;
     m_storage.large.capacity = sz + 1;
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Replace(size_type start_pos, size_type count,
+                                                                                       const CodeUnitType* other, size_type other_count)
+{
+    using ReturnType = Expected<iterator, ErrorCode>;
+    const size_type sz = GetSize();
+    if (start_pos > sz)
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (other == nullptr)
+    {
+        return ReturnType(ErrorCode::InvalidArgument);
+    }
+    if (other_count == k_npos)
+    {
+        other_count = GetStringLength(other);
+    }
+    count = Min(count, sz - start_pos);
+    if (GetInternalOffset(other) != k_npos)
+    {
+        const String source(other, other_count, GetAllocatorPtr());
+        return Replace(start_pos, count, source.GetData(), other_count);
+    }
+    const size_type tail = sz - start_pos - count;
+    if (other_count > count)
+    {
+        GrowForAppend(sz, other_count - count);
+        value_type* data = GetData();
+        const size_type shift = other_count - count;
+        for (size_type i = 0; i < tail; ++i)
+        {
+            data[sz + shift - 1 - i] = data[sz - 1 - i];
+        }
+    }
+    else if (other_count < count)
+    {
+        value_type* data = GetData();
+        for (size_type i = 0; i < tail; ++i)
+        {
+            data[start_pos + other_count + i] = data[start_pos + count + i];
+        }
+    }
+    value_type* data = GetData();
+    for (size_type i = 0; i < other_count; ++i)
+    {
+        data[start_pos + i] = other[i];
+    }
+    const size_type new_size = sz - count + other_count;
+    data[new_size] = 0;
+    SetSize(new_size);
+    return ReturnType(iterator(data + start_pos));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Replace(size_type start_pos, size_type count,
+                                                                                       const String& other)
+{
+    return Replace(start_pos, count, other.GetData(), other.GetSize());
+}
+
+TEMPLATE_HEADER
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Replace(const_iterator first, const_iterator last,
+                                                                                       const String& other)
+{
+    using ReturnType = Expected<iterator, ErrorCode>;
+    if (first < ConstBegin() || first > ConstEnd() || last < ConstBegin() || last > ConstEnd())
+    {
+        return ReturnType(ErrorCode::OutOfBounds);
+    }
+    if (first > last)
+    {
+        return ReturnType(ErrorCode::InvalidArgument);
+    }
+    const size_type start_pos = Narrow<size_type>(first - ConstBegin());
+    const size_type count = Narrow<size_type>(last - first);
+    return Replace(start_pos, count, other);
 }
 
 TEMPLATE_HEADER
