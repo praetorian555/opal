@@ -3975,6 +3975,36 @@ TEST_CASE("StringToNumber with StringViewUtf8", "[String]")
     REQUIRE(StringToNumber<u64>(large) == 4294967296ULL);
 }
 
+TEST_CASE("StringToNumber stops at the end of a view", "[String]")
+{
+    SECTION("Digits right after the view are not read")
+    {
+        const StringUtf8 source("12345");
+        const StringViewUtf8 view(*source, 2);
+        REQUIRE(StringToNumber<i32>(view) == 12);
+    }
+    SECTION("View that still fits the internal buffer")
+    {
+        StringUtf8 source(62, '0');
+        source.Append("42");
+        const StringViewUtf8 view(*source, 63);
+        REQUIRE(StringToNumber<u64>(view, 10) == 4);
+    }
+    SECTION("View too long for the internal buffer")
+    {
+        StringUtf8 source(63, '0');
+        source.Append("42");
+        const StringViewUtf8 view(*source, 64);
+        REQUIRE(StringToNumber<u64>(view, 10) == 4);
+    }
+    SECTION("View over a buffer with no null terminator")
+    {
+        const char8 raw[] = {'1', '2', '3'};
+        const StringViewUtf8 view(raw, 3);
+        REQUIRE(StringToNumber<i32>(view) == 123);
+    }
+}
+
 TEST_CASE("Iterator range constructor", "[String]")
 {
     SECTION("Short string")

@@ -1022,6 +1022,7 @@ StringUtf8 NumberToString(T value, i32 decimal_points = -1);
  * Converts a string to an integral type.
  * @tparam T Integral type to convert to.
  * @tparam StringClass String-like type that supports operator* returning a const char pointer (e.g. StringUtf8, StringViewUtf8).
+ *         The string does not need to be null-terminated, only the code units it reports are read.
  * @param str String to convert.
  * @param base Number base system used. If 0, the base is auto-detected from the string prefix (0x for hex, 0 for octal, etc.).
  * @return Converted value.
@@ -3130,14 +3131,33 @@ Opal::StringUtf8 Opal::NumberToString(T value, i32 decimal_points)
 template <Opal::Integral T, Opal::StringLike StringClass>
 T Opal::StringToNumber(const StringClass& str, i32 base)
 {
-    char* end = const_cast<char*>(*str + str.GetSize());
-    if constexpr (SignedIntegral<T>)
+    static_assert(k_is_same_value<typename StringClass::value_type, char8>, "StringToNumber only supports 8-bit code units");
+    constexpr u64 k_stack_buffer_size = 64;
+    const u64 size = str.GetSize();
+    char8 stack_buffer[k_stack_buffer_size];
+    StringUtf8 heap_buffer;
+    const char8* terminated = stack_buffer;
+    if (size < k_stack_buffer_size)
     {
-        return Narrow<T>(strtoll(*str, &end, base));
+        if (size > 0)
+        {
+            std::memcpy(stack_buffer, *str, size);
+        }
+        stack_buffer[size] = 0;
     }
     else
     {
-        return Narrow<T>(strtoull(*str, &end, base));
+        heap_buffer = StringUtf8(*str, size);
+        terminated = *heap_buffer;
+    }
+    char* end = nullptr;
+    if constexpr (SignedIntegral<T>)
+    {
+        return Narrow<T>(strtoll(terminated, &end, base));
+    }
+    else
+    {
+        return Narrow<T>(strtoull(terminated, &end, base));
     }
 }
 

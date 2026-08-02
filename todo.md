@@ -38,7 +38,7 @@ reproduced against a debug build.
       marked large - a throw from `Allocate` frees it again in the destructor. Allocate before freeing.
 - [x] `count + 1` overflows when `count == k_npos` in `String(str, count)` and the `Assign` overloads,
       which then take the SSO branch and loop `k_npos` times.
-- [ ] `StringToNumber(const StringClass&)` reads past the end for `StringView` (`string.h:3162`).
+- [x] `StringToNumber(const StringClass&)` reads past the end for `StringView` (`string.h:3162`).
       `strtoll` needs a null terminator that a view has no obligation to provide. The local `end` is
       initialized and then immediately overwritten by `strtoll`.
 - [ ] `Transcode` requires the caller to pre-size the output and says so nowhere (`string.h:2180`).
