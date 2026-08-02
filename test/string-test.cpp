@@ -1098,7 +1098,9 @@ TEST_CASE("Reserve", "[String]")
         SECTION("Reserve zero")
         {
             StringUtf8 str("Hello there");
-            REQUIRE_THROWS_AS(str.Reserve(0), InvalidArgumentException);
+            REQUIRE_NOTHROW(str.Reserve(0));
+            REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+            REQUIRE(str == "Hello there");
         }
         SECTION("Out of memory")
         {
@@ -1141,7 +1143,10 @@ TEST_CASE("Reserve", "[String]")
         SECTION("Reserve zero")
         {
             StringUtf8 str(ref_str);
-            REQUIRE_THROWS_AS(str.Reserve(0), InvalidArgumentException);
+            const u64 old_capacity = str.GetCapacity();
+            REQUIRE_NOTHROW(str.Reserve(0));
+            REQUIRE(str.GetCapacity() == old_capacity);
+            REQUIRE(str == ref_str);
         }
         SECTION("Out of memory")
         {
@@ -1172,6 +1177,15 @@ TEST_CASE("Reserve", "[String]")
                 REQUIRE(str.GetData()[i] == ref_str[i]);
             }
         }
+    }
+    SECTION("Capacity counts the null terminator")
+    {
+        StringUtf8 str;
+        str.Reserve(100);
+        REQUIRE(str.GetCapacity() == 100);
+        str.Append(99, 'a');
+        REQUIRE(str.GetSize() == 99);
+        REQUIRE(str.GetCapacity() == 100);
     }
 }
 

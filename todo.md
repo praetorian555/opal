@@ -65,9 +65,9 @@ reproduced against a debug build.
 - [ ] `GetSubString`, `Split`, `SplitToArray` and the five `operator+` overloads are constrained on
       `StringLike` but hard error for `StringView`, which has no allocator-taking constructor, `Clone`
       or `operator+=`.
-- [ ] `Reserve` and `GetCapacity` count the null terminator, so `Reserve(n)` holds `n - 1` code units.
+- [x] `Reserve` and `GetCapacity` count the null terminator, so `Reserve(n)` holds `n - 1` code units.
       Deviates from both `std::string` and `DynamicArray`, and is undocumented.
-- [ ] `Reserve(0)` throws `InvalidArgumentException`, which makes `Reserve(computed_size)` unsafe in
+- [x] `Reserve(0)` throws `InvalidArgumentException`, which makes `Reserve(computed_size)` unsafe in
       generic code.
 - [ ] Doc and code disagree on error codes: `Assign(const CodeUnitType*, count)` documents `BadInput`
       and returns `InvalidArgument` (`string.h:260` vs `string.h:1281`), same for

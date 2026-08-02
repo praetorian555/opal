@@ -220,6 +220,11 @@ public:
     const value_type* operator*() const { return GetData(); }
 
     [[nodiscard]] size_type GetSize() const { return IsSmall() ? GetSmallSize() : m_storage.large.size; }
+
+    /**
+     * @brief Number of code units the string can hold, the null terminator included. A string of GetCapacity() - 1 code units is full.
+     * Note that this counts differently from DynamicArray, which has no terminator to account for.
+     */
     [[nodiscard]] size_type GetCapacity() const { return IsSmall() ? k_sso_capacity : m_storage.large.capacity; }
 
     [[nodiscard]] bool IsEmpty() const { return GetSize() == 0; }
@@ -315,9 +320,9 @@ public:
     [[nodiscard]] Expected<const CodeUnitType&, ErrorCode> Back() const;
 
     /**
-     * Reserve memory for a specific number of code units.
-     * @param new_capacity Number of code units to reserve memory for.
-     * @throw InvalidArgumentException when capacity is 0.
+     * Reserve memory for a specific number of code units, the null terminator included. Reserve(n) therefore leaves room for n - 1 code
+     * units of text, matching GetCapacity. Does nothing when the requested capacity is not larger than the current one.
+     * @param new_capacity Number of code units to reserve memory for, terminator included.
      * @throw OutOfMemoryException when there is no more memory.
      */
     void Reserve(size_type new_capacity);
@@ -1435,10 +1440,6 @@ Opal::Expected<const CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::Back() const
 TEMPLATE_HEADER
 void CLASS_HEADER::Reserve(size_type new_capacity)
 {
-    if (new_capacity == 0)
-    {
-        throw InvalidArgumentException(__FUNCTION__, "new_capacity", new_capacity);
-    }
     if (new_capacity <= GetCapacity())
     {
         return;
