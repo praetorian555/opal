@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cinttypes>
+#include <compare>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -215,6 +216,28 @@ public:
     String& operator=(String&& other) noexcept;
 
     bool operator==(const String& other) const;
+
+    /**
+     * @brief Compare with a null-terminated string. A nullptr compares equal to an empty string.
+     * @param other Null-terminated string to compare with.
+     * @return True when both hold the same code units.
+     */
+    bool operator==(const CodeUnitType* other) const;
+
+    /**
+     * @brief Order two strings by comparing code units, the shorter string first when one is a prefix of the other. Code units are ordered
+     * the way the code unit type orders them, which is signed for char8, matching the free Compare function.
+     * @param other String to compare with.
+     * @return How this string orders against other.
+     */
+    std::strong_ordering operator<=>(const String& other) const;
+
+    /**
+     * @brief Order against a null-terminated string. A nullptr orders as an empty string.
+     * @param other Null-terminated string to compare with.
+     * @return How this string orders against other.
+     */
+    std::strong_ordering operator<=>(const CodeUnitType* other) const;
 
     [[nodiscard]] allocator_type& GetAllocator() const { return *GetAllocatorPtr(); }
 
@@ -1284,6 +1307,57 @@ bool CLASS_HEADER::operator==(const String& other) const
         return true;
     }
     return std::memcmp(GetData(), other.GetData(), my_size * sizeof(value_type)) == 0;
+}
+
+TEMPLATE_HEADER
+bool CLASS_HEADER::operator==(const CodeUnitType* other) const
+{
+    const size_type my_size = GetSize();
+    const size_type other_size = GetStringLength(other);
+    if (my_size != other_size)
+    {
+        return false;
+    }
+    if (my_size == 0)
+    {
+        return true;
+    }
+    return std::memcmp(GetData(), other, my_size * sizeof(value_type)) == 0;
+}
+
+TEMPLATE_HEADER
+std::strong_ordering CLASS_HEADER::operator<=>(const String& other) const
+{
+    const size_type my_size = GetSize();
+    const size_type other_size = other.GetSize();
+    const size_type count = my_size < other_size ? my_size : other_size;
+    const value_type* my_data = GetData();
+    const value_type* other_data = other.GetData();
+    for (size_type i = 0; i < count; ++i)
+    {
+        if (my_data[i] != other_data[i])
+        {
+            return my_data[i] < other_data[i] ? std::strong_ordering::less : std::strong_ordering::greater;
+        }
+    }
+    return my_size <=> other_size;
+}
+
+TEMPLATE_HEADER
+std::strong_ordering CLASS_HEADER::operator<=>(const CodeUnitType* other) const
+{
+    const size_type my_size = GetSize();
+    const size_type other_size = GetStringLength(other);
+    const size_type count = my_size < other_size ? my_size : other_size;
+    const value_type* my_data = GetData();
+    for (size_type i = 0; i < count; ++i)
+    {
+        if (my_data[i] != other[i])
+        {
+            return my_data[i] < other[i] ? std::strong_ordering::less : std::strong_ordering::greater;
+        }
+    }
+    return my_size <=> other_size;
 }
 
 TEMPLATE_HEADER

@@ -4804,6 +4804,71 @@ TEST_CASE("Erase long string", "[String]")
     }
 }
 
+TEST_CASE("String ordering", "[String]")
+{
+    SECTION("Equality with a null-terminated string")
+    {
+        const StringUtf8 str("Hello");
+        REQUIRE(str == "Hello");
+        REQUIRE(!(str == "Hell"));
+        REQUIRE(!(str == "Hello there"));
+        REQUIRE(str != "world");
+        const StringUtf8 empty;
+        REQUIRE(empty == "");
+        REQUIRE(empty == static_cast<const char8*>(nullptr));
+    }
+    SECTION("Ordering against another string")
+    {
+        REQUIRE(StringUtf8("abc") < StringUtf8("abd"));
+        REQUIRE(StringUtf8("abd") > StringUtf8("abc"));
+        REQUIRE(StringUtf8("abc") < StringUtf8("abcd"));
+        REQUIRE(StringUtf8("abcd") > StringUtf8("abc"));
+        REQUIRE(StringUtf8("abc") <= StringUtf8("abc"));
+        REQUIRE(StringUtf8("abc") >= StringUtf8("abc"));
+        REQUIRE(StringUtf8("") < StringUtf8("a"));
+        REQUIRE(!(StringUtf8("") < StringUtf8("")));
+    }
+    SECTION("Ordering against a null-terminated string")
+    {
+        const StringUtf8 str("abc");
+        REQUIRE(str < "abd");
+        REQUIRE(str > "abb");
+        REQUIRE(str < "abcd");
+        REQUIRE(str >= "abc");
+        REQUIRE(str > static_cast<const char8*>(nullptr));
+    }
+    SECTION("Ordering matches the free Compare function")
+    {
+        const StringUtf8 first("apple");
+        const StringUtf8 second("banana");
+        auto compare = Opal::Compare(first, second);
+        REQUIRE(compare.HasValue());
+        REQUIRE((compare.GetValue() < 0) == (first < second));
+    }
+    SECTION("Sorting a range of strings")
+    {
+        DynamicArray<StringUtf8> strings;
+        strings.PushBack(StringUtf8("pear"));
+        strings.PushBack(StringUtf8("apple"));
+        strings.PushBack(StringUtf8("orange"));
+        for (u64 i = 0; i < strings.GetSize(); ++i)
+        {
+            for (u64 j = i + 1; j < strings.GetSize(); ++j)
+            {
+                if (strings[j] < strings[i])
+                {
+                    StringUtf8 temp = Move(strings[i]);
+                    strings[i] = Move(strings[j]);
+                    strings[j] = Move(temp);
+                }
+            }
+        }
+        REQUIRE(strings[0] == "apple");
+        REQUIRE(strings[1] == "orange");
+        REQUIRE(strings[2] == "pear");
+    }
+}
+
 TEST_CASE("Clear", "[String]")
 {
     SECTION("Small string")
