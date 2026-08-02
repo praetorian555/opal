@@ -63,10 +63,12 @@ public:
         return rtn_it;
     }
 
+    // The pair is handed out whole so that values stay writable. The key inside it decides which slot the pair lives in and must be left
+    // alone; GetKey is the accessor that enforces it.
     pair_type& operator*() const { return m_hash_map->Get(m_index); }
     pair_type* operator->() const { return &m_hash_map->Get(m_index); }
-    key_type& GetKey() { return m_hash_map->GetKey(m_index); }
-    value_type& GetValue() { return m_hash_map->GetValue(m_index); }
+    const key_type& GetKey() const { return m_hash_map->GetKey(m_index); }
+    value_type& GetValue() const { return m_hash_map->GetValue(m_index); }
 
     [[nodiscard]] u64 GetIndex() const { return m_index; }
 

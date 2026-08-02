@@ -551,6 +551,26 @@ TEST_CASE("Non-POD type")
     set.Insert(SomeType(5, 10));
 }
 
+TEST_CASE("HashSet iterators do not hand out writable keys", "[hash-set]")
+{
+    // A key picks the slot it lives in, so letting one be written in place would leave it unreachable.
+    HashSet<StringUtf8> set;
+    set.Insert("Hello");
+
+    auto it = set.begin();
+    auto const_it = set.cbegin();
+
+    static_assert(k_is_same_value<decltype(*it), const StringUtf8&>, "A mutable iterator still dereferences to a const key");
+    static_assert(k_is_same_value<decltype(*const_it), const StringUtf8&>);
+    static_assert(k_is_same_value<decltype(it.operator->()), const StringUtf8*>);
+    static_assert(k_is_same_value<decltype(const_it.operator->()), const StringUtf8*>);
+
+    for (auto& key : set)
+    {
+        REQUIRE(key == "Hello");
+    }
+}
+
 TEST_CASE("HashSet iterator member access", "[hash-set]")
 {
     HashSet<StringUtf8> set;

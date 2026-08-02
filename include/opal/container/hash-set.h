@@ -21,8 +21,9 @@ public:
     using hash_set_type = HashSetType;
     using value_type = typename hash_set_type::value_type;
     using difference_type = typename hash_set_type::difference_type;
-    using reference = typename hash_set_type::reference;
-    using pointer = typename hash_set_type::pointer;
+    // A key decides which slot it lives in, so changing one in place would strand it. Both iterators hand out const keys.
+    using reference = typename hash_set_type::const_reference;
+    using pointer = typename hash_set_type::const_pointer;
 
     HashSetIterator() = default;
     HashSetIterator(hash_set_type* hash_set, u64 index) : m_hash_set(hash_set), m_index(index) {}
@@ -181,7 +182,6 @@ private:
     iterator FindNextIterator(iterator pos);
     const_iterator FindNextIterator(const_iterator pos) const;
 
-    key_type& GetKey(u64 index);
     const key_type& GetKey(u64 index) const;
 
     static u64 GetNextPowerOf2MinusOne(u64 value);
@@ -314,10 +314,17 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Reserve(size_type capacity)
     new_control_bytes[new_capacity] = k_control_bitmask_sentinel;
     key_type* new_slots = reinterpret_cast<key_type*>(new_control_bytes + slots_offset);
 
-    if (m_capacity > 0)
+    if (m_control_bytes != nullptr)
     {
-        for (key_type& key : *this)
+        // Walks the slots directly rather than through an iterator, since rehashing moves out of every key it visits and iterators only
+        // hand out const keys.
+        for (u64 i = 0; i < m_capacity; ++i)
         {
+            if (!IsControlFull(m_control_bytes[i]))
+            {
+                continue;
+            }
+            key_type& key = m_slots[i];
             u64 hash = CalculateHash(key);
             u64 offset = GetHash1(hash, new_control_bytes) & new_capacity;
             while (true)
@@ -753,13 +760,6 @@ Opal::HashSet<KeyType>::const_iterator Opal::HashSet<KeyType>::FindNextIterator(
         ++index;
     }
     return const_iterator(this, ~u64{});
-}
-
-template <typename KeyType>
-typename Opal::HashSet<KeyType>::key_type& Opal::HashSet<KeyType>::GetKey(u64 index)
-{
-    OPAL_ASSERT(IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
-    return m_slots[index];
 }
 
 template <typename KeyType>
