@@ -100,4 +100,4 @@ reproduced against a debug build.
 - [x] Explicitly `= delete` the copy constructor and copy assignment. They are already implicitly
       deleted by the move constructor, so this is only about following the convention in `CLAUDE.md`.
 
-- [ ] `StringView` has no relational operators either, so a view still cannot be sorted.
+- [x] `StringView` has no relational operators either, so a view still cannot be sorted.

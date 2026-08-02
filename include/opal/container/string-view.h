@@ -1,5 +1,7 @@
 #pragma once
 
+#include <compare>
+
 #include "opal/container/array-view.h"
 #include "opal/container/expected.h"
 #include "opal/container/iterator.h"
@@ -188,6 +190,66 @@ public:
             }
         }
         return true;
+    }
+
+    /**
+     * @brief Compare with a null-terminated string. A nullptr compares equal to an empty view.
+     * @param other Null-terminated string to compare with.
+     * @return True if the view holds the same code units.
+     */
+    bool operator==(const CodeUnitType* other) const
+    {
+        const size_type other_size = GetStringLength(other);
+        if (m_size != other_size)
+        {
+            return false;
+        }
+        for (size_type i = 0; i < m_size; ++i)
+        {
+            if (m_data[i] != other[i])
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * @brief Order two views by comparing code units, the shorter view first when one is a prefix of the other. Code units are ordered the
+     * way the code unit type orders them, which is signed for char8, matching String and the free Compare function.
+     * @param other View to compare with.
+     * @return How this view orders against other.
+     */
+    std::strong_ordering operator<=>(const StringView& other) const
+    {
+        const size_type count = Min(m_size, other.m_size);
+        for (size_type i = 0; i < count; ++i)
+        {
+            if (m_data[i] != other.m_data[i])
+            {
+                return m_data[i] < other.m_data[i] ? std::strong_ordering::less : std::strong_ordering::greater;
+            }
+        }
+        return m_size <=> other.m_size;
+    }
+
+    /**
+     * @brief Order against a null-terminated string. A nullptr orders as an empty view.
+     * @param other Null-terminated string to compare with.
+     * @return How this view orders against other.
+     */
+    std::strong_ordering operator<=>(const CodeUnitType* other) const
+    {
+        const size_type other_size = GetStringLength(other);
+        const size_type count = Min(m_size, other_size);
+        for (size_type i = 0; i < count; ++i)
+        {
+            if (m_data[i] != other[i])
+            {
+                return m_data[i] < other[i] ? std::strong_ordering::less : std::strong_ordering::greater;
+            }
+        }
+        return m_size <=> other_size;
     }
 
     // Iterators

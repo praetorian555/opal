@@ -267,6 +267,84 @@ TEST_CASE("Comparison", "[StringView]")
     }
 }
 
+TEST_CASE("Ordering", "[StringView]")
+{
+    SECTION("Equality with a null-terminated string")
+    {
+        const StringViewUtf8 view("Hello");
+        REQUIRE(view == "Hello");
+        REQUIRE_FALSE(view == "Hell");
+        REQUIRE_FALSE(view == "Hello there");
+        REQUIRE(view != "World");
+        const StringViewUtf8 empty;
+        REQUIRE(empty == "");
+        REQUIRE(empty == static_cast<const char8*>(nullptr));
+    }
+
+    SECTION("Ordering against another view")
+    {
+        REQUIRE(StringViewUtf8("abc") < StringViewUtf8("abd"));
+        REQUIRE(StringViewUtf8("abd") > StringViewUtf8("abc"));
+        REQUIRE(StringViewUtf8("abc") < StringViewUtf8("abcd"));
+        REQUIRE(StringViewUtf8("abcd") > StringViewUtf8("abc"));
+        REQUIRE(StringViewUtf8("abc") <= StringViewUtf8("abc"));
+        REQUIRE(StringViewUtf8("abc") >= StringViewUtf8("abc"));
+        REQUIRE(StringViewUtf8("") < StringViewUtf8("a"));
+        REQUIRE_FALSE(StringViewUtf8("") < StringViewUtf8(""));
+    }
+
+    SECTION("Ordering against a null-terminated string")
+    {
+        const StringViewUtf8 view("abc");
+        REQUIRE(view < "abd");
+        REQUIRE(view > "abb");
+        REQUIRE(view < "abcd");
+        REQUIRE(view >= "abc");
+        REQUIRE(view > static_cast<const char8*>(nullptr));
+    }
+
+    SECTION("A view stops at its own end")
+    {
+        const StringUtf8 source("abcdef");
+        const StringViewUtf8 view(source.GetData(), 3);
+        REQUIRE(view == "abc");
+        REQUIRE(view < "abcd");
+    }
+
+    SECTION("Ordering matches String")
+    {
+        const StringUtf8 first("apple");
+        const StringUtf8 second("banana");
+        const StringViewUtf8 first_view(first);
+        const StringViewUtf8 second_view(second);
+        REQUIRE((first_view < second_view) == (first < second));
+        REQUIRE((second_view < first_view) == (second < first));
+    }
+
+    SECTION("Sorting a range of views")
+    {
+        DynamicArray<StringViewUtf8> views;
+        views.PushBack(StringViewUtf8("pear"));
+        views.PushBack(StringViewUtf8("apple"));
+        views.PushBack(StringViewUtf8("orange"));
+        for (u64 i = 0; i < views.GetSize(); ++i)
+        {
+            for (u64 j = i + 1; j < views.GetSize(); ++j)
+            {
+                if (views[j] < views[i])
+                {
+                    const StringViewUtf8 temp = views[i];
+                    views[i] = views[j];
+                    views[j] = temp;
+                }
+            }
+        }
+        REQUIRE(views[0] == "apple");
+        REQUIRE(views[1] == "orange");
+        REQUIRE(views[2] == "pear");
+    }
+}
+
 TEST_CASE("Iterators", "[StringView]")
 {
     const char8* str = "Hello";
