@@ -571,9 +571,9 @@ private:
                 {
                     ++m_pos;
                     ++m_column;
-                    return JsonValue(JsonArray(m_allocator));
+                    return JsonValue(MakeArray());
                 }
-                if (!(m_stack.EmplaceBack(ParseFrame{JsonArray(m_allocator), JsonObject{}, StringViewUtf8{}, false})).HasValue()) [[unlikely]]
+                if (!(m_stack.EmplaceBack(ParseFrame{MakeArray(), JsonObject{}, StringViewUtf8{}, false})).HasValue()) [[unlikely]]
                 {
                     AbortOutOfMemory();
                 }
@@ -587,7 +587,7 @@ private:
                 {
                     ++m_pos;
                     ++m_column;
-                    return JsonValue(JsonObject(m_allocator));
+                    return JsonValue(MakeObject());
                 }
                 if (m_pos >= m_size || m_input[m_pos] != '"')
                 {
@@ -597,7 +597,7 @@ private:
                 SkipWhitespace();
                 Expect(':');
                 SkipWhitespace();
-                if (!(m_stack.EmplaceBack(JsonArray{}, JsonObject(m_allocator), key, true)).HasValue()) [[unlikely]]
+                if (!(m_stack.EmplaceBack(JsonArray{}, MakeObject(), key, true)).HasValue()) [[unlikely]]
                 {
                     AbortOutOfMemory();
                 }
@@ -981,6 +981,27 @@ private:
     [[noreturn]] void AbortOutOfMemory() const
     {
         throw ParseAbort{JsonParseError(ErrorCode::OutOfMemory, m_line, m_column, m_pos, "Out of memory")};
+    }
+
+    // The containers are reference counted, so building one is an allocation that a budgeted allocator can refuse.
+    JsonArray MakeArray() const
+    {
+        Expected<JsonArray, ErrorCode> array = JsonArray::Create(m_allocator);
+        if (!array.HasValue()) [[unlikely]]
+        {
+            AbortOutOfMemory();
+        }
+        return std::move(array).GetValue();
+    }
+
+    JsonObject MakeObject() const
+    {
+        Expected<JsonObject, ErrorCode> object = JsonObject::Create(m_allocator);
+        if (!object.HasValue()) [[unlikely]]
+        {
+            AbortOutOfMemory();
+        }
+        return std::move(object).GetValue();
     }
 
     const char8* m_input = nullptr;

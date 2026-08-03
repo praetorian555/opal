@@ -49,6 +49,37 @@ TEMPLATE_TEST_CASE("SharedPtr construction with nullptr allocator", "[SharedPtr]
     REQUIRE(*ptr.Get() == 42);
 }
 
+TEMPLATE_TEST_CASE("SharedPtr reports a failed allocation", "[SharedPtr]",
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::ThreadSafe>),
+                    (std::integral_constant<ThreadingPolicy, ThreadingPolicy::SingleThread>))
+{
+    constexpr ThreadingPolicy k_policy = TestType::value;
+
+    // NullAllocator is not thread-safe, so the ThreadSafe policy rejects it before it ever tries to allocate.
+    if constexpr (k_policy == ThreadingPolicy::SingleThread)
+    {
+        NullAllocator allocator;
+
+        SECTION("The constructor throws, having nowhere to put a code")
+        {
+            REQUIRE_THROWS_AS((SharedPtr<i32, k_policy>(&allocator, 42)), OutOfMemoryException);
+        }
+        SECTION("Create reports it instead")
+        {
+            Expected<SharedPtr<i32, k_policy>, ErrorCode> pointer = SharedPtr<i32, k_policy>::Create(&allocator, 42);
+            REQUIRE(!pointer.HasValue());
+            REQUIRE(pointer.GetError() == ErrorCode::OutOfMemory);
+        }
+    }
+    SECTION("Create succeeds on a working allocator")
+    {
+        Expected<SharedPtr<i32, k_policy>, ErrorCode> pointer = SharedPtr<i32, k_policy>::Create(GetDefaultAllocator(), 42);
+        REQUIRE(pointer.HasValue());
+        REQUIRE(pointer.GetValue().IsValid());
+        REQUIRE(*pointer.GetValue().Get() == 42);
+    }
+}
+
 TEMPLATE_TEST_CASE("SharedPtr construction with raw pointer", "[SharedPtr]",
                     (std::integral_constant<ThreadingPolicy, ThreadingPolicy::ThreadSafe>),
                     (std::integral_constant<ThreadingPolicy, ThreadingPolicy::SingleThread>))

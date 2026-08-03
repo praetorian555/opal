@@ -198,7 +198,12 @@ Listed so the pass does not touch them by accident.
   variant. A `TryGet` returning `Expected` would be a nice addition; the throwing form is correct.
 - `casts.h:31` - `Narrow` round-trip failure, debug builds only.
 - `shared-ptr.h:92,123` - `ThreadSafe` policy with a non-thread-safe allocator. Constructor, and a
-  static property of the types involved. Better as an assert than an exception, but not an error code.
+  static property of the types involved. Better as an assert than an exception, but not an error code. Note this one
+  throws out of `SharedPtr::Create` too, which is deliberate: it is a contract the caller broke, not a shortage.
+- `shared-ptr.h` construction - the constructor throws `OutOfMemoryException` when it cannot allocate, matching the
+  container constructors, and `SharedPtr::Create` returns `Expected<SharedPtr, ErrorCode>` for callers on a budgeted
+  allocator. The alternative, leaving the object silently invalid, put the burden on every caller to remember a check
+  that nothing enforced - which is exactly how the JSON parser ended up building invalid nodes.
 
 ## 11. Constructors, `Clone`, `operator=` - the known gap
 
@@ -336,9 +341,9 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
       a non-local jump inside the parser, now a file-local `ParseAbort` rather than a public exception type, and is
       caught at the `Parse` boundary. Threading a code back through twenty-odd failure points in a recursive descent
       would have buried the grammar for no gain the caller can see.
-- [ ] The parser does not check the `SharedPtr` allocations behind `JsonArray` and `JsonObject`, so a document that
-      runs out of memory mid-parse builds an invalid node rather than reporting `OutOfMemory`. `SharedPtr` no longer
-      crashes on it, but the parser should abort. A `NullAllocator` parse test is waiting on this.
+- [x] The parser does not check the `SharedPtr` allocations behind `JsonArray` and `JsonObject`, so a document that
+      runs out of memory mid-parse builds an invalid node rather than reporting `OutOfMemory`. The parser builds both
+      through `SharedPtr::Create` now and aborts with `OutOfMemory`, and the `NullAllocator` parse test is in.
 - [ ] Add `TryGetBool`, `TryGetNumber`, `TryGetIntegerNumber`, `TryGetString`, `TryAt`, `TryFind`, `TryGetPath`
 - [x] `JsonWriter::Serialize` (both overloads) returns `Expected<StringUtf8, ErrorCode>` - `include/opal/container/json-writer.h:44,54`
 - [x] NaN / Infinity become `ErrorCode::InvalidArgument` - `src/json-writer.cpp:143,147`

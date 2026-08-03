@@ -3,6 +3,8 @@
 #include <atomic>
 
 #include "opal/allocator.h"
+#include "opal/container/expected.h"
+#include "opal/error-codes.h"
 #include "opal/exceptions.h"
 
 namespace Opal
@@ -76,38 +78,18 @@ public:
      * Constructs a shared pointer and the managed object in-place.
      * @param allocator Allocator used for the object and reference count. If nullptr, the default allocator is used.
      * @param args Arguments forwarded to the constructor of T.
+     * @throws OutOfMemoryException If the object or the reference count could not be allocated. Use Create when the
+     *         allocator is budgeted and running out is an outcome to branch on rather than an error.
      * @throws InvalidArgumentException If Policy is ThreadSafe and the allocator is not thread-safe.
      */
     template <typename... Args>
     SharedPtr(AllocatorBase* allocator, Args&&... args)
     {
-        if (allocator == nullptr)
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        if (Construct(allocator, std::forward<Args>(args)...) != ErrorCode::Success) [[unlikely]]
         {
-            allocator = GetDefaultAllocator();
+            throw OutOfMemoryException("SharedPtr");
         }
-        if constexpr (Policy == ThreadingPolicy::ThreadSafe)
-        {
-            if (!allocator->IsThreadSafe())
-            {
-                throw InvalidArgumentException("SharedPtr", "Allocator should be thread-safe");
-            }
-        }
-        // A budgeted allocator hands back nullptr rather than raising, so both allocations have to be checked. The
-        // result is the same invalid state the raw-pointer constructor produces for a null object.
-        m_object = New<T>(allocator, std::forward<Args>(args)...);
-        if (m_object == nullptr) [[unlikely]]
-        {
-            return;
-        }
-        m_refcount = New<RefCountT>(allocator);
-        if (m_refcount == nullptr) [[unlikely]]
-        {
-            Delete(allocator, m_object);
-            m_object = nullptr;
-            return;
-        }
-        RefCountOps::Store(m_refcount, 1);
-        m_allocator = allocator;
     }
 
     /**
@@ -116,34 +98,39 @@ public:
      * @param allocator Allocator used for the reference count and for destroying the object. If nullptr, the default
      *        allocator is used.
      * @param object Raw pointer to the object to manage. Must have been allocated with the same allocator.
+     * @throws OutOfMemoryException If the reference count could not be allocated. The object is destroyed first, so
+     *         ownership is not leaked.
      * @throws InvalidArgumentException If Policy is ThreadSafe and the allocator is not thread-safe.
      */
     SharedPtr(AllocatorBase* allocator, T* object)
     {
-        if (allocator == nullptr)
+        if (Adopt(allocator, object) != ErrorCode::Success) [[unlikely]]
         {
-            allocator = GetDefaultAllocator();
+            throw OutOfMemoryException("SharedPtr");
         }
-        if (object == nullptr)
+    }
+
+    /**
+     * Build a shared pointer and its managed object, reporting a failed allocation instead of raising it.
+     *
+     * Prefer this over the constructor wherever the allocator is budgeted, since exhausting one of those is an
+     * ordinary event rather than a broken contract.
+     *
+     * @param allocator Allocator used for the object and reference count. If nullptr, the default allocator is used.
+     * @param args Arguments forwarded to the constructor of T.
+     * @return The shared pointer, or ErrorCode::OutOfMemory. Note that T's own constructor may still throw, and a
+     *         thread-safety violation still does, since that is a contract the caller broke rather than a shortage.
+     */
+    template <typename... Args>
+    [[nodiscard]] static Expected<SharedPtr, ErrorCode> Create(AllocatorBase* allocator, Args&&... args)
+    {
+        SharedPtr pointer;
+        const ErrorCode error = pointer.Construct(allocator, std::forward<Args>(args)...);
+        if (error != ErrorCode::Success) [[unlikely]]
         {
-            return;
+            return Expected<SharedPtr, ErrorCode>(error);
         }
-        if constexpr (Policy == ThreadingPolicy::ThreadSafe)
-        {
-            if (!allocator->IsThreadSafe())
-            {
-                throw InvalidArgumentException("SharedPtr", "Allocator should be thread-safe");
-            }
-        }
-        m_refcount = New<RefCountT>(allocator);
-        if (m_refcount == nullptr) [[unlikely]]
-        {
-            Delete(allocator, object);
-            return;
-        }
-        m_object = object;
-        RefCountOps::Store(m_refcount, 1);
-        m_allocator = allocator;
+        return Expected<SharedPtr, ErrorCode>(Move(pointer));
     }
 
     /** Destructor. Decrements the reference count and destroys the managed object if this was the last owner. */
@@ -264,6 +251,72 @@ public:
 private:
     template <typename U, ThreadingPolicy P>
     friend class SharedPtr;
+
+    /**
+     * Allocate the object and its reference count. Leaves the shared pointer invalid and owning nothing on failure,
+     * so the caller decides whether that is an exception or a code.
+     */
+    template <typename... Args>
+    ErrorCode Construct(AllocatorBase* allocator, Args&&... args)
+    {
+        if (allocator == nullptr)
+        {
+            allocator = GetDefaultAllocator();
+        }
+        if constexpr (Policy == ThreadingPolicy::ThreadSafe)
+        {
+            if (!allocator->IsThreadSafe())
+            {
+                throw InvalidArgumentException("SharedPtr", "Allocator should be thread-safe");
+            }
+        }
+        // A budgeted allocator hands back nullptr rather than raising, so both allocations have to be checked.
+        T* object = New<T>(allocator, std::forward<Args>(args)...);
+        if (object == nullptr) [[unlikely]]
+        {
+            return ErrorCode::OutOfMemory;
+        }
+        m_refcount = New<RefCountT>(allocator);
+        if (m_refcount == nullptr) [[unlikely]]
+        {
+            Delete(allocator, object);
+            return ErrorCode::OutOfMemory;
+        }
+        m_object = object;
+        RefCountOps::Store(m_refcount, 1);
+        m_allocator = allocator;
+        return ErrorCode::Success;
+    }
+
+    /** Take ownership of an already built object. A null object leaves the shared pointer invalid, not failed. */
+    ErrorCode Adopt(AllocatorBase* allocator, T* object)
+    {
+        if (allocator == nullptr)
+        {
+            allocator = GetDefaultAllocator();
+        }
+        if (object == nullptr)
+        {
+            return ErrorCode::Success;
+        }
+        if constexpr (Policy == ThreadingPolicy::ThreadSafe)
+        {
+            if (!allocator->IsThreadSafe())
+            {
+                throw InvalidArgumentException("SharedPtr", "Allocator should be thread-safe");
+            }
+        }
+        m_refcount = New<RefCountT>(allocator);
+        if (m_refcount == nullptr) [[unlikely]]
+        {
+            Delete(allocator, object);
+            return ErrorCode::OutOfMemory;
+        }
+        m_object = object;
+        RefCountOps::Store(m_refcount, 1);
+        m_allocator = allocator;
+        return ErrorCode::Success;
+    }
 
     T* m_object = nullptr;
     AllocatorBase* m_allocator = nullptr;

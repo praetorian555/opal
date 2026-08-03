@@ -213,6 +213,30 @@ TEST_CASE("JsonReader parse error on invalid input", "[JsonReader]")
     REQUIRE(JsonReader::Parse("nul").GetError().code == ErrorCode::InvalidArgument);
 }
 
+TEST_CASE("JsonReader reports a failed allocation while parsing", "[JsonReader]")
+{
+    NullAllocator allocator;
+
+    SECTION("Array")
+    {
+        Expected<JsonReader, JsonParseError> result = JsonReader::Parse("[1,2,3]", &allocator);
+        REQUIRE(!result.HasValue());
+        REQUIRE(result.GetError().code == ErrorCode::OutOfMemory);
+    }
+    SECTION("Object")
+    {
+        Expected<JsonReader, JsonParseError> result = JsonReader::Parse(R"({"a":1})", &allocator);
+        REQUIRE(!result.HasValue());
+        REQUIRE(result.GetError().code == ErrorCode::OutOfMemory);
+    }
+    SECTION("Empty array")
+    {
+        Expected<JsonReader, JsonParseError> result = JsonReader::Parse("[]", &allocator);
+        REQUIRE(!result.HasValue());
+        REQUIRE(result.GetError().code == ErrorCode::OutOfMemory);
+    }
+}
+
 TEST_CASE("JsonReader survives being moved", "[JsonReader]")
 {
     // The document is short enough to live in the string's inline storage, which is where the parsed views point.
