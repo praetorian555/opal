@@ -218,7 +218,7 @@ Listing them so the size of the remaining hole is visible:
 
 Closing this means static factories - `static Expected<DynamicArray<T>, ErrorCode> Create(...)`,
 `Expected<String, ErrorCode> TryClone(...)` - alongside the throwing constructors. Larger job than
-everything above and worth deciding on separately.
+everything above and worth deciding on separately. See §13, which is that decision.
 
 ## 12. Dead `#else` branches - delete, do not convert
 
@@ -239,6 +239,49 @@ Sites: `src/mutex.cpp:22,43,85,104,123`; `src/condition-variable.cpp:26,40,79,90
 Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedException` from the
 `default:` of a `switch` over `NumberSystemBase`, which is exhaustive. Use `OPAL_ASSERT` instead.
 
+## 13. Factories, and whether exceptions can go entirely
+
+The question behind §11: replace allocating constructors with factories so the library can build with
+`-fno-exceptions`.
+
+**Worth doing for allocating construction. Not worth framing as removing exceptions entirely** - that goal
+fails on something other than constructors, and chasing it costs more than it returns.
+
+### What factories buy
+
+Constructors are the only place left where an unavoidable failure has nowhere to go. Everything converted in
+§1-§8 had a return channel available. So factories close the last real gap.
+
+The evidence that hidden allocation failure is expensive is already in this document: `SharedPtr` dereferencing
+a null reference count, the JSON parser building invalid nodes, and four `Paths::Get*` tests asserting a throw
+the function never made. All three were fixed without factories - `nullptr` returns plus checks did it - but a
+factory makes them harder to write wrong to begin with.
+
+### What they cost
+
+- **Two-phase initialization goes viral.** A type with a `DynamicArray<T> m_items` member cannot build it in a
+  member-init list from a factory. It default-constructs and assigns, so the enclosing type wants a factory too,
+  outward through the library and through user code. `JsonReader` already works this way. It is workable, but
+  every member has to be cheaply default-constructible and "constructed" stops meaning "valid".
+- **Factories force a move, and moves here are not free.** `JsonReader` held views into its own inline string
+  storage; routing it through `Expected` moved the object out from under them and failed seven tests. NRVO does
+  not save you through `Expected`. Any address-sensitive type becomes a hazard the moment its constructor
+  becomes a factory.
+- **Call-site cost.** One declaration becomes four lines with an early return, and `Expected` has no `and_then`
+  or `Map`, so there is no compact way to chain.
+
+### Why "entirely" does not land
+
+- **Contract violations are a separate problem.** `operator[]`, `Variant::Get<T>`, `Narrow`,
+  `HashMap::GetValue` - those are not "no channel available", they are "the caller broke the rules", and §10
+  says they should throw. Removing exceptions means turning them into `OPAL_ASSERT` plus `Try*` variants.
+  Defensible for a real-time engine, but a bigger behavioural change than factories and a separate decision.
+- **`std::format` throws and has no error-code path.** `string-format.h` and `logging.h` drive
+  `std::vformat_to`, which raises `std::format_error` on a malformed format string. This decides whether
+  `-fno-exceptions` is reachable at all, so it is the first thing to check.
+- `Opal::Exception` now derives from `std::exception`, which couples the library toward std exceptions rather
+  than away from them.
+
 ---
 
 ## Suggested order
@@ -249,7 +292,8 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 4. Program arguments (§4) and JSON (§5) - both consume the above.
 5. Threading (§6), logging (§7), math (§9).
 6. Dead `#else` branches (§12) - independent, can go any time.
-7. Decide separately on constructors (§11).
+7. Factories for allocating construction (§11, §13). Step 1 there is worth doing whether or not the later
+   steps ever happen; step 0 decides whether they can.
 
 ## New `ErrorCode` values needed
 
@@ -383,10 +427,53 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 - [ ] `src/file-system.cpp:80,116,169,213,268,295,452,531,611,701,712,723,734`
 - [ ] Exhaustive-`switch` defaults become `OPAL_ASSERT` - `include/opal/container/string.h:3857,3884,3911,3938`
 
-### Deferred - needs a decision first (§11)
+### Factories and optional exceptions (§11, §13)
 
-- [ ] Decide on static factories for constructors, `Clone` and `operator+=`
-- [ ] `DynamicArray` - `dynamic-array.h:745,767,789,828,853,1110`
-- [ ] `String` - `string.h:1305,1327,1342,1347,1364,1381,1666,2797,2807,2818`
-- [ ] `HashMap` - `hash-map.h:357,367,373,384,390`
-- [ ] `HashSet` - `hash-set.h:286`
+Decided: add factories for allocating construction, but do not chase removing exceptions entirely. Do the four
+steps in order - each one stands on its own, and stopping after any of them leaves the library in a coherent
+state. Step 1 alone closes §11.
+
+**Step 0 - answer the question that gates everything else**
+
+- [ ] Can `std::format` be kept under `-fno-exceptions`? `std::vformat_to` raises `std::format_error` on a
+      malformed format string and offers no error-code path. Compile-time checked format strings, a different
+      formatter, or accepting the throw. Until this is settled, steps 3 and 4 are speculative.
+
+**Step 1 - factories alongside the constructors (additive, nothing breaks)**
+
+Same shape as `SharedPtr::Create` in `ccc93d8`: one private `Construct` returning `ErrorCode`, a throwing
+constructor over it, and a `[[nodiscard]] static Expected<T, ErrorCode> Create(...)` next to it.
+
+- [ ] `DynamicArray::Create` and `TryClone` - `dynamic-array.h:745,767,789,828,853,1110`
+- [ ] `String::Create` and `TryClone` - `string.h:1305,1327,1342,1347,1364,1381,1666`
+- [ ] `String::TryAppend` for what `operator+=` cannot report - `string.h:2797,2807,2818`
+- [ ] `HashMap::Create` - `hash-map.h:357,367,373,384,390`
+- [ ] `HashSet::Create` - `hash-set.h:286`
+- [ ] `Deque::Create`
+- [ ] Each one needs a `NullAllocator` test. Every allocation bug this document records was invisible for want
+      of exactly that test.
+
+**Step 2 - make `Expected` worth leaning on**
+
+Doing this before step 1 spreads is cheaper than retrofitting every call site afterwards.
+
+- [ ] `Expected()` default-constructs into the *value* state, which is a strange default for a type whose whole
+      job is "maybe" - `include/opal/container/expected.h:77`
+- [ ] `GetValue` and `GetError` assert rather than being checkable; there is no `ValueOr` on the error side
+- [ ] No `and_then` / `Map`, so chaining is four lines per step. This is most of the call-site cost of factories
+
+**Step 3 - contract violations become asserts plus `Try*`**
+
+This is where the exception count actually drops. Bigger behavioural change than step 1: an out-of-range index
+aborts instead of unwinding. Defensible for a real-time engine, but it is a product decision.
+
+- [ ] `Try*` accessors first, so callers have somewhere to go - covers §5's `TryGetBool`/`TryAt`/`TryFind` and
+      §10's `Variant::TryGet`
+- [ ] Then convert the throwing forms listed in §10 to `OPAL_ASSERT`
+
+**Step 4 - gate the remainder behind `OPAL_EXCEPTIONS`**
+
+- [ ] Compile the throwing constructors out when it is off, leaving only the factories
+- [ ] Decide what `HandleFatal` does without exceptions (§7 has the same question already)
+- [ ] `Opal::Exception` derives from `std::exception` as of `3453b1e`, which couples toward std exceptions.
+      Fine while they are enabled; revisit if step 4 lands.
