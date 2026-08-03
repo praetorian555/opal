@@ -8,20 +8,20 @@ namespace Opal::Paths
 
 /**
  * @brief Get current working directory.
- * @return Returns path to the current working directory. Uses default allocator.
- * @throw OutOfMemoryException when memory allocation is needed in the scratch allocator but there is not enough space.
- * @throw Exception when there is an issue getting the value from the OS.
+ * @note Uses default allocator for the output path.
+ * @return Path to the current working directory, ErrorCode::OutOfMemory when the result could not be grown, or
+ *         ErrorCode::OSFailure when the OS would not report it.
  */
-StringUtf8 OPAL_EXPORT GetCurrentWorkingDirectory();
+[[nodiscard]] Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetCurrentWorkingDirectory();
 
 /**
  * @brief Set current working directory.
  * @note Not thread-safe.
  * @param path Path to the new working directory. This must be an existing directory.
- * @throw OutOfMemoryException when memory allocation is needed in the scratch allocator but there is not enough space.
- * @throw Exception when there is an issue setting the value from the OS.
+ * @return ErrorCode::Success, ErrorCode::OutOfMemory when normalizing the path could not allocate, or
+ *         ErrorCode::OSFailure when the OS would not accept it.
  */
-void OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
+[[nodiscard]] ErrorCode OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
 
 /**
  * @brief Normalize the path. This will remove redundant separators, switch separators with preferred separators, resolve relative paths,
@@ -29,10 +29,10 @@ void OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
  * @param path Path to normalize.
  * @note Uses default allocator for output path.
  * @note Uses scratch allocator for temporary allocations.
- * @throw OutOfMemoryException If either the default or scratch allocators run out of memory.
- * @return Returns normalized path in case of a success.
+ * @return Normalized path, ErrorCode::OutOfMemory when it could not be built, or ErrorCode::OSFailure when a relative
+ *         path needed the working directory and the OS would not report it.
  */
-StringUtf8 OPAL_EXPORT NormalizePath(const StringUtf8& path);
+[[nodiscard]] Expected<StringUtf8, ErrorCode> OPAL_EXPORT NormalizePath(const StringUtf8& path);
 
 /**
  * @brief Check if the path is absolute.
@@ -79,12 +79,11 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetParentPath(const StringUtf8& path
  * @brief Combine paths.
  * @tparam Args Types of path components. It needs to be types compatible with StringUtf8.
  * @param args Path components.
- * @throw OutOfMemoryException when there is not enough memory for appending the path.
- * @return Returns combined path.
+ * @return Combined path, or ErrorCode::OutOfMemory when it could not be grown.
  */
 template <typename... Args>
     requires(Opal::Constructible<Args, Opal::StringViewUtf8> && ...)
-StringUtf8 Combine(Args&&... args);
+[[nodiscard]] Expected<StringUtf8, ErrorCode> Combine(Args&&... args);
 
 }  // namespace Opal::Paths
 
@@ -92,45 +91,48 @@ OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_WARNING("-Wunused-value")
 template <typename... Args>
     requires(Opal::Constructible<Args, Opal::StringViewUtf8> && ...)
-Opal::StringUtf8 Opal::Paths::Combine(Args&&... args)
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::Combine(Args&&... args)
 {
     StringUtf8 result;
+    ErrorCode error = ErrorCode::Success;
 
+    // Combine() with no components never calls the lambda.
     OPAL_DISABLE_WARNING("-Wunused-but-set-variable")
-    // Combine has no error channel of its own, so a failed append stays an exception here.
-    auto check = [&result](ErrorCode error)
+    auto append = [&result, &error](const auto& part)
     {
         if (error != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException(result.GetAllocator().GetName(), result.GetSize());
+            return;
         }
-    };
-
-    auto append = [&result, &check](const auto& part)
-    {
         StringViewUtf8 part_view(part);
         if (result.IsEmpty())
         {
-            check(result.Append(part_view.GetData(), part_view.GetSize()));
+            error = result.Append(part_view.GetData(), part_view.GetSize());
+            return;
         }
-        else
+        if (result.Back().GetValue() != '/' || result.Back().GetValue() != '\\')
         {
-            if (result.Back().GetValue() != '/' || result.Back().GetValue() != '\\')
-            {
 #if defined(OPAL_PLATFORM_WINDOWS)
-                constexpr StringUtf8::value_type k_separator = '\\';
+            constexpr StringUtf8::value_type k_separator = '\\';
 #elif defined(OPAL_PLATFORM_LINUX)
-                constexpr StringUtf8::value_type k_separator = '/';
+            constexpr StringUtf8::value_type k_separator = '/';
 #else
-                constexpr StringUtf8::value_type k_separator = '/';
+            constexpr StringUtf8::value_type k_separator = '/';
 #endif
-                check(result.Append(k_separator));
+            error = result.Append(k_separator);
+            if (error != ErrorCode::Success) [[unlikely]]
+            {
+                return;
             }
-            check(result.Append(part_view.GetData(), part_view.GetSize()));
         }
+        error = result.Append(part_view.GetData(), part_view.GetSize());
     };
 
     (append(args), ...);
-    return result;
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Expected<StringUtf8, ErrorCode>(error);
+    }
+    return Expected<StringUtf8, ErrorCode>(Move(result));
 }
 OPAL_END_DISABLE_WARNINGS

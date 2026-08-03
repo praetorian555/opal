@@ -14,19 +14,36 @@ using namespace Opal;
 #define PATH_SEPARATOR "/"
 #endif
 
+namespace
+{
+// The sections below that are not about failure unwrap through these; the failure sections assert on the code.
+StringUtf8 CwdOrFail()
+{
+    Expected<StringUtf8, ErrorCode> result = Paths::GetCurrentWorkingDirectory();
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+
+StringUtf8 NormalizeOrFail(const StringUtf8& path)
+{
+    Expected<StringUtf8, ErrorCode> result = Paths::NormalizePath(path);
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+}  // namespace
+
 TEST_CASE("Get current working directory", "[Paths]")
 {
     SECTION("No memory")
     {
         NullAllocator allocator;
-        StringUtf8 cwd;
         PushDefault pd(&allocator);
-        REQUIRE_THROWS_AS(cwd = Paths::GetCurrentWorkingDirectory(), OutOfMemoryException);
+        REQUIRE(Paths::GetCurrentWorkingDirectory().GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("All good")
     {
         StringUtf8 cwd;
-        REQUIRE_NOTHROW(cwd = Paths::GetCurrentWorkingDirectory());
+        cwd = CwdOrFail();
         REQUIRE(cwd.GetSize() > 0);
 
         auto ref_path = std::filesystem::current_path();
@@ -45,22 +62,22 @@ TEST_CASE("Set current working directory", "[Paths]")
     {
         NullAllocator allocator;
         PushDefault pd(&allocator);
-        REQUIRE_THROWS_AS(Paths::SetCurrentWorkingDirectory("a/b/c/d"), OutOfMemoryException);
+        REQUIRE(Paths::SetCurrentWorkingDirectory("a/b/c/d") == ErrorCode::OutOfMemory);
     }
     SECTION("All good")
     {
         StringUtf8 cwd;
-        REQUIRE_NOTHROW(cwd = Paths::GetCurrentWorkingDirectory());
+        cwd = CwdOrFail();
         REQUIRE(cwd.GetSize() > 0);
 
         auto new_path = std::move(cwd);
         new_path.Append("\\..");
-        REQUIRE_NOTHROW(Paths::SetCurrentWorkingDirectory(new_path));
+        REQUIRE(Paths::SetCurrentWorkingDirectory(new_path) == ErrorCode::Success);
 
         new_path.Erase(ReverseFind(new_path, "\\"));
         new_path.Erase(ReverseFind(new_path, PATH_SEPARATOR));
         StringUtf8 new_cwd;
-        REQUIRE_NOTHROW(new_cwd = Paths::GetCurrentWorkingDirectory());
+        new_cwd = CwdOrFail();
         REQUIRE(new_cwd.GetSize() > 0);
         REQUIRE(new_cwd == new_path);
     }
@@ -72,26 +89,25 @@ TEST_CASE("Normalize path", "[Paths]")
     {
         NullAllocator allocator;
         PushDefault pd(&allocator);
-        StringUtf8 normalized;
-        REQUIRE_THROWS_AS(normalized = Paths::NormalizePath("a/b/c/d"), OutOfMemoryException);
+        REQUIRE(Paths::NormalizePath("a/b/c/d").GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Empty path")
     {
         StringUtf8 normalized;
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath(""));
+        normalized = NormalizeOrFail("");
         REQUIRE(normalized == "");
     }
     SECTION("Absolute path root")
     {
         StringUtf8 normalized;
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("/"));
+        normalized = NormalizeOrFail("/");
         REQUIRE(normalized == PATH_SEPARATOR);
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("\\"));
+        normalized = NormalizeOrFail("\\");
         REQUIRE(normalized == PATH_SEPARATOR);
 #if defined(OPAL_PLATFORM_WINDOWS)
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("C://"));
+        normalized = NormalizeOrFail("C://");
         REQUIRE(normalized == "C:" PATH_SEPARATOR);
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("C:\\\\"));
+        normalized = NormalizeOrFail("C:\\\\");
         REQUIRE(normalized == "C:" PATH_SEPARATOR);
 #endif
     }
@@ -99,14 +115,14 @@ TEST_CASE("Normalize path", "[Paths]")
     {
 #if defined(OPAL_PLATFORM_WINDOWS)
         StringUtf8 normalized;
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("C:/Users/\\//test//"));
+        normalized = NormalizeOrFail("C:/Users/\\//test//");
         REQUIRE(normalized == "C:" PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("/Users/\\//test//"));
+        normalized = NormalizeOrFail("/Users/\\//test//");
         REQUIRE(normalized == PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 #else
         StringUtf8 normalized;
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("/Users/\\//test//"));
+        normalized = NormalizeOrFail("/Users/\\//test//");
         REQUIRE(normalized == PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 #endif
     }
@@ -114,57 +130,57 @@ TEST_CASE("Normalize path", "[Paths]")
     {
 #if defined(OPAL_PLATFORM_WINDOWS)
         StringUtf8 normalized;
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("C:/Users/..//test//"));
+        normalized = NormalizeOrFail("C:/Users/..//test//");
         REQUIRE(normalized == "C:" PATH_SEPARATOR "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("C:/Users/test/test/../..//test//"));
+        normalized = NormalizeOrFail("C:/Users/test/test/../..//test//");
         REQUIRE(normalized == "C:" PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("C:/Users/a/../b/..//test//"));
+        normalized = NormalizeOrFail("C:/Users/a/../b/..//test//");
         REQUIRE(normalized == "C:" PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("C:/..//test//"));
+        normalized = NormalizeOrFail("C:/..//test//");
         REQUIRE(normalized == "C:" PATH_SEPARATOR "test");
 #else
         StringUtf8 normalized;
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("/Users/..//test//"));
+        normalized = NormalizeOrFail("/Users/..//test//");
         REQUIRE(normalized == PATH_SEPARATOR "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("/Users/test/test/../..//test//"));
+        normalized = NormalizeOrFail("/Users/test/test/../..//test//");
         REQUIRE(normalized == PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("/Users/a/../b/..//test//"));
+        normalized = NormalizeOrFail("/Users/a/../b/..//test//");
         REQUIRE(normalized == PATH_SEPARATOR "Users" PATH_SEPARATOR "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("/..//test//"));
+        normalized = NormalizeOrFail("/..//test//");
         REQUIRE(normalized == PATH_SEPARATOR "test");
 #endif
     }
     SECTION("Relative paths")
     {
         StringUtf8 cwd;
-        REQUIRE_NOTHROW(cwd = Paths::GetCurrentWorkingDirectory());
+        cwd = CwdOrFail();
 
         StringUtf8 normalized;
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("test//"));
+        normalized = NormalizeOrFail("test//");
         REQUIRE(normalized == cwd + PATH_SEPARATOR + "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("test/test//"));
+        normalized = NormalizeOrFail("test/test//");
         REQUIRE(normalized == cwd + PATH_SEPARATOR + "test" + PATH_SEPARATOR + "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("test/test/../..//test//"));
+        normalized = NormalizeOrFail("test/test/../..//test//");
         REQUIRE(normalized == cwd + PATH_SEPARATOR + "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("test/a/../b/..//test//"));
+        normalized = NormalizeOrFail("test/a/../b/..//test//");
         REQUIRE(normalized == cwd + PATH_SEPARATOR + "test" + PATH_SEPARATOR + "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("test/."));
+        normalized = NormalizeOrFail("test/.");
         REQUIRE(normalized == cwd + PATH_SEPARATOR + "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("test/./"));
+        normalized = NormalizeOrFail("test/./");
         REQUIRE(normalized == cwd + PATH_SEPARATOR + "test");
 
-        REQUIRE_NOTHROW(normalized = Paths::NormalizePath("."));
+        normalized = NormalizeOrFail(".");
         REQUIRE(normalized == cwd);
     }
 }
@@ -429,23 +445,28 @@ TEST_CASE("Get extension", "[Paths]")
 TEST_CASE("Combining paths", "[Paths]")
 {
     auto result = Paths::Combine("a", "b", "c");
+    REQUIRE(result.HasValue());
 #if defined(OPAL_PLATFORM_WINDOWS)
-    REQUIRE(result == "a\\b\\c");
+    REQUIRE(result.GetValue() == "a\\b\\c");
 #else
-    REQUIRE(result == "a/b/c");
+    REQUIRE(result.GetValue() == "a/b/c");
 #endif
 
     result = Paths::Combine("a", "b", "c", "");
+    REQUIRE(result.HasValue());
 #if defined(OPAL_PLATFORM_WINDOWS)
-    REQUIRE(result == "a\\b\\c\\");
+    REQUIRE(result.GetValue() == "a\\b\\c\\");
 #else
-    REQUIRE(result == "a/b/c/");
+    REQUIRE(result.GetValue() == "a/b/c/");
 #endif
 
     result = Paths::Combine();
-    REQUIRE(result == "");
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == "");
 
     NullAllocator allocator;
     PushDefault pd(&allocator);
-    REQUIRE_THROWS_AS(result = Paths::Combine("aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc"), OutOfMemoryException);
+    result = Paths::Combine("aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc");
+    REQUIRE(!result.HasValue());
+    REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
 }

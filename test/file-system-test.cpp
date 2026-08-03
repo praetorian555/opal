@@ -28,6 +28,21 @@ void WriteDataToFile(const StringUtf8& path, const void* data, Opal::u64 size)
 }
 
 // Unwrap the success case so the tests that are not about failure stay about what they read back.
+StringUtf8 CwdOrFail()
+{
+    Expected<StringUtf8, ErrorCode> result = Paths::GetCurrentWorkingDirectory();
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+
+template <typename... Args>
+StringUtf8 CombineOrFail(Args&&... args)
+{
+    Expected<StringUtf8, ErrorCode> result = Paths::Combine(std::forward<Args>(args)...);
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+
 StringUtf8 ReadStringOrFail(const StringUtf8& path)
 {
     Expected<StringUtf8, ErrorCode> result = ReadFileAsString(path);
@@ -78,10 +93,10 @@ TEST_CASE("Exists", "[FileSystem]")
 TEST_CASE("Creating and deleting a file", "[FileSystem]")
 {
     StringUtf8 path;
-    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+    path = CwdOrFail();
     SECTION("Create and delete a file")
     {
-        path = Paths::Combine(path, "example.txt");
+        path = CombineOrFail(path, "example.txt");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateFile(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
@@ -90,13 +105,13 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     }
     SECTION("Try to create a file if part of the path does not exist")
     {
-        path = Paths::Combine(path, "test-dir", "example.txt");
+        path = CombineOrFail(path, "test-dir", "example.txt");
         REQUIRE(!Exists(path));
         REQUIRE(CreateFile(path) == ErrorCode::PathNotFound);
     }
     SECTION("Try to create a file that already exists")
     {
-        path = Paths::Combine(path, "example.txt");
+        path = CombineOrFail(path, "example.txt");
         REQUIRE(!Exists(path));
         REQUIRE(CreateFile(path) == ErrorCode::Success);
         REQUIRE(Exists(path));
@@ -107,7 +122,7 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     }
     SECTION("Try to delete non-existent file")
     {
-        path = Paths::Combine(path, "example.txt");
+        path = CombineOrFail(path, "example.txt");
         REQUIRE(!Exists(path));
         REQUIRE(DeleteFile(path) == ErrorCode::PathNotFound);
     }
@@ -116,10 +131,10 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
 TEST_CASE("Creating and destroying directory", "[FileSystem]")
 {
     StringUtf8 path;
-    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+    path = CwdOrFail();
     SECTION("Create and delete a directory")
     {
-        path = Paths::Combine(path, "test-dir");
+        path = CombineOrFail(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
@@ -128,16 +143,16 @@ TEST_CASE("Creating and destroying directory", "[FileSystem]")
     }
     SECTION("Try to create a directory if part of the path does not exist")
     {
-        path = Paths::Combine(path, "test-dir");
+        path = CombineOrFail(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        path = Paths::Combine(path, "test-dir-2");
+        path = CombineOrFail(path, "test-dir-2");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateDirectory(path) == ErrorCode::PathNotFound);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to create a directory that already exist")
     {
-        path = Paths::Combine(path, "test-dir");
+        path = CombineOrFail(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
@@ -149,18 +164,18 @@ TEST_CASE("Creating and destroying directory", "[FileSystem]")
     }
     SECTION("Try to delete non-existent directory")
     {
-        path = Paths::Combine(path, "test-dir");
+        path = CombineOrFail(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(DeleteDirectory(path) == ErrorCode::PathNotFound);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to delete non-empty directory")
     {
-        path = Paths::Combine(path, "test-dir");
+        path = CombineOrFail(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        const StringUtf8 file_path = Paths::Combine(path, "test-file");
+        const StringUtf8 file_path = CombineOrFail(path, "test-file");
         REQUIRE(!Opal::Exists(file_path));
         REQUIRE(CreateFile(file_path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(file_path));
@@ -179,16 +194,16 @@ template<> struct std::hash<Opal::StringUtf8> {
 TEST_CASE("Iterate over directory contents", "[FileSystem]")
 {
     StringUtf8 path;
-    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+    path = CwdOrFail();
     SECTION("Directory doesn't exist")
     {
-        path = Paths::Combine(path, "test-dir");
+        path = CombineOrFail(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(Opal::CollectDirectoryContents(std::move(path)).GetError() == ErrorCode::PathNotFound);
     }
     SECTION("Path is not to directory")
     {
-        path = Paths::Combine( path, "test-dir");
+        path = CombineOrFail( path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateFile(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
@@ -199,21 +214,21 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     {
         HashSet<StringUtf8> dir_paths;
         HashMap<StringUtf8, bool> path_types;
-        path = Paths::Combine(path, "test-dir");
+        path = CombineOrFail(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        StringUtf8 first_file = Paths::Combine(path, "test-file");
+        StringUtf8 first_file = CombineOrFail(path, "test-file");
         dir_paths.Insert(first_file.Clone());
         path_types.Insert(first_file.Clone(), false);
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE(CreateFile(first_file) == ErrorCode::Success);
-        StringUtf8 another_dir = Paths::Combine( path, "another-dir");
+        StringUtf8 another_dir = CombineOrFail( path, "another-dir");
         dir_paths.Insert(another_dir.Clone());
         path_types.Insert(another_dir.Clone(), true);
         REQUIRE(CreateDirectory(another_dir) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_dir));
-        const StringUtf8 another_file = Paths::Combine(another_dir, "another-file");
+        const StringUtf8 another_file = CombineOrFail(another_dir, "another-file");
         dir_paths.Insert(another_file.Clone());
         path_types.Insert(another_file.Clone(), false);
         REQUIRE(CreateFile(another_file) == ErrorCode::Success);
@@ -238,21 +253,21 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     {
         HashSet<StringUtf8> dir_paths;
         HashMap<StringUtf8, bool> path_types;
-        path = Paths::Combine(path, "test-dir");
+        path = CombineOrFail(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        StringUtf8 first_file = Paths::Combine(path, "test-file");
+        StringUtf8 first_file = CombineOrFail(path, "test-file");
         dir_paths.Insert(first_file.Clone());
         path_types.Insert(first_file.Clone(), false);
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE(CreateFile(first_file) == ErrorCode::Success);
-        StringUtf8 another_dir = Paths::Combine(path, "another-dir");
+        StringUtf8 another_dir = CombineOrFail(path, "another-dir");
         dir_paths.Insert(another_dir.Clone());
         path_types.Insert(another_dir.Clone(), true);
         REQUIRE(CreateDirectory(another_dir) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_dir));
-        const StringUtf8 another_file = Paths::Combine( another_dir, "another-file");
+        const StringUtf8 another_file = CombineOrFail( another_dir, "another-file");
         dir_paths.Insert(another_file.Clone());
         path_types.Insert(another_file.Clone(), false);
         REQUIRE(CreateFile(another_file) == ErrorCode::Success);
@@ -277,21 +292,21 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     {
         HashSet<StringUtf8> dir_paths;
         HashMap<StringUtf8, bool> path_types;
-        path = Paths::Combine(path, "test-dir");
+        path = CombineOrFail(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        StringUtf8 first_file = Paths::Combine(path, "test-file");
+        StringUtf8 first_file = CombineOrFail(path, "test-file");
         dir_paths.Insert(first_file.Clone());
         path_types.Insert(first_file.Clone(), false);
         REQUIRE(!Opal::Exists(first_file));
         REQUIRE(CreateFile(first_file) == ErrorCode::Success);
-        StringUtf8 another_dir = Paths::Combine(path, "another-dir");
+        StringUtf8 another_dir = CombineOrFail(path, "another-dir");
         dir_paths.Insert(another_dir.Clone());
         path_types.Insert(another_dir.Clone(), true);
         REQUIRE(CreateDirectory(another_dir) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_dir));
-        const StringUtf8 another_file = Paths::Combine(another_dir, "another-file");
+        const StringUtf8 another_file = CombineOrFail(another_dir, "another-file");
         dir_paths.Insert(another_file.Clone());
         path_types.Insert(another_file.Clone(), false);
         REQUIRE(CreateFile(another_file) == ErrorCode::Success);
@@ -317,17 +332,17 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
 TEST_CASE("ReadFileAsString", "[FileSystem]")
 {
     StringUtf8 path;
-    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+    path = CwdOrFail();
 
     SECTION("Read non-existent file")
     {
-        StringUtf8 file_path = Paths::Combine(path, "non-existent-file.txt");
+        StringUtf8 file_path = CombineOrFail(path, "non-existent-file.txt");
         REQUIRE(!Exists(file_path));
         REQUIRE(ReadFileAsString(file_path).GetError() == ErrorCode::PathNotFound);
     }
     SECTION("Read empty file")
     {
-        StringUtf8 file_path = Paths::Combine(path, "empty-file.txt");
+        StringUtf8 file_path = CombineOrFail(path, "empty-file.txt");
         REQUIRE(CreateFile(file_path) == ErrorCode::Success);
         StringUtf8 content;
         content = ReadStringOrFail(file_path);
@@ -336,7 +351,7 @@ TEST_CASE("ReadFileAsString", "[FileSystem]")
     }
     SECTION("Read file with content")
     {
-        StringUtf8 file_path = Paths::Combine(path, "test-read.txt");
+        StringUtf8 file_path = CombineOrFail(path, "test-read.txt");
         REQUIRE(!Exists(file_path));
 
         const char* expected = "Hello, Opal!";
@@ -349,7 +364,7 @@ TEST_CASE("ReadFileAsString", "[FileSystem]")
     }
     SECTION("Read file with multiple lines")
     {
-        StringUtf8 file_path = Paths::Combine(path, "test-multiline.txt");
+        StringUtf8 file_path = CombineOrFail(path, "test-multiline.txt");
         REQUIRE(!Exists(file_path));
 
         const char* expected = "line1\nline2\nline3\n";
@@ -365,17 +380,17 @@ TEST_CASE("ReadFileAsString", "[FileSystem]")
 TEST_CASE("ReadFileAsBytes", "[FileSystem]")
 {
     StringUtf8 path;
-    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+    path = CwdOrFail();
 
     SECTION("Read non-existent file")
     {
-        StringUtf8 file_path = Paths::Combine(path, "non-existent-file.bin");
+        StringUtf8 file_path = CombineOrFail(path, "non-existent-file.bin");
         REQUIRE(!Exists(file_path));
         REQUIRE(ReadFileAsBytes(file_path).GetError() == ErrorCode::PathNotFound);
     }
     SECTION("Read empty file")
     {
-        StringUtf8 file_path = Paths::Combine(path, "empty-file.bin");
+        StringUtf8 file_path = CombineOrFail(path, "empty-file.bin");
         REQUIRE(CreateFile(file_path) == ErrorCode::Success);
         DynamicArray<u8> content;
         content = ReadBytesOrFail(file_path);
@@ -384,7 +399,7 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
     }
     SECTION("Read file with content")
     {
-        StringUtf8 file_path = Paths::Combine(path, "test-read.bin");
+        StringUtf8 file_path = CombineOrFail(path, "test-read.bin");
         REQUIRE(!Exists(file_path));
 
         const u8 expected[] = {0x48, 0x65, 0x6C, 0x6C, 0x6F};
@@ -401,7 +416,7 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
     }
     SECTION("Read file with binary data")
     {
-        StringUtf8 file_path = Paths::Combine(path, "test-binary.bin");
+        StringUtf8 file_path = CombineOrFail(path, "test-binary.bin");
         REQUIRE(!Exists(file_path));
 
         const u8 expected[] = {0x00, 0xFF, 0x01, 0xFE, 0x80};
@@ -421,16 +436,16 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
 TEST_CASE("WriteStringToFile", "[FileSystem]")
 {
     StringUtf8 path;
-    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+    path = CwdOrFail();
 
     SECTION("Write to non-existent directory")
     {
-        StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.txt");
+        StringUtf8 file_path = CombineOrFail(path, "no-such-dir", "file.txt");
         REQUIRE(WriteStringToFile(file_path, StringUtf8("data")) == ErrorCode::PathNotFound);
     }
     SECTION("Write creates new file")
     {
-        StringUtf8 file_path = Paths::Combine(path, "write-new.txt");
+        StringUtf8 file_path = CombineOrFail(path, "write-new.txt");
         REQUIRE(!Exists(file_path));
 
         StringUtf8 content("Hello, Opal!");
@@ -444,7 +459,7 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
     }
     SECTION("Write overwrites existing file")
     {
-        StringUtf8 file_path = Paths::Combine(path, "write-overwrite.txt");
+        StringUtf8 file_path = CombineOrFail(path, "write-overwrite.txt");
 
         REQUIRE(WriteStringToFile(file_path, StringUtf8("original content")) == ErrorCode::Success);
         REQUIRE(WriteStringToFile(file_path, StringUtf8("new")) == ErrorCode::Success);
@@ -456,7 +471,7 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
     }
     SECTION("Write empty string")
     {
-        StringUtf8 file_path = Paths::Combine(path, "write-empty.txt");
+        StringUtf8 file_path = CombineOrFail(path, "write-empty.txt");
 
         REQUIRE(WriteStringToFile(file_path, StringUtf8()) == ErrorCode::Success);
         REQUIRE(Exists(file_path));
@@ -471,17 +486,17 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
 TEST_CASE("WriteBytesToFile", "[FileSystem]")
 {
     StringUtf8 path;
-    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+    path = CwdOrFail();
 
     SECTION("Write to non-existent directory")
     {
-        StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.bin");
+        StringUtf8 file_path = CombineOrFail(path, "no-such-dir", "file.bin");
         const u8 data[] = {0x01};
         REQUIRE(WriteBytesToFile(file_path, ArrayView<const u8>(data)) == ErrorCode::PathNotFound);
     }
     SECTION("Write and read back bytes")
     {
-        StringUtf8 file_path = Paths::Combine(path, "write-bytes.bin");
+        StringUtf8 file_path = CombineOrFail(path, "write-bytes.bin");
         REQUIRE(!Exists(file_path));
 
         const u8 expected[] = {0x00, 0xFF, 0x42, 0x80};
@@ -498,7 +513,7 @@ TEST_CASE("WriteBytesToFile", "[FileSystem]")
     }
     SECTION("Write overwrites existing bytes")
     {
-        StringUtf8 file_path = Paths::Combine(path, "write-bytes-over.bin");
+        StringUtf8 file_path = CombineOrFail(path, "write-bytes-over.bin");
 
         const u8 original[] = {0x01, 0x02, 0x03, 0x04, 0x05};
         REQUIRE(WriteBytesToFile(file_path, ArrayView<const u8>(original)) == ErrorCode::Success);
@@ -518,16 +533,16 @@ TEST_CASE("WriteBytesToFile", "[FileSystem]")
 TEST_CASE("AppendStringToFile", "[FileSystem]")
 {
     StringUtf8 path;
-    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+    path = CwdOrFail();
 
     SECTION("Append to non-existent directory")
     {
-        StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.txt");
+        StringUtf8 file_path = CombineOrFail(path, "no-such-dir", "file.txt");
         REQUIRE(AppendStringToFile(file_path, StringUtf8("data")) == ErrorCode::PathNotFound);
     }
     SECTION("Append creates new file")
     {
-        StringUtf8 file_path = Paths::Combine(path, "append-new.txt");
+        StringUtf8 file_path = CombineOrFail(path, "append-new.txt");
         REQUIRE(!Exists(file_path));
 
         REQUIRE(AppendStringToFile(file_path, StringUtf8("Hello")) == ErrorCode::Success);
@@ -540,7 +555,7 @@ TEST_CASE("AppendStringToFile", "[FileSystem]")
     }
     SECTION("Append adds to existing content")
     {
-        StringUtf8 file_path = Paths::Combine(path, "append-existing.txt");
+        StringUtf8 file_path = CombineOrFail(path, "append-existing.txt");
 
         REQUIRE(WriteStringToFile(file_path, StringUtf8("Hello")) == ErrorCode::Success);
         REQUIRE(AppendStringToFile(file_path, StringUtf8(", World!")) == ErrorCode::Success);
@@ -552,7 +567,7 @@ TEST_CASE("AppendStringToFile", "[FileSystem]")
     }
     SECTION("Multiple appends")
     {
-        StringUtf8 file_path = Paths::Combine(path, "append-multi.txt");
+        StringUtf8 file_path = CombineOrFail(path, "append-multi.txt");
 
         REQUIRE(AppendStringToFile(file_path, StringUtf8("line1\n")) == ErrorCode::Success);
         REQUIRE(AppendStringToFile(file_path, StringUtf8("line2\n")) == ErrorCode::Success);
@@ -568,17 +583,17 @@ TEST_CASE("AppendStringToFile", "[FileSystem]")
 TEST_CASE("AppendBytesToFile", "[FileSystem]")
 {
     StringUtf8 path;
-    REQUIRE_NOTHROW(path = Paths::GetCurrentWorkingDirectory());
+    path = CwdOrFail();
 
     SECTION("Append to non-existent directory")
     {
-        StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.bin");
+        StringUtf8 file_path = CombineOrFail(path, "no-such-dir", "file.bin");
         const u8 data[] = {0x01};
         REQUIRE(AppendBytesToFile(file_path, ArrayView<const u8>(data)) == ErrorCode::PathNotFound);
     }
     SECTION("Append creates new file")
     {
-        StringUtf8 file_path = Paths::Combine(path, "append-bytes-new.bin");
+        StringUtf8 file_path = CombineOrFail(path, "append-bytes-new.bin");
         REQUIRE(!Exists(file_path));
 
         const u8 data[] = {0x01, 0x02};
@@ -593,7 +608,7 @@ TEST_CASE("AppendBytesToFile", "[FileSystem]")
     }
     SECTION("Append adds to existing bytes")
     {
-        StringUtf8 file_path = Paths::Combine(path, "append-bytes-existing.bin");
+        StringUtf8 file_path = CombineOrFail(path, "append-bytes-existing.bin");
 
         const u8 first[] = {0xAA, 0xBB};
         REQUIRE(WriteBytesToFile(file_path, ArrayView<const u8>(first)) == ErrorCode::Success);

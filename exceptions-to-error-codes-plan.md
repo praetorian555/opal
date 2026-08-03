@@ -295,10 +295,13 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 
 ### Paths (§3)
 
-- [ ] `GetCurrentWorkingDirectory` returns `Expected<StringUtf8, ErrorCode>` - `src/paths.cpp:25`
-- [ ] `NormalizePath` returns `Expected<StringUtf8, ErrorCode>`, delete the `CheckAppend` helper - `src/paths.cpp:16,81`
-- [ ] `SetCurrentWorkingDirectory` returns `ErrorCode` - `src/paths.cpp:55`
-- [ ] `Combine` returns `Expected<StringUtf8, ErrorCode>`, delete the `check` lambda - `include/opal/paths.h:87`
+- [x] `GetCurrentWorkingDirectory` returns `Expected<StringUtf8, ErrorCode>` - `src/paths.cpp:25`
+- [x] `NormalizePath` returns `Expected<StringUtf8, ErrorCode>`, delete the `CheckAppend` helper - `src/paths.cpp:16,81`
+- [x] `SetCurrentWorkingDirectory` returns `ErrorCode` - `src/paths.cpp:55`
+- [x] `Combine` returns `Expected<StringUtf8, ErrorCode>`, delete the `check` lambda - `include/opal/paths.h:87`
+- [ ] `Combine`'s separator check reads `back != '/' || back != '\\'`, which is true for every character, so a component
+      is always prefixed with a separator even when the accumulated path already ends in one. Left alone here because
+      fixing it changes what `Combine` returns for trailing-separator input, which is a behaviour call, not a cleanup.
 
 ### Program arguments (§4)
 

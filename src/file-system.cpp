@@ -201,7 +201,12 @@ bool Opal::Exists(const StringUtf8& path)
     {
         return false;
     }
-    StringUtf8 result = Paths::NormalizePath(path);
+    Expected<StringUtf8, ErrorCode> normalized = Paths::NormalizePath(path);
+    if (!normalized.HasValue())
+    {
+        return false;
+    }
+    const StringUtf8& result = normalized.GetValue();
 
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(result.GetSize() * 2, L'\0');
@@ -406,7 +411,13 @@ Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::
                 continue;
             }
 
-            StringUtf8 entry_path = Paths::Combine(dir_path, entry_name);
+            Expected<StringUtf8, ErrorCode> combined = Paths::Combine(dir_path, entry_name);
+            if (!combined.HasValue()) [[unlikely]]
+            {
+                walk_err = combined.GetError();
+                break;
+            }
+            StringUtf8 entry_path = std::move(combined).GetValue();
             struct stat statbuf;
             if (stat(*entry_path, &statbuf) == 0)
             {

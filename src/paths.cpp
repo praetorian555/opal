@@ -10,76 +10,107 @@
 #include <climits>
 #endif
 
-namespace
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorkingDirectory()
 {
-// NormalizePath has no error channel of its own and is documented to throw, so a failed append stays an exception.
-void CheckAppend(Opal::ErrorCode error, const Opal::StringUtf8& target)
-{
-    if (error != Opal::ErrorCode::Success) [[unlikely]]
-    {
-        throw Opal::OutOfMemoryException(target.GetAllocator().GetName(), target.GetSize());
-    }
-}
-}  // namespace
-
-Opal::StringUtf8 Opal::Paths::GetCurrentWorkingDirectory()
-{
+    using Result = Expected<StringUtf8, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
     const DWORD size_needed = GetCurrentDirectoryW(0, nullptr);
-    StringWide buffer(static_cast<StringWide::size_type>(size_needed - 1), L'\0');
+    if (size_needed == 0)
+    {
+        return Result(ErrorCode::OSFailure);
+    }
+    // The sized String constructors throw on a failed allocation, so the buffers are grown through Resize instead.
+    StringWide buffer;
+    ErrorCode err = buffer.Resize(static_cast<StringWide::size_type>(size_needed - 1), L'\0');
+    if (err != ErrorCode::Success)
+    {
+        return Result(err);
+    }
     const DWORD written_size = GetCurrentDirectoryW(size_needed, buffer.GetData());
     if (written_size == 0)
     {
-        throw Exception("Failed to get current working directory from the OS!");
+        return Result(ErrorCode::OSFailure);
     }
-    StringUtf8 out_path(MAX_PATH, '\0');
-    const ErrorCode err = Transcode(buffer, out_path);
+    StringUtf8 out_path;
+    err = out_path.Resize(MAX_PATH, '\0');
     if (err != ErrorCode::Success)
     {
-        throw Exception("Failed to transcode the path!");
+        return Result(err);
     }
-    return out_path;
+    err = Transcode(buffer, out_path);
+    if (err != ErrorCode::Success)
+    {
+        return Result(err);
+    }
+    return Result(Move(out_path));
 #elif defined(OPAL_PLATFORM_LINUX)
-    StringUtf8 out_path(PATH_MAX, '\0', GetDefaultAllocator());
+    StringUtf8 out_path(GetDefaultAllocator());
+    const ErrorCode err = out_path.Resize(PATH_MAX, '\0');
+    if (err != ErrorCode::Success)
+    {
+        return Result(err);
+    }
     if (getcwd(out_path.GetData(), out_path.GetSize()) == nullptr)
     {
-        throw Exception("Failed to get current working directory from the OS!");
+        return Result(ErrorCode::OSFailure);
     }
     out_path.Trim();
-    return out_path;
+    return Result(Move(out_path));
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-void Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path)
+Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path)
 {
-    StringUtf8 normalized_path = NormalizePath(path);
+    Expected<StringUtf8, ErrorCode> normalized_path = NormalizePath(path);
+    if (!normalized_path.HasValue())
+    {
+        return normalized_path.GetError();
+    }
 
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(MAX_PATH, 0);
-    const ErrorCode err = Transcode(normalized_path, path_wide);
+    StringWide path_wide;
+    ErrorCode err = path_wide.Resize(MAX_PATH, 0);
     if (err != ErrorCode::Success)
     {
-        throw Exception("Failed to transcode the path!");
+        return err;
+    }
+    err = Transcode(normalized_path.GetValue(), path_wide);
+    if (err != ErrorCode::Success)
+    {
+        return err;
     }
     const BOOL result = SetCurrentDirectoryW(*path_wide);
     if (result == 0)
     {
-        throw Exception("Failed to set current working directory in the OS");
+        return ErrorCode::OSFailure;
     }
+    return ErrorCode::Success;
 #elif defined(OPAL_PLATFORM_LINUX)
-    if (chdir(*normalized_path) == -1)
+    if (chdir(*normalized_path.GetValue()) == -1)
     {
-        throw Exception("Failed to set current working directory in the OS");
+        return ErrorCode::OSFailure;
     }
+    return ErrorCode::Success;
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(const StringUtf8& path)
 {
+    using Result = Expected<StringUtf8, ErrorCode>;
+    // Records the first failed append; every later one is skipped and the code is returned at the next checkpoint.
+    ErrorCode append_error = ErrorCode::Success;
+    auto Append = [&append_error](StringUtf8& target, const auto& value)
+    {
+        if (append_error == ErrorCode::Success) [[likely]]
+        {
+            append_error = target.Append(value);
+        }
+    };
+
     Opal::AllocatorBase* default_allocator = GetDefaultAllocator();
 #if defined(OPAL_PLATFORM_WINDOWS)
     constexpr StringUtf8::value_type k_preferred_separator = '\\';
@@ -91,20 +122,34 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
 
     if (path.IsEmpty())
     {
-        return {};
+        return Result(StringUtf8());
     }
 
-    StringUtf8 original_path = path.Clone();
+    // Clone throws on a failed allocation, so the copy is made through Append instead.
+    StringUtf8 original_path;
+    Append(original_path, path);
+    if (append_error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(append_error);
+    }
 
     // If path is not absolute we need to make it absolute
     if (!IsPathAbsolute(path))
     {
         // If the path is relative, attach the current working directory to it before normalization
-        const StringUtf8 current_working_directory = GetCurrentWorkingDirectory();
+        Expected<StringUtf8, ErrorCode> current_working_directory = GetCurrentWorkingDirectory();
+        if (!current_working_directory.HasValue())
+        {
+            return Result(current_working_directory.GetError());
+        }
         original_path.Erase();
-        CheckAppend(original_path.Append(current_working_directory), original_path);
-        CheckAppend(original_path.Append(k_preferred_separator), original_path);
-        CheckAppend(original_path.Append(path), original_path);
+        Append(original_path, current_working_directory.GetValue());
+        Append(original_path, k_preferred_separator);
+        Append(original_path, path);
+        if (append_error != ErrorCode::Success) [[unlikely]]
+        {
+            return Result(append_error);
+        }
     }
 
     bool prev_is_separator = false;
@@ -116,9 +161,9 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
     if (original_path.GetSize() >= 2 && original_path[1] == ':')
     {
         // Path is absolute and starts with a drive letter
-        CheckAppend(root.Append(original_path[0]), root);
-        CheckAppend(root.Append(original_path[1]), root);
-        CheckAppend(root.Append(k_preferred_separator), root);
+        Append(root, original_path[0]);
+        Append(root, original_path[1]);
+        Append(root, k_preferred_separator);
         prev_is_separator = true;
         start = 2;
     }
@@ -129,11 +174,15 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
     if (original_path.GetSize() >= 1 && (original_path[0] == '\\' || original_path[0] == '/'))
     {
         // Path is absolute but starts only with a separator
-        CheckAppend(root.Append(k_preferred_separator), root);
+        Append(root, k_preferred_separator);
         prev_is_separator = true;
         start = 1;
     }
 #endif
+    if (append_error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(append_error);
+    }
 
     StringUtf8 relative;
     // Remove redundant separators and switch to using preferred separators
@@ -147,19 +196,23 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
             }
 
             prev_is_separator = true;
-            CheckAppend(relative.Append(k_preferred_separator), relative);
+            Append(relative, k_preferred_separator);
         }
         else
         {
             prev_is_separator = false;
-            CheckAppend(relative.Append(original_path[i]), relative);
+            Append(relative, original_path[i]);
         }
     }
 
     StringUtf8 pattern;
-    CheckAppend(pattern.Append(k_preferred_separator), pattern);
-    CheckAppend(pattern.Append('.'), pattern);
-    CheckAppend(pattern.Append(k_preferred_separator), pattern);
+    Append(pattern, k_preferred_separator);
+    Append(pattern, '.');
+    Append(pattern, k_preferred_separator);
+    if (append_error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(append_error);
+    }
     const StringUtf8::size_type pos = Find(relative, pattern);
     if (pos != StringUtf8::k_npos)
     {
@@ -237,8 +290,12 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
         const StringUtf8::size_type erase_count = erase_end + 1;
         relative.Erase(0, erase_count);
     }
-    root += relative;
-    return root;
+    Append(root, relative);
+    if (append_error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(append_error);
+    }
+    return Result(Move(root));
 }
 
 bool Opal::Paths::IsPathAbsolute(const StringUtf8& path)
