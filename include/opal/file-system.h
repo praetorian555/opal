@@ -1,6 +1,7 @@
 #pragma once
 
 #include "opal/container/string.h"
+#include "opal/error-codes.h"
 #include "opal/export.h"
 
 namespace Opal
@@ -9,43 +10,42 @@ namespace Opal
 /**
  * @brief Creates a file.
  * @param path Path to file to create.
- * @param fail_if_already_exists If true when something already exists at the path don't throw an exception. Default value is false.
+ * @param fail_if_already_exists If false, a path that is already taken is reported as success. Default value is false.
  * @note Might use current scratch allocator on some platforms.
- * @throw PathNotFoundException when path does not exist.
- * @throw PathAlreadyExistsException when something already exists on the given path.
- * @throw Exception when any other error occurs.
+ * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist,
+ *         ErrorCode::AlreadyExists when something is already on the path and fail_if_already_exists is set, or
+ *         ErrorCode::OSFailure for any other failure.
  */
-void OPAL_EXPORT CreateFile(const StringUtf8& path, bool fail_if_already_exists = false);
+[[nodiscard]] ErrorCode OPAL_EXPORT CreateFile(const StringUtf8& path, bool fail_if_already_exists = false);
 
 /**
  * @brief Deletes a file.
  * @param path Path to the file to delete.
  * @note Might use current scratch allocator on some platforms.
- * @throw PathNotFoundException when path does not exist.
- * @throw Exception when any other error occurs.
+ * @return ErrorCode::Success, ErrorCode::PathNotFound when the path does not exist, or ErrorCode::OSFailure for any
+ *         other failure.
  */
-void OPAL_EXPORT DeleteFile(const StringUtf8& path);
+[[nodiscard]] ErrorCode OPAL_EXPORT DeleteFile(const StringUtf8& path);
 
 /**
  * @brief Creates a directory at a specified path.
  * @param path Path on which to create a directory.
- * @param throw_if_exists If true throw exception if something already exists. Default is false.
+ * @param fail_if_already_exists If false, a path that is already taken is reported as success. Default value is false.
  * @note Might use current scratch allocator on some platforms.
- * @throw PathNotFoundException when path does not exist.
- * @throw PathAlreadyExistsException when something already exists on the given path.
- * @throw Exception when any other error occurs.
+ * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist,
+ *         ErrorCode::AlreadyExists when something is already on the path and fail_if_already_exists is set, or
+ *         ErrorCode::OSFailure for any other failure.
  */
-void OPAL_EXPORT CreateDirectory(const StringUtf8& path, bool throw_if_exists = false);
+[[nodiscard]] ErrorCode OPAL_EXPORT CreateDirectory(const StringUtf8& path, bool fail_if_already_exists = false);
 
 /**
  * @brief Deletes a directory.
  * @param path Path to the directory.
  * @note Might use current scratch allocator on some platforms.
- * @throw PathNotFoundException when path does not exist.
- * @throw DirectoryNotEmptyException when directory is not empty.
- * @throw Exception when any other error occurs.
+ * @return ErrorCode::Success, ErrorCode::PathNotFound when the path does not exist, ErrorCode::NotEmpty when the
+ *         directory still has contents, or ErrorCode::OSFailure for any other failure.
  */
-void OPAL_EXPORT DeleteDirectory(const StringUtf8& path);
+[[nodiscard]] ErrorCode OPAL_EXPORT DeleteDirectory(const StringUtf8& path);
 
 /**
  * @brief Check if the path exists.

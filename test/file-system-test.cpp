@@ -61,33 +61,33 @@ TEST_CASE("Creating and deleting a file", "[FileSystem]")
     {
         path = Paths::Combine(path, "example.txt");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_NOTHROW(CreateFile(path));
+        REQUIRE(CreateFile(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        REQUIRE_NOTHROW(DeleteFile(path));
+        REQUIRE(DeleteFile(path) == ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to create a file if part of the path does not exist")
     {
         path = Paths::Combine(path, "test-dir", "example.txt");
         REQUIRE(!Exists(path));
-        REQUIRE_THROWS_AS(CreateFile(path), Opal::PathNotFoundException);
+        REQUIRE(CreateFile(path) == ErrorCode::PathNotFound);
     }
     SECTION("Try to create a file that already exists")
     {
         path = Paths::Combine(path, "example.txt");
         REQUIRE(!Exists(path));
-        REQUIRE_NOTHROW(CreateFile(path));
+        REQUIRE(CreateFile(path) == ErrorCode::Success);
         REQUIRE(Exists(path));
-        REQUIRE_THROWS_AS(CreateFile(path, true), Opal::PathAlreadyExistsException);
-        REQUIRE_NOTHROW(CreateFile(path));
-        REQUIRE_NOTHROW(DeleteFile(path));
+        REQUIRE(CreateFile(path, true) == ErrorCode::AlreadyExists);
+        REQUIRE(CreateFile(path) == ErrorCode::Success);
+        REQUIRE(DeleteFile(path) == ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to delete non-existent file")
     {
         path = Paths::Combine(path, "example.txt");
         REQUIRE(!Exists(path));
-        REQUIRE_THROWS_AS(DeleteFile(path), Opal::PathNotFoundException);
+        REQUIRE(DeleteFile(path) == ErrorCode::PathNotFound);
     }
 }
 
@@ -99,9 +99,9 @@ TEST_CASE("Creating and destroying directory", "[FileSystem]")
     {
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_NOTHROW(CreateDirectory(path));
+        REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        REQUIRE_NOTHROW(DeleteDirectory(path));
+        REQUIRE(DeleteDirectory(path) == ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to create a directory if part of the path does not exist")
@@ -110,41 +110,41 @@ TEST_CASE("Creating and destroying directory", "[FileSystem]")
         REQUIRE(!Opal::Exists(path));
         path = Paths::Combine(path, "test-dir-2");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_THROWS_AS(CreateDirectory(path), Opal::PathNotFoundException);
+        REQUIRE(CreateDirectory(path) == ErrorCode::PathNotFound);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to create a directory that already exist")
     {
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_NOTHROW(CreateDirectory(path));
+        REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        REQUIRE_THROWS_AS(CreateDirectory(path, true), Opal::PathAlreadyExistsException);
-        REQUIRE_NOTHROW(CreateDirectory(path));
+        REQUIRE(CreateDirectory(path, true) == ErrorCode::AlreadyExists);
+        REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        REQUIRE_NOTHROW(DeleteDirectory(path));
+        REQUIRE(DeleteDirectory(path) == ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to delete non-existent directory")
     {
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_THROWS_AS(DeleteDirectory(path), Opal::PathNotFoundException);
+        REQUIRE(DeleteDirectory(path) == ErrorCode::PathNotFound);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Try to delete non-empty directory")
     {
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_NOTHROW(CreateDirectory(path));
+        REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
         const StringUtf8 file_path = Paths::Combine(path, "test-file");
         REQUIRE(!Opal::Exists(file_path));
-        REQUIRE_NOTHROW(CreateFile(file_path));
+        REQUIRE(CreateFile(file_path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(file_path));
-        REQUIRE_THROWS_AS(DeleteDirectory(path), Opal::DirectoryNotEmptyException);
-        REQUIRE_NOTHROW(DeleteFile(file_path));
-        REQUIRE_NOTHROW(DeleteDirectory(path));
+        REQUIRE(DeleteDirectory(path) == ErrorCode::NotEmpty);
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
+        REQUIRE(DeleteDirectory(path) == ErrorCode::Success);
     }
 }
 
@@ -169,11 +169,11 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     {
         path = Paths::Combine( path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_NOTHROW(CreateFile(path));
+        REQUIRE(CreateFile(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
         DynamicArray<DirectoryEntry> children;
         REQUIRE_THROWS_AS(children = Opal::CollectDirectoryContents(path.Clone()), NotDirectoryException);
-        REQUIRE_NOTHROW(DeleteFile(path));
+        REQUIRE(DeleteFile(path) == ErrorCode::Success);
     }
     SECTION("Collect child contents, no recursive search")
     {
@@ -181,22 +181,22 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         HashMap<StringUtf8, bool> path_types;
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_NOTHROW(CreateDirectory(path));
+        REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
         StringUtf8 first_file = Paths::Combine(path, "test-file");
         dir_paths.Insert(first_file.Clone());
         path_types.Insert(first_file.Clone(), false);
         REQUIRE(!Opal::Exists(first_file));
-        REQUIRE_NOTHROW(CreateFile(first_file));
+        REQUIRE(CreateFile(first_file) == ErrorCode::Success);
         StringUtf8 another_dir = Paths::Combine( path, "another-dir");
         dir_paths.Insert(another_dir.Clone());
         path_types.Insert(another_dir.Clone(), true);
-        REQUIRE_NOTHROW(CreateDirectory(another_dir));
+        REQUIRE(CreateDirectory(another_dir) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_dir));
         const StringUtf8 another_file = Paths::Combine(another_dir, "another-file");
         dir_paths.Insert(another_file.Clone());
         path_types.Insert(another_file.Clone(), false);
-        REQUIRE_NOTHROW(CreateFile(another_file));
+        REQUIRE(CreateFile(another_file) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
         REQUIRE_NOTHROW(children = Opal::CollectDirectoryContents(path.Clone()));
@@ -208,10 +208,10 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
             dir_paths.Erase(e.path);
             path_types.Erase(e.path);
         }
-        REQUIRE_NOTHROW(DeleteFile(first_file));
-        REQUIRE_NOTHROW(DeleteFile(another_file));
-        REQUIRE_NOTHROW(DeleteDirectory(another_dir));
-        REQUIRE_NOTHROW(DeleteDirectory(path));
+        REQUIRE(DeleteFile(first_file) == ErrorCode::Success);
+        REQUIRE(DeleteFile(another_file) == ErrorCode::Success);
+        REQUIRE(DeleteDirectory(another_dir) == ErrorCode::Success);
+        REQUIRE(DeleteDirectory(path) == ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Collect child contents, do recursive search")
@@ -220,22 +220,22 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         HashMap<StringUtf8, bool> path_types;
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_NOTHROW(CreateDirectory(path));
+        REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
         StringUtf8 first_file = Paths::Combine(path, "test-file");
         dir_paths.Insert(first_file.Clone());
         path_types.Insert(first_file.Clone(), false);
         REQUIRE(!Opal::Exists(first_file));
-        REQUIRE_NOTHROW(CreateFile(first_file));
+        REQUIRE(CreateFile(first_file) == ErrorCode::Success);
         StringUtf8 another_dir = Paths::Combine(path, "another-dir");
         dir_paths.Insert(another_dir.Clone());
         path_types.Insert(another_dir.Clone(), true);
-        REQUIRE_NOTHROW(CreateDirectory(another_dir));
+        REQUIRE(CreateDirectory(another_dir) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_dir));
         const StringUtf8 another_file = Paths::Combine( another_dir, "another-file");
         dir_paths.Insert(another_file.Clone());
         path_types.Insert(another_file.Clone(), false);
-        REQUIRE_NOTHROW(CreateFile(another_file));
+        REQUIRE(CreateFile(another_file) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
         REQUIRE_NOTHROW(children = Opal::CollectDirectoryContents(path.Clone(), {.recursive = true}));
@@ -247,10 +247,10 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
             dir_paths.Erase(e.path);
             path_types.Erase(e.path);
         }
-        REQUIRE_NOTHROW(DeleteFile(first_file));
-        REQUIRE_NOTHROW(DeleteFile(another_file));
-        REQUIRE_NOTHROW(DeleteDirectory(another_dir));
-        REQUIRE_NOTHROW(DeleteDirectory(path));
+        REQUIRE(DeleteFile(first_file) == ErrorCode::Success);
+        REQUIRE(DeleteFile(another_file) == ErrorCode::Success);
+        REQUIRE(DeleteDirectory(another_dir) == ErrorCode::Success);
+        REQUIRE(DeleteDirectory(path) == ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
     }
     SECTION("Collect child contents, do recursive search, ignore directories")
@@ -259,22 +259,22 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         HashMap<StringUtf8, bool> path_types;
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        REQUIRE_NOTHROW(CreateDirectory(path));
+        REQUIRE(CreateDirectory(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
         StringUtf8 first_file = Paths::Combine(path, "test-file");
         dir_paths.Insert(first_file.Clone());
         path_types.Insert(first_file.Clone(), false);
         REQUIRE(!Opal::Exists(first_file));
-        REQUIRE_NOTHROW(CreateFile(first_file));
+        REQUIRE(CreateFile(first_file) == ErrorCode::Success);
         StringUtf8 another_dir = Paths::Combine(path, "another-dir");
         dir_paths.Insert(another_dir.Clone());
         path_types.Insert(another_dir.Clone(), true);
-        REQUIRE_NOTHROW(CreateDirectory(another_dir));
+        REQUIRE(CreateDirectory(another_dir) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_dir));
         const StringUtf8 another_file = Paths::Combine(another_dir, "another-file");
         dir_paths.Insert(another_file.Clone());
         path_types.Insert(another_file.Clone(), false);
-        REQUIRE_NOTHROW(CreateFile(another_file));
+        REQUIRE(CreateFile(another_file) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
         REQUIRE_NOTHROW(children = Opal::CollectDirectoryContents(path.Clone(), {.include_directories = false, .recursive = true}));
@@ -286,10 +286,10 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
             dir_paths.Erase(e.path);
             path_types.Erase(e.path);
         }
-        REQUIRE_NOTHROW(DeleteFile(first_file));
-        REQUIRE_NOTHROW(DeleteFile(another_file));
-        REQUIRE_NOTHROW(DeleteDirectory(another_dir));
-        REQUIRE_NOTHROW(DeleteDirectory(path));
+        REQUIRE(DeleteFile(first_file) == ErrorCode::Success);
+        REQUIRE(DeleteFile(another_file) == ErrorCode::Success);
+        REQUIRE(DeleteDirectory(another_dir) == ErrorCode::Success);
+        REQUIRE(DeleteDirectory(path) == ErrorCode::Success);
         REQUIRE(!Opal::Exists(path));
     }
 }
@@ -308,11 +308,11 @@ TEST_CASE("ReadFileAsString", "[FileSystem]")
     SECTION("Read empty file")
     {
         StringUtf8 file_path = Paths::Combine(path, "empty-file.txt");
-        REQUIRE_NOTHROW(CreateFile(file_path));
+        REQUIRE(CreateFile(file_path) == ErrorCode::Success);
         StringUtf8 content;
         REQUIRE_NOTHROW(content = ReadFileAsString(file_path));
         REQUIRE(content.IsEmpty());
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Read file with content")
     {
@@ -325,7 +325,7 @@ TEST_CASE("ReadFileAsString", "[FileSystem]")
         StringUtf8 content;
         REQUIRE_NOTHROW(content = ReadFileAsString(file_path));
         REQUIRE(content == expected);
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Read file with multiple lines")
     {
@@ -338,7 +338,7 @@ TEST_CASE("ReadFileAsString", "[FileSystem]")
         StringUtf8 content;
         REQUIRE_NOTHROW(content = ReadFileAsString(file_path));
         REQUIRE(content == expected);
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
 }
 
@@ -356,11 +356,11 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
     SECTION("Read empty file")
     {
         StringUtf8 file_path = Paths::Combine(path, "empty-file.bin");
-        REQUIRE_NOTHROW(CreateFile(file_path));
+        REQUIRE(CreateFile(file_path) == ErrorCode::Success);
         DynamicArray<u8> content;
         REQUIRE_NOTHROW(content = ReadFileAsBytes(file_path));
         REQUIRE(content.IsEmpty());
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Read file with content")
     {
@@ -377,7 +377,7 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
         {
             REQUIRE(content[i] == expected[i]);
         }
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Read file with binary data")
     {
@@ -394,7 +394,7 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
         {
             REQUIRE(content[i] == expected[i]);
         }
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
 }
 
@@ -420,7 +420,7 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
         StringUtf8 read_back;
         REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
         REQUIRE(read_back == content);
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Write overwrites existing file")
     {
@@ -432,7 +432,7 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
         StringUtf8 read_back;
         REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
         REQUIRE(read_back == "new");
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Write empty string")
     {
@@ -444,7 +444,7 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
         StringUtf8 read_back;
         REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
         REQUIRE(read_back.IsEmpty());
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
 }
 
@@ -474,7 +474,7 @@ TEST_CASE("WriteBytesToFile", "[FileSystem]")
         {
             REQUIRE(read_back[i] == expected[i]);
         }
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Write overwrites existing bytes")
     {
@@ -491,7 +491,7 @@ TEST_CASE("WriteBytesToFile", "[FileSystem]")
         REQUIRE(read_back.GetSize() == sizeof(replacement));
         REQUIRE(read_back[0] == 0xAA);
         REQUIRE(read_back[1] == 0xBB);
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
 }
 
@@ -516,7 +516,7 @@ TEST_CASE("AppendStringToFile", "[FileSystem]")
         StringUtf8 read_back;
         REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
         REQUIRE(read_back == "Hello");
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Append adds to existing content")
     {
@@ -528,7 +528,7 @@ TEST_CASE("AppendStringToFile", "[FileSystem]")
         StringUtf8 read_back;
         REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
         REQUIRE(read_back == "Hello, World!");
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Multiple appends")
     {
@@ -541,7 +541,7 @@ TEST_CASE("AppendStringToFile", "[FileSystem]")
         StringUtf8 read_back;
         REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
         REQUIRE(read_back == "line1\nline2\nline3\n");
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
 }
 
@@ -569,7 +569,7 @@ TEST_CASE("AppendBytesToFile", "[FileSystem]")
         REQUIRE(read_back.GetSize() == sizeof(data));
         REQUIRE(read_back[0] == 0x01);
         REQUIRE(read_back[1] == 0x02);
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
     SECTION("Append adds to existing bytes")
     {
@@ -588,6 +588,6 @@ TEST_CASE("AppendBytesToFile", "[FileSystem]")
         REQUIRE(read_back[1] == 0xBB);
         REQUIRE(read_back[2] == 0xCC);
         REQUIRE(read_back[3] == 0xDD);
-        REQUIRE_NOTHROW(DeleteFile(file_path));
+        REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
 }

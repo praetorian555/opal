@@ -281,7 +281,8 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 ### File system (§2)
 
 - [ ] Add `ErrorCode::NotDirectory` - `include/opal/error-codes.h`
-- [ ] `CreateFile`, `DeleteFile`, `CreateDirectory`, `DeleteDirectory` return `ErrorCode`
+- [x] `CreateFile`, `DeleteFile`, `CreateDirectory`, `DeleteDirectory` return `ErrorCode`
+      (`CreateDirectory`'s `throw_if_exists` parameter is now `fail_if_already_exists`, matching `CreateFile`)
 - [ ] `WriteStringToFile`, `WriteBytesToFile`, `AppendStringToFile`, `AppendBytesToFile` return `ErrorCode`
 - [ ] `ReadFileAsString` returns `Expected<StringUtf8, ErrorCode>`
 - [ ] `ReadFileAsBytes` returns `Expected<DynamicArray<u8>, ErrorCode>`

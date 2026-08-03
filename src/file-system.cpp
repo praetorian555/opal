@@ -21,14 +21,14 @@
 
 #include "opal/container/dynamic-array.h"
 
-void Opal::CreateFile(const StringUtf8& path, bool fail_if_already_exists)
+Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool fail_if_already_exists)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     Opal::StringWide path_wide(path.GetSize() * 2, L'\0');
-    if (Transcode(path, path_wide) != ErrorCode::Success)
+    const ErrorCode transcode_err = Transcode(path, path_wide);
+    if (transcode_err != ErrorCode::Success)
     {
-        // TODO: Remove this once the Transcode starts throwing
-        throw Exception("Failed to transcode path!");
+        return transcode_err;
     }
 
     constexpr DWORD k_access = GENERIC_READ | GENERIC_WRITE;
@@ -39,178 +39,159 @@ void Opal::CreateFile(const StringUtf8& path, bool fail_if_already_exists)
         CreateFileW(path_wide.GetData(), k_access, k_shared_mode, nullptr, k_creation_flags, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (file_handle != INVALID_HANDLE_VALUE)
     {
-        return;
+        CloseHandle(file_handle);
+        return ErrorCode::Success;
     }
     const DWORD win32_err = GetLastError();
     if (win32_err == ERROR_PATH_NOT_FOUND)
     {
-        throw PathNotFoundException(*path);
+        return ErrorCode::PathNotFound;
     }
     if (win32_err == ERROR_FILE_EXISTS)
     {
-        if (!fail_if_already_exists)
-        {
-            return;
-        }
-        throw PathAlreadyExistsException(*path);
+        return fail_if_already_exists ? ErrorCode::AlreadyExists : ErrorCode::Success;
     }
-    throw Exception("Failed to create a file!");
+    return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
     const i32 flags = O_CREAT | O_EXCL;
     i32 fd = open(path.GetData(), flags, 0644);
     if (fd != -1)
     {
         close(fd);
-        return;
+        return ErrorCode::Success;
     }
     if (errno == EEXIST)
     {
-        if (!fail_if_already_exists)
-        {
-            return;
-        }
-        throw PathAlreadyExistsException(*path);
+        return fail_if_already_exists ? ErrorCode::AlreadyExists : ErrorCode::Success;
     }
     if (errno == ENOENT)
     {
-        throw PathNotFoundException(*path);
+        return ErrorCode::PathNotFound;
     }
-    throw Exception("Failed to create a file!");
+    return ErrorCode::OSFailure;
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-void Opal::DeleteFile(const StringUtf8& path)
+Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0');
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
-        // TODO: Remove this once the Transcode starts throwing
-        throw Exception("Failed to transcode path!");
+        return err;
     }
     if (DeleteFileW(path_wide.GetData()) != 0)
     {
-        return;
+        return ErrorCode::Success;
     }
     const DWORD win32_error = GetLastError();
     if (win32_error == ERROR_FILE_NOT_FOUND)
     {
-        throw PathNotFoundException(*path);
+        return ErrorCode::PathNotFound;
     }
-    throw Exception("Failed to delete a file!");
+    return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
     i32 result = remove(path.GetData());
     if (result == 0)
     {
-        return;
+        return ErrorCode::Success;
     }
     if (errno == ENOENT)
     {
-        throw PathNotFoundException(*path);
+        return ErrorCode::PathNotFound;
     }
-    throw Exception("Failed to delete a file!");
+    return ErrorCode::OSFailure;
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-void Opal::CreateDirectory(const StringUtf8& path, bool throw_if_exists)
+Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, bool fail_if_already_exists)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0');
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
-        // TODO: Remove this once the Transcode starts throwing
-        throw Exception("Failed to transcode path!");
+        return err;
     }
     const BOOL result = CreateDirectoryW(*path_wide, nullptr);
     if (result != 0)
     {
-        return;
+        return ErrorCode::Success;
     }
     const DWORD error = GetLastError();
     if (error == ERROR_ALREADY_EXISTS)
     {
-        if (!throw_if_exists)
-        {
-            return;
-        }
-        throw PathAlreadyExistsException(*path);
+        return fail_if_already_exists ? ErrorCode::AlreadyExists : ErrorCode::Success;
     }
     if (error == ERROR_PATH_NOT_FOUND)
     {
-        throw PathNotFoundException(*path);
+        return ErrorCode::PathNotFound;
     }
-    throw Exception("Failed to create a directory!");
+    return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
     if (mkdir(*path, 0777) == 0)
     {
-        return;
+        return ErrorCode::Success;
     }
-    // Path already exists
     if (errno == EEXIST)
     {
-        if (!throw_if_exists)
-        {
-            return;
-        }
-        throw PathAlreadyExistsException(*path);
+        return fail_if_already_exists ? ErrorCode::AlreadyExists : ErrorCode::Success;
     }
     if (errno == ENOENT)
     {
-        throw PathNotFoundException(*path);
+        return ErrorCode::PathNotFound;
     }
-    throw Exception("Failed to create a directory!");
+    return ErrorCode::OSFailure;
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-void Opal::DeleteDirectory(const StringUtf8& path)
+Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0');
     const ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
-        // TODO: Remove this once the Transcode starts throwing
-        throw Exception("Failed to transcode path!");
+        return err;
     }
     const BOOL status = RemoveDirectoryW(*path_wide);
     if (status != 0)
     {
-        return;
+        return ErrorCode::Success;
     }
     const DWORD win32_err = GetLastError();
     if (win32_err == ERROR_FILE_NOT_FOUND)
     {
-        throw PathNotFoundException(*path);
+        return ErrorCode::PathNotFound;
     }
     if (win32_err == ERROR_DIR_NOT_EMPTY)
     {
-        throw DirectoryNotEmptyException(*path);
+        return ErrorCode::NotEmpty;
     }
-    throw Exception("Failed to delete a directory!");
+    return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
     if (rmdir(*path) == 0)
     {
-        return;
+        return ErrorCode::Success;
     }
     if (errno == ENOENT)
     {
-        throw PathNotFoundException(*path);
+        return ErrorCode::PathNotFound;
     }
     if (errno == ENOTEMPTY)
     {
-        throw DirectoryNotEmptyException(*path);
+        return ErrorCode::NotEmpty;
     }
-    throw Exception("Failed to delete a directory!");
+    return ErrorCode::OSFailure;
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
