@@ -6,6 +6,7 @@
 #include "assert.h"
 #include "container/ref.h"
 #include "exceptions.h"
+#include "opal/error-codes.h"
 #include "opal/export.h"
 #include "opal/types.h"
 
@@ -16,6 +17,14 @@ struct OPAL_EXPORT AllocatorBase
 {
     AllocatorBase(const char* debug_name) : m_debug_name(debug_name) {}
     virtual ~AllocatorBase() = default;
+
+    /**
+     * Allocate a block of memory.
+     * @param size Number of bytes to allocate.
+     * @param alignment Required alignment of the returned address.
+     * @return Address of the block, or nullptr when the allocation could not be satisfied. Running out of memory is an ordinary
+     *         outcome for a budgeted allocator and is never reported as an exception.
+     */
     virtual void* Alloc(u64 size, u64 alignment) = 0;
     virtual void Free(void* ptr) = 0;
     [[nodiscard]] virtual bool IsThreadSafe() const = 0;
@@ -47,7 +56,12 @@ struct OPAL_EXPORT SystemMemoryAllocator : public AllocatorBase
 
     [[nodiscard]] bool IsThreadSafe() const override { return false; }
 
-    void Commit(u64 size);
+    /**
+     * Make more of the reserved address space usable.
+     * @param size Number of bytes to commit, rounded up to a whole number of pages.
+     * @return ErrorCode::Success, or ErrorCode::OutOfMemory when the reservation is exhausted or the OS refuses the commit.
+     */
+    [[nodiscard]] ErrorCode Commit(u64 size);
 
     void Reset();
 
@@ -102,7 +116,7 @@ struct OPAL_EXPORT NullAllocator final : public AllocatorBase
 
     bool operator==(const NullAllocator&) const { return true; }
 
-    void* Alloc(u64, u64) override { throw OutOfMemoryException("NullAllocator::Alloc"); }
+    void* Alloc(u64, u64) override { return nullptr; }
     void Free(void*) override {}
 
     [[nodiscard]] bool IsThreadSafe() const override { return false; }
@@ -208,6 +222,12 @@ struct OPAL_EXPORT PushScratch
     ~PushScratch();
 };
 
+/**
+ * Allocate and construct a single object.
+ * @param allocator Allocator used for the object's storage. Must not be null.
+ * @param args Arguments forwarded to T's constructor.
+ * @return Pointer to the constructed object, or nullptr when the allocator could not supply storage.
+ */
 template <typename T, class... Args>
 T* New(AllocatorBase* allocator, Args&&... args)
 {
@@ -216,6 +236,10 @@ T* New(AllocatorBase* allocator, Args&&... args)
         throw Exception("Allocator can't be null");
     }
     void* memory = allocator->Alloc(sizeof(T), alignof(T));
+    if (memory == nullptr) [[unlikely]]
+    {
+        return nullptr;
+    }
     try
     {
         return new (memory) T(std::forward<Args>(args)...);
@@ -226,6 +250,12 @@ T* New(AllocatorBase* allocator, Args&&... args)
     }
 }
 
+/**
+ * Allocate and construct a single object with an explicit alignment.
+ * @param allocator Allocator used for the object's storage. Must not be null.
+ * @param args Arguments forwarded to T's constructor.
+ * @return Pointer to the constructed object, or nullptr when the allocator could not supply storage.
+ */
 template <typename T, u32 Alignment, class... Args>
 T* New(AllocatorBase* allocator, Args&&... args)
 {
@@ -234,6 +264,10 @@ T* New(AllocatorBase* allocator, Args&&... args)
         throw Exception("Allocator can't be null");
     }
     void* memory = allocator->Alloc(sizeof(T), Alignment);
+    if (memory == nullptr) [[unlikely]]
+    {
+        return nullptr;
+    }
     try
     {
         return new (memory) T(std::forward<Args>(args)...);

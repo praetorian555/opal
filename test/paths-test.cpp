@@ -174,8 +174,9 @@ TEST_CASE("Get parent path", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        Expected<StringUtf8, ErrorCode> parent;
-        REQUIRE_THROWS_AS(parent = Paths::GetParentPath("aaaaaaaaaaaa/bbbbbbbbbbbb/cccccccccccc/d", &allocator), OutOfMemoryException);
+        Expected<StringUtf8, ErrorCode> parent = Paths::GetParentPath("aaaaaaaaaaaa/bbbbbbbbbbbb/cccccccccccc/d", &allocator);
+        REQUIRE(!parent.HasValue());
+        REQUIRE(parent.GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Parent of empty path")
     {
@@ -255,8 +256,9 @@ TEST_CASE("Get file name", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        Expected<StringUtf8, ErrorCode> file_name;
-        REQUIRE_THROWS_AS(file_name = Paths::GetFileName("a/bbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator), OutOfMemoryException);
+        Expected<StringUtf8, ErrorCode> file_name = Paths::GetFileName("a/bbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator);
+        REQUIRE(!file_name.HasValue());
+        REQUIRE(file_name.GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Relative paths")
     {
@@ -331,8 +333,9 @@ TEST_CASE("Get stem", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        Expected<StringUtf8, ErrorCode> stem;
-        REQUIRE_THROWS_AS(stem = Paths::GetStem("a/bbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator), OutOfMemoryException);
+        Expected<StringUtf8, ErrorCode> stem = Paths::GetStem("a/bbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator);
+        REQUIRE(!stem.HasValue());
+        REQUIRE(stem.GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Normal file names")
     {
@@ -379,8 +382,9 @@ TEST_CASE("Get extension", "[Paths]")
     SECTION("No memory")
     {
         NullAllocator allocator;
-        Expected<StringUtf8, ErrorCode> extension;
-        REQUIRE_THROWS_AS(extension = Paths::GetExtension("a/bbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator), OutOfMemoryException);
+        Expected<StringUtf8, ErrorCode> extension = Paths::GetExtension("a/bbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator);
+        REQUIRE(!extension.HasValue());
+        REQUIRE(extension.GetError() == ErrorCode::OutOfMemory);
     }
     SECTION("Normal paths")
     {

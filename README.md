@@ -137,7 +137,7 @@ Pluggable allocator architecture with thread-local allocator stacks and RAII gua
 | `MallocAllocator` | General-purpose heap allocator, thread-safe |
 | `LinearAllocator` | Bump/arena allocator with mark/reset, not thread-safe |
 | `SystemMemoryAllocator` | Virtual memory allocator (VirtualAlloc/mmap), not thread-safe |
-| `NullAllocator` | Always throws, used for moved-from state |
+| `NullAllocator` | Always fails to allocate, used for moved-from state |
 
 ```cpp
 #include "opal/allocator.h"

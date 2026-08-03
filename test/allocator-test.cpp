@@ -67,7 +67,7 @@ TEST_CASE("System memory allocator", "[Allocator]")
         REQUIRE_NOTHROW(first_alloc = allocator->Alloc(OPAL_MB(150), 16));
         REQUIRE(first_alloc != nullptr);
         REQUIRE(allocator->GetCommitedSize() == OPAL_MB(200));
-        allocator->Commit(OPAL_MB(50));
+        REQUIRE(allocator->Commit(OPAL_MB(50)) == Opal::ErrorCode::Success);
         REQUIRE(allocator->GetCommitedSize() == OPAL_MB(250));
 
         delete allocator;
@@ -97,7 +97,7 @@ TEST_CASE("System memory allocator", "[Allocator]")
         REQUIRE(allocator != nullptr);
 
         const Opal::u64 initial_committed = allocator->GetCommitedSize();
-        allocator->Commit(OPAL_KB(8));
+        REQUIRE(allocator->Commit(OPAL_KB(8)) == Opal::ErrorCode::Success);
         REQUIRE(allocator->GetCommitedSize() > initial_committed);
 
         // Write to memory beyond the initial commit region
@@ -118,9 +118,12 @@ TEST_CASE("System memory allocator", "[Allocator]")
         REQUIRE_NOTHROW(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc));
         REQUIRE(allocator != nullptr);
 
+        const Opal::u64 committed_before = allocator->GetCommitedSize();
         void* first_alloc = nullptr;
-        REQUIRE_THROWS_AS(first_alloc = allocator->Alloc(OPAL_MB(15), 16), Opal::OutOfMemoryException);
+        REQUIRE_NOTHROW(first_alloc = allocator->Alloc(OPAL_MB(15), 16));
         REQUIRE(first_alloc == nullptr);
+        REQUIRE(allocator->GetCommitedSize() == committed_before);
+        REQUIRE(allocator->Commit(OPAL_MB(15)) == Opal::ErrorCode::OutOfMemory);
 
         delete allocator;
     }
@@ -146,7 +149,7 @@ TEST_CASE("Null allocator", "[Allocator]")
 {
     Opal::NullAllocator allocator;
     void* memory = nullptr;
-    REQUIRE_THROWS_AS(memory = allocator.Alloc(16, 16), Opal::OutOfMemoryException);
+    REQUIRE_NOTHROW(memory = allocator.Alloc(16, 16));
     REQUIRE(memory == nullptr);
     allocator.Free(memory);
 }

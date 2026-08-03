@@ -26,7 +26,7 @@ AllocatorBase (pure virtual)
  +-- MallocAllocator       Stateless, thread-safe, wraps aligned malloc/free
  +-- SystemMemoryAllocator  Reserve/commit via VirtualAlloc/mmap, not thread-safe
  +-- LinearAllocator        Bump allocator backed by SystemMemoryAllocator, not thread-safe
- +-- NullAllocator          Always throws, not thread-safe
+ +-- NullAllocator          Always fails to allocate, not thread-safe
 ```
 
 ### MallocAllocator
@@ -48,9 +48,9 @@ Configuration via `SystemMemoryAllocatorDesc`:
 
 Additional API:
 
-| Method              | Description                              |
-|---------------------|------------------------------------------|
-| `Commit(u64 size)`  | Manually commit additional pages         |
+| Method              | Description                                                            |
+|---------------------|------------------------------------------------------------------------|
+| `Commit(u64 size)`  | Manually commit additional pages, returns `ErrorCode::OutOfMemory` on failure |
 | `Reset()`           | Reset the offset to 0 (no decommit)     |
 | `GetCommitedSize()` | Total bytes currently committed          |
 | `GetPageSize()`     | OS page size                             |
@@ -78,7 +78,7 @@ arena.Reset();  // All allocations invalidated
 
 ### NullAllocator
 
-Throws `OutOfMemoryException` on every `Alloc`. `Free` is a no-op. Not thread-safe. Useful for containers that should never allocate (e.g. moved-from state). The debug name is always `"NullAllocator"`.
+Returns `nullptr` from every `Alloc`. `Free` is a no-op. Not thread-safe. Useful for containers that should never allocate (e.g. moved-from state), and for exercising the out-of-memory path in tests. The debug name is always `"NullAllocator"`.
 
 ## Allocator Stacks
 

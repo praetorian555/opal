@@ -74,7 +74,11 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const
 #endif
     if (desc.bytes_to_initially_alloc > 0)
     {
-        Commit(desc.bytes_to_initially_alloc);
+        // A constructor has nowhere to put a code, so a failed initial commit stays an exception here.
+        if (Commit(desc.bytes_to_initially_alloc) != ErrorCode::Success)
+        {
+            throw OutOfMemoryException(debug_name, desc.bytes_to_initially_alloc);
+        }
     }
 }
 
@@ -100,7 +104,10 @@ void* Opal::SystemMemoryAllocator::Alloc(u64 size, u64)
         u64 step_size = Min(m_commit_step_size, m_reserved_size - m_commited_size);
         u64 commit_size = m_offset + size - m_commited_size;
         commit_size = Opal::Max(commit_size, step_size);
-        Commit(commit_size);
+        if (Commit(commit_size) != ErrorCode::Success)
+        {
+            return nullptr;
+        }
     }
     void* allocation = reinterpret_cast<void*>(reinterpret_cast<u64>(m_memory) + m_offset);
     m_offset += size;
@@ -109,7 +116,7 @@ void* Opal::SystemMemoryAllocator::Alloc(u64 size, u64)
 
 void Opal::SystemMemoryAllocator::Free(void*) {}
 
-void Opal::SystemMemoryAllocator::Commit(u64 size)
+Opal::ErrorCode Opal::SystemMemoryAllocator::Commit(u64 size)
 {
     if (size % m_page_size != 0)
     {
@@ -117,7 +124,7 @@ void Opal::SystemMemoryAllocator::Commit(u64 size)
     }
     if (m_commited_size + size > m_reserved_size)
     {
-        throw OutOfMemoryException("No more reserved memory!");
+        return ErrorCode::OutOfMemory;
     }
     void* commit_addr = reinterpret_cast<void*>(reinterpret_cast<u64>(m_memory) + m_commited_size);
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -126,12 +133,13 @@ void Opal::SystemMemoryAllocator::Commit(u64 size)
 #elif defined(OPAL_PLATFORM_LINUX)
     if (mprotect(commit_addr, size, PROT_READ | PROT_WRITE) != 0)
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
     {
-        throw OutOfMemoryException("Failed to commit memory for the page allocator!");
+        return ErrorCode::OutOfMemory;
     }
     m_commited_size += size;
+    return ErrorCode::Success;
 }
 void Opal::SystemMemoryAllocator::Reset()
 {
@@ -188,7 +196,10 @@ void* Opal::LinearAllocator::Alloc(u64 size, u64 alignment)
     {
         u64 needed = next_address - (reinterpret_cast<u64>(m_memory) + m_size);
         u64 commit_size = Max(needed, m_commit_step_size);
-        m_system_allocator.Commit(commit_size);
+        if (m_system_allocator.Commit(commit_size) != ErrorCode::Success)
+        {
+            return nullptr;
+        }
         m_size = m_system_allocator.GetCommitedSize();
     }
     m_offset = next_address - reinterpret_cast<u64>(m_memory);
