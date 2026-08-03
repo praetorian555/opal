@@ -30,10 +30,15 @@ class JsonSerializer
 public:
     JsonSerializer(StringUtf8& output, const JsonWriteOptions& options) : m_output(output), m_options(options) {}
 
-    void Serialize(const JsonValue& root)
+    /**
+     * Walk the value and write it out.
+     * @return The first failure hit, or ErrorCode::Success. Once one is recorded every later write is skipped, so the
+     *         walk stops rather than piling more work onto a string that is already short.
+     */
+    ErrorCode Serialize(const JsonValue& root)
     {
         WriteValue(root);
-        while (!m_stack.IsEmpty())
+        while (!m_stack.IsEmpty() && m_error == ErrorCode::Success)
         {
             Frame& frame = m_stack.Back();
             if (frame.index >= frame.size)
@@ -70,33 +75,37 @@ public:
                 WriteValue(child);
             }
         }
+        return m_error;
     }
 
 private:
-    // The serializer reports every failure by throwing, so a failed append does too.
-    void Append(char8 ch) const
+    // Every write goes through one of these three, so recording the first failure here is enough to stop the walk.
+    void Append(char8 ch)
     {
-        if (m_output->Append(ch) != ErrorCode::Success) [[unlikely]]
+        if (m_error != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException(m_output->GetAllocator().GetName(), m_output->GetSize() + 1);
+            return;
         }
+        m_error = m_output->Append(ch);
     }
 
-    void Append(const char8* str, u64 size) const
+    void Append(const char8* str, u64 size)
     {
-        if (m_output->Append(str, size) != ErrorCode::Success) [[unlikely]]
+        if (m_error != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException(m_output->GetAllocator().GetName(), m_output->GetSize() + size);
+            return;
         }
+        m_error = m_output->Append(str, size);
     }
 
     template <typename... Args>
-    void AppendFormatted(StringViewUtf8 fmt, Args&&... args) const
+    void AppendFormatted(StringViewUtf8 fmt, Args&&... args)
     {
-        if (AppendFormat(*m_output, fmt, std::forward<Args>(args)...) != ErrorCode::Success) [[unlikely]]
+        if (m_error != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException(m_output->GetAllocator().GetName(), m_output->GetSize());
+            return;
         }
+        m_error = AppendFormat(*m_output, fmt, std::forward<Args>(args)...);
     }
 
     void WriteValue(const JsonValue& value)
@@ -131,9 +140,9 @@ private:
         }
     }
 
-    void WriteNull() const { Append("null", 4); }
+    void WriteNull() { Append("null", 4); }
 
-    void WriteBool(bool value) const
+    void WriteBool(bool value)
     {
         if (value)
         {
@@ -145,29 +154,27 @@ private:
         }
     }
 
-    void WriteNumber(f64 value) const
+    void WriteNumber(f64 value)
     {
-        if (std::isnan(value))
+        // JSON has no spelling for either, and a JsonValue can hold one because a f64 can.
+        if (std::isnan(value) || std::isinf(value))
         {
-            throw JsonSerializeException("NaN is not a valid JSON number");
-        }
-        if (std::isinf(value))
-        {
-            throw JsonSerializeException("Infinity is not a valid JSON number");
+            m_error = ErrorCode::InvalidArgument;
+            return;
         }
         AppendFormatted("{:.17g}", value);
     }
 
-    void WriteInteger(i64 value) const { AppendFormatted("{}", value); }
+    void WriteInteger(i64 value) { AppendFormatted("{}", value); }
 
-    void WriteString(StringViewUtf8 value) const
+    void WriteString(StringViewUtf8 value)
     {
         Append('"');
         WriteEscapedString(value);
         Append('"');
     }
 
-    void WriteEscapedString(StringViewUtf8 value) const
+    void WriteEscapedString(StringViewUtf8 value)
     {
         const char8* data = value.GetData();
         const u64 size = value.GetSize();
@@ -260,7 +267,7 @@ private:
         using Inner = ObjIt::InnerIterator;
         if (!(m_stack.EmplaceBack(&value, ObjIt(Inner{}), ObjIt(Inner{}), size, 0ull, false)).HasValue()) [[unlikely]]
         {
-            throw OutOfMemoryException(__FUNCTION__);
+            m_error = ErrorCode::OutOfMemory;
         }
     }
 
@@ -284,7 +291,7 @@ private:
         const auto range = value.Items();
         if (!(m_stack.EmplaceBack(&value, range.begin(), range.end(), size, 0ull, true)).HasValue()) [[unlikely]]
         {
-            throw OutOfMemoryException(__FUNCTION__);
+            m_error = ErrorCode::OutOfMemory;
         }
     }
 
@@ -299,7 +306,7 @@ private:
         Append(is_object ? '}' : ']');
     }
 
-    void WriteSeparator() const
+    void WriteSeparator()
     {
         Append(',');
         if (m_options->pretty)
@@ -309,9 +316,9 @@ private:
         }
     }
 
-    void WriteNewline() const { Append('\n'); }
+    void WriteNewline() { Append('\n'); }
 
-    void WriteIndent() const
+    void WriteIndent()
     {
         if (m_options->use_tabs)
         {
@@ -334,6 +341,7 @@ private:
     Ref<const JsonWriteOptions> m_options;
     DynamicArray<Frame> m_stack;
     u32 m_depth = 0;
+    ErrorCode m_error = ErrorCode::Success;
 };
 
 }  // namespace
@@ -342,17 +350,22 @@ private:
 // JsonWriter.
 // ------------------------------------------------------------------------------------------------
 
-StringUtf8 JsonWriter::Serialize(const JsonValue& value, AllocatorBase* allocator)
+Expected<StringUtf8, ErrorCode> JsonWriter::Serialize(const JsonValue& value, AllocatorBase* allocator)
 {
     return Serialize(value, JsonWriteOptions{}, allocator);
 }
 
-StringUtf8 JsonWriter::Serialize(const JsonValue& value, const JsonWriteOptions& options, AllocatorBase* allocator)
+Expected<StringUtf8, ErrorCode> JsonWriter::Serialize(const JsonValue& value, const JsonWriteOptions& options, AllocatorBase* allocator)
 {
+    using Result = Expected<StringUtf8, ErrorCode>;
     StringUtf8 output(allocator);
     JsonSerializer serializer(output, options);
-    serializer.Serialize(value);
-    return output;
+    const ErrorCode error = serializer.Serialize(value);
+    if (error != ErrorCode::Success)
+    {
+        return Result(error);
+    }
+    return Result(Move(output));
 }
 
 }  // namespace Opal

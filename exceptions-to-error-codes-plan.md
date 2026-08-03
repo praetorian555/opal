@@ -334,9 +334,13 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 - [ ] `JsonReader::Parse` returns `Expected<JsonReader, JsonParseError>` - `include/opal/container/json-reader.h:278,286`
 - [ ] Route the parser's `ThrowError` and OOM sites through it - `src/json-reader.cpp:566,590,895,965`
 - [ ] Add `TryGetBool`, `TryGetNumber`, `TryGetIntegerNumber`, `TryGetString`, `TryAt`, `TryFind`, `TryGetPath`
-- [ ] `JsonWriter::Serialize` (both overloads) returns `Expected<StringUtf8, ErrorCode>` - `include/opal/container/json-writer.h:44,54`
-- [ ] NaN / Infinity become `ErrorCode::InvalidArgument` - `src/json-writer.cpp:143,147`
-- [ ] Serializer OOM sites use the same channel - `src/json-writer.cpp:81,89,254,278`
+- [x] `JsonWriter::Serialize` (both overloads) returns `Expected<StringUtf8, ErrorCode>` - `include/opal/container/json-writer.h:44,54`
+- [x] NaN / Infinity become `ErrorCode::InvalidArgument` - `src/json-writer.cpp:143,147`
+- [x] Serializer OOM sites use the same channel - `src/json-writer.cpp:81,89,254,278`. The serializer records the first
+      failure and skips every later write, the same shape as `StringFormatIterator`, so the walk stops instead of
+      piling work onto a string that is already short. That let the `AppendFormatted` shim from §8 go.
+- [ ] `-Wuseless-cast` on `static_cast<i64>(9007199254740993LL)` in `test/json-value-test.cpp:237,257` and
+      `test/json-writer-test.cpp:386`. Pre-existing, unrelated to this work, only visible once those files recompiled.
 
 ### Threading (§6)
 

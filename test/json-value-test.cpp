@@ -183,7 +183,9 @@ TEST_CASE("Serialize programmatically built array", "[JsonValue]")
     arr.PushBack(JsonValue::MakeNumber(2));
     arr.PushBack(JsonValue::MakeNumber(3));
 
-    StringUtf8 result = JsonWriter::Serialize(arr);
+    Expected<StringUtf8, ErrorCode> serialized = JsonWriter::Serialize(arr);
+    REQUIRE(serialized.HasValue());
+    const StringUtf8& result = serialized.GetValue();
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("[1,2,3]"));
 }
 
@@ -194,7 +196,9 @@ TEST_CASE("Serialize programmatically built object", "[JsonValue]")
     JsonValue obj = JsonValue::MakeObject();
     obj.Insert(key_a, JsonValue::MakeNumber(1));
 
-    StringUtf8 result = JsonWriter::Serialize(obj);
+    Expected<StringUtf8, ErrorCode> serialized = JsonWriter::Serialize(obj);
+    REQUIRE(serialized.HasValue());
+    const StringUtf8& result = serialized.GetValue();
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"({"a":1})"));
 }
 
@@ -209,7 +213,9 @@ TEST_CASE("Build and serialize mixed types", "[JsonValue]")
     arr.PushBack(JsonValue::MakeNumber(42));
     arr.PushBack(JsonValue::MakeString(str_hello));
 
-    StringUtf8 result = JsonWriter::Serialize(arr);
+    Expected<StringUtf8, ErrorCode> serialized = JsonWriter::Serialize(arr);
+    REQUIRE(serialized.HasValue());
+    const StringUtf8& result = serialized.GetValue();
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"([null,true,false,42,"hello"])"));
 }
 

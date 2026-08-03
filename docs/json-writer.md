@@ -12,7 +12,7 @@ Serializes `JsonValue` trees to JSON text. Supports both compact and pretty-prin
 
 // Parse JSON, modify, serialize back
 Opal::JsonReader reader = Opal::JsonReader::Parse(R"({"name":"Alice","score":100})");
-Opal::StringUtf8 json = Opal::JsonWriter::Serialize(reader.GetRoot());
+auto json = Opal::JsonWriter::Serialize(reader.GetRoot());
 // json == {"name":"Alice","score":100}
 ```
 
@@ -36,7 +36,7 @@ root.Insert(Opal::StringUtf8("score"), Opal::JsonValue::MakeNumber(100));
 root.Insert(Opal::StringUtf8("active"), Opal::JsonValue::MakeBool(true));
 root.Insert(Opal::StringUtf8("scores"), std::move(scores));
 
-Opal::StringUtf8 json = Opal::JsonWriter::Serialize(root);
+auto json = Opal::JsonWriter::Serialize(root);
 // {"name":"Alice","score":100,"active":true,"scores":[90,85]}
 ```
 
@@ -67,7 +67,7 @@ Opal::StringUtf8 json = Opal::JsonWriter::Serialize(root);
 `Serialize` with no options produces compact JSON with no whitespace:
 
 ```cpp
-Opal::StringUtf8 json = Opal::JsonWriter::Serialize(value);
+auto json = Opal::JsonWriter::Serialize(value);
 // [1,2,3]
 // {"key":"value"}
 ```
@@ -75,7 +75,7 @@ Opal::StringUtf8 json = Opal::JsonWriter::Serialize(value);
 Both overloads accept an optional `AllocatorBase*` for the output string. If `nullptr`, the default allocator is used.
 
 ```cpp
-Opal::StringUtf8 json = Opal::JsonWriter::Serialize(value, &my_allocator);
+auto json = Opal::JsonWriter::Serialize(value, &my_allocator);
 ```
 
 ## Pretty Print
@@ -87,7 +87,7 @@ Opal::JsonWriteOptions options;
 options.pretty = true;
 options.indent_width = 4;  // Default
 
-Opal::StringUtf8 json = Opal::JsonWriter::Serialize(value, options);
+auto json = Opal::JsonWriter::Serialize(value, options);
 ```
 
 Output:
@@ -125,7 +125,7 @@ Opal::JsonWriteOptions options;
 options.pretty = true;
 options.use_tabs = true;
 
-Opal::StringUtf8 json = Opal::JsonWriter::Serialize(value, options);
+auto json = Opal::JsonWriter::Serialize(value, options);
 ```
 
 ## String Escaping
@@ -153,15 +153,18 @@ This means large integers beyond 2^53 that were parsed or constructed as `i64` w
 
 ```cpp
 Opal::JsonReader reader = Opal::JsonReader::Parse("9007199254740993");
-Opal::StringUtf8 json = Opal::JsonWriter::Serialize(reader.GetRoot());
+auto json = Opal::JsonWriter::Serialize(reader.GetRoot());
 // json == "9007199254740993" (exact, not rounded to 9007199254740992)
 ```
 
-NaN and Infinity are not valid JSON. Attempting to serialize them throws `JsonSerializeException`.
+NaN and Infinity have no JSON spelling. A `JsonValue` can hold either, because an `f64` can, so serializing one is
+reported as `ErrorCode::InvalidArgument` rather than raised.
 
 ```cpp
 Opal::JsonValue nan_value(static_cast<Opal::f64>(NAN));
-Opal::JsonWriter::Serialize(nan_value);  // Throws JsonSerializeException
+auto result = Opal::JsonWriter::Serialize(nan_value);
+// result.HasValue() == false
+// result.GetError() == Opal::ErrorCode::InvalidArgument
 ```
 
 ## Round-Trip
@@ -171,7 +174,7 @@ Opal::JsonWriter::Serialize(nan_value);  // Throws JsonSerializeException
 ```cpp
 Opal::StringUtf8 input(R"({"name":"Alice","score":100})");
 Opal::JsonReader reader = Opal::JsonReader::Parse(input);
-Opal::StringUtf8 output = Opal::JsonWriter::Serialize(reader.GetRoot());
+auto output = Opal::JsonWriter::Serialize(reader.GetRoot());
 Opal::JsonReader reader2 = Opal::JsonReader::Parse(output);
 
 // reader2.GetRoot()["name"].GetString() == "Alice"
@@ -180,11 +183,15 @@ Opal::JsonReader reader2 = Opal::JsonReader::Parse(output);
 
 Note that object key order may differ between input and output since `HashMap` does not preserve insertion order.
 
-## Exceptions
+## Error Handling
 
-| Exception | When |
-|-----------|------|
-| `JsonSerializeException` | Value contains NaN or Infinity |
+`Serialize` returns `Expected<StringUtf8, ErrorCode>` and does not throw. On failure the output string is discarded,
+so a short or half-written document is never handed back.
+
+| Code | When |
+|------|------|
+| `ErrorCode::InvalidArgument` | Value contains NaN or Infinity |
+| `ErrorCode::OutOfMemory` | The output string could not be grown |
 
 ## API Reference
 
@@ -206,4 +213,5 @@ struct JsonWriteOptions
 | `Serialize(value, allocator)` | Serialize to compact JSON |
 | `Serialize(value, options, allocator)` | Serialize with formatting options |
 
-Both return `StringUtf8`. The `allocator` parameter defaults to `nullptr` (uses the default allocator).
+Both return `Expected<StringUtf8, ErrorCode>` and are `[[nodiscard]]`. The `allocator` parameter defaults to `nullptr`
+(uses the default allocator).
