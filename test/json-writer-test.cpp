@@ -7,6 +7,18 @@ using namespace Opal;
 
 namespace
 {
+// Unwrap the success case, so the tests that are about the document stay about the document.
+template <typename T>
+JsonReader ParseOrFail(T&& input, AllocatorBase* allocator = nullptr)
+{
+    Expected<JsonReader, JsonParseError> result = JsonReader::Parse(std::forward<T>(input), allocator);
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+}  // namespace
+
+namespace
+{
 // Unwrap the success case, so the tests that are about the JSON text stay about the JSON text.
 template <typename... Args>
 StringUtf8 SerializeOrFail(Args&&... args)
@@ -23,65 +35,65 @@ StringUtf8 SerializeOrFail(Args&&... args)
 
 TEST_CASE("Serialize null", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("null");
+    JsonReader reader = ParseOrFail("null");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("null"));
 }
 
 TEST_CASE("Serialize true", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("true");
+    JsonReader reader = ParseOrFail("true");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("true"));
 }
 
 TEST_CASE("Serialize false", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("false");
+    JsonReader reader = ParseOrFail("false");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("false"));
 }
 
 TEST_CASE("Serialize integer", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("42");
+    JsonReader reader = ParseOrFail("42");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("42"));
 }
 
 TEST_CASE("Serialize negative integer", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("-7");
+    JsonReader reader = ParseOrFail("-7");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("-7"));
 }
 
 TEST_CASE("Serialize zero", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("0");
+    JsonReader reader = ParseOrFail("0");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("0"));
 }
 
 TEST_CASE("Serialize float", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("3.14");
+    JsonReader reader = ParseOrFail("3.14");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     // Round-trip: parse the result and compare numbers.
-    JsonReader reader2 = JsonReader::Parse(result);
+    JsonReader reader2 = ParseOrFail(result);
     REQUIRE(reader2.GetRoot().GetNumber() == Catch::Approx(3.14));
 }
 
 TEST_CASE("Serialize empty string", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"("")");
+    JsonReader reader = ParseOrFail(R"("")");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"("")"));
 }
 
 TEST_CASE("Serialize simple string", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"("hello")");
+    JsonReader reader = ParseOrFail(R"("hello")");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"("hello")"));
 }
@@ -92,28 +104,28 @@ TEST_CASE("Serialize simple string", "[JsonWriter]")
 
 TEST_CASE("Serialize string with newline", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"("line1\nline2")");
+    JsonReader reader = ParseOrFail(R"("line1\nline2")");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"("line1\nline2")"));
 }
 
 TEST_CASE("Serialize string with tab", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"("a\tb")");
+    JsonReader reader = ParseOrFail(R"("a\tb")");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"("a\tb")"));
 }
 
 TEST_CASE("Serialize string with backslash", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"("a\\b")");
+    JsonReader reader = ParseOrFail(R"("a\\b")");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"("a\\b")"));
 }
 
 TEST_CASE("Serialize string with quote", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("\"a\\\"b\"");
+    JsonReader reader = ParseOrFail("\"a\\\"b\"");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     StringUtf8 expected("\"a\\\"b\"");
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(expected));
@@ -121,14 +133,14 @@ TEST_CASE("Serialize string with quote", "[JsonWriter]")
 
 TEST_CASE("Serialize string with carriage return", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"("a\rb")");
+    JsonReader reader = ParseOrFail(R"("a\rb")");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"("a\rb")"));
 }
 
 TEST_CASE("Serialize string with backspace", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("\"a\\bb\"");
+    JsonReader reader = ParseOrFail("\"a\\bb\"");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     StringUtf8 expected("\"a\\bb\"");
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(expected));
@@ -136,7 +148,7 @@ TEST_CASE("Serialize string with backspace", "[JsonWriter]")
 
 TEST_CASE("Serialize string with form feed", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"("a\fb")");
+    JsonReader reader = ParseOrFail(R"("a\fb")");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"("a\fb")"));
 }
@@ -144,7 +156,7 @@ TEST_CASE("Serialize string with form feed", "[JsonWriter]")
 TEST_CASE("Serialize string with control char", "[JsonWriter]")
 {
     // \u0001 is a control character that should be escaped as \u0001.
-    JsonReader reader = JsonReader::Parse(R"("a\u0001b")");
+    JsonReader reader = ParseOrFail(R"("a\u0001b")");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"("a\u0001b")"));
 }
@@ -155,28 +167,28 @@ TEST_CASE("Serialize string with control char", "[JsonWriter]")
 
 TEST_CASE("Serialize empty array", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("[]");
+    JsonReader reader = ParseOrFail("[]");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("[]"));
 }
 
 TEST_CASE("Serialize single element array", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("[1]");
+    JsonReader reader = ParseOrFail("[1]");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("[1]"));
 }
 
 TEST_CASE("Serialize multiple element array", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("[1,2,3]");
+    JsonReader reader = ParseOrFail("[1,2,3]");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("[1,2,3]"));
 }
 
 TEST_CASE("Serialize nested array", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("[[1,2],[3]]");
+    JsonReader reader = ParseOrFail("[[1,2],[3]]");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("[[1,2],[3]]"));
 }
@@ -187,21 +199,21 @@ TEST_CASE("Serialize nested array", "[JsonWriter]")
 
 TEST_CASE("Serialize empty object", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("{}");
+    JsonReader reader = ParseOrFail("{}");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("{}"));
 }
 
 TEST_CASE("Serialize single key object", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"({"a":1})");
+    JsonReader reader = ParseOrFail(R"({"a":1})");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"({"a":1})"));
 }
 
 TEST_CASE("Serialize nested object", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"({"a":{"b":2}})");
+    JsonReader reader = ParseOrFail(R"({"a":{"b":2}})");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8(R"({"a":{"b":2}})"));
 }
@@ -212,7 +224,7 @@ TEST_CASE("Serialize nested object", "[JsonWriter]")
 
 TEST_CASE("Pretty print array", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("[1,2,3]");
+    JsonReader reader = ParseOrFail("[1,2,3]");
     JsonWriteOptions options;
     options.pretty = true;
     options.indent_width = 4;
@@ -223,7 +235,7 @@ TEST_CASE("Pretty print array", "[JsonWriter]")
 
 TEST_CASE("Pretty print object", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"({"a":1})");
+    JsonReader reader = ParseOrFail(R"({"a":1})");
     JsonWriteOptions options;
     options.pretty = true;
     options.indent_width = 4;
@@ -234,7 +246,7 @@ TEST_CASE("Pretty print object", "[JsonWriter]")
 
 TEST_CASE("Pretty print nested", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"({"a":[1,2]})");
+    JsonReader reader = ParseOrFail(R"({"a":[1,2]})");
     JsonWriteOptions options;
     options.pretty = true;
     options.indent_width = 2;
@@ -245,7 +257,7 @@ TEST_CASE("Pretty print nested", "[JsonWriter]")
 
 TEST_CASE("Pretty print with tabs", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("[1,2]");
+    JsonReader reader = ParseOrFail("[1,2]");
     JsonWriteOptions options;
     options.pretty = true;
     options.use_tabs = true;
@@ -256,7 +268,7 @@ TEST_CASE("Pretty print with tabs", "[JsonWriter]")
 
 TEST_CASE("Pretty print empty array", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("[]");
+    JsonReader reader = ParseOrFail("[]");
     JsonWriteOptions options;
     options.pretty = true;
     StringUtf8 result = SerializeOrFail(reader.GetRoot(), options);
@@ -265,7 +277,7 @@ TEST_CASE("Pretty print empty array", "[JsonWriter]")
 
 TEST_CASE("Pretty print empty object", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("{}");
+    JsonReader reader = ParseOrFail("{}");
     JsonWriteOptions options;
     options.pretty = true;
     StringUtf8 result = SerializeOrFail(reader.GetRoot(), options);
@@ -279,9 +291,9 @@ TEST_CASE("Pretty print empty object", "[JsonWriter]")
 TEST_CASE("Round-trip simple object", "[JsonWriter]")
 {
     StringUtf8 input(R"({"name":"Alice","score":100})");
-    JsonReader reader1 = JsonReader::Parse(input);
+    JsonReader reader1 = ParseOrFail(input);
     StringUtf8 serialized = SerializeOrFail(reader1.GetRoot());
-    JsonReader reader2 = JsonReader::Parse(serialized);
+    JsonReader reader2 = ParseOrFail(serialized);
 
     REQUIRE(reader2.GetRoot()["name"].GetString() == StringViewUtf8("Alice"));
     REQUIRE(reader2.GetRoot()["score"].GetNumberAs<i32>() == 100);
@@ -290,9 +302,9 @@ TEST_CASE("Round-trip simple object", "[JsonWriter]")
 TEST_CASE("Round-trip array of mixed types", "[JsonWriter]")
 {
     StringUtf8 input(R"([null,true,false,42,"hello"])");
-    JsonReader reader1 = JsonReader::Parse(input);
+    JsonReader reader1 = ParseOrFail(input);
     StringUtf8 serialized = SerializeOrFail(reader1.GetRoot());
-    JsonReader reader2 = JsonReader::Parse(serialized);
+    JsonReader reader2 = ParseOrFail(serialized);
 
     const JsonValue& root = reader2.GetRoot();
     REQUIRE(root[0].IsNull());
@@ -326,7 +338,7 @@ TEST_CASE("Serialize negative Infinity reports an invalid argument", "[JsonWrite
 
 TEST_CASE("Serialize reports a failed allocation", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse(R"({"a":[1,2,3],"b":"a string long enough to need the heap"})");
+    JsonReader reader = ParseOrFail(R"({"a":[1,2,3],"b":"a string long enough to need the heap"})");
 
     SECTION("Output string cannot be grown")
     {
@@ -350,7 +362,7 @@ TEST_CASE("Serialize reports a failed allocation", "[JsonWriter]")
 TEST_CASE("Serialize with explicit allocator", "[JsonWriter]")
 {
     MallocAllocator allocator;
-    JsonReader reader = JsonReader::Parse("[1,2,3]");
+    JsonReader reader = ParseOrFail("[1,2,3]");
     StringUtf8 result = SerializeOrFail(reader.GetRoot(), &allocator);
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("[1,2,3]"));
 }
@@ -362,21 +374,21 @@ TEST_CASE("Serialize with explicit allocator", "[JsonWriter]")
 TEST_CASE("Serialize large integer preserves precision", "[JsonWriter]")
 {
     // 2^53 + 1, not representable as f64.
-    JsonReader reader = JsonReader::Parse("9007199254740993");
+    JsonReader reader = ParseOrFail("9007199254740993");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("9007199254740993"));
 }
 
 TEST_CASE("Serialize i64 max", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("9223372036854775807");
+    JsonReader reader = ParseOrFail("9223372036854775807");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("9223372036854775807"));
 }
 
 TEST_CASE("Serialize negative large integer", "[JsonWriter]")
 {
-    JsonReader reader = JsonReader::Parse("-9007199254740993");
+    JsonReader reader = ParseOrFail("-9007199254740993");
     StringUtf8 result = SerializeOrFail(reader.GetRoot());
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("-9007199254740993"));
 }
@@ -391,8 +403,8 @@ TEST_CASE("Serialize programmatically built i64", "[JsonWriter]")
 TEST_CASE("Round-trip large integer", "[JsonWriter]")
 {
     StringUtf8 input("9007199254740993");
-    JsonReader reader1 = JsonReader::Parse(input);
+    JsonReader reader1 = ParseOrFail(input);
     StringUtf8 serialized = SerializeOrFail(reader1.GetRoot());
-    JsonReader reader2 = JsonReader::Parse(serialized);
+    JsonReader reader2 = ParseOrFail(serialized);
     REQUIRE(reader2.GetRoot().GetIntegerNumber() == 9007199254740993LL);
 }

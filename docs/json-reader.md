@@ -10,13 +10,18 @@ Read-only JSON parser that produces an immutable tree of `JsonValue` nodes. Stri
 #include "opal/container/json-reader.h"
 
 // Parse a JSON string
-Opal::JsonReader reader = Opal::JsonReader::Parse(R"({
+auto parsed = Opal::JsonReader::Parse(R"({
     "name": "Alice",
     "score": 100,
     "items": [1, 2, 3]
 })");
+if (!parsed.HasValue())
+{
+    // parsed.GetError() says where and why
+    return;
+}
 
-const Opal::JsonValue& root = reader.GetRoot();
+const Opal::JsonValue& root = parsed.GetValue().GetRoot();
 Opal::StringViewUtf8 name = root["name"].GetString();
 Opal::i32 score = root["score"].GetNumberAs<Opal::i32>();
 ```
@@ -29,35 +34,41 @@ Opal::i32 score = root["score"].GetNumberAs<Opal::i32>();
 
 ```cpp
 // Borrow input — caller must keep the string alive as long as the reader exists.
-Opal::JsonReader reader = Opal::JsonReader::Parse(my_string);
+auto parsed = Opal::JsonReader::Parse(my_string);
 
 // Take ownership — the reader moves the string into itself.
-Opal::JsonReader reader = Opal::JsonReader::Parse(std::move(my_string));
+auto parsed = Opal::JsonReader::Parse(std::move(my_string));
 ```
 
 Both overloads accept an optional `AllocatorBase*` for all internal allocations. If `nullptr`, the default allocator is used.
 
 ```cpp
-Opal::JsonReader reader = Opal::JsonReader::Parse(input, &my_allocator);
+auto parsed = Opal::JsonReader::Parse(input, &my_allocator);
 ```
 
-Throws `JsonParseException` on malformed input. The exception carries `line`, `column`, and `byte_offset` fields for diagnostics.
+Both return `Expected<JsonReader, JsonParseError>` and are `[[nodiscard]]`. JSON usually comes from outside the
+program, so malformed input is an expected outcome rather than an exception.
+
+`JsonParseError` carries `code`, `line`, `column`, `byte_offset` and a message. The message is stored inline, so it
+stays readable after the parser and the input are gone.
 
 ```cpp
-try
+auto parsed = Opal::JsonReader::Parse("{ invalid }");
+if (!parsed.HasValue())
 {
-    Opal::JsonReader reader = Opal::JsonReader::Parse("{ invalid }");
-}
-catch (const Opal::JsonParseException& e)
-{
-    // e.line, e.column, e.byte_offset
+    const Opal::JsonParseError& error = parsed.GetError();
+    // error.line, error.column, error.byte_offset, error.GetMessage()
+    // error.code is InvalidArgument for malformed input, OutOfMemory if the tree could not be built
 }
 ```
+
+A `JsonReader` owns the text it parsed when built from an rvalue, and the parsed tree points into it, so the reader
+must outlive any view taken from it. Moving the reader is safe.
 
 ## Accessing the Root
 
 ```cpp
-const Opal::JsonValue& root = reader.GetRoot();
+const Opal::JsonValue& root = parsed.GetValue().GetRoot();
 ```
 
 The root can be any JSON type: null, bool, number, string, array, or object.
@@ -144,8 +155,8 @@ Throws `JsonTypeMismatchException` if the value is not an array or object.
 `JsonValue` provides `begin()`/`end()` for direct range-for on arrays:
 
 ```cpp
-Opal::JsonReader reader = Opal::JsonReader::Parse("[10, 20, 30]");
-for (const Opal::JsonValue& elem : reader.GetRoot())
+auto parsed = Opal::JsonReader::Parse("[10, 20, 30]");
+for (const Opal::JsonValue& elem : parsed.GetValue().GetRoot())
 {
     Opal::f64 n = elem.GetNumber();
 }
@@ -218,7 +229,7 @@ Both use `SingleThread` policy since JSON values are not designed for concurrent
 
 | Exception | When |
 |-----------|------|
-| `JsonParseException` | Malformed JSON input. Fields: `line`, `column`, `byte_offset`. |
+| (none) | Malformed input is returned as a `JsonParseError`, not raised. |
 | `JsonTypeMismatchException` | Accessing a value as the wrong type. |
 | `OutOfBoundsException` | Array index out of range. |
 | `InvalidArgumentException` | Object key not found. |

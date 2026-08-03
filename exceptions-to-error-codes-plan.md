@@ -330,9 +330,15 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 
 ### JSON (§5)
 
-- [ ] Add a `JsonParseError` struct carrying line, column, offset
-- [ ] `JsonReader::Parse` returns `Expected<JsonReader, JsonParseError>` - `include/opal/container/json-reader.h:278,286`
-- [ ] Route the parser's `ThrowError` and OOM sites through it - `src/json-reader.cpp:566,590,895,965`
+- [x] Add a `JsonParseError` struct carrying code, line, column, offset and an owned message
+- [x] `JsonReader::Parse` returns `Expected<JsonReader, JsonParseError>` - `include/opal/container/json-reader.h:278,286`
+- [x] Route the parser's `ThrowError` and OOM sites through it - `src/json-reader.cpp:566,590,895,965`. The abort stays
+      a non-local jump inside the parser, now a file-local `ParseAbort` rather than a public exception type, and is
+      caught at the `Parse` boundary. Threading a code back through twenty-odd failure points in a recursive descent
+      would have buried the grammar for no gain the caller can see.
+- [ ] The parser does not check the `SharedPtr` allocations behind `JsonArray` and `JsonObject`, so a document that
+      runs out of memory mid-parse builds an invalid node rather than reporting `OutOfMemory`. `SharedPtr` no longer
+      crashes on it, but the parser should abort. A `NullAllocator` parse test is waiting on this.
 - [ ] Add `TryGetBool`, `TryGetNumber`, `TryGetIntegerNumber`, `TryGetString`, `TryAt`, `TryFind`, `TryGetPath`
 - [x] `JsonWriter::Serialize` (both overloads) returns `Expected<StringUtf8, ErrorCode>` - `include/opal/container/json-writer.h:44,54`
 - [x] NaN / Infinity become `ErrorCode::InvalidArgument` - `src/json-writer.cpp:143,147`

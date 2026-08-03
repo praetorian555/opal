@@ -3,10 +3,13 @@
 #include "opal/allocator.h"
 #include "opal/casts.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/container/expected.h"
 #include "opal/container/hash-map.h"
+#include "opal/container/scope-ptr.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/container/string-view.h"
 #include "opal/container/string.h"
+#include "opal/error-codes.h"
 #include "opal/exceptions.h"
 #include "opal/variant.h"
 
@@ -14,23 +17,55 @@ namespace Opal
 {
 
 // ------------------------------------------------------------------------------------------------
-// Exceptions.
+// Parse failure.
 // ------------------------------------------------------------------------------------------------
 
-struct JsonParseException : Exception
+/**
+ * Where a parse stopped and why.
+ *
+ * The message is stored inline rather than pointed at, so the error stays readable after the parser and the input are
+ * both gone. A bare ErrorCode would lose the position, which is the only part a caller can show a user.
+ */
+struct JsonParseError
 {
-    JsonParseException(u64 in_line, u64 in_column, u64 in_byte_offset, const char* message)
-        : Exception(StringEx("JSON parse error at ") + in_line + ":" + in_column + ": " + message),
-          line(in_line),
-          column(in_column),
-          byte_offset(in_byte_offset)
+    static constexpr u64 k_max_message_size = 64;
+
+    JsonParseError() = default;
+
+    JsonParseError(ErrorCode in_code, u64 in_line, u64 in_column, u64 in_byte_offset, const char* in_message)
+        : code(in_code), line(in_line), column(in_column), byte_offset(in_byte_offset)
     {
+        u64 i = 0;
+        if (in_message != nullptr)
+        {
+            for (; in_message[i] != '\0' && i < k_max_message_size - 1; ++i)
+            {
+                message[i] = in_message[i];
+            }
+        }
+        message[i] = '\0';
     }
 
+    /** Human-readable reason the parse stopped. Never null. */
+    [[nodiscard]] const char* GetMessage() const { return message; }
+
+    /** ErrorCode::InvalidArgument for malformed input, ErrorCode::OutOfMemory when the tree could not be built. */
+    ErrorCode code = ErrorCode::InvalidArgument;
+    /** One-based line the parse stopped on. */
     u64 line = 0;
+    /** One-based column the parse stopped on. */
     u64 column = 0;
+    /** Offset into the input, in bytes. */
     u64 byte_offset = 0;
+
+private:
+    // NOLINTNEXTLINE(modernize-avoid-c-arrays)
+    char message[k_max_message_size] = {};
 };
+
+// ------------------------------------------------------------------------------------------------
+// Exceptions.
+// ------------------------------------------------------------------------------------------------
 
 struct JsonTypeMismatchException : Exception
 {
@@ -273,17 +308,19 @@ public:
      * as long as this JsonReader exists.
      * @param input JSON text. Caller retains ownership.
      * @param allocator Allocator for all internal allocations. If nullptr, the default allocator is used.
-     * @throws JsonParseException on malformed JSON input.
+     * @return A reader over the parsed document, or where and why the parse stopped. Malformed input is the expected
+     *         case for JSON that came from outside the program, so it is reported rather than raised.
      */
-    static JsonReader Parse(const StringUtf8& input, AllocatorBase* allocator = nullptr);
+    [[nodiscard]] static Expected<JsonReader, JsonParseError> Parse(const StringUtf8& input, AllocatorBase* allocator = nullptr);
 
     /**
      * Parse JSON and take ownership of the input string.
      * @param input JSON text. Ownership is transferred to JsonReader via move.
      * @param allocator Allocator for all internal allocations. If nullptr, the default allocator is used.
-     * @throws JsonParseException on malformed JSON input.
+     * @return A reader over the parsed document, or where and why the parse stopped. Malformed input is the expected
+     *         case for JSON that came from outside the program, so it is reported rather than raised.
      */
-    static JsonReader Parse(StringUtf8&& input, AllocatorBase* allocator = nullptr);
+    [[nodiscard]] static Expected<JsonReader, JsonParseError> Parse(StringUtf8&& input, AllocatorBase* allocator = nullptr);
 
     JsonReader(const JsonReader&) = delete;
     JsonReader& operator=(const JsonReader&) = delete;
@@ -299,7 +336,10 @@ private:
     JsonReader() = default;
 
     JsonValue m_root;
-    StringUtf8 m_owned_input;
+    // Held indirectly on purpose. The parsed tree is full of StringViewUtf8 pointing into this string, and a short
+    // document lives in the string's inline storage, which moves with the object. Owning it through a pointer keeps
+    // the characters at one address no matter how often the reader is moved.
+    ScopePtr<StringUtf8> m_owned_input;
     DynamicArray<StringUtf8> m_escaped_strings;
     AllocatorBase* m_allocator = nullptr;
 };

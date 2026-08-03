@@ -5,6 +5,18 @@
 
 using namespace Opal;
 
+namespace
+{
+// Unwrap the success case, so the tests that are about the document stay about the document.
+template <typename T>
+JsonReader ParseOrFail(T&& input, AllocatorBase* allocator = nullptr)
+{
+    Expected<JsonReader, JsonParseError> result = JsonReader::Parse(std::forward<T>(input), allocator);
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+}  // namespace
+
 // ------------------------------------------------------------------------------------------------
 // Factory methods.
 // ------------------------------------------------------------------------------------------------

@@ -15,6 +15,18 @@ namespace Opal
 
 namespace
 {
+/**
+ * Unwinds the parser out of however deep it got.
+ *
+ * The parser is a recursive descent over an explicit stack that fails from twenty-odd places, most of them with no
+ * useful value to return. Threading a code back through every one of them would obscure the grammar, so the abort
+ * stays a non-local jump. It is caught in Parse and handed back as a JsonParseError, so it never escapes the library.
+ */
+struct ParseAbort
+{
+    JsonParseError error;
+};
+
 const char* JsonTypeToString(JsonType type)
 {
     switch (type)
@@ -563,7 +575,7 @@ private:
                 }
                 if (!(m_stack.EmplaceBack(ParseFrame{JsonArray(m_allocator), JsonObject{}, StringViewUtf8{}, false})).HasValue()) [[unlikely]]
                 {
-                    throw OutOfMemoryException(__FUNCTION__);
+                    AbortOutOfMemory();
                 }
                 return ParseLeafOrOpenContainer();
             }
@@ -587,7 +599,7 @@ private:
                 SkipWhitespace();
                 if (!(m_stack.EmplaceBack(JsonArray{}, JsonObject(m_allocator), key, true)).HasValue()) [[unlikely]]
                 {
-                    throw OutOfMemoryException(__FUNCTION__);
+                    AbortOutOfMemory();
                 }
                 return ParseLeafOrOpenContainer();
             }
@@ -775,28 +787,28 @@ private:
                 switch (m_input[i])
                 {
                     case '"':
-                        AppendOrThrow(unescaped, '"');
+                        AppendOrAbort(unescaped, '"');
                         break;
                     case '\\':
-                        AppendOrThrow(unescaped, '\\');
+                        AppendOrAbort(unescaped, '\\');
                         break;
                     case '/':
-                        AppendOrThrow(unescaped, '/');
+                        AppendOrAbort(unescaped, '/');
                         break;
                     case 'b':
-                        AppendOrThrow(unescaped, '\b');
+                        AppendOrAbort(unescaped, '\b');
                         break;
                     case 'f':
-                        AppendOrThrow(unescaped, '\f');
+                        AppendOrAbort(unescaped, '\f');
                         break;
                     case 'n':
-                        AppendOrThrow(unescaped, '\n');
+                        AppendOrAbort(unescaped, '\n');
                         break;
                     case 'r':
-                        AppendOrThrow(unescaped, '\r');
+                        AppendOrAbort(unescaped, '\r');
                         break;
                     case 't':
-                        AppendOrThrow(unescaped, '\t');
+                        AppendOrAbort(unescaped, '\t');
                         break;
                     case 'u':
                         UnescapeUnicode(unescaped, i);
@@ -808,7 +820,7 @@ private:
             }
             else
             {
-                AppendOrThrow(unescaped, m_input[i]);
+                AppendOrAbort(unescaped, m_input[i]);
                 ++i;
             }
         }
@@ -887,38 +899,37 @@ private:
         return result;
     }
 
-    // The reader reports every failure by throwing, so a failed append does too.
-    static void AppendOrThrow(StringUtf8& out, char8 ch)
+    void AppendOrAbort(StringUtf8& out, char8 ch) const
     {
         if (out.Append(ch) != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException(out.GetAllocator().GetName(), out.GetSize() + 1);
+            AbortOutOfMemory();
         }
     }
 
-    static void EncodeUtf8(StringUtf8& out, u32 codepoint)
+    void EncodeUtf8(StringUtf8& out, u32 codepoint) const
     {
         if (codepoint <= 0x7F)
         {
-            AppendOrThrow(out, static_cast<char8>(codepoint));
+            AppendOrAbort(out, static_cast<char8>(codepoint));
         }
         else if (codepoint <= 0x7FF)
         {
-            AppendOrThrow(out, static_cast<char8>(0xC0 | (codepoint >> 6)));
-            AppendOrThrow(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
+            AppendOrAbort(out, static_cast<char8>(0xC0 | (codepoint >> 6)));
+            AppendOrAbort(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
         }
         else if (codepoint <= 0xFFFF)
         {
-            AppendOrThrow(out, static_cast<char8>(0xE0 | (codepoint >> 12)));
-            AppendOrThrow(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
-            AppendOrThrow(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
+            AppendOrAbort(out, static_cast<char8>(0xE0 | (codepoint >> 12)));
+            AppendOrAbort(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
+            AppendOrAbort(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
         }
         else if (codepoint <= 0x10FFFF)
         {
-            AppendOrThrow(out, static_cast<char8>(0xF0 | (codepoint >> 18)));
-            AppendOrThrow(out, static_cast<char8>(0x80 | ((codepoint >> 12) & 0x3F)));
-            AppendOrThrow(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
-            AppendOrThrow(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
+            AppendOrAbort(out, static_cast<char8>(0xF0 | (codepoint >> 18)));
+            AppendOrAbort(out, static_cast<char8>(0x80 | ((codepoint >> 12) & 0x3F)));
+            AppendOrAbort(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
+            AppendOrAbort(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
         }
     }
 
@@ -962,7 +973,15 @@ private:
         ++m_column;
     }
 
-    [[noreturn]] void ThrowError(const char* message) const { throw JsonParseException(m_line, m_column, m_pos, message); }
+    [[noreturn]] void ThrowError(const char* message) const
+    {
+        throw ParseAbort{JsonParseError(ErrorCode::InvalidArgument, m_line, m_column, m_pos, message)};
+    }
+
+    [[noreturn]] void AbortOutOfMemory() const
+    {
+        throw ParseAbort{JsonParseError(ErrorCode::OutOfMemory, m_line, m_column, m_pos, "Out of memory")};
+    }
 
     const char8* m_input = nullptr;
     u64 m_size = 0;
@@ -980,8 +999,9 @@ private:
 // JsonReader.
 // ------------------------------------------------------------------------------------------------
 
-JsonReader JsonReader::Parse(const StringUtf8& input, AllocatorBase* allocator)
+Expected<JsonReader, JsonParseError> JsonReader::Parse(const StringUtf8& input, AllocatorBase* allocator)
 {
+    using Result = Expected<JsonReader, JsonParseError>;
     if (allocator == nullptr)
     {
         allocator = GetDefaultAllocator();
@@ -991,25 +1011,42 @@ JsonReader JsonReader::Parse(const StringUtf8& input, AllocatorBase* allocator)
     reader.m_escaped_strings = DynamicArray<StringUtf8>(allocator);
 
     JsonParser parser(input, allocator, reader.m_escaped_strings);
-    reader.m_root = parser.Parse();
-    return reader;
+    try
+    {
+        reader.m_root = parser.Parse();
+    } catch (const ParseAbort& abort)
+    {
+        return Result(abort.error);
+    }
+    return Result(Move(reader));
 }
 
-JsonReader JsonReader::Parse(StringUtf8&& input, AllocatorBase* allocator)
+Expected<JsonReader, JsonParseError> JsonReader::Parse(StringUtf8&& input, AllocatorBase* allocator)
 {
+    using Result = Expected<JsonReader, JsonParseError>;
     if (allocator == nullptr)
     {
         allocator = GetDefaultAllocator();
     }
     JsonReader reader;
     reader.m_allocator = allocator;
-    reader.m_owned_input = std::move(input);
+    reader.m_owned_input = MakeScoped<StringUtf8>(allocator, std::move(input));
+    if (!reader.m_owned_input.IsValid()) [[unlikely]]
+    {
+        return Result(JsonParseError(ErrorCode::OutOfMemory, 0, 0, 0, "Out of memory"));
+    }
     reader.m_escaped_strings = DynamicArray<StringUtf8>(allocator);
 
-    const StringViewUtf8 view(reader.m_owned_input);
+    const StringViewUtf8 view(*reader.m_owned_input.Get());
     JsonParser parser(view, allocator, reader.m_escaped_strings);
-    reader.m_root = parser.Parse();
-    return reader;
+    try
+    {
+        reader.m_root = parser.Parse();
+    } catch (const ParseAbort& abort)
+    {
+        return Result(abort.error);
+    }
+    return Result(Move(reader));
 }
 
 const JsonValue& JsonReader::GetRoot() const

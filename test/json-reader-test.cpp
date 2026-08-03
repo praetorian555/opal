@@ -4,60 +4,72 @@
 
 using namespace Opal;
 
+namespace
+{
+// Unwrap the success case, so the tests that are about the document stay about the document.
+template <typename T>
+JsonReader ParseOrFail(T&& input, AllocatorBase* allocator = nullptr)
+{
+    Expected<JsonReader, JsonParseError> result = JsonReader::Parse(std::forward<T>(input), allocator);
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+}  // namespace
+
 // ------------------------------------------------------------------------------------------------
 // Parse basics.
 // ------------------------------------------------------------------------------------------------
 
 TEST_CASE("JsonReader parse null", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("null");
+    JsonReader reader = ParseOrFail("null");
     REQUIRE(reader.GetRoot().IsNull());
 }
 
 TEST_CASE("JsonReader parse true", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("true");
+    JsonReader reader = ParseOrFail("true");
     REQUIRE(reader.GetRoot().IsBool());
     REQUIRE(reader.GetRoot().GetBool() == true);
 }
 
 TEST_CASE("JsonReader parse false", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("false");
+    JsonReader reader = ParseOrFail("false");
     REQUIRE(reader.GetRoot().IsBool());
     REQUIRE(reader.GetRoot().GetBool() == false);
 }
 
 TEST_CASE("JsonReader parse integer number", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("42");
+    JsonReader reader = ParseOrFail("42");
     REQUIRE(reader.GetRoot().IsNumber());
     REQUIRE(reader.GetRoot().GetNumber() == 42.0);
 }
 
 TEST_CASE("JsonReader parse negative number", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("-3.14");
+    JsonReader reader = ParseOrFail("-3.14");
     REQUIRE(reader.GetRoot().IsNumber());
     REQUIRE(reader.GetRoot().GetNumber() == Catch::Approx(-3.14));
 }
 
 TEST_CASE("JsonReader parse exponent number", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("1.5e10");
+    JsonReader reader = ParseOrFail("1.5e10");
     REQUIRE(reader.GetRoot().GetNumber() == Catch::Approx(1.5e10));
 }
 
 TEST_CASE("JsonReader parse string", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse(R"("hello")");
+    JsonReader reader = ParseOrFail(R"("hello")");
     REQUIRE(reader.GetRoot().IsString());
     REQUIRE(reader.GetRoot().GetString() == StringViewUtf8("hello"));
 }
 
 TEST_CASE("JsonReader parse string with escapes", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse(R"("hello\nworld")");
+    JsonReader reader = ParseOrFail(R"("hello\nworld")");
     REQUIRE(reader.GetRoot().IsString());
     REQUIRE(reader.GetRoot().GetString() == StringViewUtf8("hello\nworld"));
 }
@@ -65,20 +77,20 @@ TEST_CASE("JsonReader parse string with escapes", "[JsonReader]")
 TEST_CASE("JsonReader parse string with unicode escape", "[JsonReader]")
 {
     // \u0041 = 'A'
-    JsonReader reader = JsonReader::Parse(R"("\u0041")");
+    JsonReader reader = ParseOrFail(R"("\u0041")");
     REQUIRE(reader.GetRoot().GetString() == StringViewUtf8("A"));
 }
 
 TEST_CASE("JsonReader parse empty array", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("[]");
+    JsonReader reader = ParseOrFail("[]");
     REQUIRE(reader.GetRoot().IsArray());
     REQUIRE(reader.GetRoot().GetSize() == 0);
 }
 
 TEST_CASE("JsonReader parse array", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("[1, 2, 3]");
+    JsonReader reader = ParseOrFail("[1, 2, 3]");
     const JsonValue& root = reader.GetRoot();
     REQUIRE(root.IsArray());
     REQUIRE(root.GetSize() == 3);
@@ -89,14 +101,14 @@ TEST_CASE("JsonReader parse array", "[JsonReader]")
 
 TEST_CASE("JsonReader parse empty object", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("{}");
+    JsonReader reader = ParseOrFail("{}");
     REQUIRE(reader.GetRoot().IsObject());
     REQUIRE(reader.GetRoot().GetSize() == 0);
 }
 
 TEST_CASE("JsonReader parse object", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse(R"({"a": 1, "b": true})");
+    JsonReader reader = ParseOrFail(R"({"a": 1, "b": true})");
     const JsonValue& root = reader.GetRoot();
     REQUIRE(root.IsObject());
     REQUIRE(root.GetSize() == 2);
@@ -106,7 +118,7 @@ TEST_CASE("JsonReader parse object", "[JsonReader]")
 
 TEST_CASE("JsonReader parse nested structure", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse(R"({
+    JsonReader reader = ParseOrFail(R"({
         "players": [
             {"name": "Alice", "score": 100},
             {"name": "Bob", "score": 200}
@@ -123,7 +135,7 @@ TEST_CASE("JsonReader parse nested structure", "[JsonReader]")
 
 TEST_CASE("JsonReader GetNumberAs", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("42");
+    JsonReader reader = ParseOrFail("42");
     REQUIRE(reader.GetRoot().GetNumberAs<i32>() == 42);
     REQUIRE(reader.GetRoot().GetNumberAs<u64>() == 42);
 }
@@ -134,7 +146,7 @@ TEST_CASE("JsonReader GetNumberAs", "[JsonReader]")
 
 TEST_CASE("JsonReader GetPath", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse(R"({
+    JsonReader reader = ParseOrFail(R"({
         "a": {"b": {"c": 42}}
     })");
     REQUIRE(reader.GetRoot().GetPath("a.b.c").GetNumber() == 42.0);
@@ -142,7 +154,7 @@ TEST_CASE("JsonReader GetPath", "[JsonReader]")
 
 TEST_CASE("JsonReader GetPath with array index", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse(R"({
+    JsonReader reader = ParseOrFail(R"({
         "items": [10, 20, 30]
     })");
     REQUIRE(reader.GetRoot().GetPath("items.1").GetNumber() == 20.0);
@@ -154,12 +166,12 @@ TEST_CASE("JsonReader GetPath with array index", "[JsonReader]")
 
 TEST_CASE("JsonReader GetType", "[JsonReader]")
 {
-    REQUIRE(JsonReader::Parse("null").GetRoot().GetType() == JsonType::Null);
-    REQUIRE(JsonReader::Parse("true").GetRoot().GetType() == JsonType::Bool);
-    REQUIRE(JsonReader::Parse("1").GetRoot().GetType() == JsonType::Number);
-    REQUIRE(JsonReader::Parse(R"("x")").GetRoot().GetType() == JsonType::String);
-    REQUIRE(JsonReader::Parse("[]").GetRoot().GetType() == JsonType::Array);
-    REQUIRE(JsonReader::Parse("{}").GetRoot().GetType() == JsonType::Object);
+    REQUIRE(ParseOrFail("null").GetRoot().GetType() == JsonType::Null);
+    REQUIRE(ParseOrFail("true").GetRoot().GetType() == JsonType::Bool);
+    REQUIRE(ParseOrFail("1").GetRoot().GetType() == JsonType::Number);
+    REQUIRE(ParseOrFail(R"("x")").GetRoot().GetType() == JsonType::String);
+    REQUIRE(ParseOrFail("[]").GetRoot().GetType() == JsonType::Array);
+    REQUIRE(ParseOrFail("{}").GetRoot().GetType() == JsonType::Object);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -168,7 +180,7 @@ TEST_CASE("JsonReader GetType", "[JsonReader]")
 
 TEST_CASE("JsonReader type mismatch throws", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("42");
+    JsonReader reader = ParseOrFail("42");
     REQUIRE_THROWS_AS(reader.GetRoot().GetBool(), JsonTypeMismatchException);
     REQUIRE_THROWS_AS(reader.GetRoot().GetString(), JsonTypeMismatchException);
     REQUIRE_THROWS_AS(reader.GetRoot()[0], JsonTypeMismatchException);
@@ -178,13 +190,13 @@ TEST_CASE("JsonReader type mismatch throws", "[JsonReader]")
 
 TEST_CASE("JsonReader array out of bounds throws", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("[1]");
+    JsonReader reader = ParseOrFail("[1]");
     REQUIRE_THROWS_AS(reader.GetRoot()[1], OutOfBoundsException);
 }
 
 TEST_CASE("JsonReader object missing key throws", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse(R"({"a": 1})");
+    JsonReader reader = ParseOrFail(R"({"a": 1})");
     REQUIRE_THROWS_AS(reader.GetRoot()["b"], InvalidArgumentException);
 }
 
@@ -194,24 +206,45 @@ TEST_CASE("JsonReader object missing key throws", "[JsonReader]")
 
 TEST_CASE("JsonReader parse error on invalid input", "[JsonReader]")
 {
-    REQUIRE_THROWS_AS(JsonReader::Parse(""), JsonParseException);
-    REQUIRE_THROWS_AS(JsonReader::Parse("{"), JsonParseException);
-    REQUIRE_THROWS_AS(JsonReader::Parse("[1,]"), JsonParseException);
-    REQUIRE_THROWS_AS(JsonReader::Parse("nul"), JsonParseException);
+    REQUIRE(!JsonReader::Parse("").HasValue());
+    REQUIRE(!JsonReader::Parse("{").HasValue());
+    REQUIRE(!JsonReader::Parse("[1,]").HasValue());
+    REQUIRE(!JsonReader::Parse("nul").HasValue());
+    REQUIRE(JsonReader::Parse("nul").GetError().code == ErrorCode::InvalidArgument);
+}
+
+TEST_CASE("JsonReader survives being moved", "[JsonReader]")
+{
+    // The document is short enough to live in the string's inline storage, which is where the parsed views point.
+    // Moving the reader used to relocate those characters out from under them.
+    auto MakeReader = []()
+    {
+        Expected<JsonReader, JsonParseError> parsed = JsonReader::Parse(StringUtf8(R"({"a": 1, "b": true})"));
+        REQUIRE(parsed.HasValue());
+        return std::move(parsed).GetValue();
+    };
+
+    JsonReader reader = MakeReader();
+    JsonReader moved = std::move(reader);
+    JsonReader moved_again = std::move(moved);
+
+    const JsonValue& root = moved_again.GetRoot();
+    REQUIRE(root.IsObject());
+    REQUIRE(root.GetSize() == 2);
+    REQUIRE(root["a"].GetNumber() == 1.0);
+    REQUIRE(root["b"].GetBool() == true);
 }
 
 TEST_CASE("JsonReader parse error has line and column", "[JsonReader]")
 {
-    try
-    {
-        JsonReader::Parse("{\n  \"a\": }");
-        REQUIRE(false);
-    }
-    catch (const JsonParseException& e)
-    {
-        REQUIRE(e.line == 2);
-    }
+    Expected<JsonReader, JsonParseError> result = JsonReader::Parse("{\n  \"a\": }");
+    REQUIRE(!result.HasValue());
+    REQUIRE(result.GetError().line == 2);
+    // The message outlives the parser and the input, so it is still readable here.
+    REQUIRE(result.GetError().GetMessage() != nullptr);
+    REQUIRE(result.GetError().GetMessage()[0] != '\0');
 }
+
 
 // ------------------------------------------------------------------------------------------------
 // Array iteration.
@@ -219,7 +252,7 @@ TEST_CASE("JsonReader parse error has line and column", "[JsonReader]")
 
 TEST_CASE("JsonReader array range-for", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("[10, 20, 30]");
+    JsonReader reader = ParseOrFail("[10, 20, 30]");
     f64 sum = 0;
     for (const JsonValue& elem : reader.GetRoot())
     {
@@ -230,7 +263,7 @@ TEST_CASE("JsonReader array range-for", "[JsonReader]")
 
 TEST_CASE("JsonReader array iteration on non-array throws", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("42");
+    JsonReader reader = ParseOrFail("42");
     REQUIRE_THROWS_AS(reader.GetRoot().begin(), JsonTypeMismatchException);
 }
 
@@ -240,7 +273,7 @@ TEST_CASE("JsonReader array iteration on non-array throws", "[JsonReader]")
 
 TEST_CASE("JsonReader object Items iteration", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse(R"({"x": 1, "y": 2})");
+    JsonReader reader = ParseOrFail(R"({"x": 1, "y": 2})");
     u64 count = 0;
     for (auto [key, val] : reader.GetRoot().Items())
     {
@@ -252,7 +285,7 @@ TEST_CASE("JsonReader object Items iteration", "[JsonReader]")
 
 TEST_CASE("JsonReader Items on non-object throws", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("[1]");
+    JsonReader reader = ParseOrFail("[1]");
     REQUIRE_THROWS_AS(reader.GetRoot().Items(), JsonTypeMismatchException);
 }
 
@@ -262,7 +295,7 @@ TEST_CASE("JsonReader Items on non-object throws", "[JsonReader]")
 
 TEST_CASE("JsonReader Visit", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("42");
+    JsonReader reader = ParseOrFail("42");
     bool visited = false;
     reader.GetRoot().Visit(Overloaded{
         [](const JsonNull&) {},
@@ -278,7 +311,7 @@ TEST_CASE("JsonReader Visit", "[JsonReader]")
 
 TEST_CASE("JsonReader VisitPartial", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("42");
+    JsonReader reader = ParseOrFail("42");
     bool visited = false;
     reader.GetRoot().VisitPartial(Overloaded{
         [&visited](i64) { visited = true; },
@@ -288,7 +321,7 @@ TEST_CASE("JsonReader VisitPartial", "[JsonReader]")
 
 TEST_CASE("JsonReader VisitPartial ignores unmatched", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("42");
+    JsonReader reader = ParseOrFail("42");
     bool visited = false;
     reader.GetRoot().VisitPartial(Overloaded{
         [&visited](bool) { visited = true; },
@@ -302,7 +335,7 @@ TEST_CASE("JsonReader VisitPartial ignores unmatched", "[JsonReader]")
 
 TEST_CASE("JsonReader Clone value", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("[1, 2, 3]");
+    JsonReader reader = ParseOrFail("[1, 2, 3]");
     JsonValue cloned = reader.GetRoot().Clone();
     REQUIRE(cloned.IsArray());
     REQUIRE(cloned.GetSize() == 3);
@@ -319,7 +352,7 @@ TEST_CASE("JsonReader Parse with owned input", "[JsonReader]")
     input.Append('[');
     input.Append('1');
     input.Append(']');
-    JsonReader reader = JsonReader::Parse(Move(input));
+    JsonReader reader = ParseOrFail(Move(input));
     REQUIRE(reader.GetRoot().IsArray());
     REQUIRE(reader.GetRoot()[0].GetNumber() == 1.0);
 }
@@ -330,7 +363,7 @@ TEST_CASE("JsonReader Parse with owned input", "[JsonReader]")
 
 TEST_CASE("JsonReader handles whitespace", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("  \t\n { \n \"a\" : 1 \n } \n ");
+    JsonReader reader = ParseOrFail("  \t\n { \n \"a\" : 1 \n } \n ");
     REQUIRE(reader.GetRoot().IsObject());
     REQUIRE(reader.GetRoot()["a"].GetNumber() == 1.0);
 }
@@ -341,7 +374,7 @@ TEST_CASE("JsonReader handles whitespace", "[JsonReader]")
 
 TEST_CASE("JsonReader rejects trailing content", "[JsonReader]")
 {
-    REQUIRE_THROWS_AS(JsonReader::Parse("42 42"), JsonParseException);
+    REQUIRE(!JsonReader::Parse("42 42").HasValue());
 }
 
 
@@ -356,7 +389,7 @@ TEST_CASE("Bad read", "[JsonReader]")
 
 TEST_CASE("JsonReader parses integer as i64", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("42");
+    JsonReader reader = ParseOrFail("42");
     REQUIRE(reader.GetRoot().IsNumber());
     REQUIRE(reader.GetRoot().IsIntegerNumber());
     REQUIRE(reader.GetRoot().GetIntegerNumber() == 42);
@@ -364,21 +397,21 @@ TEST_CASE("JsonReader parses integer as i64", "[JsonReader]")
 
 TEST_CASE("JsonReader parses negative integer as i64", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("-100");
+    JsonReader reader = ParseOrFail("-100");
     REQUIRE(reader.GetRoot().IsIntegerNumber());
     REQUIRE(reader.GetRoot().GetIntegerNumber() == -100);
 }
 
 TEST_CASE("JsonReader parses float as f64", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("3.14");
+    JsonReader reader = ParseOrFail("3.14");
     REQUIRE(reader.GetRoot().IsNumber());
     REQUIRE_FALSE(reader.GetRoot().IsIntegerNumber());
 }
 
 TEST_CASE("JsonReader parses exponent number as f64", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("1e10");
+    JsonReader reader = ParseOrFail("1e10");
     REQUIRE(reader.GetRoot().IsNumber());
     REQUIRE_FALSE(reader.GetRoot().IsIntegerNumber());
 }
@@ -386,7 +419,7 @@ TEST_CASE("JsonReader parses exponent number as f64", "[JsonReader]")
 TEST_CASE("JsonReader large integer preserves precision", "[JsonReader]")
 {
     // 2^53 + 1, not representable as f64.
-    JsonReader reader = JsonReader::Parse("9007199254740993");
+    JsonReader reader = ParseOrFail("9007199254740993");
     REQUIRE(reader.GetRoot().IsIntegerNumber());
     REQUIRE(reader.GetRoot().GetIntegerNumber() == 9007199254740993LL);
     REQUIRE(reader.GetRoot().GetNumberAs<i64>() == 9007199254740993LL);
@@ -394,14 +427,14 @@ TEST_CASE("JsonReader large integer preserves precision", "[JsonReader]")
 
 TEST_CASE("JsonReader i64 max", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("9223372036854775807");
+    JsonReader reader = ParseOrFail("9223372036854775807");
     REQUIRE(reader.GetRoot().IsIntegerNumber());
     REQUIRE(reader.GetRoot().GetIntegerNumber() == 9223372036854775807LL);
 }
 
 TEST_CASE("JsonReader i64 min", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("-9223372036854775808");
+    JsonReader reader = ParseOrFail("-9223372036854775808");
     REQUIRE(reader.GetRoot().IsIntegerNumber());
     // Use explicit comparison to avoid literal issues.
     REQUIRE(reader.GetRoot().GetIntegerNumber() == static_cast<i64>(-9223372036854775807LL - 1));
@@ -410,13 +443,13 @@ TEST_CASE("JsonReader i64 min", "[JsonReader]")
 TEST_CASE("JsonReader integer overflow falls back to f64", "[JsonReader]")
 {
     // Larger than i64 max.
-    JsonReader reader = JsonReader::Parse("9223372036854775808");
+    JsonReader reader = ParseOrFail("9223372036854775808");
     REQUIRE(reader.GetRoot().IsNumber());
     REQUIRE_FALSE(reader.GetRoot().IsIntegerNumber());
 }
 
 TEST_CASE("JsonReader GetIntegerNumber on f64 throws", "[JsonReader]")
 {
-    JsonReader reader = JsonReader::Parse("3.14");
+    JsonReader reader = ParseOrFail("3.14");
     REQUIRE_THROWS_AS(reader.GetRoot().GetIntegerNumber(), JsonTypeMismatchException);
 }
