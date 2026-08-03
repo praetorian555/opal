@@ -775,28 +775,28 @@ private:
                 switch (m_input[i])
                 {
                     case '"':
-                        unescaped.Append('"');
+                        AppendOrThrow(unescaped, '"');
                         break;
                     case '\\':
-                        unescaped.Append('\\');
+                        AppendOrThrow(unescaped, '\\');
                         break;
                     case '/':
-                        unescaped.Append('/');
+                        AppendOrThrow(unescaped, '/');
                         break;
                     case 'b':
-                        unescaped.Append('\b');
+                        AppendOrThrow(unescaped, '\b');
                         break;
                     case 'f':
-                        unescaped.Append('\f');
+                        AppendOrThrow(unescaped, '\f');
                         break;
                     case 'n':
-                        unescaped.Append('\n');
+                        AppendOrThrow(unescaped, '\n');
                         break;
                     case 'r':
-                        unescaped.Append('\r');
+                        AppendOrThrow(unescaped, '\r');
                         break;
                     case 't':
-                        unescaped.Append('\t');
+                        AppendOrThrow(unescaped, '\t');
                         break;
                     case 'u':
                         UnescapeUnicode(unescaped, i);
@@ -808,7 +808,7 @@ private:
             }
             else
             {
-                unescaped.Append(m_input[i]);
+                AppendOrThrow(unescaped, m_input[i]);
                 ++i;
             }
         }
@@ -887,29 +887,38 @@ private:
         return result;
     }
 
+    // The reader reports every failure by throwing, so a failed append does too.
+    static void AppendOrThrow(StringUtf8& out, char8 ch)
+    {
+        if (out.Append(ch) != ErrorCode::Success) [[unlikely]]
+        {
+            throw OutOfMemoryException(out.GetAllocator().GetName(), out.GetSize() + 1);
+        }
+    }
+
     static void EncodeUtf8(StringUtf8& out, u32 codepoint)
     {
         if (codepoint <= 0x7F)
         {
-            out.Append(static_cast<char8>(codepoint));
+            AppendOrThrow(out, static_cast<char8>(codepoint));
         }
         else if (codepoint <= 0x7FF)
         {
-            out.Append(static_cast<char8>(0xC0 | (codepoint >> 6)));
-            out.Append(static_cast<char8>(0x80 | (codepoint & 0x3F)));
+            AppendOrThrow(out, static_cast<char8>(0xC0 | (codepoint >> 6)));
+            AppendOrThrow(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
         }
         else if (codepoint <= 0xFFFF)
         {
-            out.Append(static_cast<char8>(0xE0 | (codepoint >> 12)));
-            out.Append(static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
-            out.Append(static_cast<char8>(0x80 | (codepoint & 0x3F)));
+            AppendOrThrow(out, static_cast<char8>(0xE0 | (codepoint >> 12)));
+            AppendOrThrow(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
+            AppendOrThrow(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
         }
         else if (codepoint <= 0x10FFFF)
         {
-            out.Append(static_cast<char8>(0xF0 | (codepoint >> 18)));
-            out.Append(static_cast<char8>(0x80 | ((codepoint >> 12) & 0x3F)));
-            out.Append(static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
-            out.Append(static_cast<char8>(0x80 | (codepoint & 0x3F)));
+            AppendOrThrow(out, static_cast<char8>(0xF0 | (codepoint >> 18)));
+            AppendOrThrow(out, static_cast<char8>(0x80 | ((codepoint >> 12) & 0x3F)));
+            AppendOrThrow(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
+            AppendOrThrow(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
         }
     }
 

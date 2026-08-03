@@ -14,6 +14,34 @@
 
 using namespace Opal;
 
+namespace
+{
+// Passes the first `allowed` allocations through and reports failure for every one after that by
+// returning null, which is how malloc reports it.
+struct BudgetedAllocator final : public AllocatorBase
+{
+    explicit BudgetedAllocator(i32 allowed_count) : AllocatorBase("BudgetedAllocator"), allowed(allowed_count) {}
+
+    void* Alloc(u64 size, u64 alignment) override
+    {
+        if (allowed <= 0)
+        {
+            return nullptr;
+        }
+        allowed--;
+        return inner.Alloc(size, alignment);
+    }
+    void Free(void* ptr) override { inner.Free(ptr); }
+    [[nodiscard]] bool IsThreadSafe() const override { return false; }
+
+    MallocAllocator inner;
+    i32 allowed = 0;
+};
+
+// Longer than the inline buffer, so every string built from it has to allocate.
+const char8* k_heap_text = "0123456789012345678901234567890123456789";
+}  // namespace
+
 TEST_CASE("Construction", "[String]")
 {
     SECTION("Short string")
@@ -690,9 +718,11 @@ TEST_CASE("Assign", "[String]")
             }
             SECTION("Resize fails")
             {
-                NullAllocator null_allocator;
-                StringUtf8 str(&null_allocator);
-                REQUIRE_THROWS_AS(str.Assign(50, 'd'), OutOfMemoryException);
+                // NullAllocator throws from Alloc, so it cannot exercise the returned-error path.
+                BudgetedAllocator allocator(0);
+                StringUtf8 str(&allocator);
+                REQUIRE(str.Assign(50, 'd') == ErrorCode::OutOfMemory);
+                REQUIRE(str.IsEmpty());
             }
         }
         SECTION("Other string")
@@ -4920,79 +4950,79 @@ TEST_CASE("ReplaceAll and ReplaceFirst", "[String]")
     SECTION("Every occurrence")
     {
         StringUtf8 str("a,b,c");
-        REQUIRE(str.ReplaceAll(StringUtf8(","), StringUtf8(" - ")) == 2);
+        REQUIRE(str.ReplaceAll(StringUtf8(","), StringUtf8(" - ")).GetValue() == 2);
         REQUIRE(str == "a - b - c");
     }
     SECTION("Shorter replacement")
     {
         StringUtf8 str("aXXbXXc");
-        REQUIRE(str.ReplaceAll(StringUtf8("XX"), StringUtf8("-")) == 2);
+        REQUIRE(str.ReplaceAll(StringUtf8("XX"), StringUtf8("-")).GetValue() == 2);
         REQUIRE(str == "a-b-c");
     }
     SECTION("Replacement that erases")
     {
         StringUtf8 str("a b c");
-        REQUIRE(str.ReplaceAll(StringUtf8(" "), StringUtf8("")) == 2);
+        REQUIRE(str.ReplaceAll(StringUtf8(" "), StringUtf8("")).GetValue() == 2);
         REQUIRE(str == "abc");
     }
     SECTION("Needle not found")
     {
         StringUtf8 str("abc");
-        REQUIRE(str.ReplaceAll(StringUtf8("x"), StringUtf8("y")) == 0);
+        REQUIRE(str.ReplaceAll(StringUtf8("x"), StringUtf8("y")).GetValue() == 0);
         REQUIRE(str == "abc");
     }
     SECTION("Empty needle matches nothing")
     {
         StringUtf8 str("abc");
-        REQUIRE(str.ReplaceAll(StringUtf8(""), StringUtf8("x")) == 0);
+        REQUIRE(str.ReplaceAll(StringUtf8(""), StringUtf8("x")).GetValue() == 0);
         REQUIRE(str == "abc");
     }
     SECTION("A replacement containing the needle does not loop")
     {
         StringUtf8 str("aaa");
-        REQUIRE(str.ReplaceAll(StringUtf8("a"), StringUtf8("aa")) == 3);
+        REQUIRE(str.ReplaceAll(StringUtf8("a"), StringUtf8("aa")).GetValue() == 3);
         REQUIRE(str == "aaaaaa");
     }
     SECTION("Overlapping candidates are consumed left to right")
     {
         StringUtf8 str("aaaa");
-        REQUIRE(str.ReplaceAll(StringUtf8("aa"), StringUtf8("b")) == 2);
+        REQUIRE(str.ReplaceAll(StringUtf8("aa"), StringUtf8("b")).GetValue() == 2);
         REQUIRE(str == "bb");
     }
     SECTION("Occurrence at the end")
     {
         StringUtf8 str("abc,");
-        REQUIRE(str.ReplaceAll(StringUtf8(","), StringUtf8(";")) == 1);
+        REQUIRE(str.ReplaceAll(StringUtf8(","), StringUtf8(";")).GetValue() == 1);
         REQUIRE(str == "abc;");
     }
     SECTION("Growing past the inline buffer")
     {
         StringUtf8 str("a.b.c.d");
-        REQUIRE(str.ReplaceAll(StringUtf8("."), StringUtf8(" and also ")) == 3);
+        REQUIRE(str.ReplaceAll(StringUtf8("."), StringUtf8(" and also ")).GetValue() == 3);
         REQUIRE(str == "a and also b and also c and also d");
     }
     SECTION("Replacing with the string itself")
     {
         StringUtf8 str("aXa");
-        REQUIRE(str.ReplaceAll(StringUtf8("X"), str) == 1);
+        REQUIRE(str.ReplaceAll(StringUtf8("X"), str).GetValue() == 1);
         REQUIRE(str == "aaXaa");
     }
     SECTION("First occurrence only")
     {
         StringUtf8 str("a,b,c");
-        REQUIRE(str.ReplaceFirst(StringUtf8(","), StringUtf8(";")));
+        REQUIRE(str.ReplaceFirst(StringUtf8(","), StringUtf8(";")).GetValue());
         REQUIRE(str == "a;b,c");
     }
     SECTION("First occurrence not found")
     {
         StringUtf8 str("abc");
-        REQUIRE(!str.ReplaceFirst(StringUtf8("x"), StringUtf8("y")));
+        REQUIRE(!str.ReplaceFirst(StringUtf8("x"), StringUtf8("y")).GetValue());
         REQUIRE(str == "abc");
     }
     SECTION("First with an empty needle")
     {
         StringUtf8 str("abc");
-        REQUIRE(!str.ReplaceFirst(StringUtf8(""), StringUtf8("x")));
+        REQUIRE(!str.ReplaceFirst(StringUtf8(""), StringUtf8("x")).GetValue());
         REQUIRE(str == "abc");
     }
 }
@@ -5947,17 +5977,20 @@ TEST_CASE("Oversized requests are rejected", "[String]")
     SECTION("Assign with count of k_npos")
     {
         StringUtf8 str("abc");
-        REQUIRE_THROWS_AS(str.Assign(StringUtf8::k_npos, 'a'), OutOfMemoryException);
+        REQUIRE(str.Assign(StringUtf8::k_npos, 'a') == ErrorCode::OutOfMemory);
+        REQUIRE(str == "abc");
     }
     SECTION("Resize with a size of k_npos")
     {
         StringUtf8 str("abc");
-        REQUIRE_THROWS_AS(str.Resize(StringUtf8::k_npos), OutOfMemoryException);
+        REQUIRE(str.Resize(StringUtf8::k_npos) == ErrorCode::OutOfMemory);
+        REQUIRE(str == "abc");
     }
     SECTION("Append that would overflow the size")
     {
         StringUtf8 str("abc");
-        REQUIRE_THROWS_AS(str.Append(StringUtf8::k_max_size, 'a'), OutOfMemoryException);
+        REQUIRE(str.Append(StringUtf8::k_max_size, 'a') == ErrorCode::OutOfMemory);
+        REQUIRE(str == "abc");
     }
 }
 
@@ -6064,5 +6097,139 @@ TEST_CASE("Appending and inserting a string into itself", "[String]")
         REQUIRE(const_result.HasValue() == false);
         REQUIRE(const_result.GetError() == ErrorCode::SelfNotAllowed);
         REQUIRE(str == StringUtf8("abcdef"));
+    }
+}
+
+TEST_CASE("Allocation failure is reported rather than thrown", "[String]")
+{
+    SECTION("Reserve leaves the string as it was")
+    {
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        REQUIRE(str.Append("abc") == ErrorCode::Success);
+        REQUIRE(str.Reserve(1000) == ErrorCode::OutOfMemory);
+        REQUIRE(str == "abc");
+        REQUIRE(str.GetCapacity() == StringUtf8::k_sso_capacity);
+    }
+    SECTION("Append leaves the string as it was")
+    {
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        REQUIRE(str.Append(k_heap_text) == ErrorCode::OutOfMemory);
+        REQUIRE(str.IsEmpty());
+    }
+    SECTION("Resize leaves the string as it was")
+    {
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        REQUIRE(str.Resize(100) == ErrorCode::OutOfMemory);
+        REQUIRE(str.IsEmpty());
+    }
+    SECTION("Assign from another string keeps a buffer it owns")
+    {
+        // One allocation builds the string, leaving none for the Assign that has to grow it.
+        BudgetedAllocator allocator(1);
+        StringUtf8 str(k_heap_text, &allocator);
+        const StringUtf8 source(StringUtf8::k_sso_capacity * 4, 'x');
+        REQUIRE(str.Assign(source) == ErrorCode::OutOfMemory);
+        REQUIRE(str == k_heap_text);
+        // The buffer it kept has to be one it still owns, so assigning again works and the
+        // destructor frees live storage rather than storage already handed back.
+        allocator.allowed = 1;
+        REQUIRE(str.Assign(source) == ErrorCode::Success);
+        REQUIRE(str == source);
+    }
+    SECTION("Assign from a list of code units")
+    {
+        const std::initializer_list<char8> letters = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                                                      'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        REQUIRE(str.Assign(letters) == ErrorCode::OutOfMemory);
+        REQUIRE(str.IsEmpty());
+        // A list that fits inline needs no memory at all.
+        REQUIRE(str.Assign({'a', 'b', 'c'}) == ErrorCode::Success);
+        REQUIRE(str == "abc");
+    }
+    SECTION("ShrinkToFit keeps the buffer it has")
+    {
+        BudgetedAllocator allocator(1);
+        StringUtf8 str(k_heap_text, &allocator);
+        REQUIRE(str.Erase(30).HasValue());
+        REQUIRE(str.GetSize() == 30);
+        REQUIRE(str.ShrinkToFit() == ErrorCode::OutOfMemory);
+        REQUIRE(str.GetCapacity() == 41);
+        REQUIRE(str == StringUtf8(k_heap_text, 30));
+    }
+    SECTION("Insert leaves the string as it was")
+    {
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        REQUIRE(str.Append("abc") == ErrorCode::Success);
+        const auto result = str.Insert(1, StringUtf8::k_sso_capacity * 4, 'x');
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+        REQUIRE(str == "abc");
+    }
+    SECTION("Replace leaves the string as it was")
+    {
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        REQUIRE(str.Append("abc") == ErrorCode::Success);
+        const StringUtf8 replacement(StringUtf8::k_sso_capacity * 4, 'x');
+        const auto result = str.Replace(0, 1, replacement);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+        REQUIRE(str == "abc");
+    }
+    SECTION("ReplaceAll reports the failure")
+    {
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        REQUIRE(str.Append("a,b") == ErrorCode::Success);
+        const StringUtf8 replacement(StringUtf8::k_sso_capacity * 4, 'x');
+        const auto result = str.ReplaceAll(StringUtf8(","), replacement);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("ReplaceFirst reports the failure")
+    {
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        REQUIRE(str.Append("a,b") == ErrorCode::Success);
+        const StringUtf8 replacement(StringUtf8::k_sso_capacity * 4, 'x');
+        const auto result = str.ReplaceFirst(StringUtf8(","), replacement);
+        REQUIRE(result.HasValue() == false);
+        REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Transcode reports the failure of the output string")
+    {
+        BudgetedAllocator allocator(0);
+        const StringUtf8 input(k_heap_text);
+        StringWide output(&allocator);
+        REQUIRE(Transcode(input, output) == ErrorCode::OutOfMemory);
+    }
+}
+
+TEST_CASE("Operations with no error channel still throw", "[String]")
+{
+    SECTION("Constructor")
+    {
+        BudgetedAllocator allocator(0);
+        REQUIRE_THROWS_AS(StringUtf8(k_heap_text, &allocator), OutOfMemoryException);
+    }
+    SECTION("operator+=")
+    {
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        REQUIRE_THROWS_AS(str += k_heap_text, OutOfMemoryException);
+    }
+    SECTION("operator= from a list of code units")
+    {
+        BudgetedAllocator allocator(0);
+        StringUtf8 str(&allocator);
+        const std::initializer_list<char8> letters = {'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                                                      'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'};
+        REQUIRE_THROWS_AS(str = letters, OutOfMemoryException);
     }
 }

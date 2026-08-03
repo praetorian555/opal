@@ -97,12 +97,21 @@ Opal::StringUtf8 Opal::Paths::Combine(Args&&... args)
     StringUtf8 result;
 
     OPAL_DISABLE_WARNING("-Wunused-but-set-variable")
-    auto append = [&result](const auto& part)
+    // Combine has no error channel of its own, so a failed append stays an exception here.
+    auto check = [&result](ErrorCode error)
+    {
+        if (error != ErrorCode::Success) [[unlikely]]
+        {
+            throw OutOfMemoryException(result.GetAllocator().GetName(), result.GetSize());
+        }
+    };
+
+    auto append = [&result, &check](const auto& part)
     {
         StringViewUtf8 part_view(part);
         if (result.IsEmpty())
         {
-            result.Append(part_view.GetData(), part_view.GetSize());
+            check(result.Append(part_view.GetData(), part_view.GetSize()));
         }
         else
         {
@@ -115,9 +124,9 @@ Opal::StringUtf8 Opal::Paths::Combine(Args&&... args)
 #else
                 constexpr StringUtf8::value_type k_separator = '/';
 #endif
-                result.Append(k_separator);
+                check(result.Append(k_separator));
             }
-            result.Append(part_view.GetData(), part_view.GetSize());
+            check(result.Append(part_view.GetData(), part_view.GetSize()));
         }
     };
 

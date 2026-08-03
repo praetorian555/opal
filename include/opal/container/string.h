@@ -323,16 +323,16 @@ public:
      * @brief Override a string with a specific number of code units.
      * @param count Number of code units to assign.
      * @param value Value of the code unit to assign.
-     * @throw OutOfMemoryException if allocator runs out of memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    void Assign(size_type count, CodeUnitType value);
+    ErrorCode Assign(size_type count, CodeUnitType value);
 
     /**
-     * Override a string with another string.
+     * Override a string with another string. Assigning a string to itself is allowed and does nothing.
      * @param other String to assign.
-     * @throw OutOfMemoryException if allocator runs out of memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    void Assign(const String& other);
+    ErrorCode Assign(const String& other);
 
     /**
      * @brief Override a string with a substring of another string.
@@ -343,8 +343,7 @@ public:
      * Default is k_npos.
      * @return ErrorCode::Success in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the other string or count is
      * larger than the amount of code units in the other string starting from pos. ErrorCode::SelfNotAllowed if the other is the same as
-     * this.
-     * @throw OutOfMemoryException if allocator runs out of memory.
+     * this. ErrorCode::OutOfMemory if the string could not be grown.
      */
     ErrorCode Assign(const String& other, size_type pos, size_type count = k_npos);
 
@@ -357,9 +356,9 @@ public:
     /**
      * Override a string with a list of code units.
      * @param init_list Code units to assign.
-     * @throw OutOfMemoryException if allocator runs out of memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    void Assign(std::initializer_list<CodeUnitType> init_list);
+    ErrorCode Assign(std::initializer_list<CodeUnitType> init_list);
 
     /**
      * Override a string with a list of code units. Keeps the current allocator.
@@ -375,8 +374,7 @@ public:
      * @param count Number of code units to assign. If count is equal to k_npos, the entire string starting from str will be assigned.
      * Default is k_npos.
      * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if str is nullptr. ErrorCode::OutOfBounds if count is larger
-     * then the size of the null-terminated string.
-     * @throw OutOfMemoryException if allocator runs out of memory.
+     * then the size of the null-terminated string. ErrorCode::OutOfMemory if the string could not be grown.
      */
     ErrorCode Assign(const CodeUnitType* str, size_type count = k_npos);
 
@@ -386,8 +384,7 @@ public:
      * @param start_it Start of the range.
      * @param end_it End of the range.
      * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if start_it is greater than end_it.
-     * ErrorCode::SelfNotAllowed if the range is the same as the current string.
-     * @throw OutOfMemoryException if allocator runs out of memory.
+     * ErrorCode::SelfNotAllowed if the range is the same as the current string. ErrorCode::OutOfMemory if the string could not be grown.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -428,15 +425,15 @@ public:
      * Reserve memory for a specific number of code units, the null terminator included. Reserve(n) therefore leaves room for n - 1 code
      * units of text, matching GetCapacity. Does nothing when the requested capacity is not larger than the current one.
      * @param new_capacity Number of code units to reserve memory for, terminator included.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown, in which case the string is
+     * left as it was.
      */
-    void Reserve(size_type new_capacity);
+    ErrorCode Reserve(size_type new_capacity);
 
     /**
      * Resize the string to a specific size. If new code units are added they will be initialized with the default value of the code unit.
      * @param new_size New size of the string.
-     * @return ErrorCode::Success in case of a success.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
     ErrorCode Resize(size_type new_size);
 
@@ -444,8 +441,7 @@ public:
      * Resize the string to a specific size. If new code units are added they will be initialized with the provided value.
      * @param new_size New size of the string.
      * @param value Value of the code unit to initialize the new code units with.
-     * @return ErrorCode::Success in case of a success.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
     ErrorCode Resize(size_type new_size, CodeUnitType value);
 
@@ -462,9 +458,10 @@ public:
     /**
      * Give up any capacity beyond what the current contents need. Does nothing when the string is small enough to live inline. Invalidates
      * every iterator and pointer into the string when it moves the code units.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the smaller buffer could not be taken, in which case the
+     * string keeps the one it has.
      */
-    void ShrinkToFit();
+    ErrorCode ShrinkToFit();
 
     /**
      * Shrink the size of the string to fit the data. This will only reduce the size of the string so that there is only one null-terminator
@@ -484,8 +481,7 @@ public:
      * @param count Number of code units to replace. Clamped to what is left in the string.
      * @param other String to put in place of the range. May be this string.
      * @return Iterator pointing to the first code unit of the replacement in case of a success. ErrorCode::OutOfBounds if start_pos is
-     * greater than the size of the string.
-     * @throw OutOfMemoryException when there is no more memory.
+     * greater than the size of the string. ErrorCode::OutOfMemory if the string could not be grown.
      */
     Expected<iterator, ErrorCode> Replace(size_type start_pos, size_type count, const String& other);
 
@@ -496,8 +492,8 @@ public:
      * @param other Code units to put in place of the range. May point into this string.
      * @param other_count Number of code units to read from other. If equal to k_npos, everything up to the null terminator is used.
      * @return Iterator pointing to the first code unit of the replacement in case of a success. ErrorCode::OutOfBounds if start_pos is
-     * greater than the size of the string. ErrorCode::InvalidArgument if other is nullptr.
-     * @throw OutOfMemoryException when there is no more memory.
+     * greater than the size of the string. ErrorCode::InvalidArgument if other is nullptr. ErrorCode::OutOfMemory if the string could not be
+     * grown.
      */
     Expected<iterator, ErrorCode> Replace(size_type start_pos, size_type count, const CodeUnitType* other,
                                           size_type other_count = k_npos);
@@ -508,8 +504,8 @@ public:
      * @param last Iterator pointing one past the last code unit to replace.
      * @param other String to put in place of the range. May be this string.
      * @return Iterator pointing to the first code unit of the replacement in case of a success. ErrorCode::OutOfBounds if first or last are
-     * out of bounds of the string. ErrorCode::InvalidArgument if first is greater than last.
-     * @throw OutOfMemoryException when there is no more memory.
+     * out of bounds of the string. ErrorCode::InvalidArgument if first is greater than last. ErrorCode::OutOfMemory if the string could not
+     * be grown.
      */
     Expected<iterator, ErrorCode> Replace(const_iterator first, const_iterator last, const String& other);
 
@@ -518,19 +514,18 @@ public:
      * not feed back into the search.
      * @param needle Sub-string to look for. An empty needle matches nothing.
      * @param replacement String to put in place of each occurrence.
-     * @return How many occurrences were replaced.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return How many occurrences were replaced. ErrorCode::OutOfMemory if the string could not be grown, in which case the replacements
+     * made up to that point stand.
      */
-    size_type ReplaceAll(const String& needle, const String& replacement);
+    Expected<size_type, ErrorCode> ReplaceAll(const String& needle, const String& replacement);
 
     /**
      * Replace the first occurrence of a sub-string.
      * @param needle Sub-string to look for. An empty needle matches nothing.
      * @param replacement String to put in place of the occurrence.
-     * @return True when an occurrence was found and replaced.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return True when an occurrence was found and replaced. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    bool ReplaceFirst(const String& needle, const String& replacement);
+    Expected<bool, ErrorCode> ReplaceFirst(const String& needle, const String& replacement);
 
     /**
      * Get a sub-string of this string.
@@ -567,8 +562,7 @@ public:
     /**
      * Append a code unit to the end of the string.
      * @param ch Code unit to append.
-     * @return ErrorCode::Success in case of a success.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
     ErrorCode Append(const value_type& ch);
 
@@ -576,8 +570,8 @@ public:
      * Append a specific number of code units to the end of the string.
      * @param str Pointer to the code units to append.
      * @param size Number of code units to append. If size is equal to k_npos, the entire string starting from str will be appended.
-     * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if str is nullptr.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if str is nullptr. ErrorCode::OutOfMemory if the string
+     * could not be grown.
      */
     ErrorCode Append(const value_type* str, size_type size = k_npos);
 
@@ -585,16 +579,14 @@ public:
      * Append a specific number of code units to the end of the string.
      * @param count Number of code units to append.
      * @param value Value of the code unit to append.
-     * @return ErrorCode::Success in case of a success.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
     ErrorCode Append(size_type count, CodeUnitType value);
 
     /**
      * Append a string to the end of the string.
      * @param other String to append.
-     * @return ErrorCode::Success in case of a success.
-     * @throw OutOfMemoryException when there is no more memory.
+     * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
     ErrorCode Append(const String& other);
 
@@ -605,8 +597,7 @@ public:
      * @param count Number of code units to append. If count is equal to k_npos, the entire string starting from pos
      * will be appended.
      * @return ErrorCode::Success in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the other
-     * string.
-     * @throw OutOfMemoryException when there is no more memory.
+     * string. ErrorCode::OutOfMemory if the string could not be grown.
      */
     ErrorCode Append(const String& other, size_type pos, size_type count = k_npos);
 
@@ -616,8 +607,7 @@ public:
      * @param begin_it Iterator pointing to the first code unit in the string to append.
      * @param end_it Iterator pointing to the code unit after the last code unit in the string to append.
      * @return ErrorCode::Success in case of a success. ErrorCode::InvalidArgument if begin is greater than end.
-     * ErrorCode::SelfNotAllowed if the range is the same as the current string.
-     * @throw OutOfMemoryException when there is no more memory.
+     * ErrorCode::SelfNotAllowed if the range is the same as the current string. ErrorCode::OutOfMemory if the string could not be grown.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -629,8 +619,7 @@ public:
      * @param count Number of code units to insert.
      * @param value Value of the code unit to insert.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
-     * of the string.
-     * @throw OutOfMemoryException when there is no more memory.
+     * of the string. ErrorCode::OutOfMemory if the string could not be grown.
      */
     Expected<iterator, ErrorCode> Insert(size_type start_pos, size_type count, CodeUnitType value);
 
@@ -640,8 +629,7 @@ public:
      * @param str Pointer to the string to insert.
      * @param count Number of code units to insert. If count is equal to k_npos, the entire string starting from str will be inserted.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
-     * of the string. ErrorCode::InvalidArgument if str is nullptr.
-     * @throw OutOfMemoryException when there is no more memory.
+     * of the string. ErrorCode::InvalidArgument if str is nullptr. ErrorCode::OutOfMemory if the string could not be grown.
      */
     Expected<iterator, ErrorCode> Insert(size_type start_pos, const CodeUnitType* str, size_type count = k_npos);
 
@@ -654,8 +642,7 @@ public:
      * inserted.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start_pos is out of bounds
      * of the string, if other_start_pos is out of bounds of the other string, or if count exceeds what is left in the other string after
-     * other_start_pos. Inserting a string into itself is allowed.
-     * @throw OutOfMemoryException when there is no more memory.
+     * other_start_pos. Inserting a string into itself is allowed. ErrorCode::OutOfMemory if the string could not be grown.
      */
     Expected<iterator, ErrorCode> Insert(size_type start_pos, const String& other, size_type other_start_pos = 0, size_type count = k_npos);
 
@@ -665,8 +652,7 @@ public:
      * @param value Value of the code unit to insert.
      * @param count Number of code units to insert. Default is 1.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start is out of bounds of
-     * the string.
-     * @throw OutOfMemoryException when there is no more memory.
+     * the string. ErrorCode::OutOfMemory if the string could not be grown.
      */
     Expected<iterator, ErrorCode> Insert(iterator start, CodeUnitType value, size_type count = 1);
     Expected<iterator, ErrorCode> Insert(const_iterator start, CodeUnitType value, size_type count = 1);
@@ -679,8 +665,7 @@ public:
      * @param end Iterator pointing to the code unit after the last code unit in the string to insert.
      * @return Iterator pointing to the first inserted code unit in case of a success. ErrorCode::OutOfBounds if start is out of bounds of
      * the string. ErrorCode::InvalidArgument if begin is greater than end. ErrorCode::SelfNotAllowed if begin points into this string,
-     * matching Append and Assign.
-     * @throw OutOfMemoryException when there is no more memory.
+     * matching Append and Assign. ErrorCode::OutOfMemory if the string could not be grown.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -721,6 +706,10 @@ public:
     void Reverse();
     void Reverse(iterator start_it, iterator end_it);
 
+    /**
+     * @brief Append to the end of the string. An operator has nothing to return a code through, so use Append when the failure matters.
+     * @throw OutOfMemoryException when there is no more memory.
+     */
     String& operator+=(const String& other);
     String& operator+=(value_type ch);
     String& operator+=(const value_type* str);
@@ -824,12 +813,12 @@ private:
 
     // Ensures the buffer holds at least required_capacity code units, terminator included. Capacity
     // grows by half on every reallocation so that repeated appends stay amortized constant time.
-    void Grow(size_type required_capacity)
+    ErrorCode Grow(size_type required_capacity)
     {
         const size_type current_capacity = GetCapacity();
         if (required_capacity <= current_capacity)
         {
-            return;
+            return ErrorCode::Success;
         }
         size_type new_capacity = required_capacity;
         if (current_capacity <= k_max_size / 2)
@@ -837,50 +826,71 @@ private:
             const size_type scaled = current_capacity + (current_capacity / 2) + 1;
             new_capacity = scaled > new_capacity ? scaled : new_capacity;
         }
-        Reserve(new_capacity);
+        return Reserve(new_capacity);
     }
 
     // Ensures room for current_size + added code units plus a terminator.
-    void GrowForAppend(size_type current_size, size_type added)
+    ErrorCode GrowForAppend(size_type current_size, size_type added)
     {
         if (added > k_max_size - current_size)
         {
-            throw OutOfMemoryException("requested string size exceeds String::k_max_size");
+            return ErrorCode::OutOfMemory;
         }
-        Grow(current_size + added + 1);
+        return Grow(current_size + added + 1);
     }
 
     // Builds the initial storage for a string of exactly count code units and writes the terminator.
     // The code units themselves are left uninitialized. Only valid on a freshly default-initialized
-    // object, since it assumes m_storage is still zeroed.
-    void InitStorage(allocator_type* alloc, size_type count)
+    // object, since it assumes m_storage is still zeroed. Leaves an empty string behind on failure.
+    ErrorCode InitStorage(allocator_type* alloc, size_type count)
     {
-        ValidateSize(count);
+        if (!IsValidSize(count))
+        {
+            InitSmall(alloc, 0);
+            m_storage.raw[0] = 0;
+            return ErrorCode::OutOfMemory;
+        }
         if (count + 1 <= k_sso_capacity)
         {
             InitSmall(alloc, count);
             GetSmallData()[count] = 0;
-            return;
+            return ErrorCode::Success;
+        }
+        // Allocate reads the allocator back out of the tag, so it has to be stored first. Start from
+        // the empty small state, which is what a failed allocation should leave behind anyway.
+        InitSmall(alloc, 0);
+        m_storage.raw[0] = 0;
+        value_type* new_data = Allocate(count + 1);
+        if (new_data == nullptr) [[unlikely]]
+        {
+            return ErrorCode::OutOfMemory;
         }
         InitLarge(alloc);
-        value_type* new_data = Allocate(count + 1);
         m_storage.large.data = new_data;
         m_storage.large.size = count;
         m_storage.large.capacity = count + 1;
         new_data[count] = 0;
+        return ErrorCode::Success;
     }
 
     // Makes room for new_size code units plus a terminator, discarding the current contents. The new
-    // buffer is allocated before the old one is released so that a throwing allocator leaves the
+    // buffer is allocated before the old one is released so that a failed allocation leaves the
     // string unchanged rather than holding a dangling pointer.
-    void PrepareForOverwrite(size_type new_size)
+    ErrorCode PrepareForOverwrite(size_type new_size)
     {
-        ValidateSize(new_size);
+        if (!IsValidSize(new_size))
+        {
+            return ErrorCode::OutOfMemory;
+        }
         if (new_size + 1 <= GetCapacity())
         {
-            return;
+            return ErrorCode::Success;
         }
         value_type* new_data = Allocate(new_size + 1);
+        if (new_data == nullptr) [[unlikely]]
+        {
+            return ErrorCode::OutOfMemory;
+        }
         if (!IsSmall() && m_storage.large.data != nullptr)
         {
             Deallocate(m_storage.large.data);
@@ -890,6 +900,7 @@ private:
         m_storage.large.data = new_data;
         m_storage.large.size = 0;
         m_storage.large.capacity = new_size + 1;
+        return ErrorCode::Success;
     }
 
     // Returns the offset of str into this string's own buffer, or k_npos when str points somewhere
@@ -907,15 +918,10 @@ private:
         return static_cast<size_type>(str - data);
     }
 
-    // Rejects sizes that would overflow the byte count or the null-terminator slot.
-    static void ValidateSize(size_type new_size)
-    {
-        if (new_size > k_max_size)
-        {
-            throw OutOfMemoryException("requested string size exceeds String::k_max_size");
-        }
-    }
+    // False for sizes that would overflow the byte count or the null-terminator slot.
+    static bool IsValidSize(size_type new_size) { return new_size <= k_max_size; }
 
+    // Returns nullptr when the request cannot be served, which is an ordinary result rather than an error.
     inline value_type* Allocate(size_type size);
     inline void Deallocate(value_type* data);
 
@@ -1152,8 +1158,8 @@ typename StringClass::size_type ReverseFind(const StringClass& haystack, const t
  * @param input Input string to transcode.
  * @param output Output string to store the transcoded result. Grown as needed and resized to the length of the result, so it does not
  * need to be sized by the caller. Its contents are unspecified if transcoding fails.
- * @return ErrorCode::Success if transcoding was successful, other error codes depend on the encoding implementation.
- * @throw OutOfMemoryException when the output string cannot be grown.
+ * @return ErrorCode::Success if transcoding was successful. ErrorCode::OutOfMemory when the output string cannot be grown, other error
+ * codes depend on the encoding implementation.
  */
 template <typename InputStringClass, typename OutputStringClass>
     requires Opal::DecodableEncoding<typename InputStringClass::encoding_type> &&
@@ -1293,7 +1299,11 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(size_type count, CodeUnitType value, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
-    InitStorage(allocator, count);
+    if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(allocator->GetName(), count);
+    }
     value_type* buf = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1311,7 +1321,11 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, size_type pos, allocat
     }
     const size_type count = other_size - pos;
     const value_type* other_data = other.GetData();
-    InitStorage(allocator, count);
+    if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(allocator->GetName(), count);
+    }
     value_type* buf = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1327,7 +1341,11 @@ CLASS_HEADER::String(const CodeUnitType* str, size_type count, allocator_type* a
     {
         throw InvalidArgumentException(__FUNCTION__, "str", count);
     }
-    InitStorage(allocator, count);
+    if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(allocator->GetName(), count);
+    }
     value_type* buf = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1340,7 +1358,11 @@ CLASS_HEADER::String(std::initializer_list<CodeUnitType> init_list, allocator_ty
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
     const size_type count = init_list.size();
-    InitStorage(allocator, count);
+    if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(allocator->GetName(), count);
+    }
     value_type* buf = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1353,7 +1375,11 @@ CLASS_HEADER::String(const CodeUnitType* str, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
     const size_type count = GetStringLength(str);
-    InitStorage(allocator, count);
+    if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(allocator->GetName(), count);
+    }
     value_type* buf = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1531,9 +1557,13 @@ std::strong_ordering CLASS_HEADER::operator<=>(const CodeUnitType* other) const
 }
 
 TEMPLATE_HEADER
-void CLASS_HEADER::Assign(size_type count, CodeUnitType value)
+Opal::ErrorCode CLASS_HEADER::Assign(size_type count, CodeUnitType value)
 {
-    PrepareForOverwrite(count);
+    const ErrorCode error = PrepareForOverwrite(count);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return error;
+    }
     value_type* data = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1541,17 +1571,22 @@ void CLASS_HEADER::Assign(size_type count, CodeUnitType value)
     }
     SetSize(count);
     data[count] = 0;
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
-void CLASS_HEADER::Assign(const String& other)
+Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
 {
     if (this == &other)
     {
-        return;
+        return ErrorCode::Success;
     }
     const size_type other_size = other.GetSize();
-    PrepareForOverwrite(other_size);
+    const ErrorCode error = PrepareForOverwrite(other_size);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return error;
+    }
     value_type* data = GetData();
     if (other_size > 0)
     {
@@ -1559,6 +1594,7 @@ void CLASS_HEADER::Assign(const String& other)
     }
     SetSize(other_size);
     data[other_size] = 0;
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
@@ -1581,7 +1617,11 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other, size_type pos, size_ty
     {
         return ErrorCode::OutOfBounds;
     }
-    PrepareForOverwrite(count);
+    const ErrorCode error = PrepareForOverwrite(count);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return error;
+    }
     value_type* data = GetData();
     if (count > 0)
     {
@@ -1599,10 +1639,14 @@ void CLASS_HEADER::Assign(String&& other)
 }
 
 TEMPLATE_HEADER
-void CLASS_HEADER::Assign(std::initializer_list<CodeUnitType> init_list)
+Opal::ErrorCode CLASS_HEADER::Assign(std::initializer_list<CodeUnitType> init_list)
 {
     const size_type count = init_list.size();
-    PrepareForOverwrite(count);
+    const ErrorCode error = PrepareForOverwrite(count);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return error;
+    }
     value_type* data = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -1610,12 +1654,17 @@ void CLASS_HEADER::Assign(std::initializer_list<CodeUnitType> init_list)
     }
     SetSize(count);
     data[count] = 0;
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator=(std::initializer_list<CodeUnitType> init_list)
 {
-    Assign(init_list);
+    // An assignment operator has no way to hand back a code, so allocation failure stays an exception here.
+    if (Assign(init_list) != ErrorCode::Success) [[unlikely]]
+    {
+        throw OutOfMemoryException(GetAllocator().GetName(), init_list.size());
+    }
     return *this;
 }
 
@@ -1757,17 +1806,21 @@ Opal::Expected<const CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::Back() const
 }
 
 TEMPLATE_HEADER
-void CLASS_HEADER::Reserve(size_type new_capacity)
+Opal::ErrorCode CLASS_HEADER::Reserve(size_type new_capacity)
 {
     if (new_capacity <= GetCapacity())
     {
-        return;
+        return ErrorCode::Success;
+    }
+    value_type* new_data = Allocate(new_capacity);
+    if (new_data == nullptr) [[unlikely]]
+    {
+        return ErrorCode::OutOfMemory;
     }
     if (IsSmall())
     {
         // Transition from small to large. Save inline data before overwriting the union.
         const size_type old_size = GetSmallSize();
-        value_type* new_data = Allocate(new_capacity);
         if (old_size > 0)
         {
             std::memcpy(new_data, GetSmallData(), (old_size + 1) * sizeof(value_type));
@@ -1784,7 +1837,6 @@ void CLASS_HEADER::Reserve(size_type new_capacity)
     }
     else
     {
-        value_type* new_data = Allocate(new_capacity);
         if (m_storage.large.data != nullptr)
         {
             std::memcpy(new_data, m_storage.large.data, (m_storage.large.size + 1) * sizeof(value_type));
@@ -1793,6 +1845,7 @@ void CLASS_HEADER::Reserve(size_type new_capacity)
         m_storage.large.data = new_data;
         m_storage.large.capacity = new_capacity;
     }
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
@@ -1809,8 +1862,15 @@ Opal::ErrorCode CLASS_HEADER::Resize(size_type new_size, CodeUnitType value)
         GetData()[new_size] = 0;
         return ErrorCode::Success;
     }
-    ValidateSize(new_size);
-    Grow(new_size + 1);
+    if (!IsValidSize(new_size))
+    {
+        return ErrorCode::OutOfMemory;
+    }
+    const ErrorCode error = Grow(new_size + 1);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return error;
+    }
     value_type* data = GetData();
     for (size_type i = old_size; i < new_size; i++)
     {
@@ -1847,16 +1907,16 @@ void CLASS_HEADER::PopBack()
 }
 
 TEMPLATE_HEADER
-void CLASS_HEADER::ShrinkToFit()
+Opal::ErrorCode CLASS_HEADER::ShrinkToFit()
 {
     if (IsSmall())
     {
-        return;
+        return ErrorCode::Success;
     }
     const size_type sz = GetSize();
     if (sz + 1 == m_storage.large.capacity)
     {
-        return;
+        return ErrorCode::Success;
     }
     value_type* old_data = m_storage.large.data;
     if (sz + 1 <= k_sso_capacity)
@@ -1866,13 +1926,18 @@ void CLASS_HEADER::ShrinkToFit()
         value_type* buf = GetSmallData();
         std::memcpy(buf, old_data, (sz + 1) * sizeof(value_type));
         Deallocate(old_data);
-        return;
+        return ErrorCode::Success;
     }
     value_type* new_data = Allocate(sz + 1);
+    if (new_data == nullptr) [[unlikely]]
+    {
+        return ErrorCode::OutOfMemory;
+    }
     std::memcpy(new_data, old_data, (sz + 1) * sizeof(value_type));
     Deallocate(old_data);
     m_storage.large.data = new_data;
     m_storage.large.capacity = sz + 1;
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
@@ -1896,13 +1961,22 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::R
     count = Min(count, sz - start_pos);
     if (GetInternalOffset(other) != k_npos)
     {
-        const String source(other, other_count, GetAllocatorPtr());
+        String source(GetAllocatorPtr());
+        const ErrorCode error = source.Append(other, other_count);
+        if (error != ErrorCode::Success) [[unlikely]]
+        {
+            return ReturnType(error);
+        }
         return Replace(start_pos, count, source.GetData(), other_count);
     }
     const size_type tail = sz - start_pos - count;
     if (other_count > count)
     {
-        GrowForAppend(sz, other_count - count);
+        const ErrorCode error = GrowForAppend(sz, other_count - count);
+        if (error != ErrorCode::Success) [[unlikely]]
+        {
+            return ReturnType(error);
+        }
         value_type* data = GetData();
         const size_type shift = other_count - count;
         for (size_type i = 0; i < tail; ++i)
@@ -1955,16 +2029,21 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::R
 }
 
 TEMPLATE_HEADER
-typename CLASS_HEADER::size_type CLASS_HEADER::ReplaceAll(const String& needle, const String& replacement)
+Opal::Expected<typename CLASS_HEADER::size_type, Opal::ErrorCode> CLASS_HEADER::ReplaceAll(const String& needle, const String& replacement)
 {
+    using ReturnType = Expected<size_type, ErrorCode>;
     if (needle.IsEmpty())
     {
-        return 0;
+        return ReturnType(size_type(0));
     }
     if (&needle == this || &replacement == this)
     {
-        const String needle_copy = needle.Clone(GetAllocatorPtr());
-        const String replacement_copy = replacement.Clone(GetAllocatorPtr());
+        String needle_copy(GetAllocatorPtr());
+        String replacement_copy(GetAllocatorPtr());
+        if (needle_copy.Append(needle) != ErrorCode::Success || replacement_copy.Append(replacement) != ErrorCode::Success) [[unlikely]]
+        {
+            return ReturnType(ErrorCode::OutOfMemory);
+        }
         return ReplaceAll(needle_copy, replacement_copy);
     }
     const size_type needle_size = needle.GetSize();
@@ -1976,34 +2055,47 @@ typename CLASS_HEADER::size_type CLASS_HEADER::ReplaceAll(const String& needle, 
         const size_type pos = Find(*this, needle, start_pos);
         if (pos == k_npos)
         {
-            return replaced;
+            return ReturnType(replaced);
         }
-        Replace(pos, needle_size, replacement);
+        const auto result = Replace(pos, needle_size, replacement);
+        if (!result.HasValue()) [[unlikely]]
+        {
+            return ReturnType(result.GetError());
+        }
         ++replaced;
         start_pos = pos + replacement_size;
     }
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::ReplaceFirst(const String& needle, const String& replacement)
+Opal::Expected<bool, Opal::ErrorCode> CLASS_HEADER::ReplaceFirst(const String& needle, const String& replacement)
 {
+    using ReturnType = Expected<bool, ErrorCode>;
     if (needle.IsEmpty())
     {
-        return false;
+        return ReturnType(false);
     }
     if (&needle == this || &replacement == this)
     {
-        const String needle_copy = needle.Clone(GetAllocatorPtr());
-        const String replacement_copy = replacement.Clone(GetAllocatorPtr());
+        String needle_copy(GetAllocatorPtr());
+        String replacement_copy(GetAllocatorPtr());
+        if (needle_copy.Append(needle) != ErrorCode::Success || replacement_copy.Append(replacement) != ErrorCode::Success) [[unlikely]]
+        {
+            return ReturnType(ErrorCode::OutOfMemory);
+        }
         return ReplaceFirst(needle_copy, replacement_copy);
     }
     const size_type pos = Find(*this, needle);
     if (pos == k_npos)
     {
-        return false;
+        return ReturnType(false);
     }
-    Replace(pos, needle.GetSize(), replacement);
-    return true;
+    const auto result = Replace(pos, needle.GetSize(), replacement);
+    if (!result.HasValue()) [[unlikely]]
+    {
+        return ReturnType(result.GetError());
+    }
+    return ReturnType(true);
 }
 
 TEMPLATE_HEADER
@@ -2079,7 +2171,11 @@ TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Append(const value_type& ch)
 {
     size_type sz = GetSize();
-    GrowForAppend(sz, 1);
+    const ErrorCode grow_error = GrowForAppend(sz, 1);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return grow_error;
+    }
     value_type* data = GetData();
     data[sz] = ch;
     sz += 1;
@@ -2101,7 +2197,11 @@ Opal::ErrorCode CLASS_HEADER::Append(const value_type* str, size_type size)
     }
     size_type sz = GetSize();
     const size_type alias_offset = GetInternalOffset(str);
-    GrowForAppend(sz, size);
+    const ErrorCode grow_error = GrowForAppend(sz, size);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return grow_error;
+    }
     value_type* data = GetData();
     if (size > 0)
     {
@@ -2118,7 +2218,11 @@ TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Append(size_type count, CodeUnitType value)
 {
     size_type sz = GetSize();
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return grow_error;
+    }
     value_type* data = GetData();
     for (size_type i = sz; i < sz + count; i++)
     {
@@ -2135,7 +2239,11 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other)
 {
     size_type sz = GetSize();
     const size_type other_size = other.GetSize();
-    GrowForAppend(sz, other_size);
+    const ErrorCode grow_error = GrowForAppend(sz, other_size);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return grow_error;
+    }
     value_type* data = GetData();
     if (other_size > 0)
     {
@@ -2164,7 +2272,11 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, size_type pos, size_ty
         return ErrorCode::OutOfBounds;
     }
     size_type sz = GetSize();
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return grow_error;
+    }
     value_type* data = GetData();
     if (count > 0)
     {
@@ -2193,7 +2305,11 @@ Opal::ErrorCode CLASS_HEADER::Append(InputIt begin_it, InputIt end_it)
     }
     u64 count = static_cast<u64>(end_it - begin_it);
     size_type sz = GetSize();
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return grow_error;
+    }
     value_type* data = GetData();
     for (size_type i = 0; i < count; i++)
     {
@@ -2220,7 +2336,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(iterator(GetData() + start_pos));
     }
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return ReturnType(grow_error);
+    }
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -2264,10 +2384,19 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     if (GetInternalOffset(str) != k_npos)
     {
-        const String source(str, count, GetAllocatorPtr());
+        String source(GetAllocatorPtr());
+        const ErrorCode error = source.Append(str, count);
+        if (error != ErrorCode::Success) [[unlikely]]
+        {
+            return ReturnType(error);
+        }
         return Insert(start_pos, source.GetData(), count);
     }
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return ReturnType(grow_error);
+    }
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -2314,7 +2443,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return Insert(start_pos, other.GetData() + other_start_pos, count);
     }
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return ReturnType(grow_error);
+    }
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -2344,7 +2477,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     const size_type start_pos = Narrow<size_type>(start - Begin());
     size_type sz = GetSize();
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return ReturnType(grow_error);
+    }
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -2375,7 +2512,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     const size_type start_pos = Narrow<size_type>(start - ConstBegin());
     size_type sz = GetSize();
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return ReturnType(grow_error);
+    }
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -2417,7 +2558,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     const size_type start_pos = Narrow<size_type>(start - Begin());
     size_type sz = GetSize();
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return ReturnType(grow_error);
+    }
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -2459,7 +2604,11 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     }
     const size_type start_pos = Narrow<size_type>(start - ConstBegin());
     size_type sz = GetSize();
-    GrowForAppend(sz, count);
+    const ErrorCode grow_error = GrowForAppend(sz, count);
+    if (grow_error != ErrorCode::Success) [[unlikely]]
+    {
+        return ReturnType(grow_error);
+    }
     value_type* data = GetData();
     for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
     {
@@ -2642,21 +2791,32 @@ void Opal::String<CodeUnitType, EncodingType>::Reverse(iterator start_it, iterat
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator+=(const String& other)
 {
-    Append(other);
+    // These operators have no way to hand back a code, so allocation failure stays an exception here.
+    if (Append(other) != ErrorCode::Success) [[unlikely]]
+    {
+        throw OutOfMemoryException(GetAllocator().GetName(), GetSize() + other.GetSize());
+    }
     return *this;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator+=(value_type ch)
 {
-    Append(ch);
+    if (Append(ch) != ErrorCode::Success) [[unlikely]]
+    {
+        throw OutOfMemoryException(GetAllocator().GetName(), GetSize() + 1);
+    }
     return *this;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER& CLASS_HEADER::operator+=(const value_type* str)
 {
-    Append(str);
+    // A null str is reported as InvalidArgument, which this operator has always ignored.
+    if (Append(str) == ErrorCode::OutOfMemory) [[unlikely]]
+    {
+        throw OutOfMemoryException(GetAllocator().GetName(), GetSize() + GetStringLength(str));
+    }
     return *this;
 }
 
@@ -2666,29 +2826,26 @@ CodeUnitType* CLASS_HEADER::Allocate(size_type size)
     allocator_type* alloc = GetAllocatorPtr();
     if (alloc == nullptr)
     {
-        throw OutOfMemoryException("Allocator is not set!");
+        return nullptr;
     }
     constexpr u64 k_alignment = alignof(CodeUnitType);
     if (size > k_max_size + 1)
     {
-        throw OutOfMemoryException(alloc->GetName(), size);
+        return nullptr;
     }
     const u64 size_bytes = size * sizeof(value_type);
-    value_type* new_data = reinterpret_cast<value_type*>(alloc->Alloc(size_bytes, k_alignment));
-    if (new_data == nullptr)
-    {
-        throw OutOfMemoryException(alloc->GetName(), size_bytes);
-    }
-    return new_data;
+    return reinterpret_cast<value_type*>(alloc->Alloc(size_bytes, k_alignment));
 }
 
 TEMPLATE_HEADER
 void CLASS_HEADER::Deallocate(value_type* data)
 {
+    // Every constructor stores an allocator, so a null one cannot happen. The destructor reaches this,
+    // and throwing from there terminates, so the impossible case is a no-op rather than an exception.
     allocator_type* alloc = GetAllocatorPtr();
     if (alloc == nullptr)
     {
-        throw OutOfMemoryException("Allocator is not set!");
+        return;
     }
     alloc->Free(data);
 }
@@ -2704,7 +2861,11 @@ Opal::ErrorCode Opal::Transcode(const InputStringClass& input, OutputStringClass
     ArrayView<const typename InputStringClass::value_type> input_span(input.GetData(), input.GetSize());
     if (output.GetSize() < input.GetSize())
     {
-        output.Resize(input.GetSize());
+        const ErrorCode resize_error = output.Resize(input.GetSize());
+        if (resize_error != ErrorCode::Success) [[unlikely]]
+        {
+            return resize_error;
+        }
     }
     ArrayView<output_value_type> output_span(output.GetData(), output.GetSize());
     while (true)
@@ -2723,7 +2884,11 @@ Opal::ErrorCode Opal::Transcode(const InputStringClass& input, OutputStringClass
         if (error == ErrorCode::InsufficientSpace)
         {
             const typename OutputStringClass::size_type written = output.GetSize() - output_span.GetSize();
-            output.Resize(output.GetSize() * 2 + 8);
+            const ErrorCode resize_error = output.Resize(output.GetSize() * 2 + 8);
+            if (resize_error != ErrorCode::Success) [[unlikely]]
+            {
+                return resize_error;
+            }
             output_span = ArrayView<output_value_type>(output.GetData() + written, output.GetData() + output.GetSize());
             error = dst_encoder.EncodeOne(code_point, output_span);
         }
@@ -2732,8 +2897,7 @@ Opal::ErrorCode Opal::Transcode(const InputStringClass& input, OutputStringClass
             return error;
         }
     }
-    output.Resize(output.GetSize() - output_span.GetSize());
-    return ErrorCode::Success;
+    return output.Resize(output.GetSize() - output_span.GetSize());
 }
 
 #undef TEMPLATE_HEADER

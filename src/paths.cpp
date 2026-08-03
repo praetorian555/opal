@@ -10,6 +10,18 @@
 #include <climits>
 #endif
 
+namespace
+{
+// NormalizePath has no error channel of its own and is documented to throw, so a failed append stays an exception.
+void CheckAppend(Opal::ErrorCode error, const Opal::StringUtf8& target)
+{
+    if (error != Opal::ErrorCode::Success) [[unlikely]]
+    {
+        throw Opal::OutOfMemoryException(target.GetAllocator().GetName(), target.GetSize());
+    }
+}
+}  // namespace
+
 Opal::StringUtf8 Opal::Paths::GetCurrentWorkingDirectory()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -90,9 +102,9 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
         // If the path is relative, attach the current working directory to it before normalization
         const StringUtf8 current_working_directory = GetCurrentWorkingDirectory();
         original_path.Erase();
-        original_path.Append(current_working_directory);
-        original_path.Append(k_preferred_separator);
-        original_path.Append(path);
+        CheckAppend(original_path.Append(current_working_directory), original_path);
+        CheckAppend(original_path.Append(k_preferred_separator), original_path);
+        CheckAppend(original_path.Append(path), original_path);
     }
 
     bool prev_is_separator = false;
@@ -104,9 +116,9 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
     if (original_path.GetSize() >= 2 && original_path[1] == ':')
     {
         // Path is absolute and starts with a drive letter
-        root.Append(original_path[0]);
-        root.Append(original_path[1]);
-        root.Append(k_preferred_separator);
+        CheckAppend(root.Append(original_path[0]), root);
+        CheckAppend(root.Append(original_path[1]), root);
+        CheckAppend(root.Append(k_preferred_separator), root);
         prev_is_separator = true;
         start = 2;
     }
@@ -117,7 +129,7 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
     if (original_path.GetSize() >= 1 && (original_path[0] == '\\' || original_path[0] == '/'))
     {
         // Path is absolute but starts only with a separator
-        root.Append(k_preferred_separator);
+        CheckAppend(root.Append(k_preferred_separator), root);
         prev_is_separator = true;
         start = 1;
     }
@@ -135,19 +147,19 @@ Opal::StringUtf8 Opal::Paths::NormalizePath(const StringUtf8& path)
             }
 
             prev_is_separator = true;
-            relative.Append(k_preferred_separator);
+            CheckAppend(relative.Append(k_preferred_separator), relative);
         }
         else
         {
             prev_is_separator = false;
-            relative.Append(original_path[i]);
+            CheckAppend(relative.Append(original_path[i]), relative);
         }
     }
 
     StringUtf8 pattern;
-    pattern.Append(k_preferred_separator);
-    pattern.Append('.');
-    pattern.Append(k_preferred_separator);
+    CheckAppend(pattern.Append(k_preferred_separator), pattern);
+    CheckAppend(pattern.Append('.'), pattern);
+    CheckAppend(pattern.Append(k_preferred_separator), pattern);
     const StringUtf8::size_type pos = Find(relative, pattern);
     if (pos != StringUtf8::k_npos)
     {

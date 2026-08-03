@@ -292,18 +292,29 @@ Opal::StringUtf8 str(&alloc);                     // Explicit allocator
 ### Modification
 
 ```cpp
-str.Append(" World");
-str.Append(other_str);
-str.Append(5, '!');
-str += " suffix";
-str.Insert(pos, "text");
-str.Erase(start_pos, count);
-str.Resize(new_size);
-str.Reserve(capacity);
-str.Trim();                        // Shrink allocation to fit
+str.Append(" World");              // Returns ErrorCode
+str.Append(other_str);             // Returns ErrorCode
+str.Append(5, '!');                // Returns ErrorCode
+str.Assign(other_str);             // Overwrite, returns ErrorCode
+str += " suffix";                  // Throws OutOfMemoryException on failure
+str.Insert(pos, "text");           // Returns Expected<iterator, ErrorCode>
+str.Erase(start_pos, count);       // Returns Expected<iterator, ErrorCode>
+str.Replace(pos, count, other);    // Returns Expected<iterator, ErrorCode>
+str.ReplaceAll(needle, other);     // Returns Expected<size_type, ErrorCode>
+str.ReplaceFirst(needle, other);   // Returns Expected<bool, ErrorCode>
+str.Resize(new_size);              // Returns ErrorCode
+str.Reserve(capacity);             // Returns ErrorCode
+str.ShrinkToFit();                 // Give up spare capacity, returns ErrorCode
+str.Trim();                        // Cut the size back to the first null terminator
+str.Strip();                       // Remove leading and trailing whitespace
 str.Reverse();
 str.Clear();
 ```
+
+Mutators that can allocate return `ErrorCode`, or `Expected<..., ErrorCode>` when they also have a
+value to hand back. Constructors, `Clone`, `operator=` from an initializer list and `operator+=` have
+nowhere to put a code and still throw `OutOfMemoryException`. Out-of-range access throws, since that
+is a caller bug rather than a recoverable condition.
 
 ### Access
 
@@ -762,8 +773,8 @@ Containers use two error handling approaches depending on the severity:
 
 | Style | Used By | Example |
 |-------|---------|---------|
-| **Exceptions** | `String`, `SharedPtr` | `OutOfBoundsException`, `OutOfMemoryException`, `InvalidArgumentException` |
-| **ErrorCode returns** | `Deque`, `DynamicArray`, `HashSet`, `HashMap`, `ArrayView` | `ErrorCode::OutOfBounds`, `ErrorCode::OutOfMemory`, `ErrorCode::InvalidArgument` |
+| **Exceptions** | `SharedPtr`, and constructors everywhere | `OutOfBoundsException`, `OutOfMemoryException`, `InvalidArgumentException` |
+| **ErrorCode returns** | `Deque`, `DynamicArray`, `String`, `HashSet`, `HashMap`, `ArrayView` | `ErrorCode::OutOfBounds`, `ErrorCode::OutOfMemory`, `ErrorCode::InvalidArgument` |
 
 `Expected<T, ErrorCode>` is used for operations that need to return both a value and an error status, such as `Deque::At()` or `ArrayView::SubSpan()`.
 
@@ -798,7 +809,7 @@ happens, since they have nothing to return. See the error handling section of `C
 
 `DynamicArray` and `String` throw exceptions on out-of-bounds access, while `Deque` and `ArrayView` return `Expected<T&, ErrorCode>`. That part is deliberate: an out-of-range index is a caller bug, not a recoverable condition.
 
-Allocation failure is where they used to disagree, and mostly no longer do. `Deque`, `DynamicArray`, `HashSet` and `HashMap` all return `ErrorCode::OutOfMemory`. `String` is the one still left to move; its mutators throw.
+Allocation failure is where they used to disagree, and no longer do. `Deque`, `DynamicArray`, `String`, `HashSet` and `HashMap` all return `ErrorCode::OutOfMemory`. What is left throwing is what has nowhere to put a code: constructors, `Clone`, `operator=` from an initializer list, and `String::operator+=`.
 
 **2. Inconsistent naming conventions.**
 

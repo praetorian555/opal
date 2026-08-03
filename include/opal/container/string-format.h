@@ -29,7 +29,11 @@ struct StringFormatIterator
 
     StringFormatIterator& operator=(char c)
     {
-        m_output->Append(static_cast<char8>(c));
+        // An output iterator has nowhere to put a code, so a failed append stays an exception here.
+        if (m_output->Append(static_cast<char8>(c)) != ErrorCode::Success) [[unlikely]]
+        {
+            throw OutOfMemoryException(m_output->GetAllocator().GetName(), m_output->GetSize() + 1);
+        }
         return *this;
     }
 
@@ -49,13 +53,17 @@ struct StringFormatIterator
  * @param output  String to append to.
  * @param fmt     Format string using std::format syntax (e.g., "{}", "{:.2f}", "{:#x}").
  * @param args    Values to format into the string.
+ * @throw OutOfMemoryException when the output string cannot be grown.
  */
 template <typename... Args>
 void AppendFormat(StringUtf8& output, StringViewUtf8 fmt, Args&&... args)
 {
     if constexpr (sizeof...(Args) == 0)
     {
-        output.Append(fmt.GetData(), fmt.GetSize());
+        if (output.Append(fmt.GetData(), fmt.GetSize()) != ErrorCode::Success) [[unlikely]]
+        {
+            throw OutOfMemoryException(output.GetAllocator().GetName(), output.GetSize() + fmt.GetSize());
+        }
     }
     else
     {
@@ -70,6 +78,7 @@ void AppendFormat(StringUtf8& output, StringViewUtf8 fmt, Args&&... args)
  * @param fmt     Format string using std::format syntax (e.g., "{}", "{:.2f}", "{:#x}").
  * @param args    Values to format into the string.
  * @return        A new StringUtf8 containing the formatted result.
+ * @throw OutOfMemoryException when the result string cannot be grown.
  */
 template <typename... Args>
 StringUtf8 Format(StringViewUtf8 fmt, Args&&... args)

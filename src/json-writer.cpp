@@ -56,10 +56,10 @@ public:
                 ++frame.obj_it;
                 ++frame.index;
                 WriteString(key);
-                m_output->Append(':');
+                Append(':');
                 if (m_options->pretty)
                 {
-                    m_output->Append(' ');
+                    Append(' ');
                 }
                 WriteValue(val);
             }
@@ -73,6 +73,23 @@ public:
     }
 
 private:
+    // The serializer reports every failure by throwing, so a failed append does too.
+    void Append(char8 ch) const
+    {
+        if (m_output->Append(ch) != ErrorCode::Success) [[unlikely]]
+        {
+            throw OutOfMemoryException(m_output->GetAllocator().GetName(), m_output->GetSize() + 1);
+        }
+    }
+
+    void Append(const char8* str, u64 size) const
+    {
+        if (m_output->Append(str, size) != ErrorCode::Success) [[unlikely]]
+        {
+            throw OutOfMemoryException(m_output->GetAllocator().GetName(), m_output->GetSize() + size);
+        }
+    }
+
     void WriteValue(const JsonValue& value)
     {
         switch (value.GetType())
@@ -105,17 +122,17 @@ private:
         }
     }
 
-    void WriteNull() const { m_output->Append("null", 4); }
+    void WriteNull() const { Append("null", 4); }
 
     void WriteBool(bool value) const
     {
         if (value)
         {
-            m_output->Append("true", 4);
+            Append("true", 4);
         }
         else
         {
-            m_output->Append("false", 5);
+            Append("false", 5);
         }
     }
 
@@ -136,9 +153,9 @@ private:
 
     void WriteString(StringViewUtf8 value) const
     {
-        m_output->Append('"');
+        Append('"');
         WriteEscapedString(value);
-        m_output->Append('"');
+        Append('"');
     }
 
     void WriteEscapedString(StringViewUtf8 value) const
@@ -189,7 +206,7 @@ private:
                         // Flush safe run before this character.
                         if (i > flush_start)
                         {
-                            m_output->Append(data + flush_start, i - flush_start);
+                            Append(data + flush_start, i - flush_start);
                         }
                         AppendFormat(m_output, "\\u{:04x}", c);
                         flush_start = i + 1;
@@ -200,16 +217,16 @@ private:
             // Flush safe run before escape.
             if (i > flush_start)
             {
-                m_output->Append(data + flush_start, i - flush_start);
+                Append(data + flush_start, i - flush_start);
             }
-            m_output->Append(escape, escape_len);
+            Append(escape, escape_len);
             flush_start = i + 1;
         }
 
         // Flush remaining safe bytes.
         if (flush_start < size)
         {
-            m_output->Append(data + flush_start, size - flush_start);
+            Append(data + flush_start, size - flush_start);
         }
     }
 
@@ -218,11 +235,11 @@ private:
         const u64 size = value.GetSize();
         if (size == 0)
         {
-            m_output->Append("[]", 2);
+            Append("[]", 2);
             return;
         }
 
-        m_output->Append('[');
+        Append('[');
         if (m_options->pretty)
         {
             ++m_depth;
@@ -243,11 +260,11 @@ private:
         const u64 size = value.GetSize();
         if (size == 0)
         {
-            m_output->Append("{}", 2);
+            Append("{}", 2);
             return;
         }
 
-        m_output->Append('{');
+        Append('{');
         if (m_options->pretty)
         {
             ++m_depth;
@@ -270,12 +287,12 @@ private:
             WriteNewline();
             WriteIndent();
         }
-        m_output->Append(is_object ? '}' : ']');
+        Append(is_object ? '}' : ']');
     }
 
     void WriteSeparator() const
     {
-        m_output->Append(',');
+        Append(',');
         if (m_options->pretty)
         {
             WriteNewline();
@@ -283,7 +300,7 @@ private:
         }
     }
 
-    void WriteNewline() const { m_output->Append('\n'); }
+    void WriteNewline() const { Append('\n'); }
 
     void WriteIndent() const
     {
@@ -291,7 +308,7 @@ private:
         {
             for (u32 i = 0; i < m_depth; ++i)
             {
-                m_output->Append('\t');
+                Append('\t');
             }
         }
         else
@@ -299,7 +316,7 @@ private:
             const u32 count = m_depth * m_options->indent_width;
             for (u32 i = 0; i < count; ++i)
             {
-                m_output->Append(' ');
+                Append(' ');
             }
         }
     }
