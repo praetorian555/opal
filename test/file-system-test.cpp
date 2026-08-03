@@ -27,6 +27,28 @@ void WriteDataToFile(const StringUtf8& path, const void* data, Opal::u64 size)
     fclose(f);
 }
 
+// Unwrap the success case so the tests that are not about failure stay about what they read back.
+StringUtf8 ReadStringOrFail(const StringUtf8& path)
+{
+    Expected<StringUtf8, ErrorCode> result = ReadFileAsString(path);
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+
+DynamicArray<u8> ReadBytesOrFail(const StringUtf8& path)
+{
+    Expected<DynamicArray<u8>, ErrorCode> result = ReadFileAsBytes(path);
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+
+DynamicArray<DirectoryEntry> CollectOrFail(StringUtf8 path, const DirectoryContentsDesc& desc = {})
+{
+    Expected<DynamicArray<DirectoryEntry>, ErrorCode> result = CollectDirectoryContents(std::move(path), desc);
+    REQUIRE(result.HasValue());
+    return std::move(result).GetValue();
+}
+
 }  // namespace
 
 CATCH_TRANSLATE_EXCEPTION(const Opal::Exception& ex)
@@ -162,8 +184,7 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
     {
         path = Paths::Combine(path, "test-dir");
         REQUIRE(!Opal::Exists(path));
-        DynamicArray<DirectoryEntry> children;
-        REQUIRE_THROWS_AS(children = Opal::CollectDirectoryContents(std::move(path)), PathNotFoundException);
+        REQUIRE(Opal::CollectDirectoryContents(std::move(path)).GetError() == ErrorCode::PathNotFound);
     }
     SECTION("Path is not to directory")
     {
@@ -171,8 +192,7 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         REQUIRE(!Opal::Exists(path));
         REQUIRE(CreateFile(path) == ErrorCode::Success);
         REQUIRE(Opal::Exists(path));
-        DynamicArray<DirectoryEntry> children;
-        REQUIRE_THROWS_AS(children = Opal::CollectDirectoryContents(path.Clone()), NotDirectoryException);
+        REQUIRE(Opal::CollectDirectoryContents(path.Clone()).GetError() == ErrorCode::NotDirectory);
         REQUIRE(DeleteFile(path) == ErrorCode::Success);
     }
     SECTION("Collect child contents, no recursive search")
@@ -199,7 +219,7 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         REQUIRE(CreateFile(another_file) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
-        REQUIRE_NOTHROW(children = Opal::CollectDirectoryContents(path.Clone()));
+        children = CollectOrFail(path.Clone());
         REQUIRE(children.GetSize() == 2);
         for (const DirectoryEntry& e : children)
         {
@@ -238,7 +258,7 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         REQUIRE(CreateFile(another_file) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
-        REQUIRE_NOTHROW(children = Opal::CollectDirectoryContents(path.Clone(), {.recursive = true}));
+        children = CollectOrFail(path.Clone(), {.recursive = true});
         REQUIRE(children.GetSize() == 3);
         for (const DirectoryEntry& e : children)
         {
@@ -277,7 +297,7 @@ TEST_CASE("Iterate over directory contents", "[FileSystem]")
         REQUIRE(CreateFile(another_file) == ErrorCode::Success);
         REQUIRE(Opal::Exists(another_file));
         DynamicArray<DirectoryEntry> children;
-        REQUIRE_NOTHROW(children = Opal::CollectDirectoryContents(path.Clone(), {.include_directories = false, .recursive = true}));
+        children = CollectOrFail(path.Clone(), {.include_directories = false, .recursive = true});
         REQUIRE(children.GetSize() == 2);
         for (const DirectoryEntry& e : children)
         {
@@ -303,14 +323,14 @@ TEST_CASE("ReadFileAsString", "[FileSystem]")
     {
         StringUtf8 file_path = Paths::Combine(path, "non-existent-file.txt");
         REQUIRE(!Exists(file_path));
-        REQUIRE_THROWS_AS(ReadFileAsString(file_path), PathNotFoundException);
+        REQUIRE(ReadFileAsString(file_path).GetError() == ErrorCode::PathNotFound);
     }
     SECTION("Read empty file")
     {
         StringUtf8 file_path = Paths::Combine(path, "empty-file.txt");
         REQUIRE(CreateFile(file_path) == ErrorCode::Success);
         StringUtf8 content;
-        REQUIRE_NOTHROW(content = ReadFileAsString(file_path));
+        content = ReadStringOrFail(file_path);
         REQUIRE(content.IsEmpty());
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -323,7 +343,7 @@ TEST_CASE("ReadFileAsString", "[FileSystem]")
         WriteDataToFile(file_path, expected, strlen(expected));
 
         StringUtf8 content;
-        REQUIRE_NOTHROW(content = ReadFileAsString(file_path));
+        content = ReadStringOrFail(file_path);
         REQUIRE(content == expected);
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -336,7 +356,7 @@ TEST_CASE("ReadFileAsString", "[FileSystem]")
         WriteDataToFile(file_path, expected, strlen(expected));
 
         StringUtf8 content;
-        REQUIRE_NOTHROW(content = ReadFileAsString(file_path));
+        content = ReadStringOrFail(file_path);
         REQUIRE(content == expected);
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -351,14 +371,14 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
     {
         StringUtf8 file_path = Paths::Combine(path, "non-existent-file.bin");
         REQUIRE(!Exists(file_path));
-        REQUIRE_THROWS_AS(ReadFileAsBytes(file_path), PathNotFoundException);
+        REQUIRE(ReadFileAsBytes(file_path).GetError() == ErrorCode::PathNotFound);
     }
     SECTION("Read empty file")
     {
         StringUtf8 file_path = Paths::Combine(path, "empty-file.bin");
         REQUIRE(CreateFile(file_path) == ErrorCode::Success);
         DynamicArray<u8> content;
-        REQUIRE_NOTHROW(content = ReadFileAsBytes(file_path));
+        content = ReadBytesOrFail(file_path);
         REQUIRE(content.IsEmpty());
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -371,7 +391,7 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
         WriteDataToFile(file_path, expected, sizeof(expected));
 
         DynamicArray<u8> content;
-        REQUIRE_NOTHROW(content = ReadFileAsBytes(file_path));
+        content = ReadBytesOrFail(file_path);
         REQUIRE(content.GetSize() == sizeof(expected));
         for (u64 i = 0; i < sizeof(expected); ++i)
         {
@@ -388,7 +408,7 @@ TEST_CASE("ReadFileAsBytes", "[FileSystem]")
         WriteDataToFile(file_path, expected, sizeof(expected));
 
         DynamicArray<u8> content;
-        REQUIRE_NOTHROW(content = ReadFileAsBytes(file_path));
+        content = ReadBytesOrFail(file_path);
         REQUIRE(content.GetSize() == sizeof(expected));
         for (u64 i = 0; i < sizeof(expected); ++i)
         {
@@ -406,7 +426,7 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
     SECTION("Write to non-existent directory")
     {
         StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.txt");
-        REQUIRE_THROWS_AS(WriteStringToFile(file_path, StringUtf8("data")), PathNotFoundException);
+        REQUIRE(WriteStringToFile(file_path, StringUtf8("data")) == ErrorCode::PathNotFound);
     }
     SECTION("Write creates new file")
     {
@@ -414,11 +434,11 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
         REQUIRE(!Exists(file_path));
 
         StringUtf8 content("Hello, Opal!");
-        REQUIRE_NOTHROW(WriteStringToFile(file_path, content));
+        REQUIRE(WriteStringToFile(file_path, content) == ErrorCode::Success);
         REQUIRE(Exists(file_path));
 
         StringUtf8 read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        read_back = ReadStringOrFail(file_path);
         REQUIRE(read_back == content);
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -426,11 +446,11 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
     {
         StringUtf8 file_path = Paths::Combine(path, "write-overwrite.txt");
 
-        REQUIRE_NOTHROW(WriteStringToFile(file_path, StringUtf8("original content")));
-        REQUIRE_NOTHROW(WriteStringToFile(file_path, StringUtf8("new")));
+        REQUIRE(WriteStringToFile(file_path, StringUtf8("original content")) == ErrorCode::Success);
+        REQUIRE(WriteStringToFile(file_path, StringUtf8("new")) == ErrorCode::Success);
 
         StringUtf8 read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        read_back = ReadStringOrFail(file_path);
         REQUIRE(read_back == "new");
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -438,11 +458,11 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
     {
         StringUtf8 file_path = Paths::Combine(path, "write-empty.txt");
 
-        REQUIRE_NOTHROW(WriteStringToFile(file_path, StringUtf8()));
+        REQUIRE(WriteStringToFile(file_path, StringUtf8()) == ErrorCode::Success);
         REQUIRE(Exists(file_path));
 
         StringUtf8 read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        read_back = ReadStringOrFail(file_path);
         REQUIRE(read_back.IsEmpty());
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -457,7 +477,7 @@ TEST_CASE("WriteBytesToFile", "[FileSystem]")
     {
         StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.bin");
         const u8 data[] = {0x01};
-        REQUIRE_THROWS_AS(WriteBytesToFile(file_path, ArrayView<const u8>(data)), PathNotFoundException);
+        REQUIRE(WriteBytesToFile(file_path, ArrayView<const u8>(data)) == ErrorCode::PathNotFound);
     }
     SECTION("Write and read back bytes")
     {
@@ -465,10 +485,10 @@ TEST_CASE("WriteBytesToFile", "[FileSystem]")
         REQUIRE(!Exists(file_path));
 
         const u8 expected[] = {0x00, 0xFF, 0x42, 0x80};
-        REQUIRE_NOTHROW(WriteBytesToFile(file_path, ArrayView<const u8>(expected)));
+        REQUIRE(WriteBytesToFile(file_path, ArrayView<const u8>(expected)) == ErrorCode::Success);
 
         DynamicArray<u8> read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsBytes(file_path));
+        read_back = ReadBytesOrFail(file_path);
         REQUIRE(read_back.GetSize() == sizeof(expected));
         for (u64 i = 0; i < sizeof(expected); ++i)
         {
@@ -481,13 +501,13 @@ TEST_CASE("WriteBytesToFile", "[FileSystem]")
         StringUtf8 file_path = Paths::Combine(path, "write-bytes-over.bin");
 
         const u8 original[] = {0x01, 0x02, 0x03, 0x04, 0x05};
-        REQUIRE_NOTHROW(WriteBytesToFile(file_path, ArrayView<const u8>(original)));
+        REQUIRE(WriteBytesToFile(file_path, ArrayView<const u8>(original)) == ErrorCode::Success);
 
         const u8 replacement[] = {0xAA, 0xBB};
-        REQUIRE_NOTHROW(WriteBytesToFile(file_path, ArrayView<const u8>(replacement)));
+        REQUIRE(WriteBytesToFile(file_path, ArrayView<const u8>(replacement)) == ErrorCode::Success);
 
         DynamicArray<u8> read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsBytes(file_path));
+        read_back = ReadBytesOrFail(file_path);
         REQUIRE(read_back.GetSize() == sizeof(replacement));
         REQUIRE(read_back[0] == 0xAA);
         REQUIRE(read_back[1] == 0xBB);
@@ -503,18 +523,18 @@ TEST_CASE("AppendStringToFile", "[FileSystem]")
     SECTION("Append to non-existent directory")
     {
         StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.txt");
-        REQUIRE_THROWS_AS(AppendStringToFile(file_path, StringUtf8("data")), PathNotFoundException);
+        REQUIRE(AppendStringToFile(file_path, StringUtf8("data")) == ErrorCode::PathNotFound);
     }
     SECTION("Append creates new file")
     {
         StringUtf8 file_path = Paths::Combine(path, "append-new.txt");
         REQUIRE(!Exists(file_path));
 
-        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8("Hello")));
+        REQUIRE(AppendStringToFile(file_path, StringUtf8("Hello")) == ErrorCode::Success);
         REQUIRE(Exists(file_path));
 
         StringUtf8 read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        read_back = ReadStringOrFail(file_path);
         REQUIRE(read_back == "Hello");
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -522,11 +542,11 @@ TEST_CASE("AppendStringToFile", "[FileSystem]")
     {
         StringUtf8 file_path = Paths::Combine(path, "append-existing.txt");
 
-        REQUIRE_NOTHROW(WriteStringToFile(file_path, StringUtf8("Hello")));
-        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8(", World!")));
+        REQUIRE(WriteStringToFile(file_path, StringUtf8("Hello")) == ErrorCode::Success);
+        REQUIRE(AppendStringToFile(file_path, StringUtf8(", World!")) == ErrorCode::Success);
 
         StringUtf8 read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        read_back = ReadStringOrFail(file_path);
         REQUIRE(read_back == "Hello, World!");
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -534,12 +554,12 @@ TEST_CASE("AppendStringToFile", "[FileSystem]")
     {
         StringUtf8 file_path = Paths::Combine(path, "append-multi.txt");
 
-        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8("line1\n")));
-        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8("line2\n")));
-        REQUIRE_NOTHROW(AppendStringToFile(file_path, StringUtf8("line3\n")));
+        REQUIRE(AppendStringToFile(file_path, StringUtf8("line1\n")) == ErrorCode::Success);
+        REQUIRE(AppendStringToFile(file_path, StringUtf8("line2\n")) == ErrorCode::Success);
+        REQUIRE(AppendStringToFile(file_path, StringUtf8("line3\n")) == ErrorCode::Success);
 
         StringUtf8 read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsString(file_path));
+        read_back = ReadStringOrFail(file_path);
         REQUIRE(read_back == "line1\nline2\nline3\n");
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
@@ -554,7 +574,7 @@ TEST_CASE("AppendBytesToFile", "[FileSystem]")
     {
         StringUtf8 file_path = Paths::Combine(path, "no-such-dir", "file.bin");
         const u8 data[] = {0x01};
-        REQUIRE_THROWS_AS(AppendBytesToFile(file_path, ArrayView<const u8>(data)), PathNotFoundException);
+        REQUIRE(AppendBytesToFile(file_path, ArrayView<const u8>(data)) == ErrorCode::PathNotFound);
     }
     SECTION("Append creates new file")
     {
@@ -562,10 +582,10 @@ TEST_CASE("AppendBytesToFile", "[FileSystem]")
         REQUIRE(!Exists(file_path));
 
         const u8 data[] = {0x01, 0x02};
-        REQUIRE_NOTHROW(AppendBytesToFile(file_path, ArrayView<const u8>(data)));
+        REQUIRE(AppendBytesToFile(file_path, ArrayView<const u8>(data)) == ErrorCode::Success);
 
         DynamicArray<u8> read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsBytes(file_path));
+        read_back = ReadBytesOrFail(file_path);
         REQUIRE(read_back.GetSize() == sizeof(data));
         REQUIRE(read_back[0] == 0x01);
         REQUIRE(read_back[1] == 0x02);
@@ -576,13 +596,13 @@ TEST_CASE("AppendBytesToFile", "[FileSystem]")
         StringUtf8 file_path = Paths::Combine(path, "append-bytes-existing.bin");
 
         const u8 first[] = {0xAA, 0xBB};
-        REQUIRE_NOTHROW(WriteBytesToFile(file_path, ArrayView<const u8>(first)));
+        REQUIRE(WriteBytesToFile(file_path, ArrayView<const u8>(first)) == ErrorCode::Success);
 
         const u8 second[] = {0xCC, 0xDD};
-        REQUIRE_NOTHROW(AppendBytesToFile(file_path, ArrayView<const u8>(second)));
+        REQUIRE(AppendBytesToFile(file_path, ArrayView<const u8>(second)) == ErrorCode::Success);
 
         DynamicArray<u8> read_back;
-        REQUIRE_NOTHROW(read_back = ReadFileAsBytes(file_path));
+        read_back = ReadBytesOrFail(file_path);
         REQUIRE(read_back.GetSize() == 4);
         REQUIRE(read_back[0] == 0xAA);
         REQUIRE(read_back[1] == 0xBB);

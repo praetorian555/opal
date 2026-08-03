@@ -23,6 +23,7 @@ enum class ErrorCode : u8
     NotEmpty = 13,
     ChannelClosed = 14,
     ChannelEmpty = 15,
+    NotDirectory = 16,
 };
 
 }

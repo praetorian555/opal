@@ -280,15 +280,18 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 
 ### File system (§2)
 
-- [ ] Add `ErrorCode::NotDirectory` - `include/opal/error-codes.h`
+- [x] Add `ErrorCode::NotDirectory` - `include/opal/error-codes.h`
 - [x] `CreateFile`, `DeleteFile`, `CreateDirectory`, `DeleteDirectory` return `ErrorCode`
       (`CreateDirectory`'s `throw_if_exists` parameter is now `fail_if_already_exists`, matching `CreateFile`)
-- [ ] `WriteStringToFile`, `WriteBytesToFile`, `AppendStringToFile`, `AppendBytesToFile` return `ErrorCode`
-- [ ] `ReadFileAsString` returns `Expected<StringUtf8, ErrorCode>`
-- [ ] `ReadFileAsBytes` returns `Expected<DynamicArray<u8>, ErrorCode>`
-- [ ] `CollectDirectoryContents` returns `Expected<DynamicArray<DirectoryEntry>, ErrorCode>`
-- [ ] Strip the `@throw` blocks from `include/opal/file-system.h:12-148`
-- [ ] Update `test/file-system-test.cpp`
+- [x] `WriteStringToFile`, `WriteBytesToFile`, `AppendStringToFile`, `AppendBytesToFile` return `ErrorCode`
+- [x] `ReadFileAsString` returns `Expected<StringUtf8, ErrorCode>`
+- [x] `ReadFileAsBytes` returns `Expected<DynamicArray<u8>, ErrorCode>`
+- [x] `CollectDirectoryContents` returns `Expected<DynamicArray<DirectoryEntry>, ErrorCode>`
+- [x] Strip the `@throw` blocks from `include/opal/file-system.h:12-148`
+- [x] Update `test/file-system-test.cpp`
+- [ ] `file-system-test.cpp` leaves files behind when an assertion fails mid-test, and the next run then fails on its
+      `REQUIRE(!Exists(path))` preconditions. Not caused by this work, but it bit twice during it - the tests want an
+      RAII guard that removes what they created.
 
 ### Paths (§3)
 

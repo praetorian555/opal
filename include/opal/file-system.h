@@ -1,5 +1,6 @@
 #pragma once
 
+#include "opal/container/expected.h"
 #include "opal/container/string.h"
 #include "opal/error-codes.h"
 #include "opal/export.h"
@@ -89,64 +90,63 @@ struct DirectoryEntry
  * @param desc Descriptor used to configure the search.
  * @note Will use current default allocator for allocation of the output entries.
  * @note Will use current scratch allocator for internal allocations.
- * @return Returns array of DirectoryEntry objects.
- * @throw PathNotFoundException when path does not exist.
- * @throw NotDirectoryException if a given path is not to a directory.
+ * @return Array of DirectoryEntry objects, ErrorCode::PathNotFound when the path does not exist,
+ *         ErrorCode::NotDirectory when the path is not a directory, ErrorCode::OutOfMemory when the result could not
+ *         be grown, or ErrorCode::OSFailure for any other failure.
  */
-DynamicArray<DirectoryEntry> OPAL_EXPORT CollectDirectoryContents(StringUtf8 path, const DirectoryContentsDesc& desc = {});
+[[nodiscard]] Expected<DynamicArray<DirectoryEntry>, ErrorCode> OPAL_EXPORT CollectDirectoryContents(
+    StringUtf8 path, const DirectoryContentsDesc& desc = {});
 
 /**
  * @brief Read the entire contents of a file as a UTF-8 string.
  * @param path Path to the file to read.
- * @return String containing the file contents.
- * @throw PathNotFoundException when the file does not exist.
- * @throw Exception when any other error occurs.
+ * @return String containing the file contents, ErrorCode::PathNotFound when the file does not exist, or
+ *         ErrorCode::OSFailure for any other failure.
  */
-StringUtf8 OPAL_EXPORT ReadFileAsString(const StringUtf8& path);
+[[nodiscard]] Expected<StringUtf8, ErrorCode> OPAL_EXPORT ReadFileAsString(const StringUtf8& path);
 
 /**
  * @brief Read the entire contents of a file as a byte array.
  * @param path Path to the file to read.
- * @return Array of bytes containing the file contents.
- * @throw PathNotFoundException when the file does not exist.
- * @throw Exception when any other error occurs.
+ * @return Array of bytes containing the file contents, ErrorCode::PathNotFound when the file does not exist, or
+ *         ErrorCode::OSFailure for any other failure.
  */
-DynamicArray<u8> OPAL_EXPORT ReadFileAsBytes(const StringUtf8& path);
+[[nodiscard]] Expected<DynamicArray<u8>, ErrorCode> OPAL_EXPORT ReadFileAsBytes(const StringUtf8& path);
 
 /**
  * @brief Write a string to a file, replacing any existing content. Creates the file if it does not exist.
  * @param path Path to the file to write.
  * @param content String content to write.
- * @throw PathNotFoundException when the parent directory does not exist.
- * @throw Exception when any other error occurs.
+ * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist, or
+ *         ErrorCode::OSFailure for any other failure.
  */
-void OPAL_EXPORT WriteStringToFile(const StringUtf8& path, const StringUtf8& content);
+[[nodiscard]] ErrorCode OPAL_EXPORT WriteStringToFile(const StringUtf8& path, const StringUtf8& content);
 
 /**
  * @brief Write bytes to a file, replacing any existing content. Creates the file if it does not exist.
  * @param path Path to the file to write.
  * @param content Byte data to write.
- * @throw PathNotFoundException when the parent directory does not exist.
- * @throw Exception when any other error occurs.
+ * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist, or
+ *         ErrorCode::OSFailure for any other failure.
  */
-void OPAL_EXPORT WriteBytesToFile(const StringUtf8& path, ArrayView<const u8> content);
+[[nodiscard]] ErrorCode OPAL_EXPORT WriteBytesToFile(const StringUtf8& path, ArrayView<const u8> content);
 
 /**
  * @brief Append a string to a file. Creates the file if it does not exist.
  * @param path Path to the file to append to.
  * @param content String content to append.
- * @throw PathNotFoundException when the parent directory does not exist.
- * @throw Exception when any other error occurs.
+ * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist, or
+ *         ErrorCode::OSFailure for any other failure.
  */
-void OPAL_EXPORT AppendStringToFile(const StringUtf8& path, const StringUtf8& content);
+[[nodiscard]] ErrorCode OPAL_EXPORT AppendStringToFile(const StringUtf8& path, const StringUtf8& content);
 
 /**
  * @brief Append bytes to a file. Creates the file if it does not exist.
  * @param path Path to the file to append to.
  * @param content Byte data to append.
- * @throw PathNotFoundException when the parent directory does not exist.
- * @throw Exception when any other error occurs.
+ * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist, or
+ *         ErrorCode::OSFailure for any other failure.
  */
-void OPAL_EXPORT AppendBytesToFile(const StringUtf8& path, ArrayView<const u8> content);
+[[nodiscard]] ErrorCode OPAL_EXPORT AppendBytesToFile(const StringUtf8& path, ArrayView<const u8> content);
 
 }  // namespace Opal

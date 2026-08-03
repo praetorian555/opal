@@ -246,7 +246,7 @@ bool Opal::IsDirectory(const StringUtf8& path)
     }
     return false;
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -273,33 +273,35 @@ bool Opal::IsFile(const StringUtf8& path)
     }
     return false;
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUtf8 path, const DirectoryContentsDesc& desc)
+Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::CollectDirectoryContents(StringUtf8 path,
+                                                                                                        const DirectoryContentsDesc& desc)
 {
+    using Result = Expected<DynamicArray<DirectoryEntry>, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0');
     ErrorCode err = Transcode(path, path_wide);
     if (err != ErrorCode::Success)
     {
-        throw Exception("Failed to transcode path!");
+        return Result(err);
     }
     const DWORD attributes = GetFileAttributesW(path_wide.GetData());
     if (attributes == INVALID_FILE_ATTRIBUTES)
     {
-        throw PathNotFoundException(*path);
+        return Result(ErrorCode::PathNotFound);
     }
     if ((attributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
     {
-        throw NotDirectoryException(*path);
+        return Result(ErrorCode::NotDirectory);
     }
 
     DynamicArray<StringWide> directories;
     if (directories.PushBack(Move(path_wide)) != ErrorCode::Success) [[unlikely]]
     {
-        throw OutOfMemoryException(__FUNCTION__);
+        return Result(ErrorCode::OutOfMemory);
     }
 
     DynamicArray<DirectoryEntry> out_contents;
@@ -312,8 +314,9 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUt
         HANDLE find_handle = FindFirstFileW(*(dir_wide + L"\\*"), &find_data);
         if (find_handle == INVALID_HANDLE_VALUE)
         {
-            throw NotDirectoryException("");
+            return Result(ErrorCode::NotDirectory);
         }
+        ErrorCode walk_err = ErrorCode::Success;
         do
         {
             const StringWide child_name_wide(find_data.cFileName);
@@ -330,38 +333,47 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUt
             err = Transcode(child_path_wide, child_path);
             if (err != ErrorCode::Success)
             {
-                throw Exception("Failed to transcode path!");
+                walk_err = err;
+                break;
             }
             const bool is_directory = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
             if (is_directory && desc.include_directories)
             {
                 if (out_contents.PushBack({.path = std::move(child_path), .is_directory = true}) != ErrorCode::Success) [[unlikely]]
                 {
-                    throw OutOfMemoryException(__FUNCTION__);
+                    walk_err = ErrorCode::OutOfMemory;
+                    break;
                 }
             }
             if (!is_directory)
             {
                 if (out_contents.PushBack({.path = std::move(child_path), .is_directory = false}) != ErrorCode::Success) [[unlikely]]
                 {
-                    throw OutOfMemoryException(__FUNCTION__);
+                    walk_err = ErrorCode::OutOfMemory;
+                    break;
                 }
             }
             if (desc.recursive && is_directory)
             {
                 if (directories.PushBack(Move(child_path_wide)) != ErrorCode::Success) [[unlikely]]
                 {
-                    throw OutOfMemoryException(__FUNCTION__);
+                    walk_err = ErrorCode::OutOfMemory;
+                    break;
                 }
             }
         } while (FindNextFileW(find_handle, &find_data) != 0);
+        FindClose(find_handle);
+        if (walk_err != ErrorCode::Success)
+        {
+            return Result(walk_err);
+        }
     }
-    return out_contents;
+    return Result(Move(out_contents));
 #elif defined(OPAL_PLATFORM_LINUX)
     DynamicArray<StringUtf8> directories;
     if (directories.PushBack(std::move(path)) != ErrorCode::Success) [[unlikely]]
     {
-        throw OutOfMemoryException(__FUNCTION__);
+        return Result(ErrorCode::OutOfMemory);
     }
 
     DynamicArray<DirectoryEntry> out_contents;
@@ -375,18 +387,16 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUt
         {
             if (errno == ENOENT)
             {
-                throw PathNotFoundException(*dir_path);
+                return Result(ErrorCode::PathNotFound);
             }
             if (errno == ENOTDIR)
             {
-                throw NotDirectoryException(*dir_path);
+                return Result(ErrorCode::NotDirectory);
             }
-            else
-            {
-                throw Exception("Failed to open directory!");
-            }
+            return Result(ErrorCode::OSFailure);
         }
 
+        ErrorCode walk_err = ErrorCode::Success;
         struct dirent* entry;
         while ((entry = readdir(dir)) != nullptr)
         {
@@ -404,7 +414,8 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUt
                 {
                     if (out_contents.PushBack({.path = std::move(entry_path), .is_directory = false}) != ErrorCode::Success) [[unlikely]]
                     {
-                        throw OutOfMemoryException(__FUNCTION__);
+                        walk_err = ErrorCode::OutOfMemory;
+                        break;
                     }
                 }
                 else if (S_ISDIR(statbuf.st_mode))
@@ -413,34 +424,42 @@ Opal::DynamicArray<Opal::DirectoryEntry> Opal::CollectDirectoryContents(StringUt
                     {
                         if (out_contents.PushBack({.path = entry_path.Clone(), .is_directory = true}) != ErrorCode::Success) [[unlikely]]
                         {
-                            throw OutOfMemoryException(__FUNCTION__);
+                            walk_err = ErrorCode::OutOfMemory;
+                            break;
                         }
                     }
                     if (desc.recursive)
                     {
                         if (directories.PushBack(std::move(entry_path)) != ErrorCode::Success) [[unlikely]]
                         {
-                            throw OutOfMemoryException(__FUNCTION__);
+                            walk_err = ErrorCode::OutOfMemory;
+                            break;
                         }
                     }
                 }
             }
         }
         closedir(dir);
+        if (walk_err != ErrorCode::Success)
+        {
+            return Result(walk_err);
+        }
     }
-    return out_contents;
+    return Result(Move(out_contents));
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-Opal::StringUtf8 Opal::ReadFileAsString(const StringUtf8& path)
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::ReadFileAsString(const StringUtf8& path)
 {
+    using Result = Expected<StringUtf8, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0');
-    if (Transcode(path, path_wide) != ErrorCode::Success)
+    const ErrorCode transcode_err = Transcode(path, path_wide);
+    if (transcode_err != ErrorCode::Success)
     {
-        throw Exception("Failed to transcode path!");
+        return Result(transcode_err);
     }
 
     constexpr DWORD k_share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
@@ -450,16 +469,16 @@ Opal::StringUtf8 Opal::ReadFileAsString(const StringUtf8& path)
         const DWORD win32_err = GetLastError();
         if (win32_err == ERROR_FILE_NOT_FOUND || win32_err == ERROR_PATH_NOT_FOUND)
         {
-            throw PathNotFoundException(*path);
+            return Result(ErrorCode::PathNotFound);
         }
-        throw Exception("Failed to open file for reading!");
+        return Result(ErrorCode::OSFailure);
     }
 
     LARGE_INTEGER file_size;
     if (GetFileSizeEx(file_handle, &file_size) == 0)
     {
         CloseHandle(file_handle);
-        throw Exception("Failed to get file size!");
+        return Result(ErrorCode::OSFailure);
     }
 
     StringUtf8 result(static_cast<u64>(file_size.QuadPart), '\0');
@@ -469,21 +488,21 @@ Opal::StringUtf8 Opal::ReadFileAsString(const StringUtf8& path)
         if (ReadFile(file_handle, result.GetData(), static_cast<DWORD>(file_size.QuadPart), &bytes_read, nullptr) == 0)
         {
             CloseHandle(file_handle);
-            throw Exception("Failed to read file!");
+            return Result(ErrorCode::OSFailure);
         }
     }
 
     CloseHandle(file_handle);
-    return result;
+    return Result(Move(result));
 #elif defined(OPAL_PLATFORM_LINUX)
     FILE* file = fopen(*path, "rb");
     if (file == nullptr)
     {
         if (errno == ENOENT)
         {
-            throw PathNotFoundException(*path);
+            return Result(ErrorCode::PathNotFound);
         }
-        throw Exception("Failed to open file for reading!");
+        return Result(ErrorCode::OSFailure);
     }
 
     fseek(file, 0, SEEK_END);
@@ -492,7 +511,7 @@ Opal::StringUtf8 Opal::ReadFileAsString(const StringUtf8& path)
     if (file_size < 0)
     {
         fclose(file);
-        throw Exception("Failed to get file size!");
+        return Result(ErrorCode::OSFailure);
     }
 
     StringUtf8 result(static_cast<u64>(file_size), '\0');
@@ -502,24 +521,26 @@ Opal::StringUtf8 Opal::ReadFileAsString(const StringUtf8& path)
         if (read_count != static_cast<u64>(file_size))
         {
             fclose(file);
-            throw Exception("Failed to read file!");
+            return Result(ErrorCode::OSFailure);
         }
     }
 
     fclose(file);
-    return result;
+    return Result(Move(result));
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-Opal::DynamicArray<Opal::u8> Opal::ReadFileAsBytes(const StringUtf8& path)
+Opal::Expected<Opal::DynamicArray<Opal::u8>, Opal::ErrorCode> Opal::ReadFileAsBytes(const StringUtf8& path)
 {
+    using Result = Expected<DynamicArray<u8>, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide(path.GetSize() * 2, L'\0');
-    if (Transcode(path, path_wide) != ErrorCode::Success)
+    const ErrorCode transcode_err = Transcode(path, path_wide);
+    if (transcode_err != ErrorCode::Success)
     {
-        throw Exception("Failed to transcode path!");
+        return Result(transcode_err);
     }
 
     constexpr DWORD k_share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
@@ -530,16 +551,16 @@ Opal::DynamicArray<Opal::u8> Opal::ReadFileAsBytes(const StringUtf8& path)
         const DWORD win32_err = GetLastError();
         if (win32_err == ERROR_FILE_NOT_FOUND || win32_err == ERROR_PATH_NOT_FOUND)
         {
-            throw PathNotFoundException(*path);
+            return Result(ErrorCode::PathNotFound);
         }
-        throw Exception("Failed to open file for reading!");
+        return Result(ErrorCode::OSFailure);
     }
 
     LARGE_INTEGER file_size;
     if (GetFileSizeEx(file_handle, &file_size) == 0)
     {
         CloseHandle(file_handle);
-        throw Exception("Failed to get file size!");
+        return Result(ErrorCode::OSFailure);
     }
 
     DynamicArray<u8> result(static_cast<u64>(file_size.QuadPart), static_cast<u8>(0));
@@ -549,21 +570,21 @@ Opal::DynamicArray<Opal::u8> Opal::ReadFileAsBytes(const StringUtf8& path)
         if (ReadFile(file_handle, result.GetData(), static_cast<DWORD>(file_size.QuadPart), &bytes_read, nullptr) == 0)
         {
             CloseHandle(file_handle);
-            throw Exception("Failed to read file!");
+            return Result(ErrorCode::OSFailure);
         }
     }
 
     CloseHandle(file_handle);
-    return result;
+    return Result(Move(result));
 #elif defined(OPAL_PLATFORM_LINUX)
     FILE* file = fopen(*path, "rb");
     if (file == nullptr)
     {
         if (errno == ENOENT)
         {
-            throw PathNotFoundException(*path);
+            return Result(ErrorCode::PathNotFound);
         }
-        throw Exception("Failed to open file for reading!");
+        return Result(ErrorCode::OSFailure);
     }
 
     fseek(file, 0, SEEK_END);
@@ -572,7 +593,7 @@ Opal::DynamicArray<Opal::u8> Opal::ReadFileAsBytes(const StringUtf8& path)
     if (file_size < 0)
     {
         fclose(file);
-        throw Exception("Failed to get file size!");
+        return Result(ErrorCode::OSFailure);
     }
 
     DynamicArray<u8> result(static_cast<u64>(file_size), static_cast<u8>(0));
@@ -582,14 +603,14 @@ Opal::DynamicArray<Opal::u8> Opal::ReadFileAsBytes(const StringUtf8& path)
         if (read_count != static_cast<u64>(file_size))
         {
             fclose(file);
-            throw Exception("Failed to read file!");
+            return Result(ErrorCode::OSFailure);
         }
     }
 
     fclose(file);
-    return result;
+    return Result(Move(result));
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -597,14 +618,15 @@ namespace
 {
 
 #if defined(OPAL_PLATFORM_WINDOWS)
-void WriteToFileWin32(const Opal::StringUtf8& path, const void* data, Opal::u64 size, DWORD creation_disposition)
+Opal::ErrorCode WriteToFileWin32(const Opal::StringUtf8& path, const void* data, Opal::u64 size, DWORD creation_disposition)
 {
     using namespace Opal;
 
     StringWide path_wide(path.GetSize() * 2, L'\0');
-    if (Transcode(path, path_wide) != ErrorCode::Success)
+    const ErrorCode transcode_err = Transcode(path, path_wide);
+    if (transcode_err != ErrorCode::Success)
     {
-        throw Exception("Failed to transcode path!");
+        return transcode_err;
     }
 
     constexpr DWORD k_share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ | FILE_SHARE_WRITE;
@@ -615,9 +637,9 @@ void WriteToFileWin32(const Opal::StringUtf8& path, const void* data, Opal::u64 
         const DWORD win32_err = GetLastError();
         if (win32_err == ERROR_PATH_NOT_FOUND)
         {
-            throw PathNotFoundException(*path);
+            return ErrorCode::PathNotFound;
         }
-        throw Exception("Failed to open file for writing!");
+        return ErrorCode::OSFailure;
     }
 
     if (creation_disposition == OPEN_ALWAYS)
@@ -625,7 +647,7 @@ void WriteToFileWin32(const Opal::StringUtf8& path, const void* data, Opal::u64 
         if (SetFilePointer(file_handle, 0, nullptr, FILE_END) == INVALID_SET_FILE_POINTER)
         {
             CloseHandle(file_handle);
-            throw Exception("Failed to seek to end of file!");
+            return ErrorCode::OSFailure;
         }
     }
 
@@ -635,14 +657,15 @@ void WriteToFileWin32(const Opal::StringUtf8& path, const void* data, Opal::u64 
         if (WriteFile(file_handle, data, static_cast<DWORD>(size), &bytes_written, nullptr) == 0)
         {
             CloseHandle(file_handle);
-            throw Exception("Failed to write to file!");
+            return ErrorCode::OSFailure;
         }
     }
 
     CloseHandle(file_handle);
+    return ErrorCode::Success;
 }
 #elif defined(OPAL_PLATFORM_LINUX)
-void WriteToFileLinux(const Opal::StringUtf8& path, const void* data, Opal::u64 size, const char* mode)
+Opal::ErrorCode WriteToFileLinux(const Opal::StringUtf8& path, const void* data, Opal::u64 size, const char* mode)
 {
     using namespace Opal;
 
@@ -651,9 +674,9 @@ void WriteToFileLinux(const Opal::StringUtf8& path, const void* data, Opal::u64 
     {
         if (errno == ENOENT)
         {
-            throw PathNotFoundException(*path);
+            return ErrorCode::PathNotFound;
         }
-        throw Exception("Failed to open file for writing!");
+        return ErrorCode::OSFailure;
     }
 
     if (size > 0)
@@ -662,56 +685,57 @@ void WriteToFileLinux(const Opal::StringUtf8& path, const void* data, Opal::u64 
         if (write_count != size)
         {
             fclose(file);
-            throw Exception("Failed to write to file!");
+            return ErrorCode::OSFailure;
         }
     }
 
     fclose(file);
+    return ErrorCode::Success;
 }
 #endif
 
 }  // namespace
 
-void Opal::WriteStringToFile(const StringUtf8& path, const StringUtf8& content)
+Opal::ErrorCode Opal::WriteStringToFile(const StringUtf8& path, const StringUtf8& content)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
+    return WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
 #elif defined(OPAL_PLATFORM_LINUX)
-    WriteToFileLinux(path, content.GetData(), content.GetSize(), "wb");
+    return WriteToFileLinux(path, content.GetData(), content.GetSize(), "wb");
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-void Opal::WriteBytesToFile(const StringUtf8& path, ArrayView<const u8> content)
+Opal::ErrorCode Opal::WriteBytesToFile(const StringUtf8& path, ArrayView<const u8> content)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
+    return WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
 #elif defined(OPAL_PLATFORM_LINUX)
-    WriteToFileLinux(path, content.GetData(), content.GetSize(), "wb");
+    return WriteToFileLinux(path, content.GetData(), content.GetSize(), "wb");
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-void Opal::AppendStringToFile(const StringUtf8& path, const StringUtf8& content)
+Opal::ErrorCode Opal::AppendStringToFile(const StringUtf8& path, const StringUtf8& content)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);
+    return WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);
 #elif defined(OPAL_PLATFORM_LINUX)
-    WriteToFileLinux(path, content.GetData(), content.GetSize(), "ab");
+    return WriteToFileLinux(path, content.GetData(), content.GetSize(), "ab");
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-void Opal::AppendBytesToFile(const StringUtf8& path, ArrayView<const u8> content)
+Opal::ErrorCode Opal::AppendBytesToFile(const StringUtf8& path, ArrayView<const u8> content)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);
+    return WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);
 #elif defined(OPAL_PLATFORM_LINUX)
-    WriteToFileLinux(path, content.GetData(), content.GetSize(), "ab");
+    return WriteToFileLinux(path, content.GetData(), content.GetSize(), "ab");
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
