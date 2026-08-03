@@ -92,8 +92,20 @@ public:
                 throw InvalidArgumentException("SharedPtr", "Allocator should be thread-safe");
             }
         }
+        // A budgeted allocator hands back nullptr rather than raising, so both allocations have to be checked. The
+        // result is the same invalid state the raw-pointer constructor produces for a null object.
         m_object = New<T>(allocator, std::forward<Args>(args)...);
+        if (m_object == nullptr) [[unlikely]]
+        {
+            return;
+        }
         m_refcount = New<RefCountT>(allocator);
+        if (m_refcount == nullptr) [[unlikely]]
+        {
+            Delete(allocator, m_object);
+            m_object = nullptr;
+            return;
+        }
         RefCountOps::Store(m_refcount, 1);
         m_allocator = allocator;
     }
@@ -123,8 +135,13 @@ public:
                 throw InvalidArgumentException("SharedPtr", "Allocator should be thread-safe");
             }
         }
-        m_object = object;
         m_refcount = New<RefCountT>(allocator);
+        if (m_refcount == nullptr) [[unlikely]]
+        {
+            Delete(allocator, object);
+            return;
+        }
+        m_object = object;
         RefCountOps::Store(m_refcount, 1);
         m_allocator = allocator;
     }
