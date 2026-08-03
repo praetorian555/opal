@@ -1,5 +1,7 @@
 #include "test-helpers.h"
 
+#include <stdexcept>
+
 #include "opal/allocator.h"
 #include "opal/exceptions.h"
 #include "opal/threading/thread.h"
@@ -342,5 +344,109 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
 
         REQUIRE(result1.allocator == &alloc1);
         REQUIRE(result2.allocator == &alloc2);
+    }
+}
+
+namespace
+{
+// Wraps a MallocAllocator and records how many blocks went out and came back.
+struct CountingAllocator final : Opal::AllocatorBase
+{
+    CountingAllocator() : AllocatorBase("CountingAllocator") {}
+
+    void* Alloc(Opal::u64 size, Opal::u64 alignment) override
+    {
+        void* memory = m_inner.Alloc(size, alignment);
+        if (memory != nullptr)
+        {
+            ++alloc_count;
+        }
+        return memory;
+    }
+
+    void Free(void* ptr) override
+    {
+        if (ptr != nullptr)
+        {
+            ++free_count;
+        }
+        m_inner.Free(ptr);
+    }
+
+    [[nodiscard]] bool IsThreadSafe() const override { return true; }
+
+    Opal::i32 alloc_count = 0;
+    Opal::i32 free_count = 0;
+
+private:
+    Opal::MallocAllocator m_inner;
+};
+
+struct ThrowsOpalException
+{
+    ThrowsOpalException() { throw Opal::Exception("constructor failed"); }
+};
+
+struct ThrowsStandardException
+{
+    ThrowsStandardException() { throw std::runtime_error("constructor failed"); }
+};
+}  // namespace
+
+TEST_CASE("Opal exceptions are standard exceptions", "[Exceptions]")
+{
+    SECTION("The base is catchable as std::exception")
+    {
+        bool caught = false;
+        try
+        {
+            throw Opal::Exception("a message");
+        } catch (const std::exception& e)
+        {
+            caught = true;
+            REQUIRE(std::strcmp(e.what(), "a message") == 0);
+        }
+        REQUIRE(caught);
+    }
+    SECTION("A derived exception is catchable as std::exception")
+    {
+        bool caught = false;
+        try
+        {
+            throw Opal::OutOfMemoryException("TestAllocator", 128);
+        } catch (const std::exception& e)
+        {
+            caught = true;
+            REQUIRE(std::strstr(e.what(), "TestAllocator") != nullptr);
+        }
+        REQUIRE(caught);
+    }
+    SECTION("what and What report the same message")
+    {
+        const Opal::OutOfBoundsException ex(Opal::u64{5}, Opal::u64{0}, Opal::u64{3});
+        REQUIRE(std::strcmp(ex.what(), *ex.What()) == 0);
+    }
+}
+
+TEST_CASE("New releases the block when a constructor throws", "[Allocator]")
+{
+    SECTION("Opal exception")
+    {
+        CountingAllocator allocator;
+        REQUIRE_THROWS_AS(Opal::New<ThrowsOpalException>(&allocator), Opal::Exception);
+        REQUIRE(allocator.alloc_count == 1);
+        REQUIRE(allocator.free_count == 1);
+    }
+    SECTION("Standard exception")
+    {
+        CountingAllocator allocator;
+        REQUIRE_THROWS_AS(Opal::New<ThrowsStandardException>(&allocator), std::runtime_error);
+        REQUIRE(allocator.alloc_count == 1);
+        REQUIRE(allocator.free_count == 1);
+    }
+    SECTION("An allocator that cannot allocate returns nullptr and never constructs")
+    {
+        Opal::NullAllocator allocator;
+        REQUIRE(Opal::New<ThrowsOpalException>(&allocator) == nullptr);
     }
 }

@@ -243,7 +243,7 @@ T* New(AllocatorBase* allocator, Args&&... args)
     try
     {
         return new (memory) T(std::forward<Args>(args)...);
-    } catch (const Exception&)
+    } catch (const std::exception&)
     {
         allocator->Free(memory);
         throw;
@@ -271,7 +271,7 @@ T* New(AllocatorBase* allocator, Args&&... args)
     try
     {
         return new (memory) T(std::forward<Args>(args)...);
-    } catch (const Exception&)
+    } catch (const std::exception&)
     {
         allocator->Free(memory);
         throw;

@@ -34,8 +34,9 @@ Keep as is:
 - `src/allocator.cpp:57,70` - constructor cannot reserve. No return channel. A
   `static Expected<SystemMemoryAllocator, ErrorCode> Create(...)` would fix it if we want it.
 - `include/opal/allocator.h:216,234` - `New<T>` with a null allocator. Contract violation, better as
-  `OPAL_ASSERT`. Note the `try`/`catch (const Exception&)` in both overloads only exists because `T`'s
-  constructor may throw; it stays needed as long as constructors throw.
+  `OPAL_ASSERT`. Note the `try`/`catch` in both overloads only exists because `T`'s constructor may
+  throw; it stays needed as long as constructors throw, and `T` is arbitrary, so removing it would
+  need a constraint on `T` rather than finishing §11.
 
 ## 2. File system - 81 throws, the whole API needs new signatures
 

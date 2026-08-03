@@ -2,6 +2,8 @@
 
 #include <stdio.h>
 
+#include <exception>
+
 #include "opal/type-traits.h"
 #include "opal/types.h"
 
@@ -68,13 +70,19 @@ private:
     i64 m_length = 0;
 };
 
-struct Exception
+/**
+ * Base of every exception the library throws. Inherits std::exception so a caller can handle Opal and standard
+ * exceptions with one handler, and so the message reaches anything that reports a std::exception.
+ */
+struct Exception : std::exception
 {
     Exception(const StringEx& message) : m_message(message) {}
     Exception(StringEx&& message) : m_message(Move(message)) {}
-    virtual ~Exception() = default;
+    ~Exception() override = default;
 
     const StringEx& What() const { return m_message; }
+
+    [[nodiscard]] const char* what() const noexcept override { return *m_message; }
 
 private:
     StringEx m_message;
