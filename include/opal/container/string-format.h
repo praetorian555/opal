@@ -2,8 +2,10 @@
 
 #include <format>
 
+#include "opal/container/expected.h"
 #include "opal/container/string-view.h"
 #include "opal/container/string.h"
+#include "opal/error-codes.h"
 
 namespace Opal
 {
@@ -14,6 +16,9 @@ namespace Impl
 /**
  * Output iterator adapter that appends characters to a StringUtf8. Used internally by Format and AppendFormat to bridge
  * std::vformat_to with Opal's string type.
+ *
+ * An output iterator has no return value, so the first failed append is recorded in the referenced code and every
+ * later write is dropped. The caller reads the code once formatting is done.
  */
 struct StringFormatIterator
 {
@@ -24,15 +29,20 @@ struct StringFormatIterator
     using reference = void;
 
     StringUtf8* m_output;
+    ErrorCode* m_error;
 
-    explicit StringFormatIterator(StringUtf8& output) : m_output(&output) {}
+    StringFormatIterator(StringUtf8& output, ErrorCode& error) : m_output(&output), m_error(&error) {}
 
     StringFormatIterator& operator=(char c)
     {
-        // An output iterator has nowhere to put a code, so a failed append stays an exception here.
-        if (m_output->Append(static_cast<char8>(c)) != ErrorCode::Success) [[unlikely]]
+        if (*m_error != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException(m_output->GetAllocator().GetName(), m_output->GetSize() + 1);
+            return *this;
+        }
+        const ErrorCode error = m_output->Append(static_cast<char8>(c));
+        if (error != ErrorCode::Success) [[unlikely]]
+        {
+            *m_error = error;
         }
         return *this;
     }
@@ -53,22 +63,22 @@ struct StringFormatIterator
  * @param output  String to append to.
  * @param fmt     Format string using std::format syntax (e.g., "{}", "{:.2f}", "{:#x}").
  * @param args    Values to format into the string.
- * @throw OutOfMemoryException when the output string cannot be grown.
+ * @return ErrorCode::Success, or ErrorCode::OutOfMemory when the output string could not be grown. On failure the
+ *         output holds however much was written before the string ran out of room.
  */
 template <typename... Args>
-void AppendFormat(StringUtf8& output, StringViewUtf8 fmt, Args&&... args)
+[[nodiscard]] ErrorCode AppendFormat(StringUtf8& output, StringViewUtf8 fmt, Args&&... args)
 {
     if constexpr (sizeof...(Args) == 0)
     {
-        if (output.Append(fmt.GetData(), fmt.GetSize()) != ErrorCode::Success) [[unlikely]]
-        {
-            throw OutOfMemoryException(output.GetAllocator().GetName(), output.GetSize() + fmt.GetSize());
-        }
+        return output.Append(fmt.GetData(), fmt.GetSize());
     }
     else
     {
-        Impl::StringFormatIterator out(output);
+        ErrorCode error = ErrorCode::Success;
+        Impl::StringFormatIterator out(output, error);
         std::vformat_to(std::move(out), std::string_view(fmt.GetData(), fmt.GetSize()), std::make_format_args(args...));
+        return error;
     }
 }
 
@@ -77,15 +87,18 @@ void AppendFormat(StringUtf8& output, StringViewUtf8 fmt, Args&&... args)
  *
  * @param fmt     Format string using std::format syntax (e.g., "{}", "{:.2f}", "{:#x}").
  * @param args    Values to format into the string.
- * @return        A new StringUtf8 containing the formatted result.
- * @throw OutOfMemoryException when the result string cannot be grown.
+ * @return A new StringUtf8 containing the formatted result, or ErrorCode::OutOfMemory when it could not be grown.
  */
 template <typename... Args>
-StringUtf8 Format(StringViewUtf8 fmt, Args&&... args)
+Expected<StringUtf8, ErrorCode> Format(StringViewUtf8 fmt, Args&&... args)
 {
     StringUtf8 result;
-    AppendFormat(result, fmt, std::forward<Args>(args)...);
-    return result;
+    const ErrorCode error = AppendFormat(result, fmt, std::forward<Args>(args)...);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Expected<StringUtf8, ErrorCode>(error);
+    }
+    return Expected<StringUtf8, ErrorCode>(Move(result));
 }
 
 }  // namespace Opal

@@ -270,10 +270,12 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 
 ### String formatting (§8)
 
-- [ ] `StringFormatIterator` latches the first failure instead of throwing - `include/opal/container/string-format.h:35`
-- [ ] `AppendFormat` returns `ErrorCode`, reads the latched failure after `vformat_to` - `string-format.h:59`
-- [ ] `Format` returns `Expected<StringUtf8, ErrorCode>` - `string-format.h:84`
-- [ ] Update `Logger` and `program-arguments` call sites
+- [x] `StringFormatIterator` latches the first failure instead of throwing - `include/opal/container/string-format.h:35`
+- [x] `AppendFormat` returns `ErrorCode`, reads the latched failure after `vformat_to` - `string-format.h:59`
+- [x] `Format` returns `Expected<StringUtf8, ErrorCode>` - `string-format.h:84`
+- [x] Update call sites. `Logger` turned out not to use either function - it drives `std::vformat_to` through its own
+      `BoundedFormatIterator`, which writes into a fixed buffer and cannot fail. `json-writer` is the only caller, and
+      it wraps `AppendFormat` in a helper that throws, matching what the rest of that file already does; §5 removes it.
 
 ### File system (§2)
 

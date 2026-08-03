@@ -90,6 +90,15 @@ private:
         }
     }
 
+    template <typename... Args>
+    void AppendFormatted(StringViewUtf8 fmt, Args&&... args) const
+    {
+        if (AppendFormat(*m_output, fmt, std::forward<Args>(args)...) != ErrorCode::Success) [[unlikely]]
+        {
+            throw OutOfMemoryException(m_output->GetAllocator().GetName(), m_output->GetSize());
+        }
+    }
+
     void WriteValue(const JsonValue& value)
     {
         switch (value.GetType())
@@ -146,10 +155,10 @@ private:
         {
             throw JsonSerializeException("Infinity is not a valid JSON number");
         }
-        AppendFormat(m_output, "{:.17g}", value);
+        AppendFormatted("{:.17g}", value);
     }
 
-    void WriteInteger(i64 value) const { AppendFormat(m_output, "{}", value); }
+    void WriteInteger(i64 value) const { AppendFormatted("{}", value); }
 
     void WriteString(StringViewUtf8 value) const
     {
@@ -208,7 +217,7 @@ private:
                         {
                             Append(data + flush_start, i - flush_start);
                         }
-                        AppendFormat(m_output, "\\u{:04x}", c);
+                        AppendFormatted("\\u{:04x}", c);
                         flush_start = i + 1;
                     }
                     continue;
