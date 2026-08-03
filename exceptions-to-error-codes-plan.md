@@ -293,9 +293,10 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
       through a `ToWidePath` helper that resizes and transcodes, the four result buffers default-construct and `Resize`,
       and the two remaining `StringWide` constructions in the Windows directory walk became a view and an `Append`
       chain. A `NullAllocator` test covers each group; its absence is why this was invisible.
-- [ ] `file-system-test.cpp` leaves files behind when an assertion fails mid-test, and the next run then fails on its
-      `REQUIRE(!Exists(path))` preconditions. Not caused by this work, but it bit twice during it - the tests want an
-      RAII guard that removes what they created.
+- [x] `file-system-test.cpp` leaves files behind when an assertion fails mid-test, and the next run then fails on its
+      `REQUIRE(!Exists(path))` preconditions. Not caused by this work, but it bit twice during it. A `ScopedTestPaths`
+      guard now records every path a test builds and removes whatever survives when the test case ends. Verified by
+      failing a section on purpose between create and delete and confirming nothing was left in the working tree.
 
 ### Paths (§3)
 
