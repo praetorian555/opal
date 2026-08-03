@@ -552,6 +552,10 @@ Opal::HashSet<MyKey> set;
 Opal::HashMap<MyKey, int> map;
 ```
 
+A hasher comes for free only for types whose bytes determine their value, plus floating point types and
+ranges. Anything else, which includes any type with padding, fails to build with a message asking for a
+specialization rather than being given one that would let two equal keys hash differently.
+
 ---
 
 ## PriorityQueue

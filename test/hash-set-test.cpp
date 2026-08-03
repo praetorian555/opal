@@ -84,8 +84,14 @@ TEST_CASE("Types whose bytes do not determine their value get no default hasher"
     static_assert(IsPOD<PaddedPod>);
     static_assert(!HasUniqueObjectRepresentations<PaddedPod>);
 
-    Hasher<PaddedPod> hasher;
-    REQUIRE_THROWS_AS(hasher(PaddedPod{1, 2}), NotImplementedException);
+    // Naming Hasher<PaddedPod> is a build error, so what it does cannot be asserted from a binary that
+    // links. The two traits above are what decides it, and the specializations below cover the types
+    // that do get a hasher; uncommenting either line fails the build with the static_assert message.
+    //
+    //     Hasher<PaddedPod> hasher;
+    //     HashSet<PaddedPod> set;  set.Insert(PaddedPod{1, 2});
+    static_assert(HasUniqueObjectRepresentations<i32>);
+    static_assert(!HasUniqueObjectRepresentations<f32>);
 }
 
 TEST_CASE("Floating point keys hash by value, not by bytes", "[hash]")

@@ -1,6 +1,5 @@
 #pragma once
 
-#include "opal/exceptions.h"
 #include "opal/export.h"
 #include "opal/types.h"
 #include "opal/type-traits.h"
@@ -47,18 +46,17 @@ u64 CalcRange(const T& range, u64 seed = 0);
  * @brief Class used to generate 64-bit hash value for a given type.
  *
  * Specialize this for any type used as a `HashSet` or `HashMap` key that is not covered below. Equal keys must produce equal hashes, so a
- * hasher should read the members that carry the value rather than the object's bytes. Reaching this primary template throws, which is what
- * a type with padding does.
+ * hasher should read the members that carry the value rather than the object's bytes. Reaching this primary template fails the build, which
+ * is what a type with padding does.
  *
  * @tparam T Type of value for which to generate hash.
  */
 template <typename T>
 struct Hasher
 {
-    u64 operator()(const T&) const
-    {
-        throw NotImplementedException(__FUNCTION__);
-    }
+    static_assert(k_always_false_value<T>,
+                  "No Hasher for this type. Its bytes do not determine its value, which is the case for padding and for floating point "
+                  "members, so hashing them would let two equal keys hash differently. Specialize Opal::Hasher for it.");
 };
 
 /**

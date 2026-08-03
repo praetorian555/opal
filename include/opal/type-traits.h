@@ -221,6 +221,10 @@ inline constexpr bool k_is_same_value = false;
 template <typename T>
 inline constexpr bool k_is_same_value<T, T> = true;
 
+/** Always false, but dependent on T, so a static_assert reading it only fires once the template using it is instantiated. */
+template <typename>
+inline constexpr bool k_always_false_value = false;
+
 // ------------------------------------------------------------------------------------------------
 // Basic type concepts.
 // ------------------------------------------------------------------------------------------------
