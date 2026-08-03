@@ -289,12 +289,10 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 - [x] `CollectDirectoryContents` returns `Expected<DynamicArray<DirectoryEntry>, ErrorCode>`
 - [x] Strip the `@throw` blocks from `include/opal/file-system.h:12-148`
 - [x] Update `test/file-system-test.cpp`
-- [ ] **`file-system.cpp` still throws from 16 sized container constructors** - `StringWide path_wide(path.GetSize() * 2,
-      L'\0')` and the `StringUtf8`/`DynamicArray<u8>` result buffers at lines 27, 80, 115, 158, 212, 234, 261, 290, 337,
-      469, 495, 528, 550, 577, 610, 636. Those constructors throw on a failed allocation (§11), so they throw straight
-      past the `ErrorCode` and `Expected` return types the rest of the file now uses. Fix is the one already applied in
-      `paths.cpp`: default-construct and `Resize`. Not caught by the tests because `file-system-test.cpp` never uses
-      `NullAllocator` - the paths tests do, which is why it surfaced there and not here.
+- [x] **`file-system.cpp` no longer throws from a sized container constructor.** The eight wide-path buffers went
+      through a `ToWidePath` helper that resizes and transcodes, the four result buffers default-construct and `Resize`,
+      and the two remaining `StringWide` constructions in the Windows directory walk became a view and an `Append`
+      chain. A `NullAllocator` test covers each group; its absence is why this was invisible.
 - [ ] `file-system-test.cpp` leaves files behind when an assertion fails mid-test, and the next run then fails on its
       `REQUIRE(!Exists(path))` preconditions. Not caused by this work, but it bit twice during it - the tests want an
       RAII guard that removes what they created.

@@ -626,3 +626,65 @@ TEST_CASE("AppendBytesToFile", "[FileSystem]")
         REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
     }
 }
+
+TEST_CASE("File system reports a failed allocation", "[FileSystem]")
+{
+    const StringUtf8 cwd = CwdOrFail();
+    const StringUtf8 file_path = CombineOrFail(cwd, "out-of-memory-probe.txt");
+    // Long enough that reading it back cannot fit in a string's inline storage.
+    StringUtf8 contents;
+    REQUIRE(contents.Resize(256, 'x') == ErrorCode::Success);
+    REQUIRE(WriteStringToFile(file_path, contents) == ErrorCode::Success);
+
+    SECTION("Reading reports the failure instead of throwing")
+    {
+        NullAllocator allocator;
+        PushDefault pd(&allocator);
+        REQUIRE(ReadFileAsString(file_path).GetError() == ErrorCode::OutOfMemory);
+        REQUIRE(ReadFileAsBytes(file_path).GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Collecting directory contents reports the failure instead of throwing")
+    {
+        NullAllocator allocator;
+        PushDefault pd(&allocator);
+        REQUIRE(CollectDirectoryContents(cwd.Clone()).GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Exists reports false rather than failing")
+    {
+        NullAllocator allocator;
+        PushDefault pd(&allocator);
+        REQUIRE(!Exists(file_path));
+    }
+#if defined(OPAL_PLATFORM_WINDOWS)
+    // These only allocate on Windows, where the path has to be widened first. The Linux implementations hand the
+    // path straight to the syscall and have nothing that can fail.
+    SECTION("Create and delete report the failure instead of throwing")
+    {
+        NullAllocator allocator;
+        PushDefault pd(&allocator);
+        REQUIRE(CreateFile(file_path) == ErrorCode::OutOfMemory);
+        REQUIRE(DeleteFile(file_path) == ErrorCode::OutOfMemory);
+        REQUIRE(CreateDirectory(file_path) == ErrorCode::OutOfMemory);
+        REQUIRE(DeleteDirectory(file_path) == ErrorCode::OutOfMemory);
+    }
+    SECTION("Writing reports the failure instead of throwing")
+    {
+        NullAllocator allocator;
+        PushDefault pd(&allocator);
+        const u8 data[] = {0x01, 0x02};
+        REQUIRE(WriteStringToFile(file_path, StringUtf8("x")) == ErrorCode::OutOfMemory);
+        REQUIRE(WriteBytesToFile(file_path, ArrayView<const u8>(data)) == ErrorCode::OutOfMemory);
+        REQUIRE(AppendStringToFile(file_path, StringUtf8("x")) == ErrorCode::OutOfMemory);
+        REQUIRE(AppendBytesToFile(file_path, ArrayView<const u8>(data)) == ErrorCode::OutOfMemory);
+    }
+    SECTION("Type queries report false rather than failing")
+    {
+        NullAllocator allocator;
+        PushDefault pd(&allocator);
+        REQUIRE(!IsDirectory(file_path));
+        REQUIRE(!IsFile(file_path));
+    }
+#endif
+
+    REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
+}

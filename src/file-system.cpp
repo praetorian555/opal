@@ -21,11 +21,28 @@
 
 #include "opal/container/dynamic-array.h"
 
+namespace
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+// Build the wide form of a path. The sized String constructors throw on a failed allocation, so the buffer is grown
+// through Resize, which reports one.
+Opal::ErrorCode ToWidePath(const Opal::StringUtf8& path, Opal::StringWide& out_path)
+{
+    const Opal::ErrorCode error = out_path.Resize(path.GetSize() * 2, L'\0');
+    if (error != Opal::ErrorCode::Success) [[unlikely]]
+    {
+        return error;
+    }
+    return Opal::Transcode(path, out_path);
+}
+#endif
+}  // namespace
+
 Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool fail_if_already_exists)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    Opal::StringWide path_wide(path.GetSize() * 2, L'\0');
-    const ErrorCode transcode_err = Transcode(path, path_wide);
+    StringWide path_wide;
+    const ErrorCode transcode_err = ToWidePath(path, path_wide);
     if (transcode_err != ErrorCode::Success)
     {
         return transcode_err;
@@ -77,8 +94,8 @@ Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool fail_if_already_ex
 Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0');
-    const ErrorCode err = Transcode(path, path_wide);
+    StringWide path_wide;
+    const ErrorCode err = ToWidePath(path, path_wide);
     if (err != ErrorCode::Success)
     {
         return err;
@@ -112,8 +129,8 @@ Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path)
 Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, bool fail_if_already_exists)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0');
-    const ErrorCode err = Transcode(path, path_wide);
+    StringWide path_wide;
+    const ErrorCode err = ToWidePath(path, path_wide);
     if (err != ErrorCode::Success)
     {
         return err;
@@ -155,8 +172,8 @@ Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, bool fail_if_alrea
 Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0');
-    const ErrorCode err = Transcode(path, path_wide);
+    StringWide path_wide;
+    const ErrorCode err = ToWidePath(path, path_wide);
     if (err != ErrorCode::Success)
     {
         return err;
@@ -209,8 +226,8 @@ bool Opal::Exists(const StringUtf8& path)
     const StringUtf8& result = normalized.GetValue();
 
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(result.GetSize() * 2, L'\0');
-    const ErrorCode err = Transcode(result, path_wide);
+    StringWide path_wide;
+    const ErrorCode err = ToWidePath(result, path_wide);
     if (err != ErrorCode::Success)
     {
         return false;
@@ -231,8 +248,8 @@ bool Opal::Exists(const StringUtf8& path)
 bool Opal::IsDirectory(const StringUtf8& path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0');
-    const ErrorCode err = Transcode(path, path_wide);
+    StringWide path_wide;
+    const ErrorCode err = ToWidePath(path, path_wide);
     if (err != ErrorCode::Success)
     {
         return false;
@@ -258,8 +275,8 @@ bool Opal::IsDirectory(const StringUtf8& path)
 bool Opal::IsFile(const StringUtf8& path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0');
-    const ErrorCode err = Transcode(path, path_wide);
+    StringWide path_wide;
+    const ErrorCode err = ToWidePath(path, path_wide);
     if (err != ErrorCode::Success)
     {
         return false;
@@ -287,8 +304,8 @@ Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::
 {
     using Result = Expected<DynamicArray<DirectoryEntry>, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0');
-    ErrorCode err = Transcode(path, path_wide);
+    StringWide path_wide;
+    ErrorCode err = ToWidePath(path, path_wide);
     if (err != ErrorCode::Success)
     {
         return Result(err);
@@ -324,18 +341,33 @@ Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::
         ErrorCode walk_err = ErrorCode::Success;
         do
         {
-            const StringWide child_name_wide(find_data.cFileName);
+            // A view, so that skipping the two special entries costs no allocation and cannot fail.
+            const StringViewWide child_name_wide(find_data.cFileName);
             if (child_name_wide == L"." || child_name_wide == L"..")
             {
                 continue;
             }
-            StringWide child_path_wide(dir_wide + L"\\" + find_data.cFileName);
-            if (child_path_wide == L"." || child_path_wide == L"..")
+            StringWide child_path_wide;
+            err = child_path_wide.Append(dir_wide);
+            if (err == ErrorCode::Success)
             {
-                continue;
+                err = child_path_wide.Append(L'\\');
             }
-            StringUtf8 child_path(child_path_wide.GetSize(), '\0');
-            err = Transcode(child_path_wide, child_path);
+            if (err == ErrorCode::Success)
+            {
+                err = child_path_wide.Append(find_data.cFileName);
+            }
+            if (err != ErrorCode::Success) [[unlikely]]
+            {
+                walk_err = err;
+                break;
+            }
+            StringUtf8 child_path;
+            err = child_path.Resize(child_path_wide.GetSize(), '\0');
+            if (err == ErrorCode::Success)
+            {
+                err = Transcode(child_path_wide, child_path);
+            }
             if (err != ErrorCode::Success)
             {
                 walk_err = err;
@@ -466,8 +498,8 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::ReadFileAsString(const S
 {
     using Result = Expected<StringUtf8, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0');
-    const ErrorCode transcode_err = Transcode(path, path_wide);
+    StringWide path_wide;
+    const ErrorCode transcode_err = ToWidePath(path, path_wide);
     if (transcode_err != ErrorCode::Success)
     {
         return Result(transcode_err);
@@ -492,7 +524,13 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::ReadFileAsString(const S
         return Result(ErrorCode::OSFailure);
     }
 
-    StringUtf8 result(static_cast<u64>(file_size.QuadPart), '\0');
+    StringUtf8 result;
+    const ErrorCode resize_err = result.Resize(static_cast<u64>(file_size.QuadPart), '\0');
+    if (resize_err != ErrorCode::Success)
+    {
+        CloseHandle(file_handle);
+        return Result(resize_err);
+    }
     if (file_size.QuadPart > 0)
     {
         DWORD bytes_read = 0;
@@ -525,7 +563,13 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::ReadFileAsString(const S
         return Result(ErrorCode::OSFailure);
     }
 
-    StringUtf8 result(static_cast<u64>(file_size), '\0');
+    StringUtf8 result;
+    const ErrorCode resize_err = result.Resize(static_cast<u64>(file_size), '\0');
+    if (resize_err != ErrorCode::Success)
+    {
+        fclose(file);
+        return Result(resize_err);
+    }
     if (file_size > 0)
     {
         const u64 read_count = fread(result.GetData(), 1, static_cast<u64>(file_size), file);
@@ -547,8 +591,8 @@ Opal::Expected<Opal::DynamicArray<Opal::u8>, Opal::ErrorCode> Opal::ReadFileAsBy
 {
     using Result = Expected<DynamicArray<u8>, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide path_wide(path.GetSize() * 2, L'\0');
-    const ErrorCode transcode_err = Transcode(path, path_wide);
+    StringWide path_wide;
+    const ErrorCode transcode_err = ToWidePath(path, path_wide);
     if (transcode_err != ErrorCode::Success)
     {
         return Result(transcode_err);
@@ -574,7 +618,13 @@ Opal::Expected<Opal::DynamicArray<Opal::u8>, Opal::ErrorCode> Opal::ReadFileAsBy
         return Result(ErrorCode::OSFailure);
     }
 
-    DynamicArray<u8> result(static_cast<u64>(file_size.QuadPart), static_cast<u8>(0));
+    DynamicArray<u8> result;
+    const ErrorCode resize_err = result.Resize(static_cast<u64>(file_size.QuadPart), static_cast<u8>(0));
+    if (resize_err != ErrorCode::Success)
+    {
+        CloseHandle(file_handle);
+        return Result(resize_err);
+    }
     if (file_size.QuadPart > 0)
     {
         DWORD bytes_read = 0;
@@ -607,7 +657,13 @@ Opal::Expected<Opal::DynamicArray<Opal::u8>, Opal::ErrorCode> Opal::ReadFileAsBy
         return Result(ErrorCode::OSFailure);
     }
 
-    DynamicArray<u8> result(static_cast<u64>(file_size), static_cast<u8>(0));
+    DynamicArray<u8> result;
+    const ErrorCode resize_err = result.Resize(static_cast<u64>(file_size), static_cast<u8>(0));
+    if (resize_err != ErrorCode::Success)
+    {
+        fclose(file);
+        return Result(resize_err);
+    }
     if (file_size > 0)
     {
         const u64 read_count = fread(result.GetData(), 1, static_cast<u64>(file_size), file);
@@ -633,8 +689,8 @@ Opal::ErrorCode WriteToFileWin32(const Opal::StringUtf8& path, const void* data,
 {
     using namespace Opal;
 
-    StringWide path_wide(path.GetSize() * 2, L'\0');
-    const ErrorCode transcode_err = Transcode(path, path_wide);
+    StringWide path_wide;
+    const ErrorCode transcode_err = ToWidePath(path, path_wide);
     if (transcode_err != ErrorCode::Success)
     {
         return transcode_err;
