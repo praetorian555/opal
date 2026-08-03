@@ -23,21 +23,15 @@ int main(int argc, const char** argv)
            .AddArgument("port", "Server port", Opal::Ref{port}, true)
            .AddArgument("verbose", "Enable verbose output", Opal::Ref{verbose}, true);
 
-    try
+    switch (builder.Build(argv, argc))
     {
-        builder.Build(argv, argc);
-    }
-    catch (const Opal::HelpRequestedException&)
-    {
-        return 0;
-    }
-    catch (const Opal::VersionRequestedException&)
-    {
-        return 0;
-    }
-    catch (const Opal::InvalidArgumentException&)
-    {
-        return 1;
+        case Opal::ProgramArgumentsResult::Success:
+            break;
+        case Opal::ProgramArgumentsResult::HelpRequested:
+        case Opal::ProgramArgumentsResult::VersionRequested:
+            return 0;
+        default:
+            return 1;
     }
 
     // config_path, port, and verbose are now populated
@@ -103,7 +97,7 @@ builder.AddArgument("count", "Number of iterations", Opal::Ref{count}, false)
 
 The last parameter of `AddArgument` controls whether the argument is required (`false`) or optional (`true`).
 
-Required arguments must be present on the command line. If a required argument is missing, `Build` prints help output and throws `InvalidArgumentException`.
+Required arguments must be present on the command line. If a required argument is missing, `Build` prints help output and returns `ProgramArgumentsResult::InvalidArgument`.
 
 Optional arguments keep their initial value if not provided.
 
@@ -118,7 +112,7 @@ builder.AddArgument("", "Some desc", Opal::Ref{val}, false);
 
 ## Possible Values
 
-Arguments can be restricted to a predefined set of allowed values. If a value not in the set is provided, `Build` throws `InvalidArgumentException`.
+Arguments can be restricted to a predefined set of allowed values. If a value not in the set is provided, `Build` returns `ProgramArgumentsResult::InvalidArgument`.
 
 ```cpp
 Opal::StringUtf8 mode;
@@ -136,7 +130,7 @@ Valid:
 my_app mode=release
 ```
 
-Invalid (throws `InvalidArgumentException`):
+Invalid (`Build` returns `ProgramArgumentsResult::InvalidArgument`):
 
 ```
 my_app mode=profile
@@ -179,7 +173,7 @@ Valid:
 my_app targets=windows,linux
 ```
 
-Invalid (throws `InvalidArgumentException`):
+Invalid (`Build` returns `ProgramArgumentsResult::InvalidArgument`):
 
 ```
 my_app targets=windows,android
@@ -251,7 +245,7 @@ An argument cannot have both `possible_values` and `possible_value_mappings`. At
 
 ## Version
 
-Set a version number with `SetVersion`. Passing `version` or `--version` as any argument prints version info and throws `VersionRequestedException`.
+Set a version number with `SetVersion`. Passing `version` or `--version` as any argument prints version info and returns `ProgramArgumentsResult::VersionRequested`.
 
 ```cpp
 builder.SetVersion(1, 2, 3);
@@ -264,7 +258,7 @@ my_app --version
 
 ## Help Output
 
-Passing `help` or `--help` as any argument prints the help text and throws `HelpRequestedException`.
+Passing `help` or `--help` as any argument prints the help text and returns `ProgramArgumentsResult::HelpRequested`.
 
 ```
 my_app help
@@ -301,18 +295,26 @@ builder.AddProgramDescription("My application server")
 
 ## Error Handling
 
-All error conditions throw exceptions. `Build` returns `void`.
+`Build` returns a `ProgramArgumentsResult`. Anything the user can type is reported through it, so no parse outcome is
+an exception. Defining an argument badly is a programmer error and still throws, at registration.
+
+| Scenario | Result |
+|----------|--------|
+| Everything parsed | `ProgramArgumentsResult::Success` |
+| `help` or `--help` passed | `ProgramArgumentsResult::HelpRequested` (help already printed) |
+| `version` or `--version` passed | `ProgramArgumentsResult::VersionRequested` (version already printed) |
+| Required argument missing | `ProgramArgumentsResult::InvalidArgument` (help printed first) |
+| Value not in `possible_values` | `ProgramArgumentsResult::InvalidArgument` |
+| Mapping key not found | `ProgramArgumentsResult::InvalidArgument` |
+| Out of memory while parsing | `ProgramArgumentsResult::OutOfMemory` |
 
 | Scenario | Exception |
 |----------|-----------|
 | Empty argument name or description | `InvalidArgumentException` at registration |
-| Required argument missing | `InvalidArgumentException` (help is printed first) |
-| Value not in `possible_values` | `InvalidArgumentException` at parse time |
-| Mapping key not found | `InvalidArgumentException` at parse time |
 | Enum argument without mappings | `InvalidArgumentException` at registration |
 | Both possible values and mappings provided | `InvalidArgumentException` at registration |
-| `help` or `--help` passed | `HelpRequestedException` |
-| `version` or `--version` passed | `VersionRequestedException` |
+
+`Build` is `[[nodiscard]]`; ignoring the result would silently accept a command line that never parsed.
 
 ## API Reference
 
@@ -326,6 +328,6 @@ All error conditions throw exceptions. `Build` returns `void`.
 | `AddArgument(name, desc, Ref{dest}, is_optional)` | Register a typed argument bound to `dest` |
 | `AddArgument(name, desc, Ref{dest}, is_optional, possible_values)` | Register a typed argument with allowed values |
 | `AddArgument(name, desc, Ref{dest}, is_optional, possible_value_mappings)` | Register a typed argument with string-to-value mappings |
-| `Build(arguments, count)` | Parse command-line arguments and populate bound variables |
+| `Build(arguments, count)` | Parse command-line arguments and populate bound variables, returns `ProgramArgumentsResult` |
 
 All `AddArgument` overloads return a reference to the builder for method chaining.

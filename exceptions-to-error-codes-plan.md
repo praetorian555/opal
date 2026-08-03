@@ -289,6 +289,12 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 - [x] `CollectDirectoryContents` returns `Expected<DynamicArray<DirectoryEntry>, ErrorCode>`
 - [x] Strip the `@throw` blocks from `include/opal/file-system.h:12-148`
 - [x] Update `test/file-system-test.cpp`
+- [ ] **`file-system.cpp` still throws from 16 sized container constructors** - `StringWide path_wide(path.GetSize() * 2,
+      L'\0')` and the `StringUtf8`/`DynamicArray<u8>` result buffers at lines 27, 80, 115, 158, 212, 234, 261, 290, 337,
+      469, 495, 528, 550, 577, 610, 636. Those constructors throw on a failed allocation (§11), so they throw straight
+      past the `ErrorCode` and `Expected` return types the rest of the file now uses. Fix is the one already applied in
+      `paths.cpp`: default-construct and `Resize`. Not caught by the tests because `file-system-test.cpp` never uses
+      `NullAllocator` - the paths tests do, which is why it surfaced there and not here.
 - [ ] `file-system-test.cpp` leaves files behind when an assertion fails mid-test, and the next run then fails on its
       `REQUIRE(!Exists(path))` preconditions. Not caused by this work, but it bit twice during it - the tests want an
       RAII guard that removes what they created.
@@ -299,18 +305,29 @@ Separate but similar: `string.h:3857,3884,3911,3938` throw `NotImplementedExcept
 - [x] `NormalizePath` returns `Expected<StringUtf8, ErrorCode>`, delete the `CheckAppend` helper - `src/paths.cpp:16,81`
 - [x] `SetCurrentWorkingDirectory` returns `ErrorCode` - `src/paths.cpp:55`
 - [x] `Combine` returns `Expected<StringUtf8, ErrorCode>`, delete the `check` lambda - `include/opal/paths.h:87`
-- [ ] `Combine`'s separator check reads `back != '/' || back != '\\'`, which is true for every character, so a component
-      is always prefixed with a separator even when the accumulated path already ends in one. Left alone here because
-      fixing it changes what `Combine` returns for trailing-separator input, which is a behaviour call, not a cleanup.
+- [ ] **Fix `Combine`'s separator check** - `include/opal/paths.h:110`. It reads
+      `result.Back().GetValue() != '/' || result.Back().GetValue() != '\\'`, which is true for every possible character,
+      so the branch always runs and a separator is inserted even when the accumulated path already ends in one.
+      `Combine("a/", "b")` therefore yields `a//b`. Correct condition is `&&`. Deliberately left out of the error-code
+      commit: it changes what `Combine` returns for trailing-separator input, so it wants its own change and its own
+      test rather than riding along with a signature change.
 
 ### Program arguments (§4)
 
-- [ ] Add `ProgramArgumentsResult` enum
-- [ ] `ProgramArgumentDefinition::SetValue` returns `ErrorCode` - `include/opal/program-arguments.h:60`
-- [ ] Convert the throwing definition subclasses - `program-arguments.h:135,217,222,250,293,309,348,353,360,392,433,457`
-- [ ] `Parse` returns `ProgramArgumentsResult`; drop `HelpRequestedException` and `VersionRequestedException` - `src/program-arguments.cpp:59,64,96`
-- [ ] `Parse` reports `PushBack` failure as `OutOfMemory` - `src/program-arguments.cpp:46,50`
-- [ ] Rewrite the `try`/`catch` example in `docs/program-arguments.md:304`
+- [x] Add `ProgramArgumentsResult` enum
+- [x] `ProgramArgumentDefinition::SetValue` returns `ErrorCode` - `include/opal/program-arguments.h:60`
+- [x] Convert the value-parsing throws - `program-arguments.h:135,309,392,433,457`. `GetValueFromMapping` became
+      `FindValueFromMapping` returning a pointer, since a missing key is now a code rather than a throw. The array
+      `SetValue` was also dropping every `PushBack` result on the floor; those are propagated now.
+- [x] Leave the definition constructors throwing - `program-arguments.h:46,50,217,222,250,293,348,353,360`. An empty
+      name or an enum without a mapping is the programmer misconfiguring the parser, not the user mistyping, and they
+      are constructors either way.
+- [x] `Build` returns `ProgramArgumentsResult`; drop `HelpRequestedException` and `VersionRequestedException` - `src/program-arguments.cpp:59,64,96`
+- [x] `Build` reports `PushBack` failure as `OutOfMemory` - `src/program-arguments.cpp:46,50`
+- [x] Rewrite the `try`/`catch` example in `docs/program-arguments.md:304`, plus the prose and the README snippet
+- [ ] The integral scalar `SetValue` never checks `IsPossibleValue`, so `possible_values` is silently ignored for
+      `i32`/`u32`/... arguments while the string and array paths do enforce it. Left as-is here to keep the conversion
+      behaviour-neutral; `docs/program-arguments.md` documents the numeric case as validated, so one of the two is wrong.
 
 ### JSON (§5)
 

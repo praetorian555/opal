@@ -177,7 +177,10 @@ Typed command-line argument parser that binds arguments directly to C++ variable
 Opal::i32 port = 8080;
 Opal::ProgramArgumentsBuilder builder;
 builder.AddArgument("port", "Server port", Opal::Ref{port}, true);
-builder.Build(argv, argc);
+if (builder.Build(argv, argc) != Opal::ProgramArgumentsResult::Success)
+{
+    return 1;
+}
 ```
 
 See [docs/program-arguments.md](docs/program-arguments.md) for the full guide.

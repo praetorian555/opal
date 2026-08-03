@@ -29,7 +29,7 @@ Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::SetVersion(u32 maj
     return *this;
 }
 
-void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
+Opal::ProgramArgumentsResult Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
 {
     DynamicArray<StringUtf8> names;
     DynamicArray<StringUtf8> values;
@@ -43,11 +43,11 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         Split<StringUtf8>(arguments[i], "=", name, value);
         if (names.PushBack(std::move(name)) != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException(__FUNCTION__);
+            return ProgramArgumentsResult::OutOfMemory;
         }
         if (values.PushBack(std::move(value)) != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException(__FUNCTION__);
+            return ProgramArgumentsResult::OutOfMemory;
         }
     }
 
@@ -56,12 +56,12 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
         if (name == "help" || name == "--help")
         {
             ShowHelp();
-            throw HelpRequestedException();
+            return ProgramArgumentsResult::HelpRequested;
         }
         if (name == "version" || name == "--version")
         {
             ShowVersion(arguments[0]);
-            throw VersionRequestedException();
+            return ProgramArgumentsResult::VersionRequested;
         }
     }
 
@@ -79,7 +79,18 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
             Impl::ProgramArgumentDefinition* arg_def = m_argument_definitions[j].Get();
             if (arg_def->m_name == name)
             {
-                arg_def->SetValue(values[i]);
+                const ErrorCode error = arg_def->SetValue(values[i]);
+                if (error == ErrorCode::OutOfMemory) [[unlikely]]
+                {
+                    return ProgramArgumentsResult::OutOfMemory;
+                }
+                if (error != ErrorCode::Success)
+                {
+                    GetLogger().Error("ProgramArguments", "Value '{}' is not valid for argument '{}':\n\n", SafeCStr(values[i]),
+                                      SafeCStr(name));
+                    ShowHelp();
+                    return ProgramArgumentsResult::InvalidArgument;
+                }
                 visited.Insert(arg_def->m_name.Clone(), true);
                 break;
             }
@@ -93,9 +104,10 @@ void Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
             GetLogger().Error("ProgramArguments",
                               "Required argument '{}' not provided, here is the information on how to use the program:\n\n", SafeCStr(def->m_name));
             ShowHelp();
-            throw InvalidArgumentException(__FUNCTION__, "required argument not provided");
+            return ProgramArgumentsResult::InvalidArgument;
         }
     }
+    return ProgramArgumentsResult::Success;
 }
 
 void Opal::ProgramArgumentsBuilder::ShowHelp()

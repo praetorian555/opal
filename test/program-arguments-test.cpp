@@ -14,27 +14,27 @@ TEST_CASE("Request help and version", "[ProgramArguments]")
     {
         const char* arguments[] = {"program-name", "help"};
         ProgramArgumentsBuilder builder;
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), HelpRequestedException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::HelpRequested);
     }
     SECTION("Help requested with -- prefix")
     {
         const char* arguments[] = {"program-name", "--help"};
         ProgramArgumentsBuilder builder;
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), HelpRequestedException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::HelpRequested);
     }
     SECTION("Version requested")
     {
         const char* arguments[] = {"program-name", "version"};
         ProgramArgumentsBuilder builder;
         builder.SetVersion(1, 2, 3);
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), VersionRequestedException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::VersionRequested);
     }
     SECTION("Version requested with -- prefix")
     {
         const char* arguments[] = {"program-name", "--version"};
         ProgramArgumentsBuilder builder;
         builder.SetVersion(1, 2, 3);
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), VersionRequestedException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::VersionRequested);
     }
 }
 
@@ -66,7 +66,7 @@ TEST_CASE("Program arguments", "[ProgramArguments]")
         };
         // clang-format on
 
-        REQUIRE_NOTHROW(builder.Build(arguments, 5));
+        REQUIRE(builder.Build(arguments, 5) == ProgramArgumentsResult::Success);
         REQUIRE(test_i32 == -5);
         REQUIRE(test_u32 == 6);
         REQUIRE(test_str == "Hello there");
@@ -86,7 +86,7 @@ TEST_CASE("Program arguments", "[ProgramArguments]")
         builder.AddArgument("standard", "Standard argument", Ref{standard}, false,
                             {{"c++11", CppStandard::Cpp11}, {"c++14", CppStandard::Cpp14}, {"c++17", CppStandard::Cpp17}});
         const char* arguments[] = {"program-name", "standard=c++14"};
-        builder.Build(arguments, 2);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(standard == CppStandard::Cpp14);
     }
     SECTION("Optional argument missing")
@@ -99,7 +99,7 @@ TEST_CASE("Program arguments", "[ProgramArguments]")
             "program-name",
         };
 
-        REQUIRE_NOTHROW(builder.Build(arguments, 1));
+        REQUIRE(builder.Build(arguments, 1) == ProgramArgumentsResult::Success);
         REQUIRE(test_bool == false);
     }
     SECTION("Required argument missing")
@@ -112,7 +112,7 @@ TEST_CASE("Program arguments", "[ProgramArguments]")
             "program-name",
         };
 
-        REQUIRE_THROWS_AS(builder.Build(arguments, 1), InvalidArgumentException);
+        REQUIRE(builder.Build(arguments, 1) == ProgramArgumentsResult::InvalidArgument);
         REQUIRE(test_bool == false);
     }
 
@@ -155,7 +155,7 @@ TEST_CASE("String argument with possible values", "[ProgramArguments]")
         builder.AddArgument("mode", "Build mode", Ref{mode}, false, std::move(possible_values));
 
         const char* arguments[] = {"program-name", "mode=release"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(mode == "release");
     }
     SECTION("Invalid value throws")
@@ -168,7 +168,7 @@ TEST_CASE("String argument with possible values", "[ProgramArguments]")
         builder.AddArgument("mode", "Build mode", Ref{mode}, false, std::move(possible_values));
 
         const char* arguments[] = {"program-name", "mode=profile"};
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
     }
 
     SetLogger(nullptr);
@@ -187,7 +187,7 @@ TEST_CASE("String argument with possible value mappings", "[ProgramArguments]")
         builder.AddArgument("output", "Output path", Ref{output_path}, false, std::move(mappings));
 
         const char* arguments[] = {"program-name", "output=home"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(output_path == "/home/user");
     }
     SECTION("Invalid mapping key throws")
@@ -198,7 +198,7 @@ TEST_CASE("String argument with possible value mappings", "[ProgramArguments]")
         builder.AddArgument("output", "Output path", Ref{output_path}, false, std::move(mappings));
 
         const char* arguments[] = {"program-name", "output=invalid"};
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
     }
 
     SetLogger(nullptr);
@@ -235,7 +235,7 @@ TEST_CASE("Integer argument types", "[ProgramArguments]")
         builder.AddArgument("val", "A 64-bit integer", Ref{value}, false);
 
         const char* arguments[] = {"program-name", "val=9999999999"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(value == 9999999999LL);
     }
     SECTION("u64 argument")
@@ -245,7 +245,7 @@ TEST_CASE("Integer argument types", "[ProgramArguments]")
         builder.AddArgument("val", "A 64-bit unsigned integer", Ref{value}, false);
 
         const char* arguments[] = {"program-name", "val=18446744073709551615"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(value == 18446744073709551615ULL);
     }
     SECTION("Integer with possible values")
@@ -259,7 +259,7 @@ TEST_CASE("Integer argument types", "[ProgramArguments]")
         builder.AddArgument("val", "An integer with constraints", Ref{value}, false, std::move(possible_values));
 
         const char* arguments[] = {"program-name", "val=2"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(value == 2);
     }
 
@@ -303,7 +303,7 @@ TEST_CASE("Enum argument validation", "[ProgramArguments]")
                             HashMap<StringUtf8, Color>({{"red", Color::Red}, {"green", Color::Green}, {"blue", Color::Blue}}));
 
         const char* arguments[] = {"program-name", "color=yellow"};
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
     }
     SECTION("Enum without mappings throws")
     {
@@ -328,7 +328,7 @@ TEST_CASE("String argument without quotes", "[ProgramArguments]")
     builder.AddArgument("name", "A name", Ref{value}, false);
 
     const char* arguments[] = {"program-name", "name=hello"};
-    REQUIRE_NOTHROW(builder.Build(arguments, 2));
+    REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
     REQUIRE(value == "hello");
 
     SetLogger(nullptr);
@@ -351,7 +351,7 @@ TEST_CASE("Multiple optional arguments partially provided", "[ProgramArguments]"
     builder.AddArgument("opt_int", "Optional integer", Ref{opt_int}, true);
 
     const char* arguments[] = {"program-name", "flag_a", "opt_int=42"};
-    REQUIRE_NOTHROW(builder.Build(arguments, 3));
+    REQUIRE(builder.Build(arguments, 3) == ProgramArgumentsResult::Success);
     REQUIRE(flag_a == true);
     REQUIRE(flag_b == false);
     REQUIRE(opt_str.IsEmpty());
@@ -372,7 +372,7 @@ TEST_CASE("DynamicArray<i32> argument", "[ProgramArguments]")
         builder.AddArgument("vals", "Integer values", Ref{values}, false);
 
         const char* arguments[] = {"program-name", "vals=1,2,3"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(values.GetSize() == 3);
         REQUIRE(values[0] == 1);
         REQUIRE(values[1] == 2);
@@ -389,7 +389,7 @@ TEST_CASE("DynamicArray<i32> argument", "[ProgramArguments]")
         builder.AddArgument("vals", "Integer values", Ref{values}, false, std::move(possible_values));
 
         const char* arguments[] = {"program-name", "vals=1,3"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(values.GetSize() == 2);
         REQUIRE(values[0] == 1);
         REQUIRE(values[1] == 3);
@@ -404,7 +404,7 @@ TEST_CASE("DynamicArray<i32> argument", "[ProgramArguments]")
         builder.AddArgument("vals", "Integer values", Ref{values}, false, std::move(possible_values));
 
         const char* arguments[] = {"program-name", "vals=1,5"};
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
     }
 
     SetLogger(nullptr);
@@ -420,7 +420,7 @@ TEST_CASE("DynamicArray<u64> argument", "[ProgramArguments]")
     builder.AddArgument("vals", "Unsigned 64-bit values", Ref{values}, false);
 
     const char* arguments[] = {"program-name", "vals=100,200,300"};
-    REQUIRE_NOTHROW(builder.Build(arguments, 2));
+    REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
     REQUIRE(values.GetSize() == 3);
     REQUIRE(values[0] == 100);
     REQUIRE(values[1] == 200);
@@ -441,7 +441,7 @@ TEST_CASE("DynamicArray<StringUtf8> argument", "[ProgramArguments]")
         builder.AddArgument("names", "Name values", Ref{values}, false);
 
         const char* arguments[] = {"program-name", "names=hello,world"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(values.GetSize() == 2);
         REQUIRE(values[0] == "hello");
         REQUIRE(values[1] == "world");
@@ -453,7 +453,7 @@ TEST_CASE("DynamicArray<StringUtf8> argument", "[ProgramArguments]")
         builder.AddArgument("names", "Name values", Ref{values}, false);
 
         const char* arguments[] = {"program-name", "names=\"hello,world\""};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(values.GetSize() == 2);
         REQUIRE(values[0] == "hello");
         REQUIRE(values[1] == "world");
@@ -468,7 +468,7 @@ TEST_CASE("DynamicArray<StringUtf8> argument", "[ProgramArguments]")
         builder.AddArgument("names", "Name values", Ref{values}, false, std::move(possible_values));
 
         const char* arguments[] = {"program-name", "names=foo,bar"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(values.GetSize() == 2);
         REQUIRE(values[0] == "foo");
         REQUIRE(values[1] == "bar");
@@ -483,7 +483,7 @@ TEST_CASE("DynamicArray<StringUtf8> argument", "[ProgramArguments]")
         builder.AddArgument("names", "Name values", Ref{values}, false, std::move(possible_values));
 
         const char* arguments[] = {"program-name", "names=foo,baz"};
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
     }
     SECTION("With mappings - valid")
     {
@@ -493,7 +493,7 @@ TEST_CASE("DynamicArray<StringUtf8> argument", "[ProgramArguments]")
         builder.AddArgument("paths", "Path values", Ref{values}, false, std::move(mappings));
 
         const char* arguments[] = {"program-name", "paths=home,tmp"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(values.GetSize() == 2);
         REQUIRE(values[0] == "/home/user");
         REQUIRE(values[1] == "/tmp");
@@ -506,7 +506,7 @@ TEST_CASE("DynamicArray<StringUtf8> argument", "[ProgramArguments]")
         builder.AddArgument("paths", "Path values", Ref{values}, false, std::move(mappings));
 
         const char* arguments[] = {"program-name", "paths=home,invalid"};
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
     }
 
     SetLogger(nullptr);
@@ -532,7 +532,7 @@ TEST_CASE("DynamicArray<Enum> argument", "[ProgramArguments]")
         builder.AddArgument("colors", "Color values", Ref{values}, false, std::move(mappings));
 
         const char* arguments[] = {"program-name", "colors=red,blue"};
-        REQUIRE_NOTHROW(builder.Build(arguments, 2));
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(values.GetSize() == 2);
         REQUIRE(values[0] == Color::Red);
         REQUIRE(values[1] == Color::Blue);
@@ -545,7 +545,7 @@ TEST_CASE("DynamicArray<Enum> argument", "[ProgramArguments]")
         builder.AddArgument("colors", "Color values", Ref{values}, false, std::move(mappings));
 
         const char* arguments[] = {"program-name", "colors=red,yellow"};
-        REQUIRE_THROWS_AS(builder.Build(arguments, 2), InvalidArgumentException);
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
     }
 
     SetLogger(nullptr);
@@ -579,7 +579,7 @@ TEST_CASE("Optional DynamicArray argument not provided", "[ProgramArguments]")
     builder.AddArgument("vals", "Integer values", Ref{values}, true);
 
     const char* arguments[] = {"program-name"};
-    REQUIRE_NOTHROW(builder.Build(arguments, 1));
+    REQUIRE(builder.Build(arguments, 1) == ProgramArgumentsResult::Success);
     REQUIRE(values.IsEmpty());
 
     SetLogger(nullptr);
@@ -595,7 +595,7 @@ TEST_CASE("Required DynamicArray argument not provided", "[ProgramArguments]")
     builder.AddArgument("vals", "Integer values", Ref{values}, false);
 
     const char* arguments[] = {"program-name"};
-    REQUIRE_THROWS_AS(builder.Build(arguments, 1), InvalidArgumentException);
+    REQUIRE(builder.Build(arguments, 1) == ProgramArgumentsResult::InvalidArgument);
 
     SetLogger(nullptr);
 }

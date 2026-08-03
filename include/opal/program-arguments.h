@@ -10,19 +10,21 @@ namespace Opal
 {
 
 /**
- * @brief Exception thrown when the user passes "help" or "--help" as a program argument.
+ * @brief Outcome of parsing a command line. Asking for help or the version is an ordinary thing for a user to do, so
+ *        both are reported here rather than raised.
  */
-struct HelpRequestedException : Exception
+enum class ProgramArgumentsResult : u8
 {
-    HelpRequestedException() : Exception("Help was requested") {}
-};
-
-/**
- * @brief Exception thrown when the user passes "version" or "--version" as a program argument.
- */
-struct VersionRequestedException : Exception
-{
-    VersionRequestedException() : Exception("Version was requested") {}
+    /** Every argument parsed and every required argument was present. */
+    Success = 0,
+    /** The user passed "help" or "--help". The help text has already been printed. */
+    HelpRequested = 1,
+    /** The user passed "version" or "--version". The version has already been printed. */
+    VersionRequested = 2,
+    /** A required argument was missing, or a value was not valid for its argument. */
+    InvalidArgument = 3,
+    /** Parsing ran out of memory. */
+    OutOfMemory = 4,
 };
 
 namespace Impl
@@ -56,8 +58,10 @@ struct ProgramArgumentDefinition
     /**
      * @brief Parse the string and store the result in the destination variable.
      * @param str String representation of the argument value.
+     * @return ErrorCode::Success, ErrorCode::InvalidArgument when the value is not valid for this argument, or
+     *         ErrorCode::OutOfMemory when the value could not be stored.
      */
-    virtual void SetValue(const StringUtf8& str) = 0;
+    [[nodiscard]] virtual ErrorCode SetValue(const StringUtf8& str) = 0;
 
     /**
      * @brief Return the list of allowed value strings for this argument. Used by ShowHelp to display possible values.
@@ -122,17 +126,16 @@ struct TypedProgramArgumentDefinitionBase : ProgramArgumentDefinition
     /**
      * @brief Look up a value by its string key in the possible value mappings.
      * @param key String key to look up.
-     * @return Reference to the mapped value.
-     * @throws InvalidArgumentException if the key is not found in the mappings.
+     * @return Pointer to the mapped value, or nullptr when the key has no mapping.
      */
-    const T& GetValueFromMapping(const StringUtf8& key)
+    const T* FindValueFromMapping(const StringUtf8& key)
     {
         const auto& it = m_possible_value_mappings.Find(key);
         if (it != m_possible_value_mappings.end())
         {
-            return it->value;
+            return &it->value;
         }
-        throw InvalidArgumentException(__FUNCTION__, "No mapping for the given value");
+        return nullptr;
     }
 
     DynamicArray<StringUtf8> GetAllowedValues() const override
@@ -179,7 +182,7 @@ struct TypedProgramArgumentDefinition final : TypedProgramArgumentDefinitionBase
     {
     }
 
-    void SetValue(const StringUtf8&) override { throw InvalidArgumentException(__FUNCTION__, "Value type not supported"); }
+    ErrorCode SetValue(const StringUtf8&) override { return ErrorCode::NotImplemented; }
 };
 
 /** @brief Concept that checks if T is an enum type. */
@@ -223,10 +226,15 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
         }
     }
 
-    void SetValue(const StringUtf8& str) override
+    ErrorCode SetValue(const StringUtf8& str) override
     {
-        const T& value = TypedProgramArgumentDefinitionBase<T>::GetValueFromMapping(str);
-        TypedProgramArgumentDefinitionBase<T>::SetDestinationValue(Opal::Clone(value));
+        const T* value = TypedProgramArgumentDefinitionBase<T>::FindValueFromMapping(str);
+        if (value == nullptr)
+        {
+            return ErrorCode::InvalidArgument;
+        }
+        TypedProgramArgumentDefinitionBase<T>::SetDestinationValue(Opal::Clone(*value));
+        return ErrorCode::Success;
     }
 };
 
@@ -252,10 +260,11 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
         }
     }
 
-    void SetValue(const StringUtf8& str) override
+    ErrorCode SetValue(const StringUtf8& str) override
     {
         const T value = StringToNumber<T>(str);
         Super::SetDestinationValue(value);
+        return ErrorCode::Success;
     }
 };
 
@@ -273,7 +282,11 @@ struct TypedProgramArgumentDefinition<bool> final : TypedProgramArgumentDefiniti
     {
     }
 
-    void SetValue(const StringUtf8&) override { SetDestinationValue(true); }
+    ErrorCode SetValue(const StringUtf8&) override
+    {
+        SetDestinationValue(true);
+        return ErrorCode::Success;
+    }
 };
 
 /**
@@ -295,7 +308,7 @@ struct TypedProgramArgumentDefinition<StringUtf8> final : TypedProgramArgumentDe
         }
     }
 
-    void SetValue(const StringUtf8& str) override
+    ErrorCode SetValue(const StringUtf8& str) override
     {
         StringUtf8 trimmed = str.Clone();
         if (!str.IsEmpty() && str[0] == '\"')
@@ -306,18 +319,23 @@ struct TypedProgramArgumentDefinition<StringUtf8> final : TypedProgramArgumentDe
         {
             if (!IsPossibleValue(trimmed))
             {
-                throw InvalidArgumentException(__FUNCTION__, "String program argument is not one of the possible values");
+                return ErrorCode::InvalidArgument;
             }
             SetDestinationValue(std::move(trimmed));
-            return;
+            return ErrorCode::Success;
         }
         if (HasPossibleValueMappings())
         {
-            const StringUtf8& mapping = GetValueFromMapping(str);
-            SetDestinationValue(Clone(mapping));
-            return;
+            const StringUtf8* mapping = FindValueFromMapping(str);
+            if (mapping == nullptr)
+            {
+                return ErrorCode::InvalidArgument;
+            }
+            SetDestinationValue(Clone(*mapping));
+            return ErrorCode::Success;
         }
         SetDestinationValue(std::move(trimmed));
+        return ErrorCode::Success;
     }
 };
 
@@ -382,14 +400,14 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
         return false;
     }
 
-    const E& GetValueFromMapping(const StringUtf8& key)
+    const E* FindValueFromMapping(const StringUtf8& key)
     {
         const auto& it = m_possible_value_mappings.Find(key);
         if (it != m_possible_value_mappings.end())
         {
-            return it->value;
+            return &it->value;
         }
-        throw InvalidArgumentException(__FUNCTION__, "No mapping for the given value");
+        return nullptr;
     }
 
     DynamicArray<StringUtf8> GetAllowedValues() const override
@@ -413,7 +431,7 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
         return result;
     }
 
-    void SetValue(const StringUtf8& str) override
+    ErrorCode SetValue(const StringUtf8& str) override
     {
         StringUtf8 trimmed = str.Clone();
         if (!str.IsEmpty() && str[0] == '\"')
@@ -430,35 +448,64 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
                 {
                     if (!IsPossibleValue(element))
                     {
-                        throw InvalidArgumentException(__FUNCTION__, "Value is not one of the possible values");
+                        return ErrorCode::InvalidArgument;
                     }
-                    m_dest_value->PushBack(Opal::Clone(element));
+                    const ErrorCode error = m_dest_value->PushBack(Opal::Clone(element));
+                    if (error != ErrorCode::Success) [[unlikely]]
+                    {
+                        return error;
+                    }
                 }
                 else if (HasPossibleValueMappings())
                 {
-                    const StringUtf8& mapping = GetValueFromMapping(element);
-                    m_dest_value->PushBack(Opal::Clone(mapping));
+                    const StringUtf8* mapping = FindValueFromMapping(element);
+                    if (mapping == nullptr)
+                    {
+                        return ErrorCode::InvalidArgument;
+                    }
+                    const ErrorCode error = m_dest_value->PushBack(Opal::Clone(*mapping));
+                    if (error != ErrorCode::Success) [[unlikely]]
+                    {
+                        return error;
+                    }
                 }
                 else
                 {
-                    m_dest_value->PushBack(Opal::Clone(element));
+                    const ErrorCode error = m_dest_value->PushBack(Opal::Clone(element));
+                    if (error != ErrorCode::Success) [[unlikely]]
+                    {
+                        return error;
+                    }
                 }
             }
             else if constexpr (IsEnum<E>)
             {
-                const E& value = GetValueFromMapping(element);
-                m_dest_value->PushBack(Opal::Clone(value));
+                const E* value = FindValueFromMapping(element);
+                if (value == nullptr)
+                {
+                    return ErrorCode::InvalidArgument;
+                }
+                const ErrorCode error = m_dest_value->PushBack(Opal::Clone(*value));
+                if (error != ErrorCode::Success) [[unlikely]]
+                {
+                    return error;
+                }
             }
             else if constexpr (Integral<E>)
             {
                 const E value = StringToNumber<E>(element);
                 if (!IsPossibleValue(value))
                 {
-                    throw InvalidArgumentException(__FUNCTION__, "Value is not one of the possible values");
+                    return ErrorCode::InvalidArgument;
                 }
-                m_dest_value->PushBack(Opal::Clone(value));
+                const ErrorCode error = m_dest_value->PushBack(Opal::Clone(value));
+                if (error != ErrorCode::Success) [[unlikely]]
+                {
+                    return error;
+                }
             }
         }
+        return ErrorCode::Success;
     }
 };
 
@@ -471,18 +518,26 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
  * Arguments can be required or optional, and can be constrained to a set of possible values or string-to-value mappings.
  *
  * Built-in arguments:
- *  - "help" / "--help": prints help text and throws HelpRequestedException.
- *  - "version" / "--version": prints version info and throws VersionRequestedException.
+ *  - "help" / "--help": prints help text and returns ProgramArgumentsResult::HelpRequested.
+ *  - "version" / "--version": prints version info and returns ProgramArgumentsResult::VersionRequested.
+ *
+ * Defining an argument badly - an empty name, an enum without a mapping - is a programmer error and still throws.
+ * Anything the user can type is reported through ProgramArgumentsResult.
  *
  * Usage:
  * @code
  *     i32 threads = 1;
  *     StringUtf8 mode;
  *     ProgramArgumentsBuilder builder;
- *     builder.AddProgramDescription("My tool")
- *            .AddArgument("threads", "Number of threads", Ref(threads), true)
- *            .AddArgument("mode", "Operating mode", Ref(mode), false, DynamicArray<StringUtf8>{"fast", "slow"})
- *            .Build(argv, argc);
+ *     const ProgramArgumentsResult result =
+ *         builder.AddProgramDescription("My tool")
+ *                .AddArgument("threads", "Number of threads", Ref(threads), true)
+ *                .AddArgument("mode", "Operating mode", Ref(mode), false, DynamicArray<StringUtf8>{"fast", "slow"})
+ *                .Build(argv, argc);
+ *     if (result != ProgramArgumentsResult::Success)
+ *     {
+ *         return result == ProgramArgumentsResult::HelpRequested || result == ProgramArgumentsResult::VersionRequested ? 0 : 1;
+ *     }
  * @endcode
  */
 struct OPAL_EXPORT ProgramArgumentsBuilder
@@ -601,12 +656,13 @@ struct OPAL_EXPORT ProgramArgumentsBuilder
 
     /**
      * @brief Parse command-line arguments and populate all registered destination variables.
-     *        Throws HelpRequestedException or VersionRequestedException for built-in arguments.
-     *        Throws InvalidArgumentException if a required argument is missing.
      * @param arguments Array of C-strings from main (argv).
      * @param count Number of elements in the arguments array (argc).
+     * @return How the parse ended. HelpRequested and VersionRequested mean the corresponding text has already been
+     *         printed and nothing was parsed. InvalidArgument means a required argument was missing or a value was not
+     *         valid, and the help text has been printed.
      */
-    void Build(const char** arguments, u32 count);
+    [[nodiscard]] ProgramArgumentsResult Build(const char** arguments, u32 count);
 
 private:
     void ShowHelp();
