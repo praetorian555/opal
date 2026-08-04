@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(OPAL VERSION 1.0.0 LANGUAGES CXX)
+project(OPAL VERSION 0.3.8 LANGUAGES CXX)
 
 option(OPAL_BUILD_TESTS "Build tests" ON)
 message(STATUS "OPAL_BUILD_TESTS: ${OPAL_BUILD_TESTS}")
@@ -54,6 +54,7 @@ endif ()
 
 # Setup opal library target
 set(OPAL_FILES
+        src/assert.cpp
         src/allocator.cpp
         src/time.cpp
         src/string-encoding.cpp
@@ -210,6 +211,7 @@ install(FILES
 if (OPAL_BUILD_TESTS)
     set(OPAL_TEST_FILES
             test/main-test.cpp
+            test/assert-test.cpp
             test/allocator-test.cpp
             test/dynamic-array-test.cpp
             test/deque-test.cpp

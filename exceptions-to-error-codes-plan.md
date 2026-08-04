@@ -552,9 +552,25 @@ Doing this before step 1 spreads is cheaper than retrofitting every call site af
 This is where the exception count actually drops. Bigger behavioural change than step 1: an out-of-range index
 aborts instead of unwinding. Defensible for a real-time engine, but it is a product decision.
 
-- [ ] `Try*` accessors first, so callers have somewhere to go - covers §5's `TryGetBool`/`TryAt`/`TryFind` and
-      §10's `Variant::TryGet`
-- [ ] Then convert the throwing forms listed in §10 to `OPAL_ASSERT`
+- [x] `Try*` accessors first, so callers have somewhere to go - covers §5's `TryGetBool`/`TryAt`/`TryFind` and
+      §10's `Variant::TryGet`. Two new codes went with them: `ErrorCode::TypeMismatch` and `ErrorCode::KeyNotFound`.
+- [ ] Then convert the throwing forms listed in §10 to ~~`OPAL_ASSERT`~~ **`OPAL_VERIFY`**.
+
+      **`OPAL_ASSERT` was the wrong tool and the reasoning above is wrong with it.** This section says an out-of-range index would
+      "abort instead of unwinding". It would not: `OPAL_ASSERT` expands to nothing outside `OPAL_DEBUG`, so release builds would
+      have had no bounds check at all and an out-of-range index would read past the end silently. That is not a change from
+      throwing to aborting, it is a change from always checked to checked only in debug, and it is the opposite of what the rest
+      of this document has been doing.
+
+      Decided instead: `OPAL_VERIFY`, which checks in **every** build and routes a failure through a settable handler that
+      aborts by default. Same shape as the fatal log handler from §7. The mechanism is in - `include/opal/assert.h`,
+      `src/assert.cpp`, `SetContractViolationHandler` / `GetContractViolationHandler` - along with `OPAL_EXCEPTIONS` in
+      `defines.h`, which follows the compiler's own `__cpp_exceptions` / `_CPPUNWIND` so a `-fno-exceptions` build does not have
+      to be told twice.
+
+      What remains is the conversion itself: the ~40 sites listed in §10, and the **43 tests** that currently assert those
+      throws, which have to move to the `Try*` siblings instead. Deliberately left as its own change - the mechanism is additive
+      and safe, the conversion changes what every one of those call sites does on failure.
 
 **Step 4 - gate the remainder behind `OPAL_EXCEPTIONS`**
 

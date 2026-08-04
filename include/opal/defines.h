@@ -34,10 +34,12 @@
 #define OPAL_END_DISABLE_WARNINGS _Pragma("clang diagnostic pop")
 #endif
 
+// Keep in step with the version passed to project() in CMakeLists.txt.
 #define OPAL_VERSION_MAJOR 0
-#define OPAL_VERSION_MINOR 1
+#define OPAL_VERSION_MINOR 3
+#define OPAL_VERSION_PATCH 8
 
-#define OPAL_VERSION_STRING "0.1"
+#define OPAL_VERSION_STRING "0.3.8"
 
 #if defined(OPAL_COMPILER_MSVC)
 #define OPAL_DISABLE_OPTIMIZATION __pragma(optimize("", off))
@@ -54,6 +56,15 @@
 #define OPAL_RELEASE
 #else
 #define OPAL_DEBUG
+#endif
+
+// Whether the library may throw. Off when the compiler was told there are no exceptions, so that a build with -fno-exceptions or
+// /EHsc- gets the same answer without having to be told twice. Define OPAL_NO_EXCEPTIONS to turn them off while the compiler still
+// allows them.
+#if !defined(OPAL_NO_EXCEPTIONS)
+#if defined(__cpp_exceptions) || defined(__EXCEPTIONS) || defined(_CPPUNWIND)
+#define OPAL_EXCEPTIONS
+#endif
 #endif
 
 #define OPAL_CACHE_LINE_SIZE (64)
