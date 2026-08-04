@@ -34,7 +34,7 @@ Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, Alloc
     // running with no sentinel coming its way.
     if (m_threads.Reserve(thread_count) != ErrorCode::Success)
     {
-        throw OutOfMemoryException(__FUNCTION__);
+        OPAL_RAISE(OutOfMemoryException(__FUNCTION__));
     }
     for (size_t i = 0; i < thread_count; ++i)
     {
@@ -46,9 +46,9 @@ Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, Alloc
             Close();
             if (thread_handle.GetError() == ErrorCode::OutOfMemory)
             {
-                throw OutOfMemoryException(__FUNCTION__);
+                OPAL_RAISE(OutOfMemoryException(__FUNCTION__));
             }
-            throw Exception("Failed to create thread!");
+            OPAL_RAISE(Exception("Failed to create thread!"));
         }
         m_threads.PushBack(std::move(thread_handle).GetValue());
     }

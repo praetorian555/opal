@@ -418,7 +418,7 @@ CLASS_HEADER::Deque(AllocatorType* allocator)
     if (Initialize(T()) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(m_allocator->GetName(), k_default_capacity * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), k_default_capacity * sizeof(T)));
     }
 }
 
@@ -430,7 +430,7 @@ CLASS_HEADER::Deque(SizeType count, AllocatorType* allocator)
 {
     if (Initialize(T()) != ErrorCode::Success) [[unlikely]]
     {
-        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), count * sizeof(T)));
     }
 }
 
@@ -442,7 +442,7 @@ CLASS_HEADER::Deque(SizeType count, const T& value, AllocatorType* allocator)
 {
     if (Initialize(value) != ErrorCode::Success) [[unlikely]]
     {
-        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), count * sizeof(T)));
     }
 }
 
@@ -522,7 +522,7 @@ CLASS_HEADER Opal::Deque<T>::Clone(AllocatorBase* allocator) const
     Expected<Deque, ErrorCode> clone = TryClone(allocator);
     if (!clone.HasValue()) [[unlikely]]
     {
-        throw OutOfMemoryException(allocator == nullptr ? m_allocator->GetName() : allocator->GetName(), m_capacity * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(allocator == nullptr ? m_allocator->GetName() : allocator->GetName(), m_capacity * sizeof(T)));
     }
     return Move(clone).GetValue();
 }

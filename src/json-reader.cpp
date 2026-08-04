@@ -49,7 +49,7 @@ const char* JsonTypeToString(JsonType type)
 
 void ThrowTypeMismatch(const char* expected, JsonType actual)
 {
-    throw JsonTypeMismatchException(expected, JsonTypeToString(actual));
+    OPAL_RAISE(JsonTypeMismatchException(expected, JsonTypeToString(actual)));
 }
 }  // namespace
 
@@ -316,7 +316,7 @@ const JsonValue& JsonValue::operator[](u64 index) const
     const Expected<const JsonValue&, ErrorCode> value = TryAt(index);
     if (!value.HasValue())
     {
-        throw OutOfBoundsException(index, 0, m_data.Get<JsonArray>()->GetSize() - 1);
+        OPAL_RAISE(OutOfBoundsException(index, 0, m_data.Get<JsonArray>()->GetSize() - 1));
     }
     return value.GetValue();
 }
@@ -330,7 +330,7 @@ const JsonValue& JsonValue::operator[](StringViewUtf8 key) const
     const Expected<const JsonValue&, ErrorCode> value = TryFind(key);
     if (!value.HasValue())
     {
-        throw InvalidArgumentException("JsonValue::operator[]", "Key not found");
+        OPAL_RAISE(InvalidArgumentException("JsonValue::operator[]", "Key not found"));
     }
     return value.GetValue();
 }
@@ -576,6 +576,10 @@ struct ParseFrame
     StringViewUtf8 key;
     bool is_object;
 };
+
+// The parser unwinds out of a recursive descent with a non-local jump, so it needs exceptions. Everything else in this file, the
+// JsonValue accessors included, works without them.
+#if defined(OPAL_EXCEPTIONS)
 
 class JsonParser
 {
@@ -1147,11 +1151,15 @@ private:
     DynamicArray<ParseFrame> m_stack;
 };
 
+#endif  // OPAL_EXCEPTIONS
+
 }  // namespace
 
 // ------------------------------------------------------------------------------------------------
 // JsonReader.
 // ------------------------------------------------------------------------------------------------
+
+#if defined(OPAL_EXCEPTIONS)
 
 Expected<JsonReader, JsonParseError> JsonReader::Parse(const StringUtf8& input, AllocatorBase* allocator)
 {
@@ -1202,6 +1210,8 @@ Expected<JsonReader, JsonParseError> JsonReader::Parse(StringUtf8&& input, Alloc
     }
     return Result(Move(reader));
 }
+
+#endif  // OPAL_EXCEPTIONS
 
 const JsonValue& JsonReader::GetRoot() const
 {

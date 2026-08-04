@@ -297,7 +297,7 @@ Opal::HashSet<KeyType>::HashSet(size_type capacity, AllocatorBase* allocator)
 {
     if (Reserve(capacity) != ErrorCode::Success)
     {
-        throw OutOfMemoryException(m_allocator->GetName(), capacity * sizeof(key_type));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), capacity * sizeof(key_type)));
     }
 }
 

@@ -881,7 +881,7 @@ CLASS_HEADER::DynamicArray(size_type count, allocator_type* allocator)
     if (Construct(count) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), count * sizeof(T)));
     }
 }
 
@@ -892,7 +892,7 @@ CLASS_HEADER::DynamicArray(size_type count, const T& default_value, allocator_ty
     if (Construct(count, default_value) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), count * sizeof(T)));
     }
 }
 
@@ -903,7 +903,7 @@ CLASS_HEADER::DynamicArray(const T* data, size_type count, allocator_type* alloc
     if (Construct(data, count) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), count * sizeof(T)));
     }
 }
 
@@ -923,7 +923,7 @@ CLASS_HEADER::DynamicArray(std::initializer_list<T> init_list, allocator_type* a
     if (Construct(init_list) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(m_allocator->GetName(), init_list.size() * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), init_list.size() * sizeof(T)));
     }
 }
 
@@ -1005,7 +1005,7 @@ Opal::DynamicArray<T> Opal::DynamicArray<T>::Clone(AllocatorBase* allocator) con
     Expected<DynamicArray, ErrorCode> clone = TryClone(allocator);
     if (!clone.HasValue()) [[unlikely]]
     {
-        throw OutOfMemoryException(allocator == nullptr ? m_allocator->GetName() : allocator->GetName(), m_capacity * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(allocator == nullptr ? m_allocator->GetName() : allocator->GetName(), m_capacity * sizeof(T)));
     }
     return Move(clone).GetValue();
 }
@@ -1262,7 +1262,7 @@ CLASS_HEADER& CLASS_HEADER::operator=(std::initializer_list<T> init_list)
     // Assignment has no way to hand back a code, so it keeps reporting a failed allocation the way it always has.
     if (Assign(init_list) != ErrorCode::Success)
     {
-        throw OutOfMemoryException(m_allocator->GetName(), init_list.size() * sizeof(T));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), init_list.size() * sizeof(T)));
     }
     return *this;
 }

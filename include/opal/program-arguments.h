@@ -45,11 +45,11 @@ struct ProgramArgumentDefinition
     {
         if (m_name.IsEmpty())
         {
-            throw InvalidArgumentException(__FUNCTION__, "name of the argument can't be empty");
+            OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "name of the argument can't be empty"));
         }
         if (m_description.IsEmpty())
         {
-            throw InvalidArgumentException(__FUNCTION__, "description of the argument can't be empty");
+            OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "description of the argument can't be empty"));
         }
     }
 
@@ -217,12 +217,12 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
     {
         if (TypedProgramArgumentDefinitionBase<T>::HasPossibleValues())
         {
-            throw InvalidArgumentException(__FUNCTION__,
-                                           "Enum program argument needs to have populated possible_values_mapping, not possible_values");
+            OPAL_RAISE(InvalidArgumentException(__FUNCTION__,
+                                           "Enum program argument needs to have populated possible_values_mapping, not possible_values"));
         }
         if (!TypedProgramArgumentDefinitionBase<T>::HasPossibleValueMappings())
         {
-            throw InvalidArgumentException(__FUNCTION__, "Enum program argument needs to have populated possible_values_mapping");
+            OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "Enum program argument needs to have populated possible_values_mapping"));
         }
     }
 
@@ -255,8 +255,8 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
     {
         if (Super::HasPossibleValues() && Super::HasPossibleValueMappings())
         {
-            throw InvalidArgumentException(__FUNCTION__,
-                                           "Integer program argument can't have both possible values and possible value mappings");
+            OPAL_RAISE(InvalidArgumentException(__FUNCTION__,
+                                           "Integer program argument can't have both possible values and possible value mappings"));
         }
     }
 
@@ -303,8 +303,8 @@ struct TypedProgramArgumentDefinition<StringUtf8> final : TypedProgramArgumentDe
     {
         if (HasPossibleValues() && HasPossibleValueMappings())
         {
-            throw InvalidArgumentException(
-                __FUNCTION__, "String program argument has both possible values and possible value mappings, please use only one of these");
+            OPAL_RAISE(InvalidArgumentException(
+                __FUNCTION__, "String program argument has both possible values and possible value mappings, please use only one of these"));
         }
     }
 
@@ -363,20 +363,20 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
         {
             if (!m_possible_values.IsEmpty())
             {
-                throw InvalidArgumentException(
-                    __FUNCTION__, "Enum array program argument needs to have populated possible_values_mapping, not possible_values");
+                OPAL_RAISE(InvalidArgumentException(
+                    __FUNCTION__, "Enum array program argument needs to have populated possible_values_mapping, not possible_values"));
             }
             if (m_possible_value_mappings.GetSize() == 0)
             {
-                throw InvalidArgumentException(__FUNCTION__, "Enum array program argument needs to have populated possible_values_mapping");
+                OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "Enum array program argument needs to have populated possible_values_mapping"));
             }
         }
         else
         {
             if (!m_possible_values.IsEmpty() && m_possible_value_mappings.GetSize() != 0)
             {
-                throw InvalidArgumentException(__FUNCTION__,
-                                               "Array program argument can't have both possible values and possible value mappings");
+                OPAL_RAISE(InvalidArgumentException(__FUNCTION__,
+                                               "Array program argument can't have both possible values and possible value mappings"));
             }
         }
     }

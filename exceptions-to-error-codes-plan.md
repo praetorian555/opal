@@ -591,7 +591,23 @@ aborts instead of unwinding. Defensible for a real-time engine, but it is a prod
 
 **Step 4 - gate the remainder behind `OPAL_EXCEPTIONS`**
 
-- [ ] Compile the throwing constructors out when it is off, leaving only the factories
-- [ ] Decide what `HandleFatal` does without exceptions (§7 has the same question already)
-- [ ] `Opal::Exception` derives from `std::exception` as of `3453b1e`, which couples toward std exceptions.
-      Fine while they are enabled; revisit if step 4 lands.
+- [x] ~~Compile the throwing constructors out when it is off, leaving only the factories.~~ **Not that.** Removing them would
+      have meant rewriting the library's own internals, which build strings, arrays and maps with those constructors on nearly
+      every page, and every caller's code with them. What the throws needed was somewhere to go, not deletion.
+
+      All 64 of them now go through `OPAL_RAISE`, which throws when the build has exceptions and ends the program through the
+      contract violation handler when it does not. A constructor that cannot allocate still cannot report, so without exceptions
+      it terminates - and the `Create` factories from step 1 are what a caller on a budgeted allocator uses instead. Those keep
+      working either way, which is what made this step possible at all.
+- [x] Decide what `HandleFatal` does without exceptions - already answered by §7's handler. The default one throws, and a
+      program built without exceptions installs one that does not.
+- [x] `Opal::Exception` derives from `std::exception`. Left alone: the coupling costs nothing, since without exceptions the
+      types are simply never thrown.
+- [x] **Verified, not assumed.** `libopal.a` builds clean with `-fno-exceptions` under both GCC 13 and Clang 20. The
+      exceptions-on builds are unaffected: MSVC, GCC, Clang+ASan and Release GCC all still pass 930 test cases.
+
+      One hole, and it is the one §5 predicted: **`JsonReader::Parse` needs exceptions.** The parser unwinds out of a recursive
+      descent with a `ParseAbort` non-local jump thrown from twenty-odd failure points, which is exactly what §5 chose
+      deliberately over threading a code back through the grammar. It is `#if defined(OPAL_EXCEPTIONS)` now, so a build without
+      them gets everything else - `JsonValue`, its `Try*` accessors, all of `JsonWriter` - but cannot parse. Undoing that means
+      the rewrite §5 declined; the choice is recorded here rather than made silently.

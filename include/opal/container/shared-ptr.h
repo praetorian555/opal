@@ -88,7 +88,7 @@ public:
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
         if (Construct(allocator, std::forward<Args>(args)...) != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException("SharedPtr");
+            OPAL_RAISE(OutOfMemoryException("SharedPtr"));
         }
     }
 
@@ -106,7 +106,7 @@ public:
     {
         if (Adopt(allocator, object) != ErrorCode::Success) [[unlikely]]
         {
-            throw OutOfMemoryException("SharedPtr");
+            OPAL_RAISE(OutOfMemoryException("SharedPtr"));
         }
     }
 
@@ -267,7 +267,7 @@ private:
         {
             if (!allocator->IsThreadSafe())
             {
-                throw InvalidArgumentException("SharedPtr", "Allocator should be thread-safe");
+                OPAL_RAISE(InvalidArgumentException("SharedPtr", "Allocator should be thread-safe"));
             }
         }
         // A budgeted allocator hands back nullptr rather than raising, so both allocations have to be checked.
@@ -303,7 +303,7 @@ private:
         {
             if (!allocator->IsThreadSafe())
             {
-                throw InvalidArgumentException("SharedPtr", "Allocator should be thread-safe");
+                OPAL_RAISE(InvalidArgumentException("SharedPtr", "Allocator should be thread-safe"));
             }
         }
         m_refcount = New<RefCountT>(allocator);

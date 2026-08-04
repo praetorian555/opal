@@ -18,7 +18,7 @@ Opal::Logger* g_default_logger = nullptr;
 
 [[noreturn]] void ThrowFatalLog(Opal::StringViewUtf8, Opal::StringViewUtf8)
 {
-    throw Opal::FatalLogException("Fatal log message encountered");
+    OPAL_RAISE(Opal::FatalLogException("Fatal log message encountered"));
 }
 
 Opal::FatalLogHandler g_fatal_handler = &ThrowFatalLog;

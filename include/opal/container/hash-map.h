@@ -371,7 +371,7 @@ Opal::HashMap<KeyType, ValueType>::HashMap(size_type capacity, AllocatorBase* al
 {
     if (Reserve(capacity) != ErrorCode::Success)
     {
-        throw OutOfMemoryException(m_allocator->GetName(), capacity * sizeof(pair_type));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), capacity * sizeof(pair_type)));
     }
 }
 
@@ -381,13 +381,13 @@ Opal::HashMap<KeyType, ValueType>::HashMap(const ArrayView<Pair<KeyType, ValueTy
 {
     if (Reserve(pairs.GetSize()) != ErrorCode::Success)
     {
-        throw OutOfMemoryException(m_allocator->GetName(), pairs.GetSize() * sizeof(pair_type));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), pairs.GetSize() * sizeof(pair_type)));
     }
     for (const auto& pair : pairs)
     {
         if (Insert(Opal::Clone(pair.key, m_allocator), Opal::Clone(pair.value, m_allocator)) != ErrorCode::Success)
         {
-            throw OutOfMemoryException(m_allocator->GetName(), pairs.GetSize() * sizeof(pair_type));
+            OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), pairs.GetSize() * sizeof(pair_type)));
         }
     }
 }
@@ -398,13 +398,13 @@ Opal::HashMap<KeyType, ValueType>::HashMap(std::initializer_list<pair_type> pair
 {
     if (Reserve(pairs.size()) != ErrorCode::Success)
     {
-        throw OutOfMemoryException(m_allocator->GetName(), pairs.size() * sizeof(pair_type));
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), pairs.size() * sizeof(pair_type)));
     }
     for (const auto& pair : pairs)
     {
         if (Insert(Opal::Clone(pair.key, m_allocator), Opal::Clone(pair.value, m_allocator)) != ErrorCode::Success)
         {
-            throw OutOfMemoryException(m_allocator->GetName(), pairs.size() * sizeof(pair_type));
+            OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), pairs.size() * sizeof(pair_type)));
         }
     }
 }

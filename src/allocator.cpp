@@ -32,11 +32,11 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const
 {
     if (desc.bytes_to_reserve == 0)
     {
-        throw InvalidArgumentException(__FUNCTION__, "bytes_to_reserve", desc.bytes_to_reserve);
+        OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "bytes_to_reserve", desc.bytes_to_reserve));
     }
     if (desc.bytes_to_initially_alloc > desc.bytes_to_reserve)
     {
-        throw InvalidArgumentException(__FUNCTION__, "bytes_to_initially_alloc", desc.bytes_to_initially_alloc);
+        OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "bytes_to_initially_alloc", desc.bytes_to_initially_alloc));
     }
     m_reserved_size = desc.bytes_to_reserve;
     m_commit_step_size = desc.commit_step_size;
@@ -54,7 +54,7 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const
     m_memory = VirtualAlloc(nullptr, m_reserved_size, MEM_RESERVE, PAGE_NOACCESS);
     if (m_memory == nullptr)
     {
-        throw OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!");
+        OPAL_RAISE(OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!"));
     }
 #elif defined(OPAL_PLATFORM_LINUX)
     const i64 page_size = sysconf(_SC_PAGESIZE);
@@ -67,7 +67,7 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const
     m_memory = mmap(nullptr, m_reserved_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
     if (m_memory == nullptr)
     {
-        throw OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!");
+        OPAL_RAISE(OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!"));
     }
 #else
 #error "Platform not supported"
@@ -77,7 +77,7 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const
         // A constructor has nowhere to put a code, so a failed initial commit stays an exception here.
         if (Commit(desc.bytes_to_initially_alloc) != ErrorCode::Success)
         {
-            throw OutOfMemoryException(debug_name, desc.bytes_to_initially_alloc);
+            OPAL_RAISE(OutOfMemoryException(debug_name, desc.bytes_to_initially_alloc));
         }
     }
 }

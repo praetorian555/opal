@@ -1389,7 +1389,7 @@ CLASS_HEADER::String(size_type count, CodeUnitType value, allocator_type* alloca
     if (Construct(allocator, count, value) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(allocator->GetName(), count);
+        OPAL_RAISE(OutOfMemoryException(allocator->GetName(), count));
     }
 }
 
@@ -1399,14 +1399,14 @@ TEMPLATE_HEADER CLASS_HEADER::String(const String& other, size_type pos, allocat
     const size_type other_size = other.GetSize();
     if (pos > other_size)
     {
-        throw OutOfBoundsException(pos, 0, other_size);
+        OPAL_RAISE(OutOfBoundsException(pos, 0, other_size));
     }
     const size_type count = other_size - pos;
     const value_type* other_data = other.GetData();
     if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(allocator->GetName(), count);
+        OPAL_RAISE(OutOfMemoryException(allocator->GetName(), count));
     }
     value_type* buf = GetData();
     for (size_type i = 0; i < count; i++)
@@ -1422,12 +1422,12 @@ CLASS_HEADER::String(const CodeUnitType* str, size_type count, allocator_type* a
     const ErrorCode error = Construct(allocator, str, count);
     if (error == ErrorCode::InvalidArgument)
     {
-        throw InvalidArgumentException(__FUNCTION__, "str", count);
+        OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "str", count));
     }
     if (error != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(allocator->GetName(), count);
+        OPAL_RAISE(OutOfMemoryException(allocator->GetName(), count));
     }
 }
 
@@ -1438,7 +1438,7 @@ CLASS_HEADER::String(std::initializer_list<CodeUnitType> init_list, allocator_ty
     if (Construct(allocator, init_list) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(allocator->GetName(), init_list.size());
+        OPAL_RAISE(OutOfMemoryException(allocator->GetName(), init_list.size()));
     }
 }
 
@@ -1450,7 +1450,7 @@ CLASS_HEADER::String(const CodeUnitType* str, allocator_type* allocator)
     if (Construct(allocator, str, count) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(allocator->GetName(), count);
+        OPAL_RAISE(OutOfMemoryException(allocator->GetName(), count));
     }
 }
 
@@ -1782,7 +1782,7 @@ CLASS_HEADER& CLASS_HEADER::operator=(std::initializer_list<CodeUnitType> init_l
     // An assignment operator has no way to hand back a code, so allocation failure stays an exception here.
     if (Assign(init_list) != ErrorCode::Success) [[unlikely]]
     {
-        throw OutOfMemoryException(GetAllocator().GetName(), init_list.size());
+        OPAL_RAISE(OutOfMemoryException(GetAllocator().GetName(), init_list.size()));
     }
     return *this;
 }
@@ -2926,7 +2926,7 @@ CLASS_HEADER& CLASS_HEADER::operator+=(const String& other)
     // These operators have no way to hand back a code, so allocation failure stays an exception here.
     if (Append(other) != ErrorCode::Success) [[unlikely]]
     {
-        throw OutOfMemoryException(GetAllocator().GetName(), GetSize() + other.GetSize());
+        OPAL_RAISE(OutOfMemoryException(GetAllocator().GetName(), GetSize() + other.GetSize()));
     }
     return *this;
 }
@@ -2936,7 +2936,7 @@ CLASS_HEADER& CLASS_HEADER::operator+=(value_type ch)
 {
     if (Append(ch) != ErrorCode::Success) [[unlikely]]
     {
-        throw OutOfMemoryException(GetAllocator().GetName(), GetSize() + 1);
+        OPAL_RAISE(OutOfMemoryException(GetAllocator().GetName(), GetSize() + 1));
     }
     return *this;
 }
@@ -2947,7 +2947,7 @@ CLASS_HEADER& CLASS_HEADER::operator+=(const value_type* str)
     // A null str is reported as InvalidArgument, which this operator has always ignored.
     if (Append(str) == ErrorCode::OutOfMemory) [[unlikely]]
     {
-        throw OutOfMemoryException(GetAllocator().GetName(), GetSize() + GetStringLength(str));
+        OPAL_RAISE(OutOfMemoryException(GetAllocator().GetName(), GetSize() + GetStringLength(str)));
     }
     return *this;
 }

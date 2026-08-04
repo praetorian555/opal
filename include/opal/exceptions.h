@@ -4,8 +4,19 @@
 
 #include <exception>
 
+#include "opal/assert.h"
+#include "opal/defines.h"
 #include "opal/type-traits.h"
 #include "opal/types.h"
+
+// Raise a failure that has nowhere to be returned: a constructor, a Clone, an assignment. Throws when the build has exceptions,
+// and ends the program through the contract violation handler when it does not. The types with a budgeted allocator in mind offer
+// a Create or a Try* that reports a code instead, and those keep working either way.
+#if defined(OPAL_EXCEPTIONS)
+#define OPAL_RAISE(exception_expression) throw exception_expression
+#else
+#define OPAL_RAISE(exception_expression) ::Opal::HandleContractViolation(#exception_expression)
+#endif
 
 namespace Opal
 {

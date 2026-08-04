@@ -231,21 +231,27 @@ T* New(AllocatorBase* allocator, Args&&... args)
 {
     if (allocator == nullptr) [[unlikely]]
     {
-        throw Exception("Allocator can't be null");
+        OPAL_RAISE(Exception("Allocator can't be null"));
     }
     void* memory = allocator->Alloc(sizeof(T), alignof(T));
     if (memory == nullptr) [[unlikely]]
     {
         return nullptr;
     }
+#if defined(OPAL_EXCEPTIONS)
+    // T is arbitrary, so its constructor may still throw even though nothing in this library does. Give the storage back rather
+    // than leak it, and let the exception carry on.
     try
     {
         return new (memory) T(std::forward<Args>(args)...);
-    } catch (const std::exception&)
+    } catch (...)
     {
         allocator->Free(memory);
         throw;
     }
+#else
+    return new (memory) T(std::forward<Args>(args)...);
+#endif
 }
 
 /**
@@ -259,21 +265,27 @@ T* New(AllocatorBase* allocator, Args&&... args)
 {
     if (allocator == nullptr) [[unlikely]]
     {
-        throw Exception("Allocator can't be null");
+        OPAL_RAISE(Exception("Allocator can't be null"));
     }
     void* memory = allocator->Alloc(sizeof(T), Alignment);
     if (memory == nullptr) [[unlikely]]
     {
         return nullptr;
     }
+#if defined(OPAL_EXCEPTIONS)
+    // T is arbitrary, so its constructor may still throw even though nothing in this library does. Give the storage back rather
+    // than leak it, and let the exception carry on.
     try
     {
         return new (memory) T(std::forward<Args>(args)...);
-    } catch (const std::exception&)
+    } catch (...)
     {
         allocator->Free(memory);
         throw;
     }
+#else
+    return new (memory) T(std::forward<Args>(args)...);
+#endif
 }
 
 template <typename T>
