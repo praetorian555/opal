@@ -402,7 +402,8 @@ factory makes them harder to write wrong to begin with.
 - [x] The parser does not check the `SharedPtr` allocations behind `JsonArray` and `JsonObject`, so a document that
       runs out of memory mid-parse builds an invalid node rather than reporting `OutOfMemory`. The parser builds both
       through `SharedPtr::Create` now and aborts with `OutOfMemory`, and the `NullAllocator` parse test is in.
-- [ ] Add `TryGetBool`, `TryGetNumber`, `TryGetIntegerNumber`, `TryGetString`, `TryAt`, `TryFind`, `TryGetPath`
+- [x] Add `TryGetBool`, `TryGetNumber`, `TryGetIntegerNumber`, `TryGetString`, `TryAt`, `TryFind`, `TryGetPath` - done as the
+      first half of §13 step 3, since the same change had to give `Variant` a `TryGet`. See there.
 - [x] `JsonWriter::Serialize` (both overloads) returns `Expected<StringUtf8, ErrorCode>` - `include/opal/container/json-writer.h:44,54`
 - [x] NaN / Infinity become `ErrorCode::InvalidArgument` - `src/json-writer.cpp:143,147`
 - [x] Serializer OOM sites use the same channel - `src/json-writer.cpp:81,89,254,278`. The serializer records the first
@@ -562,7 +563,7 @@ aborts instead of unwinding. Defensible for a real-time engine, but it is a prod
 
 - [x] `Try*` accessors first, so callers have somewhere to go - covers §5's `TryGetBool`/`TryAt`/`TryFind` and
       §10's `Variant::TryGet`. Two new codes went with them: `ErrorCode::TypeMismatch` and `ErrorCode::KeyNotFound`.
-- [ ] Then convert the throwing forms listed in §10 to ~~`OPAL_ASSERT`~~ **`OPAL_VERIFY`**.
+- [x] Then convert the throwing forms listed in §10 to ~~`OPAL_ASSERT`~~ **`OPAL_VERIFY`**.
 
       **`OPAL_ASSERT` was the wrong tool and the reasoning above is wrong with it.** This section says an out-of-range index would
       "abort instead of unwinding". It would not: `OPAL_ASSERT` expands to nothing outside `OPAL_DEBUG`, so release builds would
