@@ -424,8 +424,15 @@ factory makes them harder to write wrong to begin with.
 
 ### Logging (§7)
 
-- [ ] `Logger::Log` stops throwing on an unregistered category - `include/opal/logging.h:162`
-- [ ] Decide whether `HandleFatal` keeps `FatalLogException` or gets an abort handler - `src/logging.cpp:244`
+- [x] `Logger::Log` stops throwing on an unregistered category - `include/opal/logging.h:162`. Neither of the two options in §7
+      survived contact: an `ErrorCode` return would be dropped by every caller, and the suggested `OPAL_ASSERT` aborts in debug on
+      exactly the path being made safe, which is worse than the exception it replaces. What registering a category actually does is
+      give it a level of its own, so a category without one is not a mistake - the message is written, gated by the logger's level
+      alone. `UnregisteredCategoryException` is gone, and `LoggerNotInitializedException` went with it, having never been thrown.
+- [x] `HandleFatal` gets a handler - `src/logging.cpp:244`. `SetFatalLogHandler` / `GetFatalLogHandler` take a
+      `void (*)(StringViewUtf8 category, StringViewUtf8 message)`, and the default one throws `FatalLogException`, so behaviour is
+      unchanged until someone installs their own. That is what §13 step 4 needs: without exceptions, a program sets a handler that
+      ends the process instead of one that can be swallowed.
 
 ### Math (§9)
 

@@ -65,17 +65,14 @@ bool registered = logger.IsCategoryRegistered("Rendering");       // true
 Opal::LogLevel level = logger.GetCategoryLevel("Rendering");      // Warning
 ```
 
-Logging to an unregistered category throws `UnregisteredCategoryException`.
+Registering a category only gives it a level of its own. Logging to a category that was never registered is allowed, and the message is
+gated by the logger's level alone.
 
 ```cpp
-try
-{
-    logger.Info("NonExistent", "This will throw");
-}
-catch (const Opal::UnregisteredCategoryException& e)
-{
-    // e.What() contains "Logging with unregistered category: NonExistent"
-}
+logger.SetLogLevel(Opal::LogLevel::Info);
+
+logger.Info("NonExistent", "Written, no category level to check against");
+logger.Verbose("NonExistent", "Dropped, below the logger's own level");
 ```
 
 ## Message Formatting
@@ -206,7 +203,7 @@ When `Fatal` is called:
 
 1. The message is formatted and written to all sinks.
 2. All sinks are flushed.
-3. A `FatalLogException` is thrown.
+3. The fatal handler runs. The default one throws `FatalLogException`.
 
 ```cpp
 try
@@ -218,6 +215,22 @@ catch (const Opal::FatalLogException& e)
     // e.What() contains the exception message
 }
 ```
+
+An exception is something a caller can swallow, which is the wrong shape for a message that says the program cannot continue. Install
+your own handler to end the process instead, or to write a crash report first. It is not expected to return.
+
+```cpp
+Opal::SetFatalLogHandler(
+    [](Opal::StringViewUtf8 category, Opal::StringViewUtf8 message)
+    {
+        WriteCrashReport(category, message);
+        std::abort();
+    });
+
+Opal::SetFatalLogHandler(nullptr);  // Back to throwing FatalLogException
+```
+
+The handler is process-wide, not per logger. It is not thread-safe to change, so install it before starting the threads that log.
 
 ## Global Logger
 
@@ -286,7 +299,7 @@ struct LogSink
 | `Info(category, fmt, args...)` | Log at Info level |
 | `Warning(category, fmt, args...)` | Log at Warning level |
 | `Error(category, fmt, args...)` | Log at Error level |
-| `Fatal(category, fmt, args...)` | Log at Fatal level, then throw |
+| `Fatal(category, fmt, args...)` | Log at Fatal level, then run the fatal handler |
 
 ### Free Functions
 
@@ -294,4 +307,6 @@ struct LogSink
 |----------|-------------|
 | `GetLogger()` | Get the global logger. Creates a default logger with a ConsoleSink on first call |
 | `SetLogger(logger)` | Set the global logger (non-owning). Pass `nullptr` to restore the default logger |
+| `SetFatalLogHandler(handler)` | Set what runs after a fatal message. Pass `nullptr` to restore the throwing default |
+| `GetFatalLogHandler()` | Get the installed fatal handler |
 | `LogLevelToString(level)` | Convert a LogLevel to its string representation |

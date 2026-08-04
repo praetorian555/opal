@@ -32,6 +32,27 @@ struct TestSink : public LogSink
     void Flush() override { ++m_flush_count; }
 };
 
+namespace
+{
+// Puts the throwing default back even when a section fails partway through, since the handler is process wide.
+struct ScopedFatalHandler
+{
+    explicit ScopedFatalHandler(FatalLogHandler handler) { SetFatalLogHandler(handler); }
+    ~ScopedFatalHandler() { SetFatalLogHandler(nullptr); }
+};
+
+bool g_fatal_handler_called = false;
+StringUtf8 g_fatal_handler_category;
+StringUtf8 g_fatal_handler_message;
+
+void RecordFatal(StringViewUtf8 category, StringViewUtf8 message)
+{
+    g_fatal_handler_called = true;
+    g_fatal_handler_category = StringUtf8(category.GetData(), category.GetSize());
+    g_fatal_handler_message = StringUtf8(message.GetData(), message.GetSize());
+}
+}  // namespace
+
 /*************************************************************************************************/
 /** LogLevel tests *******************************************************************************/
 /*************************************************************************************************/
@@ -281,6 +302,36 @@ TEST_CASE("Fatal behavior", "[Logging]")
         }
         REQUIRE(test_sink->m_entries.GetSize() == 1);
         REQUIRE(test_sink->m_entries[0].level == LogLevel::Fatal);
+    }
+
+    SECTION("An installed handler runs instead of the throw")
+    {
+        g_fatal_handler_called = false;
+        const ScopedFatalHandler scoped(&RecordFatal);
+
+        REQUIRE_NOTHROW(logger.Fatal("General", "Critical failure"));
+        REQUIRE(g_fatal_handler_called);
+        CHECK(g_fatal_handler_category == "General");
+        CHECK(g_fatal_handler_message == "Critical failure");
+        CHECK(test_sink->m_flush_count >= 1);
+    }
+
+    SECTION("A formatted fatal message reaches the handler")
+    {
+        g_fatal_handler_called = false;
+        const ScopedFatalHandler scoped(&RecordFatal);
+
+        REQUIRE_NOTHROW(logger.Fatal("General", "code {}", 42));
+        REQUIRE(g_fatal_handler_called);
+        CHECK(g_fatal_handler_message == "code 42");
+    }
+
+    SECTION("Passing nullptr restores the throwing default")
+    {
+        {
+            const ScopedFatalHandler scoped(&RecordFatal);
+        }
+        REQUIRE_THROWS_AS(logger.Fatal("General", "Fatal error!"), FatalLogException);
     }
 }
 
@@ -533,29 +584,40 @@ TEST_CASE("Message larger than 2048 bytes", "[Logging]")
     }
 }
 
-TEST_CASE("Unregistered category throws", "[Logging]")
+TEST_CASE("Unregistered category still logs", "[Logging]")
 {
     Logger logger;
     logger.SetLogLevel(LogLevel::Verbose);
+    auto sink = MakeShared<LogSink, TestSink>(nullptr);
+    auto* test_sink = static_cast<TestSink*>(sink.Get());
+    logger.AddSink(sink);
 
-    SECTION("Log with unregistered category throws UnregisteredCategoryException")
+    SECTION("Message is written instead of dropped")
     {
-        REQUIRE_THROWS_AS(logger.Info("NonExistent", "Should throw"), UnregisteredCategoryException);
+        logger.Info("NonExistent", "Should still arrive");
+        REQUIRE(test_sink->m_entries.GetSize() == 1);
+        REQUIRE(test_sink->m_entries[0].level == LogLevel::Info);
+        REQUIRE(test_sink->m_entries[0].category == "NonExistent");
     }
 
-    SECTION("Each log level throws for unregistered category")
+    SECTION("Every level below the logger's own level is written")
     {
-        REQUIRE_THROWS_AS(logger.Verbose("NonExistent", "msg"), UnregisteredCategoryException);
-        REQUIRE_THROWS_AS(logger.Info("NonExistent", "msg"), UnregisteredCategoryException);
-        REQUIRE_THROWS_AS(logger.Warning("NonExistent", "msg"), UnregisteredCategoryException);
-        REQUIRE_THROWS_AS(logger.Error("NonExistent", "msg"), UnregisteredCategoryException);
-        REQUIRE_THROWS_AS(logger.Fatal("NonExistent", "msg"), UnregisteredCategoryException);
+        logger.Verbose("NonExistent", "msg");
+        logger.Info("NonExistent", "msg");
+        logger.Warning("NonExistent", "msg");
+        logger.Error("NonExistent", "msg");
+        REQUIRE(test_sink->m_entries.GetSize() == 4);
+    }
+
+    SECTION("The logger's own level still gates it")
+    {
+        logger.SetLogLevel(LogLevel::Warning);
+        logger.Info("NonExistent", "Below the logger level");
+        REQUIRE(test_sink->m_entries.GetSize() == 0);
     }
 
     SECTION("Log with registered category does not throw")
     {
-        auto sink = MakeShared<LogSink, TestSink>(nullptr);
-        logger.AddSink(sink);
         REQUIRE_NOTHROW(logger.Info("General", "Should not throw"));
     }
 }

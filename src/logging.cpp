@@ -16,6 +16,13 @@ namespace
 Opal::Logger* g_logger = nullptr;
 Opal::Logger* g_default_logger = nullptr;
 
+[[noreturn]] void ThrowFatalLog(Opal::StringViewUtf8, Opal::StringViewUtf8)
+{
+    throw Opal::FatalLogException("Fatal log message encountered");
+}
+
+Opal::FatalLogHandler g_fatal_handler = &ThrowFatalLog;
+
 struct TimeParts
 {
     char date[16];
@@ -238,10 +245,20 @@ void Opal::Logger::Emit(LogLevel level, StringViewUtf8 category, StringViewUtf8 
     }
 }
 
-void Opal::Logger::HandleFatal()
+void Opal::Logger::HandleFatal(StringViewUtf8 category, StringViewUtf8 message)
 {
     Flush();
-    throw FatalLogException("Fatal log message encountered");
+    GetFatalLogHandler()(category, message);
+}
+
+void Opal::SetFatalLogHandler(FatalLogHandler handler)
+{
+    g_fatal_handler = (handler != nullptr) ? handler : &ThrowFatalLog;
+}
+
+Opal::FatalLogHandler Opal::GetFatalLogHandler()
+{
+    return g_fatal_handler;
 }
 
 /*************************************************************************************************/

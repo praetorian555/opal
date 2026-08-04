@@ -50,15 +50,20 @@ struct FatalLogException : Exception
     FatalLogException(const char* message) : Exception(StringEx("Fatal log: ") + message) {}
 };
 
-struct LoggerNotInitializedException : Exception
-{
-    LoggerNotInitializedException() : Exception("Logger not initialized; call SetLogger before GetLogger") {}
-};
+/**
+ * Called once the sinks have been flushed for a message logged at LogLevel::Fatal. It is not expected to return; the default one
+ * throws FatalLogException.
+ */
+using FatalLogHandler = void (*)(StringViewUtf8 category, StringViewUtf8 message);
 
-struct UnregisteredCategoryException : Exception
-{
-    UnregisteredCategoryException(const char* category) : Exception(StringEx("Logging with unregistered category: ") + category) {}
-};
+/**
+ * Install the handler run after a fatal log message. Pass nullptr to restore the default.
+ * @note Not thread-safe. Set it before the threads that log are started.
+ */
+OPAL_EXPORT void SetFatalLogHandler(FatalLogHandler handler);
+
+/** @return The handler currently installed. Never nullptr. */
+OPAL_EXPORT FatalLogHandler GetFatalLogHandler();
 
 OPAL_EXPORT const char* LogLevelToString(LogLevel level);
 
@@ -86,6 +91,11 @@ public:
 
     void Flush();
 
+    /**
+     * Format and write a message to every sink.
+     * @note Registering a category only sets a level for it. A message logged to an unregistered category is written, gated by the
+     *       logger's own level alone.
+     */
     template <typename... Args>
     void Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Args&&... args);
 
@@ -106,7 +116,7 @@ public:
 
 private:
     void Emit(LogLevel level, StringViewUtf8 category, StringViewUtf8 message);
-    void HandleFatal();
+    void HandleFatal(StringViewUtf8 category, StringViewUtf8 message);
 
     LogLevel m_log_level;
     HashMap<StringUtf8, LogLevel> m_categories;
@@ -157,17 +167,17 @@ void Logger::Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Ar
     {
         return;
     }
-    if (!IsCategoryRegistered(category))
-    {
-        throw UnregisteredCategoryException(category.GetData());
-    }
-    if (level > GetCategoryLevel(category))
+    if (IsCategoryRegistered(category) && level > GetCategoryLevel(category))
     {
         return;
     }
     if constexpr (sizeof...(Args) == 0)
     {
         Emit(level, category, fmt);
+        if (level == LogLevel::Fatal)
+        {
+            HandleFatal(category, fmt);
+        }
     }
     else
     {
@@ -175,11 +185,12 @@ void Logger::Log(LogLevel level, StringViewUtf8 category, StringViewUtf8 fmt, Ar
         size_t written = 0;
         BoundedFormatIterator out(buffer, written);
         std::vformat_to(std::move(out), std::string_view(fmt.GetData(), fmt.GetSize()), std::make_format_args(args...));
-        Emit(level, category, StringViewUtf8(buffer.GetData(), written));
-    }
-    if (level == LogLevel::Fatal)
-    {
-        HandleFatal();
+        const StringViewUtf8 message(buffer.GetData(), written);
+        Emit(level, category, message);
+        if (level == LogLevel::Fatal)
+        {
+            HandleFatal(category, message);
+        }
     }
 }
 
