@@ -262,7 +262,21 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
 
     ErrorCode SetValue(const StringUtf8& str) override
     {
+        if (Super::HasPossibleValueMappings())
+        {
+            const T* mapping = Super::FindValueFromMapping(str);
+            if (mapping == nullptr)
+            {
+                return ErrorCode::InvalidArgument;
+            }
+            Super::SetDestinationValue(*mapping);
+            return ErrorCode::Success;
+        }
         const T value = StringToNumber<T>(str);
+        if (!Super::IsPossibleValue(value))
+        {
+            return ErrorCode::InvalidArgument;
+        }
         Super::SetDestinationValue(value);
         return ErrorCode::Success;
     }

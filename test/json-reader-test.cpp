@@ -461,7 +461,7 @@ TEST_CASE("JsonReader i64 min", "[JsonReader]")
     JsonReader reader = ParseOrFail("-9223372036854775808");
     REQUIRE(reader.GetRoot().IsIntegerNumber());
     // Use explicit comparison to avoid literal issues.
-    REQUIRE(reader.GetRoot().GetIntegerNumber() == static_cast<i64>(-9223372036854775807LL - 1));
+    REQUIRE(reader.GetRoot().GetIntegerNumber() == (-9223372036854775807LL - 1));
 }
 
 TEST_CASE("JsonReader integer overflow falls back to f64", "[JsonReader]")

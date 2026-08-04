@@ -95,3 +95,37 @@ jobs:
       working-directory: ${{github.workspace}}/build
       # Execute tests defined by the CMake configuration.
       run: ctest --output-on-failure
+
+  # OPAL_EXCEPTIONS=OFF turns every throw into a call to the contract violation handler, which is a different compile of every
+  # header. Nothing in the job above covers it, so a new throw would break that build without anyone noticing until they tried
+  # it. There is no test step: the option forces OPAL_BUILD_TESTS off, since Catch2 needs exceptions.
+  no-exceptions:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: "MSVC no exceptions"
+          os: windows-2022
+          cxx: "cl"
+        - name: "GCC no exceptions"
+          os: ubuntu-latest
+          cxx: "g++"
+        - name: "Clang no exceptions"
+          os: ubuntu-latest
+          cxx: "clang++"
+    name: ${{matrix.config.name}}
+    runs-on: ${{matrix.config.os}}
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up MSVC developer environment
+      if: matrix.config.cxx == 'cl'
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        toolset: "14.44"
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=${{matrix.config.cxx}} -DOPAL_HARDENING=OFF -DOPAL_EXCEPTIONS=OFF
+
+    - name: Build the library
+      run: cmake --build ${{github.workspace}}/build --target opal

@@ -316,7 +316,8 @@ factory makes them harder to write wrong to begin with.
 - [x] Confirm the containers' `ErrorCode::OutOfMemory` paths are now reachable; add tests using `NullAllocator`
       (the four `Paths::Get*` tests were asserting a throw that came from the allocator, not the function - they now
       assert `ErrorCode::OutOfMemory` off the `Expected`, which is the path that had never once run)
-- [ ] `New<T>` null-allocator check becomes `OPAL_ASSERT` - `include/opal/allocator.h:216,234`
+- [x] `New<T>` null-allocator check becomes ~~`OPAL_ASSERT`~~ `OPAL_VERIFY` - `include/opal/allocator.h:234,268`. Same reasoning
+      as step 3: an assert would leave release builds calling Alloc on a null pointer.
 - [x] **`PushDefaultAllocator` seeds the system allocator when the stack is empty** - `src/allocator.cpp:252`. Only
       `GetDefaultAllocator` seeded index 0, so a thread whose first stack touch was a push put its own allocator at the
       bottom and the matching pop tripped `PopDefaultAllocator`'s "System provided default allocator can't be popped"
@@ -380,9 +381,15 @@ factory makes them harder to write wrong to begin with.
 - [x] `Build` returns `ProgramArgumentsResult`; drop `HelpRequestedException` and `VersionRequestedException` - `src/program-arguments.cpp:59,64,96`
 - [x] `Build` reports `PushBack` failure as `OutOfMemory` - `src/program-arguments.cpp:46,50`
 - [x] Rewrite the `try`/`catch` example in `docs/program-arguments.md:304`, plus the prose and the README snippet
-- [ ] The integral scalar `SetValue` never checks `IsPossibleValue`, so `possible_values` is silently ignored for
-      `i32`/`u32`/... arguments while the string and array paths do enforce it. Left as-is here to keep the conversion
-      behaviour-neutral; `docs/program-arguments.md` documents the numeric case as validated, so one of the two is wrong.
+- [x] The integral scalar `SetValue` never checked `IsPossibleValue`. The code was wrong, not the docs: the same definition's
+      constructor rejects being handed both a list and a mapping, so it plainly meant to consult them. It checks both now, and
+      an out of range value reports `ErrorCode::InvalidArgument` the way the string path already did. The existing test only
+      ever passed a value that *was* in the list, which is why this survived the conversion.
+
+      Turned up while fixing it: **the builder cannot give an integral argument a mapping at all.** That `AddArgument` overload
+      is constrained to `IsEnum<T> || SameAs<T, StringUtf8>`, so the mapping branch is reachable only by constructing the
+      definition directly, which is what the new test does. Either the constraint is too narrow or the constructor's check is
+      pointless; recorded rather than guessed at.
 
 ### JSON (§5)
 
@@ -401,8 +408,9 @@ factory makes them harder to write wrong to begin with.
 - [x] Serializer OOM sites use the same channel - `src/json-writer.cpp:81,89,254,278`. The serializer records the first
       failure and skips every later write, the same shape as `StringFormatIterator`, so the walk stops instead of
       piling work onto a string that is already short. That let the `AppendFormatted` shim from §8 go.
-- [ ] `-Wuseless-cast` on `static_cast<i64>(9007199254740993LL)` in `test/json-value-test.cpp:237,257` and
-      `test/json-writer-test.cpp:386`. Pre-existing, unrelated to this work, only visible once those files recompiled.
+- [x] `-Wuseless-cast` on `static_cast<i64>(9007199254740993LL)` in `test/json-value-test.cpp` and `test/json-writer-test.cpp`.
+      `i64` is `long long` on every platform, so the `LL` suffix already selects the `i64` overload and the cast said nothing.
+      A fourth site the audit had not listed, `test/json-reader-test.cpp:464`, went with them.
 
 ### Threading (§6)
 

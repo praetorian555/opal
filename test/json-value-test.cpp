@@ -246,7 +246,7 @@ TEST_CASE("MakeNumber from integer stores as i64", "[JsonValue]")
 
 TEST_CASE("MakeNumber from i64 stores as i64", "[JsonValue]")
 {
-    JsonValue value = JsonValue::MakeNumber(static_cast<i64>(9007199254740993LL));
+    JsonValue value = JsonValue::MakeNumber(9007199254740993LL);
     REQUIRE(value.IsIntegerNumber());
     REQUIRE(value.GetIntegerNumber() == 9007199254740993LL);
 }
@@ -266,6 +266,6 @@ TEST_CASE("GetNumber on i64 converts to f64", "[JsonValue]")
 
 TEST_CASE("GetNumberAs from i64 narrows directly", "[JsonValue]")
 {
-    JsonValue value = JsonValue::MakeNumber(static_cast<i64>(9007199254740993LL));
+    JsonValue value = JsonValue::MakeNumber(9007199254740993LL);
     REQUIRE(value.GetNumberAs<i64>() == 9007199254740993LL);
 }

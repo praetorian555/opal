@@ -262,6 +262,32 @@ TEST_CASE("Integer argument types", "[ProgramArguments]")
         REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::Success);
         REQUIRE(value == 2);
     }
+    SECTION("Integer outside the possible values is rejected")
+    {
+        i32 value = 0;
+        ProgramArgumentsBuilder builder;
+        DynamicArray<i32> possible_values;
+        possible_values.PushBack(1);
+        possible_values.PushBack(2);
+        possible_values.PushBack(3);
+        builder.AddArgument("val", "An integer with constraints", Ref{value}, false, std::move(possible_values));
+
+        const char* arguments[] = {"program-name", "val=7"};
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
+    }
+    SECTION("Integer read through a mapping")
+    {
+        // The builder's mapping overload is constrained to enums and strings, so an integral definition carrying a mapping can
+        // only be built directly. Its constructor already rejects having both a mapping and a list, so it clearly expects one.
+        i32 value = 0;
+        HashMap<StringUtf8, i32> mappings({{"low", 1}, {"high", 9}});
+        auto definition = MakeScoped<Impl::TypedProgramArgumentDefinition<i32>>(GetDefaultAllocator(), Ref{value}, StringUtf8("val"),
+                                                                                StringUtf8("desc"), false, DynamicArray<i32>(),
+                                                                                std::move(mappings));
+        REQUIRE(definition->SetValue(StringUtf8("high")) == ErrorCode::Success);
+        REQUIRE(value == 9);
+        REQUIRE(definition->SetValue(StringUtf8("middle")) == ErrorCode::InvalidArgument);
+    }
 
     SetLogger(nullptr);
 }

@@ -395,7 +395,7 @@ TEST_CASE("Serialize negative large integer", "[JsonWriter]")
 
 TEST_CASE("Serialize programmatically built i64", "[JsonWriter]")
 {
-    JsonValue value = JsonValue::MakeNumber(static_cast<i64>(9007199254740993LL));
+    JsonValue value = JsonValue::MakeNumber(9007199254740993LL);
     StringUtf8 result = SerializeOrFail(value);
     REQUIRE(StringViewUtf8(result) == StringViewUtf8("9007199254740993"));
 }

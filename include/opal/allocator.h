@@ -229,10 +229,7 @@ struct OPAL_EXPORT PushScratch
 template <typename T, class... Args>
 T* New(AllocatorBase* allocator, Args&&... args)
 {
-    if (allocator == nullptr) [[unlikely]]
-    {
-        OPAL_RAISE(Exception("Allocator can't be null"));
-    }
+    OPAL_VERIFY(allocator != nullptr, "Allocator can not be null");
     void* memory = allocator->Alloc(sizeof(T), alignof(T));
     if (memory == nullptr) [[unlikely]]
     {
@@ -263,10 +260,7 @@ T* New(AllocatorBase* allocator, Args&&... args)
 template <typename T, u32 Alignment, class... Args>
 T* New(AllocatorBase* allocator, Args&&... args)
 {
-    if (allocator == nullptr) [[unlikely]]
-    {
-        OPAL_RAISE(Exception("Allocator can't be null"));
-    }
+    OPAL_VERIFY(allocator != nullptr, "Allocator can not be null");
     void* memory = allocator->Alloc(sizeof(T), Alignment);
     if (memory == nullptr) [[unlikely]]
     {
