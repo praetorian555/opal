@@ -471,9 +471,26 @@ state. Step 1 alone closes §11.
 
 **Step 0 - answer the question that gates everything else**
 
-- [ ] Can `std::format` be kept under `-fno-exceptions`? `std::vformat_to` raises `std::format_error` on a
-      malformed format string and offers no error-code path. Compile-time checked format strings, a different
-      formatter, or accepting the throw. Until this is settled, steps 3 and 4 are speculative.
+- [x] Can `std::format` be kept under `-fno-exceptions`? **Yes.** Steps 3 and 4 are not blocked. Measured, not reasoned about:
+      a program calling `std::vformat_to` with a runtime format string was built three ways and run.
+
+      | Toolchain | Flags | Good format | Malformed format |
+      |---|---|---|---|
+      | GCC 13 / libstdc++ | `-fno-exceptions` | works | `SIGABRT`, exit 134 |
+      | Clang 20 / libstdc++ | `-fno-exceptions` | works | `SIGABRT`, exit 134 |
+      | MSVC 2022 | `/EHsc- /D_HAS_EXCEPTIONS=0` | works | `0xC0000409`, fail-fast |
+
+      So the format machinery compiles and links without exceptions everywhere; what changes is that a malformed **runtime**
+      format string ends the process instead of throwing something catchable. Since `Format`, `AppendFormat` and `Logger` all
+      take a `StringViewUtf8` decided at runtime, none of them get a compile-time check today.
+
+      The mitigation, if that trade is unwanted: a literal format string routed through `std::format_string` is checked at
+      compile time. Verified - `std::format("value {", argc)` is a hard compile error on GCC, before any of this matters at
+      runtime. Taking a compile-time-checked format type where the caller passes a literal would move most malformed formats to
+      build time and leave only genuinely dynamic formats able to abort.
+
+      Caveat worth recording: `_HAS_EXCEPTIONS=0` is not a supported configuration of Microsoft's standard library, whatever
+      this one program did. Treat the MSVC row as "it worked here", not as a guarantee.
 
 **Step 1 - factories alongside the constructors (additive, nothing breaks)**
 
@@ -493,10 +510,25 @@ constructor over it, and a `[[nodiscard]] static Expected<T, ErrorCode> Create(.
 
 Doing this before step 1 spreads is cheaper than retrofitting every call site afterwards.
 
-- [ ] `Expected()` default-constructs into the *value* state, which is a strange default for a type whose whole
-      job is "maybe" - `include/opal/container/expected.h:77`
-- [ ] `GetValue` and `GetError` assert rather than being checkable; there is no `ValueOr` on the error side
-- [ ] No `and_then` / `Map`, so chaining is four lines per step. This is most of the call-site cost of factories
+- [x] `Expected()` default-constructs into the *value* state - `include/opal/container/expected.h:77`. Deleted. The two
+      specializations already disagreed: `Expected<T&, E>` deletes its default constructor and `Expected<T, E>` did not, so
+      consistency alone forced a choice. An Expected that holds neither reports success with a value nobody produced, which is
+      the failure mode this whole document is about. `std::expected` does default into the value state, so this is a deliberate
+      departure rather than an oversight.
+- [x] `GetValue` and `GetError` assert rather than being checkable; there is no `ValueOr` on the error side. Added `GetErrorOr`
+      to both specializations, and the asserting accessors now document the checked alternative next to them.
+- [x] `AndThen` and `Map`, rvalue-qualified so move-only values pass through without a copy. `Map` wraps a plain result,
+      `AndThen` takes a function that already returns an `Expected`.
+- [x] **The move constructor was assigning into an unconstructed union member.** `m_value = Move(other.m_value)` runs `T`'s
+      move assignment over storage that never held a `T`, so a value that owns memory - `String`, `DynamicArray` - would free a
+      garbage pointer. The move *assignment* operator already used placement new for the same transition; only the constructor
+      was wrong. Nothing caught it because every `Expected` in the library is built in place by return-value elision, and the
+      one existing move-construction test used `int32_t`. Tests now move-construct with a 64 byte `std::string` on both the
+      value and the error side.
+- [x] The seven `String::Insert` "Memory allocation failed" tests inserted two characters into an empty string, which fits the
+      small buffer, so the `NullAllocator` was never asked for anything and `REQUIRE_NOTHROW` passed on a successful insert.
+      They insert past the small buffer now and assert `ErrorCode::OutOfMemory`. Found by deleting the default constructor:
+      they were the only code that needed it.
 
 **Step 3 - contract violations become asserts plus `Try*`**
 

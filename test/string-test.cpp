@@ -3375,8 +3375,10 @@ TEST_CASE("Insert", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_NOTHROW(result = str.Insert(0, 2, 'a'));
+            // Past the small buffer, so the insert has to ask the allocator for storage.
+            const auto result = str.Insert(0, StringLocale::k_sso_capacity * 4, 'a');
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
         }
         SECTION("Insert at beginning")
         {
@@ -3423,8 +3425,10 @@ TEST_CASE("Insert", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_NOTHROW(result = str.Insert(0, "aa", 2));
+            const StringLocale source(StringLocale::k_sso_capacity * 4, 'a');
+            const auto result = str.Insert(0, source.GetData(), source.GetSize());
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
         }
         SECTION("Count is zero")
         {
@@ -3481,9 +3485,10 @@ TEST_CASE("Insert", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            StringLocale in("aa");
-            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_NOTHROW(result = str.Insert(0, in));
+            StringLocale in(StringLocale::k_sso_capacity * 4, 'a');
+            const auto result = str.Insert(0, in);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
         }
         SECTION("Count is zero")
         {
@@ -3577,8 +3582,9 @@ TEST_CASE("Insert", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_NOTHROW(result = str.Insert(str.Begin(), 'a', 2));
+            const auto result = str.Insert(str.Begin(), 'a', StringLocale::k_sso_capacity * 4);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
         }
         SECTION("Insert at beginning")
         {
@@ -3618,8 +3624,9 @@ TEST_CASE("Insert", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_NOTHROW(result = str.Insert(str.ConstBegin(), 'a', 2));
+            const auto result = str.Insert(str.ConstBegin(), 'a', StringLocale::k_sso_capacity * 4);
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
         }
         SECTION("Insert at beginning")
         {
@@ -3668,9 +3675,10 @@ TEST_CASE("Insert", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            StringLocale in("aa");
-            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_NOTHROW(result = str.Insert(str.Begin(), in.Begin(), in.End()));
+            StringLocale in(StringLocale::k_sso_capacity * 4, 'a');
+            const auto result = str.Insert(str.Begin(), in.Begin(), in.End());
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
         }
         SECTION("Count is zero")
         {
@@ -3731,9 +3739,10 @@ TEST_CASE("Insert", "[String]")
         {
             NullAllocator null_allocator;
             StringLocale str(&null_allocator);
-            StringLocale in("aa");
-            Expected<String<char, EncodingLocale>::iterator, ErrorCode> result;
-            REQUIRE_NOTHROW(result = str.Insert(str.ConstBegin(), in.Begin(), in.End()));
+            StringLocale in(StringLocale::k_sso_capacity * 4, 'a');
+            const auto result = str.Insert(str.ConstBegin(), in.Begin(), in.End());
+            REQUIRE(result.HasValue() == false);
+            REQUIRE(result.GetError() == ErrorCode::OutOfMemory);
         }
         SECTION("Count is zero")
         {
