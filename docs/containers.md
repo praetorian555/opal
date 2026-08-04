@@ -717,10 +717,10 @@ ref->Member();                       // Arrow access
 
 ```cpp
 int result = 0;
-Opal::ThreadHandle t = Opal::CreateThread(
+auto t = Opal::CreateThread(
     [](int& out) { out = 42; },
     Opal::Ref(result));
-Opal::JoinThread(t);
+Opal::JoinThread(t.GetValue());
 ```
 
 ---

@@ -16,10 +16,32 @@
 
 using namespace Opal;
 
+namespace
+{
+// The tests below are about what the threads do, not about the start failing, so they unwrap here.
+template <typename Function, typename... Args>
+ThreadHandle CreateThreadOrFail(Function&& function, Args&&... args)
+{
+    Expected<ThreadHandle, ErrorCode> handle = CreateThread(std::forward<Function>(function), std::forward<Args>(args)...);
+    REQUIRE(handle.HasValue());
+    return handle.GetValue();
+}
+
+// Thread-safe, so it gets past CreateThread's assert, and hands back nothing, so the thread state cannot be allocated.
+struct ThreadSafeNullAllocator final : AllocatorBase
+{
+    ThreadSafeNullAllocator() : AllocatorBase("ThreadSafeNullAllocator") {}
+
+    void* Alloc(u64, u64) override { return nullptr; }
+    void Free(void*) override {}
+    [[nodiscard]] bool IsThreadSafe() const override { return true; }
+};
+}  // namespace
+
 TEST_CASE("Create a thread", "[Thread]")
 {
     int n = 5;
-    ThreadHandle handle = CreateThread(
+    ThreadHandle handle = CreateThreadOrFail(
         [](int nn)
         {
             REQUIRE(nn == 5);
@@ -31,7 +53,7 @@ TEST_CASE("Create a thread", "[Thread]")
     REQUIRE(n == 5);
 
     ThreadHandle out_handle;
-    handle = CreateThread(
+    handle = CreateThreadOrFail(
         [](int& nn, ThreadHandle& inner_handle)
         {
             REQUIRE(nn == 5);
@@ -46,6 +68,16 @@ TEST_CASE("Create a thread", "[Thread]")
     REQUIRE(GetCurrentThreadHandle() != out_handle);
 }
 
+TEST_CASE("Create a thread out of memory", "[Thread]")
+{
+    ThreadSafeNullAllocator allocator;
+    const PushDefault pd(&allocator);
+
+    const Expected<ThreadHandle, ErrorCode> handle = CreateThread([]() {});
+    REQUIRE_FALSE(handle.HasValue());
+    CHECK(handle.GetError() == ErrorCode::OutOfMemory);
+}
+
 TEST_CASE("SPSC queue basic Push and Pop", "[Thread]")
 {
     DynamicArray<i64> data;
@@ -58,7 +90,7 @@ TEST_CASE("SPSC queue basic Push and Pop", "[Thread]")
     }
     Impl::QueueSPSC<i64> queue(32);
 
-    const ThreadHandle handle = CreateThread(
+    const ThreadHandle handle = CreateThreadOrFail(
         [](Impl::QueueSPSC<i64>& in_queue, Opal::DynamicArray<i64>& in_data)
         {
             size_t count = 0;
@@ -91,7 +123,7 @@ TEST_CASE("SPSC queue TryPush", "[Thread]")
     }
     Impl::QueueSPSC<i64> queue(32);
 
-    const ThreadHandle handle = CreateThread(
+    const ThreadHandle handle = CreateThreadOrFail(
         [](Impl::QueueSPSC<i64>& in_queue, Opal::DynamicArray<i64>& in_data)
         {
             size_t count = 0;
@@ -150,7 +182,7 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
     }
     Impl::QueueSPSC<Data> queue(32);
 
-    const ThreadHandle handle = CreateThread(
+    const ThreadHandle handle = CreateThreadOrFail(
         [](Impl::QueueSPSC<Data>& in_queue, Opal::DynamicArray<Data>& in_data)
         {
             size_t count = 0;
@@ -260,7 +292,7 @@ TEST_CASE("SPSC channel", "[Thread]")
     {
         ChannelSPSC<i32> channel(128);
 
-        const ThreadHandle t = CreateThread(
+        const ThreadHandle t = CreateThreadOrFail(
             [](ReceiverSPSC<i32> receiver)
             {
                 REQUIRE(receiver.IsValid());
@@ -289,7 +321,7 @@ TEST_CASE("SPSC queue basic Push and Pop with spin wait", "[Thread]")
     }
     Impl::QueueSPSC<i64, false> queue(32);
 
-    const ThreadHandle handle = CreateThread(
+    const ThreadHandle handle = CreateThreadOrFail(
         [](Impl::QueueSPSC<i64, false>& in_queue, Opal::DynamicArray<i64>& in_data)
         {
             size_t count = 0;
@@ -328,7 +360,7 @@ TEST_CASE("SPSC channel with spin wait", "[Thread]")
     {
         ChannelSPSC<i32, false> channel(128);
 
-        const ThreadHandle t = CreateThread(
+        const ThreadHandle t = CreateThreadOrFail(
             [](ReceiverSPSC<i32, false> receiver)
             {
                 REQUIRE(receiver.IsValid());
@@ -386,7 +418,7 @@ TEST_CASE("SPSC channel Close", "[Thread]")
         ChannelSPSC<i32> channel(128);
 
         std::atomic<bool> thread_started{false};
-        const ThreadHandle t = CreateThread(
+        const ThreadHandle t = CreateThreadOrFail(
             [](ReceiverSPSC<i32> receiver, std::atomic<bool>& started)
             {
                 started.store(true);
@@ -433,7 +465,7 @@ TEST_CASE("Mutex TryLock", "[Thread]")
         Mutex<i32> mutex(42);
         auto guard = mutex.Lock();
         bool try_lock_failed = false;
-        const ThreadHandle t = CreateThread(
+        const ThreadHandle t = CreateThreadOrFail(
             [](Mutex<i32>& m, bool& failed)
             {
                 auto result = m.TryLock();
@@ -450,7 +482,7 @@ TEST_CASE("Condition Variable", "[Thread]")
     Mutex<bool> mutex(false);
     ConditionVariable cond;
 
-    const ThreadHandle t = CreateThread(
+    const ThreadHandle t = CreateThreadOrFail(
         [&]()
         {
             auto guard = mutex.Lock();
@@ -487,7 +519,7 @@ TEST_CASE("Condition Variable WaitFor signaled", "[Thread]")
     Mutex<bool> mutex(false);
     ConditionVariable cond;
 
-    const ThreadHandle t = CreateThread(
+    const ThreadHandle t = CreateThreadOrFail(
         [&]()
         {
             using namespace std::chrono_literals;
@@ -569,7 +601,7 @@ TEST_CASE("MPMC channel Close", "[Thread]")
         ChannelMPMC<i32> channel(128);
 
         std::atomic<bool> thread_started{false};
-        const ThreadHandle t = CreateThread(
+        const ThreadHandle t = CreateThreadOrFail(
             [](ReceiverMPMC<i32> receiver, Ref<std::atomic<bool>> started)
             {
                 started->store(true);
@@ -621,7 +653,7 @@ TEST_CASE("Signal NotifyOne wakes waiting thread", "[Thread]")
     Signal signal;
     std::atomic<bool> thread_woke_up{false};
 
-    const ThreadHandle t = CreateThread(
+    const ThreadHandle t = CreateThreadOrFail(
         [](Signal& sig, std::atomic<bool>& woke_up)
         {
             sig.Wait(0);
@@ -645,7 +677,7 @@ TEST_CASE("Signal NotifyAll wakes all waiting threads", "[Thread]")
     Signal signal;
     std::atomic<i32> woken_count{0};
 
-    const ThreadHandle t1 = CreateThread(
+    const ThreadHandle t1 = CreateThreadOrFail(
         [](Signal& sig, std::atomic<i32>& count)
         {
             sig.Wait(0);
@@ -653,7 +685,7 @@ TEST_CASE("Signal NotifyAll wakes all waiting threads", "[Thread]")
         },
         Ref(signal), Ref(woken_count));
 
-    const ThreadHandle t2 = CreateThread(
+    const ThreadHandle t2 = CreateThreadOrFail(
         [](Signal& sig, std::atomic<i32>& count)
         {
             sig.Wait(0);
@@ -683,7 +715,7 @@ TEST_CASE("Signal WaitFor returns true when state changes", "[Thread]")
 {
     Signal signal;
 
-    const ThreadHandle t = CreateThread(
+    const ThreadHandle t = CreateThreadOrFail(
         [](Signal& sig)
         {
             using namespace std::chrono_literals;

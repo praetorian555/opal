@@ -11,8 +11,8 @@ Cross-platform threading primitives for Windows and Linux. Includes threads, mut
 #include "opal/threading/mutex.h"
 
 // Create and join a thread
-Opal::ThreadHandle handle = Opal::CreateThread([](int x) { /* runs on new thread */ }, 42);
-Opal::JoinThread(handle);
+auto handle = Opal::CreateThread([](int x) { /* runs on new thread */ }, 42);
+Opal::JoinThread(handle.GetValue());
 
 // Protect shared data with a mutex
 Opal::Mutex<int> counter(0);
@@ -28,23 +28,38 @@ Opal::Mutex<int> counter(0);
 
 `CreateThread` accepts any callable and its arguments. Arguments are forwarded by value. Use `Ref` to pass references.
 
+It returns `Expected<ThreadHandle, ErrorCode>`: `ErrorCode::OutOfMemory` when the thread state could not be allocated, and
+`ErrorCode::OSFailure` when the OS refused to start the thread.
+
+```cpp
+auto thread = Opal::CreateThread([]() { /* work */ });
+if (!thread.HasValue())
+{
+    // thread.GetError() is OutOfMemory or OSFailure
+    return;
+}
+Opal::JoinThread(thread.GetValue());
+```
+
+The examples below unwrap with `GetValue()` to stay short. `GetValue()` asserts when the call failed, so check `HasValue()` first.
+
 ```cpp
 #include "opal/threading/thread.h"
 
 // Simple thread
-Opal::ThreadHandle t = Opal::CreateThread([]() { /* work */ });
-Opal::JoinThread(t);
+auto t = Opal::CreateThread([]() { /* work */ });
+Opal::JoinThread(t.GetValue());
 
 // Thread with arguments
-Opal::ThreadHandle t = Opal::CreateThread([](int a, float b) { /* use a, b */ }, 10, 3.14f);
-Opal::JoinThread(t);
+auto t = Opal::CreateThread([](int a, float b) { /* use a, b */ }, 10, 3.14f);
+Opal::JoinThread(t.GetValue());
 
 // Pass by reference using Ref
 int result = 0;
-Opal::ThreadHandle t = Opal::CreateThread(
+auto t = Opal::CreateThread(
     [](int& out) { out = 42; },
     Opal::Ref(result));
-Opal::JoinThread(t);
+Opal::JoinThread(t.GetValue());
 // result == 42
 ```
 
@@ -55,12 +70,12 @@ The default allocator must be thread-safe when creating threads. The library ass
 `DetachThread` allows a thread to run independently without requiring a join. The thread cleans up its own resources when it finishes. After detaching, the handle should not be used with `JoinThread`.
 
 ```cpp
-Opal::ThreadHandle t = Opal::CreateThread([]()
+auto t = Opal::CreateThread([]()
 {
     // This thread runs independently
     // Resources are cleaned up automatically when it finishes
 });
-Opal::DetachThread(t);
+Opal::DetachThread(t.GetValue());
 // No need to call JoinThread
 ```
 
@@ -69,16 +84,16 @@ Opal::DetachThread(t);
 Each thread has a `ThreadId` (`u64`) that maps to the platform's native thread identifier. On Windows this is the value from `GetCurrentThreadId()`. On Linux this is the kernel thread ID from `gettid()`, which is the value shown by tools like `htop` and `strace`.
 
 ```cpp
-Opal::ThreadHandle handle = Opal::CreateThread([]()
+auto handle = Opal::CreateThread([]()
 {
     Opal::ThreadHandle self = Opal::GetCurrentThreadHandle();
     Opal::ThreadId id = Opal::GetThreadId(self);
     // id is a u64 that can be printed, compared, logged
 });
-Opal::JoinThread(handle);
+Opal::JoinThread(handle.GetValue());
 
 // Also accessible directly from the handle
-Opal::ThreadId id = handle.id;
+Opal::ThreadId id = handle.GetValue().id;
 ```
 
 ### Thread Affinity
@@ -86,9 +101,9 @@ Opal::ThreadId id = handle.id;
 Pin a thread to a specific logical core.
 
 ```cpp
-Opal::ThreadHandle t = Opal::CreateThread([]() { /* work */ });
-Opal::SetThreadAffinity(t, 0);  // Pin to logical core 0
-Opal::JoinThread(t);
+auto t = Opal::CreateThread([]() { /* work */ });
+Opal::SetThreadAffinity(t.GetValue(), 0);  // Pin to logical core 0
+Opal::JoinThread(t.GetValue());
 ```
 
 ### CPU Topology
@@ -96,19 +111,25 @@ Opal::JoinThread(t);
 Query the system's CPU topology to discover physical cores, logical cores, and hyperthreading.
 
 ```cpp
-Opal::CpuInfo info = Opal::GetCpuInfo();
-
-for (Opal::u64 i = 0; i < info.physical_processors.GetSize(); ++i)
+auto cpu_info = Opal::GetCpuInfo();
+if (cpu_info.HasValue())
 {
-    const Opal::PhysicalCoreInfo& core = info.physical_processors[i];
-    // core.id               - Physical core index
-    // core.is_hyperthreaded  - true if SMT is enabled on this core
-    // core.logical_cores     - BitMask<u64> of assigned logical core indices
+    const Opal::CpuInfo& info = cpu_info.GetValue();
+    for (Opal::u64 i = 0; i < info.physical_processors.GetSize(); ++i)
+    {
+        const Opal::PhysicalCoreInfo& core = info.physical_processors[i];
+        // core.id               - Physical core index
+        // core.is_hyperthreaded  - true if SMT is enabled on this core
+        // core.logical_cores     - BitMask<u64> of assigned logical core indices
+    }
 }
 
 // Or print everything to the logger
-Opal::PrintCpuInfo();
+Opal::ErrorCode err = Opal::PrintCpuInfo();
 ```
+
+`GetCpuInfo` reports `ErrorCode::OSFailure` when the topology could not be read and `ErrorCode::OutOfMemory` when the result could not
+be grown. `PrintCpuInfo` forwards whatever it reported and prints nothing on failure.
 
 Limited to 64 logical cores due to `BitMask<u64>`.
 
@@ -140,12 +161,12 @@ struct GameState
 
 Opal::Mutex<GameState> state(GameState{});
 
-Opal::ThreadHandle t = Opal::CreateThread([](Opal::Mutex<GameState>& state)
+auto t = Opal::CreateThread([](Opal::Mutex<GameState>& state)
 {
     auto guard = state.Lock();
     guard.Deref()->score += 100;
 }, Opal::Ref(state));
-Opal::JoinThread(t);
+Opal::JoinThread(t.GetValue());
 ```
 
 ### TryLock
@@ -191,7 +212,7 @@ Opal::Mutex<bool> ready(false);
 Opal::ConditionVariable cond;
 
 // Worker thread waits for a signal
-Opal::ThreadHandle t = Opal::CreateThread([&]()
+auto t = Opal::CreateThread([&]()
 {
     auto guard = ready.Lock();
     while (!*cond.Wait(guard))
@@ -208,7 +229,7 @@ Opal::ThreadHandle t = Opal::CreateThread([&]()
     cond.NotifyOne();
 }
 
-Opal::JoinThread(t);
+Opal::JoinThread(t.GetValue());
 ```
 
 ### Timed Wait
@@ -253,7 +274,7 @@ Platform implementation: `CONDITION_VARIABLE` on Windows, `pthread_cond_t` on Li
 Opal::Signal signal;
 
 // Worker thread waits for state to change from 0
-Opal::ThreadHandle t = Opal::CreateThread([&]()
+auto t = Opal::CreateThread([&]()
 {
     signal.Wait(0);  // Blocks while state == 0
     // State has changed, do work
@@ -262,7 +283,7 @@ Opal::ThreadHandle t = Opal::CreateThread([&]()
 // Main thread notifies (advances state and wakes)
 signal.NotifyOne();
 
-Opal::JoinThread(t);
+Opal::JoinThread(t.GetValue());
 ```
 
 ### Polling Loop
@@ -272,7 +293,7 @@ Use `GetState` and `Wait` together for a polling loop that efficiently blocks be
 ```cpp
 Opal::Signal signal;
 
-Opal::ThreadHandle t = Opal::CreateThread([&]()
+auto t = Opal::CreateThread([&]()
 {
     Opal::u32 state = signal.GetState();
     while (running)
@@ -334,7 +355,7 @@ SPSC defaults to `true` (signaling). MPMC defaults to `false` (spin).
 Opal::ChannelSPSC<int> channel(128);  // Capacity rounded up to next power of 2
 
 // Move receiver to consumer thread
-Opal::ThreadHandle t = Opal::CreateThread(
+auto t = Opal::CreateThread(
     [](Opal::ReceiverSPSC<int> receiver)
     {
         auto result = receiver.Receive();     // Blocks until data available
@@ -356,7 +377,7 @@ Opal::ThreadHandle t = Opal::CreateThread(
 channel.transmitter.Send(42);                 // Blocks if full
 channel.transmitter.TrySend(43);              // Non-blocking, returns false if full
 
-Opal::JoinThread(t);
+Opal::JoinThread(t.GetValue());
 
 // Use spin-waiting for lowest latency
 Opal::ChannelSPSC<int, false> fast_channel(128);
@@ -391,6 +412,8 @@ result = channel.receiver.Receive();
 
 Multi-producer, multi-consumer. Transmitters and receivers can be cloned to share across multiple threads. Uses Dmitry Vyukov's bounded MPMC queue algorithm.
 
+The item type must be default constructable, and either copy assignable or clonable. A type that is neither fails to compile.
+
 ```cpp
 #include "opal/threading/channel-mpmc.h"
 
@@ -399,7 +422,7 @@ Opal::ChannelMPMC<int> channel(256);
 // Clone transmitter for multiple producers
 Opal::TransmitterMPMC<int> tx2 = channel.transmitter.Clone();
 
-Opal::ThreadHandle producer1 = Opal::CreateThread(
+auto producer1 = Opal::CreateThread(
     [](Opal::TransmitterMPMC<int> tx)
     {
         tx.Send(1);
@@ -407,7 +430,7 @@ Opal::ThreadHandle producer1 = Opal::CreateThread(
     },
     std::move(channel.transmitter));
 
-Opal::ThreadHandle producer2 = Opal::CreateThread(
+auto producer2 = Opal::CreateThread(
     [](Opal::TransmitterMPMC<int> tx)
     {
         tx.Send(3);
@@ -418,8 +441,8 @@ Opal::ThreadHandle producer2 = Opal::CreateThread(
 // Receive from consumer
 int value = channel.receiver.Receive();
 
-Opal::JoinThread(producer1);
-Opal::JoinThread(producer2);
+Opal::JoinThread(producer1.GetValue());
+Opal::JoinThread(producer2.GetValue());
 ```
 
 ### MPMC Channel Close

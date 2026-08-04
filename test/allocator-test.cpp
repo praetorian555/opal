@@ -268,13 +268,26 @@ struct ThreadAllocatorResult
     Opal::AllocatorBase* allocator = nullptr;
 };
 
+namespace
+{
+// These tests are about which allocator the thread sees, not about the start failing, so they unwrap here.
+template <typename Function, typename... Args>
+Opal::ThreadHandle CreateThreadOrFail(Function&& function, Args&&... args)
+{
+    Opal::Expected<Opal::ThreadHandle, Opal::ErrorCode> handle =
+        Opal::CreateThread(std::forward<Function>(function), std::forward<Args>(args)...);
+    REQUIRE(handle.HasValue());
+    return handle.GetValue();
+}
+}  // namespace
+
 TEST_CASE("Thread-local allocator stacks", "[Allocator]")
 {
     SECTION("New thread has same allocator as default as the current thread default")
     {
         ThreadAllocatorResult result;
         Opal::AllocatorBase* new_allocator = nullptr;
-        Opal::ThreadHandle handle = Opal::CreateThread(
+        Opal::ThreadHandle handle = CreateThreadOrFail(
             [&new_allocator](ThreadAllocatorResult&) { new_allocator = Opal::GetDefaultAllocator(); }, Opal::Ref(result));
         Opal::JoinThread(handle);
         REQUIRE(new_allocator == Opal::GetDefaultAllocator());
@@ -285,7 +298,7 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
 
         Opal::MallocAllocator child_allocator;
         ThreadAllocatorResult result;
-        Opal::ThreadHandle handle = Opal::CreateThread(
+        Opal::ThreadHandle handle = CreateThreadOrFail(
             [](Opal::MallocAllocator& alloc, ThreadAllocatorResult& out)
             {
                 Opal::PushDefaultAllocator(&alloc);
@@ -302,7 +315,7 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
     SECTION("Push on main thread does not affect child thread")
     {
         // Create thread before pushing LinearAllocator, since CreateThread requires a thread-safe default allocator.
-        const Opal::ThreadHandle handle = Opal::CreateThread([]() {});
+        const Opal::ThreadHandle handle = CreateThreadOrFail([]() {});
         Opal::JoinThread(handle);
 
         // Verify that main thread's stack is unaffected.
@@ -322,7 +335,7 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
         ThreadAllocatorResult result1;
         ThreadAllocatorResult result2;
 
-        Opal::ThreadHandle handle1 = Opal::CreateThread(
+        Opal::ThreadHandle handle1 = CreateThreadOrFail(
             [](Opal::MallocAllocator& alloc, ThreadAllocatorResult& out)
             {
                 Opal::PushDefaultAllocator(&alloc);
@@ -331,7 +344,7 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
             },
             Opal::Ref(alloc1), Opal::Ref(result1));
 
-        Opal::ThreadHandle handle2 = Opal::CreateThread(
+        Opal::ThreadHandle handle2 = CreateThreadOrFail(
             [](Opal::LinearAllocator& alloc, ThreadAllocatorResult& out)
             {
                 Opal::PushDefaultAllocator(&alloc);

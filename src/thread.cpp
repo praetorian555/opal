@@ -50,8 +50,9 @@ void* ThreadFunction(void* param)
 }
 #endif
 
-Opal::ThreadHandle Opal::Impl::CreateThread(ThreadDataBase* data)
+Opal::Expected<Opal::ThreadHandle, Opal::ErrorCode> Opal::Impl::CreateThread(ThreadDataBase* data)
 {
+    using Result = Expected<ThreadHandle, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
     DWORD thread_id = 0;
     HANDLE thread_handle = ::CreateThread(nullptr, 0, WindowsThread, data, 0, &thread_id);
@@ -59,9 +60,9 @@ Opal::ThreadHandle Opal::Impl::CreateThread(ThreadDataBase* data)
     {
         // The thread that would have freed this never started.
         Delete(data->allocator, data);
-        throw Exception("Failed to create thread!");
+        return Result(ErrorCode::OSFailure);
     }
-    return {.native_handle = thread_handle, .id = static_cast<u64>(thread_id)};
+    return Result(ThreadHandle{.native_handle = thread_handle, .id = static_cast<u64>(thread_id)});
 #elif defined(OPAL_PLATFORM_LINUX)
     ThreadLaunch launch;
     launch.data = data;
@@ -69,7 +70,7 @@ Opal::ThreadHandle Opal::Impl::CreateThread(ThreadDataBase* data)
     if (pthread_create(&native_handle, nullptr, ThreadFunction, &launch) != 0)
     {
         Delete(data->allocator, data);
-        throw Exception("Failed to create thread!");
+        return Result(ErrorCode::OSFailure);
     }
     // Spin until the thread has stored its kernel thread id, and keep what it stored. Reading it a second time afterwards is not an
     // option: the thread may have finished and freed its data by then, and `launch` is only alive for as long as this loop.
@@ -77,9 +78,9 @@ Opal::ThreadHandle Opal::Impl::CreateThread(ThreadDataBase* data)
     while ((thread_id = launch.thread_id.load(std::memory_order_acquire)) == 0)
     {
     }
-    return {.native_handle = reinterpret_cast<void*>(native_handle), .id = thread_id};
+    return Result(ThreadHandle{.native_handle = reinterpret_cast<void*>(native_handle), .id = thread_id});
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -104,7 +105,7 @@ void Opal::JoinThread(ThreadHandle handle)
         pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
         pthread_join(native_handle, nullptr);
 #else
-        throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
     }
 }
@@ -119,7 +120,7 @@ void Opal::DetachThread(ThreadHandle handle)
         pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
         pthread_detach(native_handle);
 #else
-        throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
     }
 }
@@ -134,22 +135,27 @@ Opal::ThreadHandle Opal::GetCurrentThreadHandle()
     const u64 tid = static_cast<u64>(syscall(SYS_gettid));
     return {.native_handle = reinterpret_cast<void*>(thread_handle), .id = tid};
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-Opal::CpuInfo Opal::GetCpuInfo()
+Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
 {
+    using Result = Expected<CpuInfo, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
     CpuInfo info;
     DWORD buffer_size = 0;
     PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX buffer = NULL;
     GetLogicalProcessorInformationEx(RelationAll, NULL, &buffer_size);
     buffer = static_cast<PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX>(GetDefaultAllocator()->Alloc(buffer_size, 1));
+    if (buffer == nullptr)
+    {
+        return Result(ErrorCode::OutOfMemory);
+    }
     if (GetLogicalProcessorInformationEx(RelationAll, buffer, &buffer_size) == FALSE)
     {
         GetDefaultAllocator()->Free(buffer);
-        return info;
+        return Result(ErrorCode::OSFailure);
     }
     BYTE* ptr = reinterpret_cast<BYTE*>(buffer);
     const BYTE* end = ptr + buffer_size;
@@ -166,7 +172,11 @@ Opal::CpuInfo Opal::GetCpuInfo()
                 pp_info.logical_cores = BitMask<u64>(lp_info->Processor.GroupMask[0].Mask);
                 pp_info.is_hyperthreaded = lp_info->Processor.Flags == LTP_PC_SMT;
                 info.logical_cores_count += pp_info.logical_cores.GetSetBitCount();
-                info.physical_processors.PushBack(std::move(pp_info));
+                if (info.physical_processors.PushBack(std::move(pp_info)) != ErrorCode::Success) [[unlikely]]
+                {
+                    GetDefaultAllocator()->Free(buffer);
+                    return Result(ErrorCode::OutOfMemory);
+                }
                 break;
             }
             default:
@@ -179,14 +189,14 @@ Opal::CpuInfo Opal::GetCpuInfo()
     }
 
     GetDefaultAllocator()->Free(buffer);
-    return info;
+    return Result(Move(info));
 #elif defined(OPAL_PLATFORM_LINUX)
     CpuInfo info;
 
     DIR* cpu_dir = opendir("/sys/devices/system/cpu");
     if (cpu_dir == nullptr)
     {
-        return info;
+        return Result(ErrorCode::OSFailure);
     }
 
     struct CoreAccum
@@ -260,7 +270,8 @@ Opal::CpuInfo Opal::GetCpuInfo()
         {
             if (accums.PushBack({package_id, core_id, 1ULL << logical_id}) != ErrorCode::Success) [[unlikely]]
             {
-                throw OutOfMemoryException(__FUNCTION__);
+                closedir(cpu_dir);
+                return Result(ErrorCode::OutOfMemory);
             }
         }
     }
@@ -273,18 +284,26 @@ Opal::CpuInfo Opal::GetCpuInfo()
         pp_info.logical_cores = BitMask<u64>(accums[i].mask);
         pp_info.is_hyperthreaded = pp_info.logical_cores.GetSetBitCount() > 1;
         info.logical_cores_count += pp_info.logical_cores.GetSetBitCount();
-        info.physical_processors.PushBack(std::move(pp_info));
+        if (info.physical_processors.PushBack(std::move(pp_info)) != ErrorCode::Success) [[unlikely]]
+        {
+            return Result(ErrorCode::OutOfMemory);
+        }
     }
 
-    return info;
+    return Result(Move(info));
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
-void Opal::PrintCpuInfo()
+Opal::ErrorCode Opal::PrintCpuInfo()
 {
-    const CpuInfo info = GetCpuInfo();
+    Expected<CpuInfo, ErrorCode> cpu_info = GetCpuInfo();
+    if (!cpu_info.HasValue())
+    {
+        return cpu_info.GetError();
+    }
+    const CpuInfo& info = cpu_info.GetValue();
     Logger& logger = GetLogger();
     logger.Info("General", "CPU Info:");
     logger.Info("General", "  Logical cores count: {}", info.logical_cores_count);
@@ -303,6 +322,7 @@ void Opal::PrintCpuInfo()
         }
         logger.Info("General", "    Logical cores: {}", logical_cores_str);
     }
+    return ErrorCode::Success;
 }
 
 void Opal::SetThreadAffinity(ThreadHandle handle, u32 logical_core_id)
@@ -319,7 +339,7 @@ void Opal::SetThreadAffinity(ThreadHandle handle, u32 logical_core_id)
         pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
         pthread_setaffinity_np(native_handle, sizeof(cpu_set), &cpu_set);
 #else
-        throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
     }
 }

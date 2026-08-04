@@ -85,6 +85,7 @@ public:
      * @param thread_count Number of worker threads to spawn.
      * @param channel_capacity Capacity of the internal task channel. Defaults to 128.
      * @param allocator Allocator for internal storage. If null, uses the default allocator.
+     * @throws OutOfMemoryException or Exception when a worker thread could not be started. Workers that did start are shut down first.
      */
     explicit ThreadPool(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr);
     ~ThreadPool();

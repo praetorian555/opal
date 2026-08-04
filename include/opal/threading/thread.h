@@ -8,6 +8,8 @@
 #include "opal/allocator.h"
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/container/expected.h"
+#include "opal/error-codes.h"
 
 namespace Opal
 {
@@ -62,7 +64,8 @@ ThreadId GetThreadId(const ThreadHandle& handle);
 
 namespace Impl
 {
-ThreadHandle CreateThread(ThreadDataBase* data);
+/** Takes ownership of @p data. Destroys it when the thread does not start, since nothing else will. */
+Expected<ThreadHandle, ErrorCode> CreateThread(ThreadDataBase* data);
 }  // namespace Impl
 
 /**
@@ -71,23 +74,23 @@ ThreadHandle CreateThread(ThreadDataBase* data);
  * @tparam Args Variable list of types of the function arguments.
  * @param function Function used for the thread body.
  * @param args Arguments passed to the function.
- * @return Returns a thread handle in case of a success.
- * @throw Exception when thread creation fails.
+ * @note The default allocator of the calling thread must be thread-safe, and becomes the default allocator of the new thread.
+ * @return Handle of the started thread, ErrorCode::OutOfMemory when the thread state could not be allocated, or ErrorCode::OSFailure
+ *         when the OS refused to start the thread.
  */
 template <typename Function, typename... Args>
-ThreadHandle CreateThread(Function&& function, Args&&... args)
+[[nodiscard]] Expected<ThreadHandle, ErrorCode> CreateThread(Function&& function, Args&&... args)
 {
     AllocatorBase* allocator = GetDefaultAllocator();
     OPAL_ASSERT(allocator->IsThreadSafe(), "Allocator must be thread safe!");
 
     Impl::ThreadDataBase* data =
         Opal::New<Impl::ThreadData<Function, Args...>>(allocator, allocator, std::forward<Function>(function), std::forward<Args>(args)...);
-    ThreadHandle handle = Impl::CreateThread(data);
-    if (handle.native_handle == nullptr)
+    if (data == nullptr) [[unlikely]]
     {
-        Delete(allocator, data);
+        return Expected<ThreadHandle, ErrorCode>(ErrorCode::OutOfMemory);
     }
-    return handle;
+    return Impl::CreateThread(data);
 }
 
 /**
@@ -133,15 +136,17 @@ struct CpuInfo
  * SMT relationships. On Linux, this reads per-CPU topology files from sysfs
  * (/sys/devices/system/cpu/cpuN/topology/) and groups logical CPUs by their (package_id, core_id) pair.
  *
- * @return CpuInfo containing the logical core count and an array of PhysicalCoreInfo entries.
+ * @return CpuInfo containing the logical core count and an array of PhysicalCoreInfo entries, ErrorCode::OutOfMemory when the result
+ *         could not be grown, or ErrorCode::OSFailure when the topology could not be read.
  * @note Limited to 64 logical cores due to BitMask<u64>.
  */
-CpuInfo GetCpuInfo();
+[[nodiscard]] Expected<CpuInfo, ErrorCode> GetCpuInfo();
 
 /**
  * Calls GetCpuInfo and prints all the gathered data using the logger with the "General" category.
+ * @return Whatever GetCpuInfo reported. Nothing is printed when it failed.
  */
-void PrintCpuInfo();
+ErrorCode PrintCpuInfo();
 
 /**
  * Pin the thread to a specific logical core.

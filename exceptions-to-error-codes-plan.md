@@ -406,11 +406,21 @@ factory makes them harder to write wrong to begin with.
 
 ### Threading (§6)
 
-- [ ] `Impl::CreateThread` returns `Expected<ThreadHandle, ErrorCode>` - `src/thread.cpp:53`
-- [ ] `Opal::CreateThread` returns `Expected<ThreadHandle, ErrorCode>`; the existing null check at `thread.h:86` becomes live
-- [ ] `src/thread.cpp:263` returns `ErrorCode::OutOfMemory`
-- [ ] Constrain `ChannelMpmc` on `CopyAssignable<T> || Clonable<T>` at compile time - `include/opal/threading/channel-mpmc.h:72,117`
-- [ ] Run the Clang WSL build - this touches lifetimes and threading, so ASan is not optional
+- [x] `Impl::CreateThread` returns `Expected<ThreadHandle, ErrorCode>` with `OSFailure` - `src/thread.cpp:53`. It still owns the
+      thread data and destroys it when the thread does not start, so the caller has nothing to clean up.
+- [x] `Opal::CreateThread` returns `Expected<ThreadHandle, ErrorCode>`. The null check at `thread.h:86` was checking the wrong
+      thing: what can actually be null now is `New<T>`'s result, and passing that to `Impl::CreateThread` handed the new thread a
+      null pointer to dereference. That is the check that is live, and it reports `OutOfMemory`.
+- [x] `GetCpuInfo` returns `Expected<CpuInfo, ErrorCode>` - `src/thread.cpp:141`. The `OutOfMemoryException` at 263 was one of
+      four failures in that function; the other three - a null `Alloc`, a failed `GetLogicalProcessorInformationEx`, a failed
+      `opendir` - returned an empty `CpuInfo` that the caller could not tell from a machine with no cores. All four now report.
+      Two `PushBack` results were also being dropped. `PrintCpuInfo` returns `ErrorCode` and prints nothing on failure.
+- [x] `ThreadPool`'s constructor reserves room for every handle before starting a thread, so a worker can never start and then
+      fail to be recorded, which would leave it running with no sentinel coming - `src/thread-pool.cpp:28`. A failed start shuts
+      down the workers that did start and then throws, since a constructor has nowhere to put a code.
+- [x] Constrain `QueueMPMC` on `CopyAssignable<T> || Clonable<T>` at compile time - `include/opal/threading/channel-mpmc.h:37`.
+      Both `throw Exception("Data type can't be copied!")` branches are gone.
+- [x] Run the Clang WSL build - this touches lifetimes and threading, so ASan is not optional
 
 ### Logging (§7)
 
@@ -427,7 +437,7 @@ factory makes them harder to write wrong to begin with.
 - [ ] Replace with `#error "Platform not supported"` - `src/mutex.cpp:22,43,85,104,123`
 - [ ] `src/condition-variable.cpp:26,40,79,90,102,127`
 - [ ] `src/signal.cpp:51,76,90,102`
-- [ ] `src/thread.cpp:82,107,122,137,281,322`
+- [x] `src/thread.cpp:82,107,122,137,281,322` - done alongside §6, since the conversion rewrote the same `#if` blocks
 - [ ] `src/bit.cpp:61,72`
 - [ ] `src/allocator.cpp:73,88,129`
 - [ ] `src/paths.cpp:51,77`

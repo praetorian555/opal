@@ -1,5 +1,7 @@
 #include "opal/threading/thread-pool.h"
 
+#include "opal/exceptions.h"
+
 using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Task>, true>;
 using TransmitterType = Opal::TransmitterMPMC<Opal::SharedPtr<Opal::Task>, true>;
 static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, Opal::Ref<Opal::AllocatorBase> default_allocator)
@@ -28,11 +30,27 @@ static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, O
 Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, AllocatorBase* allocator)
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator()), m_communicator(channel_capacity, m_allocator)
 {
+    // Room for every handle before the first thread starts, so that a started thread can never fail to be recorded and then be left
+    // running with no sentinel coming its way.
+    if (m_threads.Reserve(thread_count) != ErrorCode::Success)
+    {
+        throw OutOfMemoryException(__FUNCTION__);
+    }
     for (size_t i = 0; i < thread_count; ++i)
     {
-        ThreadHandle thread_handle = CreateThread(ThreadFunction, m_communicator.receiver.Clone(), m_communicator.transmitter.Clone(),
-                                                        Opal::GetDefaultAllocator());
-        m_threads.PushBack(std::move(thread_handle));
+        Expected<ThreadHandle, ErrorCode> thread_handle = CreateThread(ThreadFunction, m_communicator.receiver.Clone(),
+                                                                       m_communicator.transmitter.Clone(), Opal::GetDefaultAllocator());
+        if (!thread_handle.HasValue())
+        {
+            // A constructor has nowhere to put a code, so the workers that did start are shut down and the failure is thrown.
+            Close();
+            if (thread_handle.GetError() == ErrorCode::OutOfMemory)
+            {
+                throw OutOfMemoryException(__FUNCTION__);
+            }
+            throw Exception("Failed to create thread!");
+        }
+        m_threads.PushBack(std::move(thread_handle).GetValue());
     }
 }
 
