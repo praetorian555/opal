@@ -29,12 +29,12 @@ struct QueueMPMCSlot
 
 /**
  * Lock-free multiple-producer multiple-consumer bounded queue.
- * @tparam T Type of data stored in the queue. Must be default constructable.
+ * @tparam T Type of data stored in the queue. Must be default constructable, and either copy assignable or clonable.
  * @tparam UseSignaling If true, uses std::atomic::wait/notify to block when waiting for a slot's turn.
  *         If false, busy-waits using a CPU pause instruction. Defaults to false.
  */
 template <typename T, bool UseSignaling = false>
-    requires Opal::DefaultConstructable<T>
+    requires Opal::DefaultConstructable<T> && (Opal::CopyAssignable<T> || Opal::Clonable<T>)
 class QueueMPMC
 {
 public:
@@ -63,13 +63,9 @@ public:
         {
             slot.data = data;
         }
-        else if constexpr (Opal::Clonable<T>)
-        {
-            slot.data = data.Clone();
-        }
         else
         {
-            throw Exception("Data type can't be copied!");
+            slot.data = data.Clone();
         }
         slot.turn.store(2 * turn + 1, std::memory_order_release);
         if constexpr (UseSignaling)
@@ -108,13 +104,9 @@ public:
                     {
                         slot.data = data;
                     }
-                    else if constexpr (Opal::Clonable<T>)
-                    {
-                        slot.data = data.Clone();
-                    }
                     else
                     {
-                        throw Exception("Data type can't be copied!");
+                        slot.data = data.Clone();
                     }
                     slot.turn.store(2 * turn + 1, std::memory_order_release);
                     if constexpr (UseSignaling)
