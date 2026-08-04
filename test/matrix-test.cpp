@@ -879,7 +879,9 @@ TEST_CASE("Matrix 4x4 inverse operator", "[math][matrix]")
         m1.elements[1][3] = 10.0f;
         m1.elements[2][3] = -2.0f;
 
-        const Matrix4x4f m2 = Inverse(m1);
+        const auto inverted = Inverse(m1);
+        REQUIRE(inverted.HasValue());
+        const Matrix4x4f m2 = inverted.GetValue();
         CHECK(m2.elements[0][0] == 1.0f);
         CHECK(m2.elements[0][1] == 0.0f);
         CHECK(m2.elements[0][2] == 0.0f);
@@ -904,7 +906,9 @@ TEST_CASE("Matrix 4x4 inverse operator", "[math][matrix]")
         m1.elements[1][3] = 10.0;
         m1.elements[2][3] = -2.0;
 
-        const Matrix4x4d m2 = Inverse(m1);
+        const auto inverted = Inverse(m1);
+        REQUIRE(inverted.HasValue());
+        const Matrix4x4d m2 = inverted.GetValue();
         CHECK(m2.elements[0][0] == 1.0);
         CHECK(m2.elements[0][1] == 0.0);
         CHECK(m2.elements[0][2] == 0.0);
@@ -921,6 +925,21 @@ TEST_CASE("Matrix 4x4 inverse operator", "[math][matrix]")
         CHECK(m2.elements[3][1] == 0.0);
         CHECK(m2.elements[3][2] == 0.0);
         CHECK(m2.elements[3][3] == 1.0);
+    }
+    SECTION("singular matrix reports InvalidArgument")
+    {
+        // A zero row leaves no pivot to divide by.
+        const Matrix4x4f zero_row = Matrix4x4f::FromRows({1, 2, 3, 4}, {0, 0, 0, 0}, {9, 10, 11, 12}, {13, 14, 21, 27});
+        const auto inverted = Inverse(zero_row);
+        REQUIRE_FALSE(inverted.HasValue());
+        CHECK(inverted.GetError() == ErrorCode::InvalidArgument);
+    }
+    SECTION("duplicated row reports InvalidArgument")
+    {
+        const Matrix4x4d duplicated = Matrix4x4d::FromRows({1, 2, 3, 4}, {1, 2, 3, 4}, {9, 10, 11, 12}, {13, 14, 21, 27});
+        const auto inverted = Inverse(duplicated);
+        REQUIRE_FALSE(inverted.HasValue());
+        CHECK(inverted.GetError() == ErrorCode::InvalidArgument);
     }
 }
 

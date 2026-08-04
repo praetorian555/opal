@@ -436,8 +436,12 @@ factory makes them harder to write wrong to begin with.
 
 ### Math (§9)
 
-- [ ] Matrix inverse returns `Expected<Matrix, ErrorCode>` for singular input - `include/opal/math/matrix.h:557,574`
-- [ ] `Cofactor` size restriction moves to a `requires` clause - `include/opal/math/matrix.h:648`
+- [x] Matrix inverse returns `Expected<Matrix, ErrorCode>` for singular input - `include/opal/math/matrix.h:557,574`. Singular is
+      `ErrorCode::InvalidArgument`: the argument cannot be inverted, and a code of its own would be used by one function.
+- [x] `Cofactor` size restriction moves to a `requires` clause - `include/opal/math/matrix.h:648`
+- [x] `Inverse`'s square-matrix `OPAL_ASSERT` moves to a `requires` clause as well - same defect one line above `Cofactor`'s, and
+      it also takes the unconstrained `Inverse` template out of the overload set for `Quaternion` and `DualQuaternion`, which have
+      `Inverse` overloads of their own and were relying on partial ordering to win.
 
 ### Dead `#else` branches (§12)
 

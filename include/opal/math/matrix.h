@@ -4,6 +4,8 @@
 
 #include "opal/assert.h"
 #include "opal/common.h"
+#include "opal/container/expected.h"
+#include "opal/error-codes.h"
 #include "opal/exceptions.h"
 #include "opal/math-base.h"
 #include "opal/math/normal3.h"
@@ -129,14 +131,19 @@ template <typename MatrixType>
 [[nodiscard]] MatrixType Transpose(const MatrixType& m);
 
 /**
- * Invert the matrix.
+ * Invert the matrix. Only defined for square matrices.
  * @param m The matrix to invert.
- * @return The inverted matrix.
+ * @return The inverted matrix, or ErrorCode::InvalidArgument when it is singular.
  */
 template <typename MatrixType>
-[[nodiscard]] MatrixType Inverse(const MatrixType& m);
+    requires(MatrixType::k_row_count_value == MatrixType::k_col_count_value)
+[[nodiscard]] Expected<MatrixType, ErrorCode> Inverse(const MatrixType& m);
 
+/**
+ * Cofactor of the element at row @p i and column @p j. Only defined for 4x4 matrices.
+ */
 template <typename MatrixType>
+    requires(MatrixType::k_row_count_value == 4 && MatrixType::k_col_count_value == 4)
 [[nodiscard]] MatrixType::value_type Cofactor(const MatrixType& m, u32 i, u32 j);
 
 template <typename T>
@@ -520,10 +527,11 @@ MatrixType Opal::Transpose(const MatrixType& m)
 }
 
 template <typename MatrixType>
-MatrixType Opal::Inverse(const MatrixType& m)
+    requires(MatrixType::k_row_count_value == MatrixType::k_col_count_value)
+Opal::Expected<MatrixType, Opal::ErrorCode> Opal::Inverse(const MatrixType& m)
 {
     using value_type = typename MatrixType::value_type;
-    OPAL_ASSERT(MatrixType::k_row_count_value == MatrixType::k_col_count_value, "The matrix must be symmetric");
+    using Result = Expected<MatrixType, ErrorCode>;
     u32 indxc[MatrixType::k_row_count_value] = {};
     u32 indxr[MatrixType::k_row_count_value] = {};
     u32 ipiv[MatrixType::k_row_count_value] = {};
@@ -554,7 +562,7 @@ MatrixType Opal::Inverse(const MatrixType& m)
                 }
                 else if (ipiv[column] > 1)
                 {
-                    throw Exception("Singular matrix");
+                    return Result(ErrorCode::InvalidArgument);
                 }
             }
         }
@@ -571,7 +579,7 @@ MatrixType Opal::Inverse(const MatrixType& m)
         indxc[it] = index_column;
         if (mat_inv[index_column][index_column] == 0)
         {
-            throw Exception("Singular matrix");
+            return Result(ErrorCode::InvalidArgument);
         }
 
         // Set m[icol][icol] to one by scaling row _icol_ appropriately
@@ -609,42 +617,36 @@ MatrixType Opal::Inverse(const MatrixType& m)
         }
     }
 
-    return Matrix(mat_inv);
+    return Result(Matrix(mat_inv));
 }
 
 template <typename MatrixType>
+    requires(MatrixType::k_row_count_value == 4 && MatrixType::k_col_count_value == 4)
 MatrixType::value_type Opal::Cofactor(const MatrixType& m, u32 i, u32 j)
 {
-    if constexpr (MatrixType::k_row_count_value == 4 && MatrixType::k_col_count_value == 4)
+    typename MatrixType::value_type sign = static_cast<MatrixType::value_type>((i + j) & 1 ? -1 : 1);
+    u32 row_idx[3];
+    u32 col_idx[3];
+    u32 next_row_slot = 0;
+    u32 next_col_slot = 0;
+    for (u32 k = 0; k < 4; k++)
     {
-        typename MatrixType::value_type sign = static_cast<MatrixType::value_type>((i + j) & 1 ? -1 : 1);
-        u32 row_idx[3];
-        u32 col_idx[3];
-        u32 next_row_slot = 0;
-        u32 next_col_slot = 0;
-        for (u32 k = 0; k < 4; k++)
+        if (k != i)
         {
-            if (k != i)
-            {
-                row_idx[next_row_slot++] = k;
-            }
-            if (k != j)
-            {
-                col_idx[next_col_slot++] = k;
-            }
+            row_idx[next_row_slot++] = k;
         }
-        typename MatrixType::value_type sum = 0;
-        sum += m(row_idx[0], col_idx[0]) *
-               (m(row_idx[1], col_idx[1]) * m(row_idx[2], col_idx[2]) - m(row_idx[1], col_idx[2]) * m(row_idx[2], col_idx[1]));
-        sum -= m(row_idx[0], col_idx[1]) *
-               (m(row_idx[1], col_idx[0]) * m(row_idx[2], col_idx[2]) - m(row_idx[1], col_idx[2]) * m(row_idx[2], col_idx[0]));
-        sum += m(row_idx[0], col_idx[2]) *
-               (m(row_idx[1], col_idx[0]) * m(row_idx[2], col_idx[1]) - m(row_idx[1], col_idx[1]) * m(row_idx[2], col_idx[0]));
-        sum *= sign;
-        return sum;
+        if (k != j)
+        {
+            col_idx[next_col_slot++] = k;
+        }
     }
-    else
-    {
-        throw NotImplementedException("Cofactor not supported for matrix of this size");
-    }
+    typename MatrixType::value_type sum = 0;
+    sum += m(row_idx[0], col_idx[0]) *
+           (m(row_idx[1], col_idx[1]) * m(row_idx[2], col_idx[2]) - m(row_idx[1], col_idx[2]) * m(row_idx[2], col_idx[1]));
+    sum -= m(row_idx[0], col_idx[1]) *
+           (m(row_idx[1], col_idx[0]) * m(row_idx[2], col_idx[2]) - m(row_idx[1], col_idx[2]) * m(row_idx[2], col_idx[0]));
+    sum += m(row_idx[0], col_idx[2]) *
+           (m(row_idx[1], col_idx[0]) * m(row_idx[2], col_idx[1]) - m(row_idx[1], col_idx[1]) * m(row_idx[2], col_idx[0]));
+    sum *= sign;
+    return sum;
 }
