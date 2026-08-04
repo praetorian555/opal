@@ -464,6 +464,22 @@ TEST_CASE("Combining paths", "[Paths]")
     REQUIRE(result.HasValue());
     REQUIRE(result.GetValue() == "");
 
+    result = Paths::Combine("a/", "b");
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == "a/b");
+
+    result = Paths::Combine("a\\", "b");
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == "a\\b");
+
+    result = Paths::Combine("a/", "b\\", "c");
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == "a/b\\c");
+
+    result = Paths::Combine("a/", "");
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == "a/");
+
     NullAllocator allocator;
     PushDefault pd(&allocator);
     result = Paths::Combine("aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc");

@@ -76,7 +76,7 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetExtension(const StringUtf8& path,
 Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetParentPath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
- * @brief Combine paths.
+ * @brief Combine paths, inserting a separator between components that do not already have one.
  * @tparam Args Types of path components. It needs to be types compatible with StringUtf8.
  * @param args Path components.
  * @return Combined path, or ErrorCode::OutOfMemory when it could not be grown.
@@ -110,7 +110,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::Combine(Args&&...
             error = result.Append(part_view.GetData(), part_view.GetSize());
             return;
         }
-        if (result.Back().GetValue() != '/' || result.Back().GetValue() != '\\')
+        if (result.Back().GetValue() != '/' && result.Back().GetValue() != '\\')
         {
 #if defined(OPAL_PLATFORM_WINDOWS)
             constexpr StringUtf8::value_type k_separator = '\\';

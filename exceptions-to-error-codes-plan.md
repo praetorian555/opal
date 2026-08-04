@@ -353,12 +353,12 @@ factory makes them harder to write wrong to begin with.
 - [x] `NormalizePath` returns `Expected<StringUtf8, ErrorCode>`, delete the `CheckAppend` helper - `src/paths.cpp:16,81`
 - [x] `SetCurrentWorkingDirectory` returns `ErrorCode` - `src/paths.cpp:55`
 - [x] `Combine` returns `Expected<StringUtf8, ErrorCode>`, delete the `check` lambda - `include/opal/paths.h:87`
-- [ ] **Fix `Combine`'s separator check** - `include/opal/paths.h:110`. It reads
+- [x] **Fix `Combine`'s separator check** - `include/opal/paths.h:110`. It read
       `result.Back().GetValue() != '/' || result.Back().GetValue() != '\\'`, which is true for every possible character,
-      so the branch always runs and a separator is inserted even when the accumulated path already ends in one.
-      `Combine("a/", "b")` therefore yields `a//b`. Correct condition is `&&`. Deliberately left out of the error-code
-      commit: it changes what `Combine` returns for trailing-separator input, so it wants its own change and its own
-      test rather than riding along with a signature change.
+      so the branch always ran and a separator was inserted even when the accumulated path already ended in one.
+      `Combine("a/", "b")` yielded `a//b`. Now `&&`, with tests for a trailing `/`, a trailing `\`, both mixed, and a
+      trailing separator followed by an empty component. Both separators are accepted on either platform, so
+      `Combine("a/", "b")` keeps the separator the caller wrote rather than normalizing it.
 
 ### Program arguments (§4)
 
