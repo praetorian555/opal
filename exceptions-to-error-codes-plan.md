@@ -317,6 +317,13 @@ factory makes them harder to write wrong to begin with.
       (the four `Paths::Get*` tests were asserting a throw that came from the allocator, not the function - they now
       assert `ErrorCode::OutOfMemory` off the `Expected`, which is the path that had never once run)
 - [ ] `New<T>` null-allocator check becomes `OPAL_ASSERT` - `include/opal/allocator.h:216,234`
+- [x] **`PushDefaultAllocator` seeds the system allocator when the stack is empty** - `src/allocator.cpp:252`. Only
+      `GetDefaultAllocator` seeded index 0, so a thread whose first stack touch was a push put its own allocator at the
+      bottom and the matching pop tripped `PopDefaultAllocator`'s "System provided default allocator can't be popped"
+      assert. Not caused by this work, but the `NullAllocator` tests it added are what expose it: they open with
+      `PushDefault`, so `opal_test "[Paths]"` aborted on the first section while the full run passed, because some
+      earlier test had already seeded the stack. The existing child-thread tests miss it too - `Opal::CreateThread`
+      reads the default allocator while starting the thread, so the regression test uses a bare `std::thread`.
 
 ### String formatting (§8)
 

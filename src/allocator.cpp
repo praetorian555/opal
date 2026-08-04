@@ -236,22 +236,32 @@ thread_local Opal::i32 g_default_stack_size = 0;
 thread_local Opal::LinearAllocator* g_scratch_stack[k_max_stack_depth] = {};
 thread_local Opal::i32 g_scratch_stack_size = 0;
 // NOLINTEND(modernize-avoid-c-arrays)
+
+// The system allocator has to sit at the bottom of every thread's stack before anything else goes on top of it,
+// otherwise the first push owns index 0 and the matching pop underflows.
+void SeedDefaultStack()
+{
+    static Opal::MallocAllocator s_default_allocator;
+    g_default_stack[g_default_stack_size++] = &s_default_allocator;
+}
 }  // namespace
 
 Opal::AllocatorBase* Opal::GetDefaultAllocator()
 {
-    if (g_default_stack_size != 0) [[likely]]
+    if (g_default_stack_size == 0) [[unlikely]]
     {
-        return g_default_stack[g_default_stack_size - 1];
+        SeedDefaultStack();
     }
-    static MallocAllocator s_default_allocator;
-    g_default_stack[g_default_stack_size++] = &s_default_allocator;
-    return &s_default_allocator;
+    return g_default_stack[g_default_stack_size - 1];
 }
 
 void Opal::PushDefaultAllocator(AllocatorBase* allocator)
 {
     OPAL_ASSERT(allocator != nullptr, "Allocator is not valid");
+    if (g_default_stack_size == 0) [[unlikely]]
+    {
+        SeedDefaultStack();
+    }
     OPAL_ASSERT(g_default_stack_size < k_max_stack_depth, "Default allocator stack overflow!");
     g_default_stack[g_default_stack_size++] = allocator;
 }

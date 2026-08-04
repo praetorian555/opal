@@ -1,6 +1,7 @@
 #include "test-helpers.h"
 
 #include <stdexcept>
+#include <thread>
 
 #include "opal/allocator.h"
 #include "opal/exceptions.h"
@@ -344,6 +345,28 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
 
         REQUIRE(result1.allocator == &alloc1);
         REQUIRE(result2.allocator == &alloc2);
+    }
+    SECTION("Push is allowed to be the first stack touch on a thread")
+    {
+        // std::thread on purpose: Opal::CreateThread reads the default allocator while starting the thread, which hides
+        // the case where a push is the very first thing that touches the stack.
+        Opal::MallocAllocator child_allocator;
+        Opal::AllocatorBase* pushed = nullptr;
+        Opal::AllocatorBase* after_pop = nullptr;
+        std::thread worker(
+            [&child_allocator, &pushed, &after_pop]()
+            {
+                {
+                    const Opal::PushDefault pd(&child_allocator);
+                    pushed = Opal::GetDefaultAllocator();
+                }
+                after_pop = Opal::GetDefaultAllocator();
+            });
+        worker.join();
+
+        REQUIRE(pushed == &child_allocator);
+        REQUIRE(after_pop != nullptr);
+        REQUIRE(after_pop != &child_allocator);
     }
 }
 
