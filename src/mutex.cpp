@@ -19,7 +19,7 @@ Opal::Impl::PureMutex::PureMutex()
     pthread_mutex_init(mutex, nullptr);
     m_native_handle = reinterpret_cast<void*>(mutex);
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -40,7 +40,7 @@ Opal::Impl::PureMutex::~PureMutex()
         Delete(m_allocator, mutex);
     }
 #else
-    throw NotImplementedException(__FUNCTION__)
+#error "Platform not supported"
 #endif
 }
 
@@ -82,7 +82,7 @@ bool Opal::Impl::PureMutex::TryLock()
     }
     return false;
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -101,7 +101,7 @@ void Opal::Impl::PureMutex::Lock()
         pthread_mutex_lock(mutex);
     }
 #else
-    throw NotImplementedException(__FUNCTION__)
+#error "Platform not supported"
 #endif
 }
 
@@ -120,6 +120,6 @@ void Opal::Impl::PureMutex::Unlock()
         pthread_mutex_unlock(mutex);
     }
 #else
-    throw NotImplementedException(__FUNCTION__)
+#error "Platform not supported"
 #endif
 }

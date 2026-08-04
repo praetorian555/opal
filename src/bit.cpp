@@ -58,7 +58,7 @@ Opal::u32 Opal::CountSetBits(u32 value)
 #elif (defined(OPAL_COMPILER_GCC) || defined(OPAL_COMPILER_CLANG))
     return Narrow<u32>(__builtin_popcount(value));
 #else
-    throw NotImplementedException(__FUNCTION__)
+#error "Platform not supported"
 #endif
 }
 
@@ -69,7 +69,7 @@ Opal::u64 Opal::CountSetBits(u64 value)
 #elif (defined(OPAL_COMPILER_GCC) || defined(OPAL_COMPILER_CLANG))
     return Narrow<u64>(__builtin_popcountll(value));
 #else
-    throw NotImplementedException(__FUNCTION__)
+#error "Platform not supported"
 #endif
 }
 

@@ -445,15 +445,23 @@ factory makes them harder to write wrong to begin with.
 
 ### Dead `#else` branches (§12)
 
-- [ ] Replace with `#error "Platform not supported"` - `src/mutex.cpp:22,43,85,104,123`
-- [ ] `src/condition-variable.cpp:26,40,79,90,102,127`
-- [ ] `src/signal.cpp:51,76,90,102`
+- [x] Replace with `#error "Platform not supported"` - `src/mutex.cpp:22,43,85,104,123`
+- [x] `src/condition-variable.cpp:26,40,79,90,102,127`
+- [x] `src/signal.cpp:51,76,90,102`
 - [x] `src/thread.cpp:82,107,122,137,281,322` - done alongside §6, since the conversion rewrote the same `#if` blocks
-- [ ] `src/bit.cpp:61,72`
-- [ ] `src/allocator.cpp:73,88,129`
-- [ ] `src/paths.cpp:51,77`
-- [ ] `src/file-system.cpp:80,116,169,213,268,295,452,531,611,701,712,723,734`
-- [ ] Exhaustive-`switch` defaults become `OPAL_ASSERT` - `include/opal/container/string.h:3857,3884,3911,3938`
+- [x] `src/bit.cpp:61,72`
+- [x] `src/allocator.cpp:73,88,129`
+- [x] `src/paths.cpp:51,77` - already done by §3
+- [x] `src/file-system.cpp:80,116,169,213,268,295,452,531,611,701,712,723,734` - already done by §2
+- [x] `default:` of the `NumberSystemBase` switches becomes `OPAL_ASSERT` - `include/opal/container/string.h:3857,3884,3911,3938`.
+      §12 calls these switches exhaustive; they are not. `NumberSystemBase` has a fourth value, `Binary`, and it is missing from all
+      four. What makes the branch dead is the caller: `NumberToString` routes `Binary` to `ToBinary` and only reaches `GetFormat`
+      with the three bases that have a printf specifier. So the assert stands for "the caller already handled Binary", not for an
+      enum value that cannot exist. Checked against a Release build, where `OPAL_ASSERT` expands to nothing and a `default:` label
+      needs a statement after it regardless.
+
+Note: `NotImplementedException` now has no throw site anywhere in the library. Left declared in `exceptions.h`, since removing it
+is a public API change rather than part of this pass.
 
 ### Factories and optional exceptions (§11, §13)
 

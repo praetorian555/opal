@@ -3854,7 +3854,9 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
                 }
             }
             default:
-                throw NotImplementedException(__FUNCTION__);
+                // NumberSystemBase::Binary is the only other value, and NumberToString handles it without a printf format.
+                OPAL_ASSERT(false, "No printf format for this number system base");
+                break;
         }
     }
     else if constexpr (k_type_size == 4)
@@ -3881,7 +3883,9 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
                 }
             }
             default:
-                throw NotImplementedException(__FUNCTION__);
+                // NumberSystemBase::Binary is the only other value, and NumberToString handles it without a printf format.
+                OPAL_ASSERT(false, "No printf format for this number system base");
+                break;
         }
     }
     else if constexpr (k_type_size == 2)
@@ -3908,7 +3912,9 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
                 }
             }
             default:
-                throw NotImplementedException(__FUNCTION__);
+                // NumberSystemBase::Binary is the only other value, and NumberToString handles it without a printf format.
+                OPAL_ASSERT(false, "No printf format for this number system base");
+                break;
         }
     }
     else if constexpr (k_type_size == 1)
@@ -3935,7 +3941,9 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
                 }
             }
             default:
-                throw NotImplementedException(__FUNCTION__);
+                // NumberSystemBase::Binary is the only other value, and NumberToString handles it without a printf format.
+                OPAL_ASSERT(false, "No printf format for this number system base");
+                break;
         }
     }
     return out_str;

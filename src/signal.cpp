@@ -48,7 +48,7 @@ void Opal::Signal::Wait(u32 expected_state)
 #elif defined(OPAL_PLATFORM_LINUX)
         syscall(SYS_futex, &m_state, FUTEX_WAIT | FUTEX_PRIVATE_FLAG, expected_state, nullptr, nullptr, 0);
 #else
-        throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
     }
 }
@@ -73,7 +73,7 @@ bool Opal::Signal::WaitFor(u32 expected_state, u64 timeout_ms)
         ts.tv_nsec = static_cast<long>((remaining_ms_int % 1000) * 1000000);
         syscall(SYS_futex, &m_state, FUTEX_WAIT | FUTEX_PRIVATE_FLAG, expected_state, &ts, nullptr, 0);
 #else
-        throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
     }
     return true;
@@ -87,7 +87,7 @@ void Opal::Signal::NotifyOne()
 #elif defined(OPAL_PLATFORM_LINUX)
     syscall(SYS_futex, &m_state, FUTEX_WAKE | FUTEX_PRIVATE_FLAG, 1, nullptr, nullptr, 0);
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -99,6 +99,6 @@ void Opal::Signal::NotifyAll()
 #elif defined(OPAL_PLATFORM_LINUX)
     syscall(SYS_futex, &m_state, FUTEX_WAKE | FUTEX_PRIVATE_FLAG, INT_MAX, nullptr, nullptr, 0);
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }

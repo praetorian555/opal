@@ -23,7 +23,7 @@ Opal::ConditionVariable::ConditionVariable(AllocatorBase* allocator)
     pthread_cond_init(cond, nullptr);
     m_native_handle = reinterpret_cast<void*>(cond);
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -37,7 +37,7 @@ Opal::ConditionVariable::~ConditionVariable()
     pthread_cond_destroy(cond);
     Delete(m_allocator, cond);
 #else
-    throw Opal::NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -76,7 +76,7 @@ void Opal::ConditionVariable::NotifyOne()
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_cond_signal(static_cast<pthread_cond_t*>(m_native_handle));
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -87,7 +87,7 @@ void Opal::ConditionVariable::NotifyAll()
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_cond_broadcast(static_cast<pthread_cond_t*>(m_native_handle));
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -99,7 +99,7 @@ void Opal::ConditionVariable::Wait(void* native_mutex_handle)
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_cond_wait(static_cast<pthread_cond_t*>(m_native_handle), static_cast<pthread_mutex_t*>(native_mutex_handle));
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
@@ -124,6 +124,6 @@ bool Opal::ConditionVariable::WaitFor(void* native_mutex_handle, u64 timeout_ms)
         pthread_cond_timedwait(static_cast<pthread_cond_t*>(m_native_handle), static_cast<pthread_mutex_t*>(native_mutex_handle), &ts);
     return result == 0;
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }

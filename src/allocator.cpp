@@ -70,7 +70,7 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const
         throw OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!");
     }
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
     if (desc.bytes_to_initially_alloc > 0)
     {
@@ -89,7 +89,7 @@ Opal::SystemMemoryAllocator::~SystemMemoryAllocator()
 #elif defined(OPAL_PLATFORM_LINUX)
     munmap(m_memory, m_reserved_size);
 #else
-    throw NotImplementedException(__FUNCTION__);
+#error "Platform not supported"
 #endif
 }
 
