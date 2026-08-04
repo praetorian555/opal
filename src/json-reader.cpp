@@ -188,49 +188,124 @@ bool JsonValue::IsObject() const
 // JsonValue value extraction.
 // ------------------------------------------------------------------------------------------------
 
+Expected<bool, ErrorCode> JsonValue::TryGetBool() const
+{
+    using Result = Expected<bool, ErrorCode>;
+    if (!IsBool())
+    {
+        return Result(ErrorCode::TypeMismatch);
+    }
+    return Result(m_data.Get<bool>());
+}
+
+Expected<f64, ErrorCode> JsonValue::TryGetNumber() const
+{
+    using Result = Expected<f64, ErrorCode>;
+    if (!IsNumber())
+    {
+        return Result(ErrorCode::TypeMismatch);
+    }
+    if (m_data.IsActive<i64>())
+    {
+        return Result(static_cast<f64>(m_data.Get<i64>()));
+    }
+    return Result(m_data.Get<f64>());
+}
+
+Expected<i64, ErrorCode> JsonValue::TryGetIntegerNumber() const
+{
+    using Result = Expected<i64, ErrorCode>;
+    if (!IsIntegerNumber())
+    {
+        return Result(ErrorCode::TypeMismatch);
+    }
+    return Result(m_data.Get<i64>());
+}
+
+Expected<StringViewUtf8, ErrorCode> JsonValue::TryGetString() const
+{
+    using Result = Expected<StringViewUtf8, ErrorCode>;
+    if (!IsString())
+    {
+        return Result(ErrorCode::TypeMismatch);
+    }
+    return Result(m_data.Get<StringViewUtf8>());
+}
+
 bool JsonValue::GetBool() const
 {
-    if (!IsBool())
+    const Expected<bool, ErrorCode> value = TryGetBool();
+    if (!value.HasValue())
     {
         ThrowTypeMismatch("bool", GetType());
     }
-    return m_data.Get<bool>();
+    return value.GetValue();
 }
 
 f64 JsonValue::GetNumber() const
 {
-    if (!IsNumber())
+    const Expected<f64, ErrorCode> value = TryGetNumber();
+    if (!value.HasValue())
     {
         ThrowTypeMismatch("number", GetType());
     }
-    if (m_data.IsActive<i64>())
-    {
-        return static_cast<f64>(m_data.Get<i64>());
-    }
-    return m_data.Get<f64>();
+    return value.GetValue();
 }
 
 i64 JsonValue::GetIntegerNumber() const
 {
-    if (!IsIntegerNumber())
+    const Expected<i64, ErrorCode> value = TryGetIntegerNumber();
+    if (!value.HasValue())
     {
         ThrowTypeMismatch("integer number", GetType());
     }
-    return m_data.Get<i64>();
+    return value.GetValue();
 }
 
 StringViewUtf8 JsonValue::GetString() const
 {
-    if (!IsString())
+    const Expected<StringViewUtf8, ErrorCode> value = TryGetString();
+    if (!value.HasValue())
     {
         ThrowTypeMismatch("string", GetType());
     }
-    return m_data.Get<StringViewUtf8>();
+    return value.GetValue();
 }
 
 // ------------------------------------------------------------------------------------------------
 // JsonValue element access.
 // ------------------------------------------------------------------------------------------------
+
+Expected<const JsonValue&, ErrorCode> JsonValue::TryAt(u64 index) const
+{
+    using Result = Expected<const JsonValue&, ErrorCode>;
+    if (!IsArray())
+    {
+        return Result(ErrorCode::TypeMismatch);
+    }
+    const auto& arr = m_data.Get<JsonArray>();
+    if (index >= arr->GetSize())
+    {
+        return Result(ErrorCode::OutOfBounds);
+    }
+    return Result(arr->operator[](index));
+}
+
+Expected<const JsonValue&, ErrorCode> JsonValue::TryFind(StringViewUtf8 key) const
+{
+    using Result = Expected<const JsonValue&, ErrorCode>;
+    if (!IsObject())
+    {
+        return Result(ErrorCode::TypeMismatch);
+    }
+    const auto& obj = m_data.Get<JsonObject>();
+    const auto it = obj->Find(key);
+    if (it == obj->cend())
+    {
+        return Result(ErrorCode::KeyNotFound);
+    }
+    return Result(it.GetValue());
+}
 
 const JsonValue& JsonValue::operator[](u64 index) const
 {
@@ -238,12 +313,12 @@ const JsonValue& JsonValue::operator[](u64 index) const
     {
         ThrowTypeMismatch("array", GetType());
     }
-    const auto& arr = m_data.Get<JsonArray>();
-    if (index >= arr->GetSize())
+    const Expected<const JsonValue&, ErrorCode> value = TryAt(index);
+    if (!value.HasValue())
     {
-        throw OutOfBoundsException(index, 0, arr->GetSize() - 1);
+        throw OutOfBoundsException(index, 0, m_data.Get<JsonArray>()->GetSize() - 1);
     }
-    return arr->operator[](index);
+    return value.GetValue();
 }
 
 const JsonValue& JsonValue::operator[](StringViewUtf8 key) const
@@ -252,16 +327,74 @@ const JsonValue& JsonValue::operator[](StringViewUtf8 key) const
     {
         ThrowTypeMismatch("object", GetType());
     }
-    const auto& obj = m_data.Get<JsonObject>();
-    const auto it = obj->Find(key);
-    if (it == obj->cend())
+    const Expected<const JsonValue&, ErrorCode> value = TryFind(key);
+    if (!value.HasValue())
     {
         throw InvalidArgumentException("JsonValue::operator[]", "Key not found");
     }
-    return it.GetValue();
+    return value.GetValue();
 }
 
 const JsonValue& JsonValue::GetPath(StringViewUtf8 path) const
+{
+    const Expected<const JsonValue&, ErrorCode> value = TryGetPath(path);
+    if (!value.HasValue())
+    {
+        // Walk it again through the throwing accessors so the failing step reports itself the way it always has.
+        return GetPathThrowing(path);
+    }
+    return value.GetValue();
+}
+
+Expected<const JsonValue&, ErrorCode> JsonValue::TryGetPath(StringViewUtf8 path) const
+{
+    using Result = Expected<const JsonValue&, ErrorCode>;
+    const JsonValue* current = this;
+    const char8* data = path.GetData();
+    const u64 size = path.GetSize();
+    u64 start = 0;
+
+    for (u64 i = 0; i <= size; ++i)
+    {
+        if (i == size || data[i] == '.')
+        {
+            const StringViewUtf8 segment(data + start, i - start);
+            if (segment.GetSize() == 0)
+            {
+                start = i + 1;
+                continue;
+            }
+
+            // Try to parse as an integer index.
+            bool is_index = true;
+            u64 index = 0;
+            for (u64 j = 0; j < segment.GetSize(); ++j)
+            {
+                const char8 c = segment.GetData()[j];
+                if (c < '0' || c > '9')
+                {
+                    is_index = false;
+                    break;
+                }
+                index = (index * 10) + static_cast<u64>(c - '0');
+            }
+
+            Expected<const JsonValue&, ErrorCode> next =
+                (is_index && current->IsArray()) ? current->TryAt(index) : current->TryFind(segment);
+            if (!next.HasValue())
+            {
+                return Result(next.GetError());
+            }
+            current = &next.GetValue();
+
+            start = i + 1;
+        }
+    }
+
+    return Result(*current);
+}
+
+const JsonValue& JsonValue::GetPathThrowing(StringViewUtf8 path) const
 {
     const JsonValue* current = this;
     const char8* data = path.GetData();

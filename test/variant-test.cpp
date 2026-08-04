@@ -561,3 +561,31 @@ TEST_CASE("Variant VisitPartial throws on moved-from variant", "[Variant]")
     Variant<i32, f32> v2(Move(v));
     REQUIRE_THROWS_AS(v.VisitPartial([](auto&) {}), InvalidArgumentException);
 }
+TEST_CASE("Variant TryGet", "[Variant]")
+{
+    Variant<i32, f32> value(42);
+
+    SECTION("Reports the value when the alternative is active")
+    {
+        REQUIRE(value.TryGet<i32>().GetValue() == 42);
+    }
+    SECTION("Reports TypeMismatch instead of throwing")
+    {
+        REQUIRE(value.TryGet<f32>().GetError() == ErrorCode::TypeMismatch);
+    }
+    SECTION("Writes through the reference")
+    {
+        value.TryGet<i32>().GetValue() = 7;
+        REQUIRE(value.Get<i32>() == 7);
+    }
+    SECTION("Works on a const variant")
+    {
+        const Variant<i32, f32> const_value(1.5f);
+        REQUIRE(const_value.TryGet<f32>().GetValue() == 1.5f);
+        REQUIRE(const_value.TryGet<i32>().GetError() == ErrorCode::TypeMismatch);
+    }
+    SECTION("Get still throws for the same input")
+    {
+        REQUIRE_THROWS_AS(value.Get<f32>(), InvalidArgumentException);
+    }
+}

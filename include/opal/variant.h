@@ -3,6 +3,8 @@
 #include <cstddef>
 
 #include "common.h"
+#include "container/expected.h"
+#include "error-codes.h"
 #include "exceptions.h"
 #include "type-traits.h"
 
@@ -219,6 +221,36 @@ public:
             throw InvalidArgumentException(__FUNCTION__, "Index", static_cast<u64>(Index));
         }
         return Impl::VariantAccessor<Index, Ts...>::Get(m_storage);
+    }
+
+    /**
+     * The same value as Get, for callers that did not check IsActive first.
+     * @return A reference to the stored value, or ErrorCode::TypeMismatch when T is not the active alternative.
+     */
+    template <typename T>
+    [[nodiscard]] auto TryGet() -> Expected<typename Decay<T>::Type&, ErrorCode>
+    {
+        using DecayT = Decay<T>::Type;
+        using Result = Expected<DecayT&, ErrorCode>;
+        constexpr std::size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
+        if (k_idx != m_index)
+        {
+            return Result(ErrorCode::TypeMismatch);
+        }
+        return Result(Impl::VariantAccessor<k_idx, Ts...>::Get(m_storage));
+    }
+
+    template <typename T>
+    [[nodiscard]] auto TryGet() const -> Expected<const typename Decay<T>::Type&, ErrorCode>
+    {
+        using DecayT = Decay<T>::Type;
+        using Result = Expected<const DecayT&, ErrorCode>;
+        constexpr std::size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
+        if (k_idx != m_index)
+        {
+            return Result(ErrorCode::TypeMismatch);
+        }
+        return Result(Impl::VariantAccessor<k_idx, Ts...>::Get(m_storage));
     }
 
     /** Returns the zero-based index of the currently active alternative. */

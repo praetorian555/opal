@@ -187,6 +187,17 @@ public:
     [[nodiscard]] i64 GetIntegerNumber() const;
     [[nodiscard]] StringViewUtf8 GetString() const;
 
+    // -- Value extraction (report ErrorCode::TypeMismatch instead of throwing) --
+
+    /**
+     * The same values as the Get accessors above, for callers that did not check the type first.
+     * @return The value, or ErrorCode::TypeMismatch.
+     */
+    [[nodiscard]] Expected<bool, ErrorCode> TryGetBool() const;
+    [[nodiscard]] Expected<f64, ErrorCode> TryGetNumber() const;
+    [[nodiscard]] Expected<i64, ErrorCode> TryGetIntegerNumber() const;
+    [[nodiscard]] Expected<StringViewUtf8, ErrorCode> TryGetString() const;
+
     template <typename T>
         requires IntegralOrFloatingPoint<T>
     [[nodiscard]] T GetNumberAs() const
@@ -204,6 +215,32 @@ public:
     [[nodiscard]] const JsonValue& operator[](StringViewUtf8 key) const;
 
     [[nodiscard]] const JsonValue& GetPath(StringViewUtf8 path) const;
+
+    // -- Element access (report a code instead of throwing) --
+
+    /**
+     * Element at @p index of an array.
+     * @return The element, ErrorCode::TypeMismatch when this is not an array, or ErrorCode::OutOfBounds.
+     */
+    [[nodiscard]] Expected<const JsonValue&, ErrorCode> TryAt(u64 index) const;
+
+    /**
+     * Value stored under @p key in an object.
+     * @return The value, ErrorCode::TypeMismatch when this is not an object, or ErrorCode::KeyNotFound.
+     */
+    [[nodiscard]] Expected<const JsonValue&, ErrorCode> TryFind(StringViewUtf8 key) const;
+
+    /**
+     * Value at a dot separated @p path, where a numeric segment indexes an array.
+     * @return The value, or whatever the first failing step of the walk reported.
+     */
+    [[nodiscard]] Expected<const JsonValue&, ErrorCode> TryGetPath(StringViewUtf8 path) const;
+
+private:
+    // Repeats the walk through the throwing accessors, so GetPath keeps reporting which step failed and why.
+    [[nodiscard]] const JsonValue& GetPathThrowing(StringViewUtf8 path) const;
+
+public:
 
     // -- Container queries --
 

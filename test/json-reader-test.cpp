@@ -477,3 +477,52 @@ TEST_CASE("JsonReader GetIntegerNumber on f64 throws", "[JsonReader]")
     JsonReader reader = ParseOrFail("3.14");
     REQUIRE_THROWS_AS(reader.GetRoot().GetIntegerNumber(), JsonTypeMismatchException);
 }
+TEST_CASE("JsonValue Try accessors", "[JsonReader]")
+{
+    auto parsed = JsonReader::Parse(R"({"flag": true, "count": 7, "ratio": 1.5, "name": "opal", "items": [10, 20]})");
+    REQUIRE(parsed.HasValue());
+    const JsonValue& root = parsed.GetValue().GetRoot();
+
+    SECTION("Report the value when the type matches")
+    {
+        REQUIRE(root["flag"].TryGetBool().GetValue() == true);
+        REQUIRE(root["count"].TryGetIntegerNumber().GetValue() == 7);
+        REQUIRE(root["ratio"].TryGetNumber().GetValue() == 1.5);
+        REQUIRE(root["name"].TryGetString().GetValue() == "opal");
+    }
+    SECTION("Report TypeMismatch instead of throwing")
+    {
+        REQUIRE(root["name"].TryGetBool().GetError() == ErrorCode::TypeMismatch);
+        REQUIRE(root["flag"].TryGetNumber().GetError() == ErrorCode::TypeMismatch);
+        REQUIRE(root["ratio"].TryGetIntegerNumber().GetError() == ErrorCode::TypeMismatch);
+        REQUIRE(root["count"].TryGetString().GetError() == ErrorCode::TypeMismatch);
+    }
+    SECTION("The throwing accessors still throw for the same input")
+    {
+        REQUIRE_THROWS_AS(root["name"].GetBool(), JsonTypeMismatchException);
+        REQUIRE_THROWS_AS(root["flag"].GetNumber(), JsonTypeMismatchException);
+    }
+    SECTION("TryAt")
+    {
+        REQUIRE(root["items"].TryAt(1).GetValue().GetIntegerNumber() == 20);
+        REQUIRE(root["items"].TryAt(9).GetError() == ErrorCode::OutOfBounds);
+        REQUIRE(root["name"].TryAt(0).GetError() == ErrorCode::TypeMismatch);
+    }
+    SECTION("TryFind")
+    {
+        REQUIRE(root.TryFind("count").GetValue().GetIntegerNumber() == 7);
+        REQUIRE(root.TryFind("missing").GetError() == ErrorCode::KeyNotFound);
+        REQUIRE(root["items"].TryFind("count").GetError() == ErrorCode::TypeMismatch);
+    }
+    SECTION("TryGetPath")
+    {
+        REQUIRE(root.TryGetPath("items.0").GetValue().GetIntegerNumber() == 10);
+        REQUIRE(root.TryGetPath("missing.0").GetError() == ErrorCode::KeyNotFound);
+        REQUIRE(root.TryGetPath("items.9").GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("GetPath still throws for the same input")
+    {
+        REQUIRE_THROWS_AS(root.GetPath("missing.0"), InvalidArgumentException);
+        REQUIRE_THROWS_AS(root.GetPath("items.9"), OutOfBoundsException);
+    }
+}

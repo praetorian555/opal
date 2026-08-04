@@ -24,6 +24,10 @@ enum class ErrorCode : u8
     ChannelClosed = 14,
     ChannelEmpty = 15,
     NotDirectory = 16,
+    /** The value is not of the requested type. */
+    TypeMismatch = 17,
+    /** No entry is stored under the requested key. */
+    KeyNotFound = 18,
 };
 
 }
