@@ -196,10 +196,11 @@ TEST_CASE("Variant Get by type", "[Variant]")
     REQUIRE(v.Get<f64>() == 2.5);
 }
 
-TEST_CASE("Variant Get wrong type throws", "[Variant]")
+TEST_CASE("Variant Get wrong type is reported by TryGet", "[Variant]")
 {
+    // Get itself ends the program through the contract violation handler, so the check is exercised through its Try sibling.
     Variant<i32, f32> v(42);
-    REQUIRE_THROWS_AS(v.Get<f32>(), InvalidArgumentException);
+    REQUIRE(v.TryGet<f32>().GetError() == ErrorCode::TypeMismatch);
 }
 
 TEST_CASE("Variant mutation through Get by type", "[Variant]")
@@ -220,10 +221,10 @@ TEST_CASE("Variant Get by index", "[Variant]")
     REQUIRE(v.Get<1>() == 1.5f);
 }
 
-TEST_CASE("Variant Get wrong index throws", "[Variant]")
+TEST_CASE("Variant Get wrong index is reported by TryGet", "[Variant]")
 {
     Variant<i32, f32> v(42);
-    REQUIRE_THROWS_AS(v.Get<1>(), InvalidArgumentException);
+    REQUIRE(v.TryGet<f32>().GetError() == ErrorCode::TypeMismatch);
 }
 
 TEST_CASE("Variant mutation through Get by index", "[Variant]")
@@ -256,16 +257,10 @@ TEST_CASE("Variant const IsActive", "[Variant]")
     REQUIRE_FALSE(v.IsActive<f32>());
 }
 
-TEST_CASE("Variant const Get wrong type throws", "[Variant]")
+TEST_CASE("Variant const Get wrong type is reported by TryGet", "[Variant]")
 {
     const Variant<i32, f32> v(42);
-    REQUIRE_THROWS_AS(v.Get<f32>(), InvalidArgumentException);
-}
-
-TEST_CASE("Variant const Get wrong index throws", "[Variant]")
-{
-    const Variant<i32, f32> v(42);
-    REQUIRE_THROWS_AS(v.Get<1>(), InvalidArgumentException);
+    REQUIRE(v.TryGet<f32>().GetError() == ErrorCode::TypeMismatch);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -469,26 +464,18 @@ TEST_CASE("Variant Visit void return", "[Variant]")
 // Moved-from state.
 // ------------------------------------------------------------------------------------------------
 
-TEST_CASE("Variant Get throws on moved-from variant", "[Variant]")
+// Get, Clone, Visit and VisitPartial on a moved-from variant end the program through the contract violation handler, so what
+// they do can no longer be observed from inside the test runner. What is still checkable is that the variant reports the state
+// those checks look at, and that TryGet reports it as a code.
+TEST_CASE("Variant reports a moved-from state", "[Variant]")
 {
     Variant<i32, f32> v(42);
     Variant<i32, f32> v2(Move(v));
-    REQUIRE_THROWS_AS(v.Get<i32>(), InvalidArgumentException);
-    REQUIRE_THROWS_AS(v.Get<0>(), InvalidArgumentException);
-}
 
-TEST_CASE("Variant Clone throws on moved-from variant", "[Variant]")
-{
-    Variant<i32, f32> v(42);
-    Variant<i32, f32> v2(Move(v));
-    REQUIRE_THROWS_AS(v.Clone(), InvalidArgumentException);
-}
-
-TEST_CASE("Variant Visit throws on moved-from variant", "[Variant]")
-{
-    Variant<i32, f32> v(42);
-    Variant<i32, f32> v2(Move(v));
-    REQUIRE_THROWS_AS(v.Visit([](auto&) {}), InvalidArgumentException);
+    REQUIRE_FALSE(v.IsActive<i32>());
+    REQUIRE_FALSE(v.IsActive<f32>());
+    REQUIRE(v.TryGet<i32>().GetError() == ErrorCode::TypeMismatch);
+    REQUIRE(v.TryGet<f32>().GetError() == ErrorCode::TypeMismatch);
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -555,12 +542,6 @@ TEST_CASE("Variant VisitPartial with generic lambda", "[Variant]")
     REQUIRE(visited);
 }
 
-TEST_CASE("Variant VisitPartial throws on moved-from variant", "[Variant]")
-{
-    Variant<i32, f32> v(42);
-    Variant<i32, f32> v2(Move(v));
-    REQUIRE_THROWS_AS(v.VisitPartial([](auto&) {}), InvalidArgumentException);
-}
 TEST_CASE("Variant TryGet", "[Variant]")
 {
     Variant<i32, f32> value(42);
@@ -583,9 +564,5 @@ TEST_CASE("Variant TryGet", "[Variant]")
         const Variant<i32, f32> const_value(1.5f);
         REQUIRE(const_value.TryGet<f32>().GetValue() == 1.5f);
         REQUIRE(const_value.TryGet<i32>().GetError() == ErrorCode::TypeMismatch);
-    }
-    SECTION("Get still throws for the same input")
-    {
-        REQUIRE_THROWS_AS(value.Get<f32>(), InvalidArgumentException);
     }
 }

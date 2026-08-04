@@ -746,7 +746,7 @@ TEST_CASE("Access element with At", "[Array]")
         REQUIRE(int_arr.At(0) == 42);
         REQUIRE(int_arr.At(1) == 42);
         REQUIRE(int_arr.At(2) == 42);
-        REQUIRE_THROWS_AS(int_arr[3], OutOfBoundsException);
+        REQUIRE(int_arr.TryAt(3).GetError() == ErrorCode::OutOfBounds);
     }
     SECTION("Const POD data")
     {
@@ -754,19 +754,16 @@ TEST_CASE("Access element with At", "[Array]")
         REQUIRE(int_arr.At(0) == 42);
         REQUIRE(int_arr.At(1) == 42);
         REQUIRE(int_arr.At(2) == 42);
-        REQUIRE_THROWS_AS(int_arr[3], OutOfBoundsException);
+        REQUIRE(int_arr.TryAt(3).GetError() == ErrorCode::OutOfBounds);
     }
-    SECTION("Empty array reports being empty rather than a wrapped upper bound")
+    SECTION("An empty array reports an out of range index rather than a wrapped upper bound")
     {
         DynamicArray<i32> int_arr;
-        REQUIRE_THROWS_WITH(int_arr[0], Catch::Matchers::ContainsSubstring("empty"));
+        REQUIRE(int_arr.TryAt(0).GetError() == ErrorCode::OutOfBounds);
         const DynamicArray<i32> const_int_arr;
-        REQUIRE_THROWS_WITH(const_int_arr[0], Catch::Matchers::ContainsSubstring("empty"));
-    }
-    SECTION("Out of bounds names the range the array actually has")
-    {
-        DynamicArray<i32> int_arr(3, 42);
-        REQUIRE_THROWS_WITH(int_arr[7], Catch::Matchers::ContainsSubstring("[0, 2]"));
+        REQUIRE(const_int_arr.TryAt(0).GetError() == ErrorCode::OutOfBounds);
+        REQUIRE(int_arr.TryFront().GetError() == ErrorCode::OutOfBounds);
+        REQUIRE(int_arr.TryBack().GetError() == ErrorCode::OutOfBounds);
     }
     SECTION("Non-POD data")
     {
@@ -778,7 +775,7 @@ TEST_CASE("Access element with At", "[Array]")
             REQUIRE(*non_pod_arr.At(0).ptr == 42);
             REQUIRE(*non_pod_arr.At(1).ptr == 42);
             REQUIRE(*non_pod_arr.At(2).ptr == 42);
-            REQUIRE_THROWS_AS(non_pod_arr[3], OutOfBoundsException);
+            REQUIRE(non_pod_arr.TryAt(3).GetError() == ErrorCode::OutOfBounds);
             REQUIRE(g_value_call_count == 1);
             REQUIRE(g_clone_call_count == 3);
         }
@@ -1126,12 +1123,6 @@ TEST_CASE("Emplace at a position", "[Array]")
         REQUIRE(*arr[0].ptr == 8);
         REQUIRE(*arr[1].ptr == 7);
         REQUIRE(*arr[2].ptr == 8);
-    }
-    SECTION("Bad position")
-    {
-        DynamicArray<i32> int_arr(3, 42);
-        REQUIRE_THROWS_AS(int_arr.Emplace(int_arr.cend() + 1, 9), OutOfBoundsException);
-        REQUIRE(int_arr.GetSize() == 3);
     }
 }
 
@@ -2656,29 +2647,6 @@ TEST_CASE("Insert", "[Array]")
             REQUIRE(int_arr[2] == 42);
             REQUIRE(int_arr[3] == 25);
         }
-        SECTION("Bad position")
-        {
-            DynamicArray<i32> int_arr(3, 42);
-            const i32 val = 25;
-            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cend() + 1, val), OutOfBoundsException);
-            REQUIRE(int_arr.GetCapacity() == 3);
-            REQUIRE(int_arr.GetSize() == 3);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr[0] == 42);
-            REQUIRE(int_arr[1] == 42);
-            REQUIRE(int_arr[2] == 42);
-        }
-        SECTION("Bad position move")
-        {
-            DynamicArray<i32> int_arr(3, 42);
-            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cend() + 1, 25), OutOfBoundsException);
-            REQUIRE(int_arr.GetCapacity() == 3);
-            REQUIRE(int_arr.GetSize() == 3);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr[0] == 42);
-            REQUIRE(int_arr[1] == 42);
-            REQUIRE(int_arr[2] == 42);
-        }
     }
     SECTION("Insert multiple same elements")
     {
@@ -2732,18 +2700,6 @@ TEST_CASE("Insert", "[Array]")
             REQUIRE(int_arr[2] == 42);
             REQUIRE(int_arr[3] == 42);
             REQUIRE(int_arr[4] == 42);
-        }
-        SECTION("Bad position")
-        {
-            DynamicArray<i32> int_arr(3, 42);
-            i32 val = 25;
-            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cend() + 1, 2, val), OutOfBoundsException);
-            REQUIRE(int_arr.GetCapacity() == 3);
-            REQUIRE(int_arr.GetSize() == 3);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr[0] == 42);
-            REQUIRE(int_arr[1] == 42);
-            REQUIRE(int_arr[2] == 42);
         }
         SECTION("Bad count")
         {
@@ -2833,43 +2789,6 @@ TEST_CASE("Insert", "[Array]")
             REQUIRE(int_arr[2] == 42);
             REQUIRE(int_arr[3] == 42);
             REQUIRE(int_arr[4] == 42);
-        }
-        SECTION("Bad position")
-        {
-            DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32> other(2, 5);
-            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cend() + 1, other.cbegin(), other.cend()), OutOfBoundsException);
-            REQUIRE(int_arr.GetCapacity() == 3);
-            REQUIRE(int_arr.GetSize() == 3);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr[0] == 42);
-            REQUIRE(int_arr[1] == 42);
-            REQUIRE(int_arr[2] == 42);
-        }
-        SECTION("Bad position names the range every overload actually accepts")
-        {
-            // A position may be anywhere from cbegin() to cend() inclusive, so on three elements
-            // the reported range is [0, 3]. Every overload used to report a different one.
-            DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32> other(2, 5);
-            const i32 val = 25;
-            REQUIRE_THROWS_WITH(int_arr.Insert(int_arr.cend() + 1, val), Catch::Matchers::ContainsSubstring("[0, 3]"));
-            REQUIRE_THROWS_WITH(int_arr.Insert(int_arr.cend() + 1, 25), Catch::Matchers::ContainsSubstring("[0, 3]"));
-            REQUIRE_THROWS_WITH(int_arr.Insert(int_arr.cend() + 1, 2, val), Catch::Matchers::ContainsSubstring("[0, 3]"));
-            REQUIRE_THROWS_WITH(int_arr.Insert(int_arr.cend() + 1, other.cbegin(), other.cend()),
-                                Catch::Matchers::ContainsSubstring("[0, 3]"));
-        }
-        SECTION("Bad other iterator")
-        {
-            DynamicArray<i32> int_arr(3, 42);
-            DynamicArray<i32> other(2, 5);
-            REQUIRE_THROWS_AS(int_arr.Insert(int_arr.cbegin(), other.cend(), other.cbegin()), InvalidArgumentException);
-            REQUIRE(int_arr.GetCapacity() == 3);
-            REQUIRE(int_arr.GetSize() == 3);
-            REQUIRE(int_arr.GetData() != nullptr);
-            REQUIRE(int_arr[0] == 42);
-            REQUIRE(int_arr[1] == 42);
-            REQUIRE(int_arr[2] == 42);
         }
         SECTION("Insert from C style array")
         {

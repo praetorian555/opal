@@ -87,15 +87,28 @@ public:
      * @brief Get the code unit at a specific position. Bounds-checked.
      * @param pos Position in the view.
      * @return Reference to the code unit.
-     * @throw OutOfBoundsException if pos is out of bounds.
+     * @note An out of range position is a caller mistake, not a runtime outcome: the check runs in every build and ends the
+     *       program through the contract violation handler. Use TryAt when the position is not known to be in range.
      */
     const CodeUnitType& operator[](size_type pos) const
     {
-        if (pos >= m_size)
-        {
-            throw OutOfBoundsException(pos, 0, m_size == 0 ? 0 : m_size - 1);
-        }
+        OPAL_VERIFY(pos < m_size, "Index out of bounds");
         return m_data[pos];
+    }
+
+    /**
+     * @brief Get the code unit at a specific position, for callers that did not check the size first.
+     * @param pos Position in the view.
+     * @return Reference to the code unit, or ErrorCode::OutOfBounds.
+     */
+    [[nodiscard]] Expected<const CodeUnitType&, ErrorCode> TryAt(size_type pos) const
+    {
+        using Result = Expected<const CodeUnitType&, ErrorCode>;
+        if (pos >= m_size) [[unlikely]]
+        {
+            return Result(ErrorCode::OutOfBounds);
+        }
+        return Result(m_data[pos]);
     }
 
     /**

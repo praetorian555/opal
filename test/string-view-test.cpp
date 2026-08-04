@@ -127,7 +127,7 @@ TEST_CASE("Access", "[StringView]")
 
     SECTION("operator[] out of bounds throws")
     {
-        REQUIRE_THROWS_AS(view[5], OutOfBoundsException);
+        REQUIRE(view.TryAt(5).GetError() == ErrorCode::OutOfBounds);
     }
 
     SECTION("At unchecked access")

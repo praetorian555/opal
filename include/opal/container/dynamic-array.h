@@ -348,15 +348,24 @@ public:
      * Get a reference to the element at specified index.
      * @param index Index of the element in the array.
      * @return Returns a reference to the element in the array at the given index.
-     * @throw OutOfBoundsException when index is out of bounds.
+     * @note An out of range index is a caller mistake, not a runtime outcome: the check runs in every build and ends the program
+     *       through the contract violation handler. Use TryAt when the index is not known to be in range.
      */
     reference operator[](size_type index);
     const_reference operator[](size_type index) const;
 
     /**
+     * Get a reference to the element at specified index, for callers that did not check the size first.
+     * @param index Index of the element in the array.
+     * @return Reference to the element, or ErrorCode::OutOfBounds.
+     */
+    [[nodiscard]] Expected<T&, ErrorCode> TryAt(size_type index);
+    [[nodiscard]] Expected<const T&, ErrorCode> TryAt(size_type index) const;
+
+    /**
      * Get a reference to the first element in the array.
      * @return Reference to the first element.
-     * @throw OutOfBoundsException when array is empty.
+     * @note Ends the program through the contract violation handler when the array is empty. Use TryFront instead.
      */
     reference Front();
     const_reference Front() const;
@@ -364,10 +373,19 @@ public:
     /**
      * Get a reference to the last element in the array.
      * @return Reference to the last element.
-     * @throw OutOfBoundsException when array is empty.
+     * @note Ends the program through the contract violation handler when the array is empty. Use TryBack instead.
      */
     reference Back();
     const_reference Back() const;
+
+    /**
+     * First and last element, for callers that did not check whether the array is empty.
+     * @return Reference to the element, or ErrorCode::OutOfBounds when the array is empty.
+     */
+    [[nodiscard]] Expected<T&, ErrorCode> TryFront();
+    [[nodiscard]] Expected<const T&, ErrorCode> TryFront() const;
+    [[nodiscard]] Expected<T&, ErrorCode> TryBack();
+    [[nodiscard]] Expected<const T&, ErrorCode> TryBack() const;
 
     /**
      * Get a pointer to the first element. The elements are contiguous, so the pointer addresses
@@ -502,7 +520,7 @@ public:
      * end.
      * @param value Value of the new element.
      * @return Iterator to the newly inserted element, or ErrorCode::OutOfMemory if memory allocation failed.
-     * @throw OutOfBoundsException when position is out of bounds.
+     * @note Ends the program through the contract violation handler when the position is out of range.
      */
     Expected<iterator, ErrorCode> Insert(const_iterator position, const T& value);
     Expected<iterator, ErrorCode> Insert(const_iterator position, T&& value);
@@ -516,7 +534,7 @@ public:
      * @param value Value of the new elements.
      * @return Iterator to the first newly inserted element, @p position if none was, or ErrorCode::OutOfMemory if memory allocation
      * failed.
-     * @throw OutOfBoundsException when position is out of bounds.
+     * @note Ends the program through the contract violation handler when the position is out of range.
      */
     Expected<iterator, ErrorCode> Insert(const_iterator position, size_type count, const T& value);
 
@@ -530,8 +548,8 @@ public:
      * @param end_it end of the range, exclusive.
      * @return Iterator to the first newly inserted element, @p position if none was, or ErrorCode::OutOfMemory if memory allocation
      * failed.
-     * @throw OutOfBoundsException when position is out of bounds.
-     * @throw InvalidArgumentException if @p start_it is greater than @p end_it.
+     * @note Ends the program through the contract violation handler when the position is out of range.
+     * @note Ends the program through the contract violation handler when @p start_it is greater than @p end_it.
      */
     template <typename InputIt>
         requires RandomAccessIterator<InputIt>
@@ -545,7 +563,7 @@ public:
      * the end.
      * @param args Arguments to forward to the constructor.
      * @return Iterator to the newly constructed element, or ErrorCode::OutOfMemory if memory allocation failed.
-     * @throw OutOfBoundsException when position is out of bounds.
+     * @note Ends the program through the contract violation handler when the position is out of range.
      */
     template <typename... Args>
     Expected<iterator, ErrorCode> Emplace(const_iterator position, Args&&... args);
@@ -1266,69 +1284,99 @@ typename CLASS_HEADER::const_reference CLASS_HEADER::At(size_type index) const
 TEMPLATE_HEADER
 typename CLASS_HEADER::reference CLASS_HEADER::operator[](DynamicArray::size_type index)
 {
-    if (index >= m_size) [[unlikely]]
-    {
-        if (m_size == 0)
-        {
-            throw OutOfBoundsException("The array is empty!");
-        }
-        throw OutOfBoundsException(index, u64{0}, m_size - 1);
-    }
+    OPAL_VERIFY(index < m_size, "Index out of bounds");
     return m_data[index];
 }
 
 TEMPLATE_HEADER
 typename CLASS_HEADER::const_reference CLASS_HEADER::operator[](DynamicArray::size_type index) const
 {
-    if (index >= m_size) [[unlikely]]
-    {
-        if (m_size == 0)
-        {
-            throw OutOfBoundsException("The array is empty!");
-        }
-        throw OutOfBoundsException(index, u64{0}, m_size - 1);
-    }
+    OPAL_VERIFY(index < m_size, "Index out of bounds");
     return m_data[index];
 }
 
 TEMPLATE_HEADER
 typename CLASS_HEADER::reference CLASS_HEADER::Front()
 {
-    if (m_size == 0) [[unlikely]]
-    {
-        throw OutOfBoundsException("The array is empty!");
-    }
+    OPAL_VERIFY(m_size > 0, "The array is empty");
     return m_data[0];
 }
 
 TEMPLATE_HEADER
 typename CLASS_HEADER::const_reference CLASS_HEADER::Front() const
 {
-    if (m_size == 0) [[unlikely]]
-    {
-        throw OutOfBoundsException("The array is empty!");
-    }
+    OPAL_VERIFY(m_size > 0, "The array is empty");
     return m_data[0];
 }
 
 TEMPLATE_HEADER
 typename CLASS_HEADER::reference CLASS_HEADER::Back()
 {
-    if (m_size == 0) [[unlikely]]
-    {
-        throw OutOfBoundsException("The array is empty!");
-    }
+    OPAL_VERIFY(m_size > 0, "The array is empty");
     return m_data[m_size - 1];
 }
 
 TEMPLATE_HEADER
 typename CLASS_HEADER::const_reference CLASS_HEADER::Back() const
 {
+    OPAL_VERIFY(m_size > 0, "The array is empty");
+    return m_data[m_size - 1];
+}
+
+TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::TryAt(size_type index)
+{
+    using Result = Expected<T&, ErrorCode>;
+    if (index >= m_size) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfBounds);
+    }
+    return Result(m_data[index]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::TryAt(size_type index) const
+{
+    using Result = Expected<const T&, ErrorCode>;
+    if (index >= m_size) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfBounds);
+    }
+    return Result(m_data[index]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::TryFront()
+{
+    return TryAt(0);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::TryFront() const
+{
+    return TryAt(0);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::TryBack()
+{
+    using Result = Expected<T&, ErrorCode>;
     if (m_size == 0) [[unlikely]]
     {
-        throw OutOfBoundsException("The array is empty!");
+        return Result(ErrorCode::OutOfBounds);
     }
-    return m_data[m_size - 1];
+    return Result(m_data[m_size - 1]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::TryBack() const
+{
+    using Result = Expected<const T&, ErrorCode>;
+    if (m_size == 0) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfBounds);
+    }
+    return Result(m_data[m_size - 1]);
 }
 
 TEMPLATE_HEADER
@@ -1748,10 +1796,7 @@ TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(const_iterator position, const T& value)
 {
     using ReturnType = Expected<iterator, ErrorCode>;
-    if (position < cbegin() || position > cend()) [[unlikely]]
-    {
-        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
-    }
+    OPAL_VERIFY(position >= cbegin() && position <= cend(), "Insert position is out of bounds");
     if (ValueReadsOwnStorage(value))
     {
         // Opening the gap moves `value` out from under itself, and growing frees the storage it
@@ -1775,10 +1820,7 @@ TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(DynamicArray::const_iterator position, T&& value)
 {
     using ReturnType = Expected<iterator, ErrorCode>;
-    if (position < cbegin() || position > cend()) [[unlikely]]
-    {
-        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
-    }
+    OPAL_VERIFY(position >= cbegin() && position <= cend(), "Insert position is out of bounds");
     if (ValueReadsOwnStorage(value))
     {
         T value_copy(Move(value));
@@ -1801,10 +1843,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
                                                                                      const T& value)
 {
     using ReturnType = Expected<iterator, ErrorCode>;
-    if (position < cbegin() || position > cend()) [[unlikely]]
-    {
-        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
-    }
+    OPAL_VERIFY(position >= cbegin() && position <= cend(), "Insert position is out of bounds");
     if (count == 0)
     {
         return ReturnType(begin() + (position - cbegin()));
@@ -1837,14 +1876,8 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
                                                                                      InputIt end_it)
 {
     using ReturnType = Expected<iterator, ErrorCode>;
-    if (position < cbegin() || position > cend()) [[unlikely]]
-    {
-        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
-    }
-    if (start_it > end_it)
-    {
-        throw InvalidArgumentException(__FUNCTION__, "end_it - start_it", static_cast<i64>(end_it - start_it));
-    }
+    OPAL_VERIFY(position >= cbegin() && position <= cend(), "Insert position is out of bounds");
+    OPAL_VERIFY(start_it <= end_it, "Insert range starts after it ends");
     size_type count = static_cast<size_type>(end_it - start_it);
     if (count == 0)
     {
@@ -1891,10 +1924,7 @@ template <typename... Args>
 Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Emplace(const_iterator position, Args&&... args)
 {
     using ReturnType = Expected<iterator, ErrorCode>;
-    if (position < cbegin() || position > cend()) [[unlikely]]
-    {
-        throw OutOfBoundsException(position - cbegin(), i64{0}, cend() - cbegin());
-    }
+    OPAL_VERIFY(position >= cbegin() && position <= cend(), "Insert position is out of bounds");
     // The arguments are allowed to name elements of this array, and both opening the gap and
     // growing move those out from under them, so the element is built before either happens.
     T value(std::forward<Args>(args)...);

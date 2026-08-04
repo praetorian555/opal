@@ -246,7 +246,7 @@ public:
      * Reads the value stored under a key. Check with Contains or Find when the key might be absent.
      * @param key Key to look for.
      * @return The value stored under the key.
-     * @throw OutOfBoundsException when the map does not hold the key.
+     * @note Ends the program through the contract violation handler when the map does not hold the key. Use Find instead.
      */
     value_type& GetValue(const key_type& key);
     const value_type& GetValue(const key_type& key) const;
@@ -749,22 +749,16 @@ template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(const key_type& key)
 {
     iterator it = Find(key);
-    if (it != end())
-    {
-        return it.GetValue();
-    }
-    throw OutOfBoundsException("Key not found");
+    OPAL_VERIFY(it != end(), "Key not found");
+    return it.GetValue();
 }
 
 template <typename KeyType, typename ValueType>
 const typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(const key_type& key) const
 {
     const_iterator it = Find(key);
-    if (it != cend())
-    {
-        return it.GetValue();
-    }
-    throw OutOfBoundsException("Key not found");
+    OPAL_VERIFY(it != cend(), "Key not found");
+    return it.GetValue();
 }
 
 template <typename KeyType, typename ValueType>

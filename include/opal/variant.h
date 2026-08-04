@@ -164,62 +164,50 @@ public:
 
     /**
      * Returns a reference to the stored value of type T.
-     * @throws InvalidArgumentException if T is not the active alternative.
+     * @note Ends the program through the contract violation handler when T is not the active alternative. Use TryGet instead.
      */
     template <typename T>
     auto& Get()
     {
         using DecayT = Decay<T>::Type;
         constexpr std::size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
-        if (k_idx != m_index)
-        {
-            throw InvalidArgumentException(__FUNCTION__, "Index", static_cast<u64>(k_idx));
-        }
+        OPAL_VERIFY(k_idx == m_index, "Requested alternative is not the active one");
         return Impl::VariantAccessor<k_idx, Ts...>::Get(m_storage);
     }
 
     /**
      * Returns a const reference to the stored value of type T.
-     * @throws InvalidArgumentException if T is not the active alternative.
+     * @note Ends the program through the contract violation handler when T is not the active alternative. Use TryGet instead.
      */
     template <typename T>
     const auto& Get() const
     {
         using DecayT = Decay<T>::Type;
         constexpr std::size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
-        if (k_idx != m_index)
-        {
-            throw InvalidArgumentException(__FUNCTION__, "Index", static_cast<u64>(k_idx));
-        }
+        OPAL_VERIFY(k_idx == m_index, "Requested alternative is not the active one");
         return Impl::VariantAccessor<k_idx, Ts...>::Get(m_storage);
     }
 
     /**
      * Returns a reference to the stored value at the compile-time Index.
-     * @throws InvalidArgumentException if Index is not the active alternative.
+     * @note Ends the program through the contract violation handler when Index is not the active alternative. Use TryGet instead.
      */
     template <std::size_t Index>
     auto& Get()
     {
-        if (Index != m_index)
-        {
-            throw InvalidArgumentException(__FUNCTION__, "Index", static_cast<u64>(Index));
-        }
+        OPAL_VERIFY(Index == m_index, "Requested alternative is not the active one");
         return Impl::VariantAccessor<Index, Ts...>::Get(m_storage);
     }
 
     /**
      * Returns a const reference to the stored value at the compile-time Index.
-     * @throws InvalidArgumentException if Index is not the active alternative.
+     * @note Ends the program through the contract violation handler when Index is not the active alternative. Use TryGet instead.
      */
     template <std::size_t Index>
     const auto& Get() const
     {
 
-        if (Index != m_index)
-        {
-            throw InvalidArgumentException(__FUNCTION__, "Index", static_cast<u64>(Index));
-        }
+        OPAL_VERIFY(Index == m_index, "Requested alternative is not the active one");
         return Impl::VariantAccessor<Index, Ts...>::Get(m_storage);
     }
 
@@ -266,11 +254,11 @@ public:
      * @return A new Variant holding a clone of the currently active alternative.
      */
     /**
-     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     * @note Ends the program through the contract violation handler when the variant is in a moved-from state.
      */
     Variant Clone(AllocatorBase* allocator = nullptr) const
     {
-        ThrowIfEmpty();
+        VerifyNotEmpty();
         Variant result;
         result.Destroy();
         result.CloneFrom(*this, allocator);
@@ -285,22 +273,22 @@ public:
      * @return The value returned by the visitor.
      */
     /**
-     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     * @note Ends the program through the contract violation handler when the variant is in a moved-from state.
      */
     template <typename Visitor>
     auto Visit(Visitor&& visitor)
     {
-        ThrowIfEmpty();
+        VerifyNotEmpty();
         return VisitDispatch(std::forward<Visitor>(visitor), std::make_index_sequence<sizeof...(Ts)>{});
     }
 
     /**
-     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     * @note Ends the program through the contract violation handler when the variant is in a moved-from state.
      */
     template <typename Visitor>
     auto Visit(Visitor&& visitor) const
     {
-        ThrowIfEmpty();
+        VerifyNotEmpty();
         return VisitDispatch(std::forward<Visitor>(visitor), std::make_index_sequence<sizeof...(Ts)>{});
     }
 
@@ -311,23 +299,23 @@ public:
      * @param visitor A callable (or Overloaded set of callables) to invoke.
      */
     /**
-     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     * @note Ends the program through the contract violation handler when the variant is in a moved-from state.
      */
     template <typename Visitor>
     void VisitPartial(Visitor&& visitor)
     {
-        ThrowIfEmpty();
+        VerifyNotEmpty();
         auto combined = Overloaded{std::forward<Visitor>(visitor), [](const auto&) {}};
         VisitDispatch(combined, std::make_index_sequence<sizeof...(Ts)>{});
     }
 
     /**
-     * @throws InvalidArgumentException if the variant is in a moved-from state.
+     * @note Ends the program through the contract violation handler when the variant is in a moved-from state.
      */
     template <typename Visitor>
     void VisitPartial(Visitor&& visitor) const
     {
-        ThrowIfEmpty();
+        VerifyNotEmpty();
         auto combined = Overloaded{std::forward<Visitor>(visitor), [](const auto&) {}};
         VisitDispatch(combined, std::make_index_sequence<sizeof...(Ts)>{});
     }
@@ -443,12 +431,9 @@ private:
         return table[m_index](std::forward<Visitor>(visitor), m_storage);
     }
 
-    void ThrowIfEmpty() const
+    void VerifyNotEmpty() const
     {
-        if (m_index >= sizeof...(Ts))
-        {
-            throw InvalidArgumentException(__FUNCTION__, "Variant is in a moved-from state");
-        }
+        OPAL_VERIFY(m_index < sizeof...(Ts), "Variant is in a moved-from state");
     }
 
     Storage m_storage;

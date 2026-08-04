@@ -330,14 +330,14 @@ TEST_CASE("Subscript is bounds checked", "[Deque]")
 {
     Deque<i32> deque(5, 10);
     REQUIRE(deque[0] == 10);
-    REQUIRE_THROWS_AS(deque[5], OutOfBoundsException);
+    REQUIRE(deque.TryAt(5).GetError() == ErrorCode::OutOfBounds);
 
     const Deque<i32> const_deque(5, 10);
     REQUIRE(const_deque[4] == 10);
-    REQUIRE_THROWS_AS(const_deque[5], OutOfBoundsException);
+    REQUIRE(const_deque.TryAt(5).GetError() == ErrorCode::OutOfBounds);
 
     Deque<i32> empty_deque;
-    REQUIRE_THROWS_AS(empty_deque[0], OutOfBoundsException);
+    REQUIRE(empty_deque.TryAt(0).GetError() == ErrorCode::OutOfBounds);
 }
 
 TEST_CASE("Front access", "[Deque]")

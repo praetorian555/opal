@@ -130,11 +130,11 @@ TEST_CASE("Subscript is bounds checked", "[InPlaceArray]")
 {
     InPlaceArray<int32_t, 3> array = {1, 2, 3};
     REQUIRE(array[0] == 1);
-    REQUIRE_THROWS_AS(array[3], OutOfBoundsException);
+    REQUIRE(array.TryAt(3).GetError() == ErrorCode::OutOfBounds);
 
     const InPlaceArray<int32_t, 3> const_array = {1, 2, 3};
     REQUIRE(const_array[2] == 3);
-    REQUIRE_THROWS_AS(const_array[3], OutOfBoundsException);
+    REQUIRE(const_array.TryAt(3).GetError() == ErrorCode::OutOfBounds);
 }
 
 TEST_CASE("Front", "[InPlaceArray]")

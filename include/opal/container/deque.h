@@ -208,7 +208,7 @@ public:
      * Accesses the element at the specified index.
      * @param index Index of the element to access.
      * @return Reference to the element at the specified index.
-     * @throw OutOfBoundsException when index is out of bounds.
+     * @note Ends the program through the contract violation handler when the index is out of range. Use TryAt instead.
      */
     T& operator[](SizeType index);
     const T& operator[](SizeType index) const;
@@ -723,28 +723,14 @@ Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::TryAt(SizeType index) co
 TEMPLATE_HEADER
 T& CLASS_HEADER::operator[](SizeType index)
 {
-    if (index >= m_size) [[unlikely]]
-    {
-        if (m_size == 0)
-        {
-            throw OutOfBoundsException("The deque is empty!");
-        }
-        throw OutOfBoundsException(index, u64{0}, m_size - 1);
-    }
+    OPAL_VERIFY(index < m_size, "Index out of bounds");
     return m_data[(m_first + index) & (m_capacity - 1)];
 }
 
 TEMPLATE_HEADER
 const T& CLASS_HEADER::operator[](SizeType index) const
 {
-    if (index >= m_size) [[unlikely]]
-    {
-        if (m_size == 0)
-        {
-            throw OutOfBoundsException("The deque is empty!");
-        }
-        throw OutOfBoundsException(index, u64{0}, m_size - 1);
-    }
+    OPAL_VERIFY(index < m_size, "Index out of bounds");
     return m_data[(m_first + index) & (m_capacity - 1)];
 }
 

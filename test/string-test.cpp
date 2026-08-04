@@ -1025,7 +1025,7 @@ TEST_CASE("Accessors", "[String]")
         SECTION("Out of bounds array operator")
         {
             StringUtf8 str("Hello there");
-            REQUIRE_THROWS_AS(!str[12], OutOfBoundsException);
+            REQUIRE(str.TryAt(12).GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("Const At")
         {
@@ -1045,7 +1045,7 @@ TEST_CASE("Accessors", "[String]")
         SECTION("Out of bounds const array operator")
         {
             const StringUtf8 str("Hello there");
-            REQUIRE_THROWS_AS(!str[11], OutOfBoundsException);
+            REQUIRE(str.TryAt(11).GetError() == ErrorCode::OutOfBounds);
         }
         SECTION("Array operator")
         {
@@ -6025,9 +6025,9 @@ TEST_CASE("Null pointer construction", "[String]")
 TEST_CASE("Subscript on an empty string reports a sane range", "[String]")
 {
     StringUtf8 str;
-    REQUIRE_THROWS_AS(str[0], OutOfBoundsException);
+    REQUIRE(str.TryAt(0).GetError() == ErrorCode::OutOfBounds);
     const StringUtf8& const_str = str;
-    REQUIRE_THROWS_AS(const_str[0], OutOfBoundsException);
+    REQUIRE(const_str.TryAt(0).GetError() == ErrorCode::OutOfBounds);
 }
 
 TEST_CASE("Appending and inserting a string into itself", "[String]")

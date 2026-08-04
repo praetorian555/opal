@@ -421,10 +421,19 @@ public:
      * @brief Get the code unit at a specific position in the string. Bounds-checked.
      * @param pos Position in the string to get the code unit from.
      * @return Reference to the code unit.
-     * @throw OutOfBoundsException if pos is out of bounds.
+     * @note An out of range position is a caller mistake, not a runtime outcome: the check runs in every build and ends the
+     *       program through the contract violation handler. Use TryAt when the position is not known to be in range.
      */
     CodeUnitType& operator[](size_type pos);
     const CodeUnitType& operator[](size_type pos) const;
+
+    /**
+     * @brief Get the code unit at a specific position, for callers that did not check the size first.
+     * @param pos Position in the string.
+     * @return Reference to the code unit, or ErrorCode::OutOfBounds.
+     */
+    [[nodiscard]] Expected<CodeUnitType&, ErrorCode> TryAt(size_type pos);
+    [[nodiscard]] Expected<const CodeUnitType&, ErrorCode> TryAt(size_type pos) const;
 
     /**
      * @brief Get the first code unit in the string.
@@ -1851,10 +1860,7 @@ TEMPLATE_HEADER
 CodeUnitType& CLASS_HEADER::operator[](size_type pos)
 {
     const size_type sz = GetSize();
-    if (pos >= sz)
-    {
-        throw OutOfBoundsException(pos, 0, sz == 0 ? 0 : sz - 1);
-    }
+    OPAL_VERIFY(pos < sz, "Index out of bounds");
     return GetData()[pos];
 }
 
@@ -1862,11 +1868,30 @@ TEMPLATE_HEADER
 const CodeUnitType& CLASS_HEADER::operator[](size_type pos) const
 {
     const size_type sz = GetSize();
-    if (pos >= sz)
-    {
-        throw OutOfBoundsException(pos, 0, sz == 0 ? 0 : sz - 1);
-    }
+    OPAL_VERIFY(pos < sz, "Index out of bounds");
     return GetData()[pos];
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::TryAt(size_type pos)
+{
+    using Result = Expected<CodeUnitType&, ErrorCode>;
+    if (pos >= GetSize()) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfBounds);
+    }
+    return Result(GetData()[pos]);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<const CodeUnitType&, Opal::ErrorCode> CLASS_HEADER::TryAt(size_type pos) const
+{
+    using Result = Expected<const CodeUnitType&, ErrorCode>;
+    if (pos >= GetSize()) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfBounds);
+    }
+    return Result(GetData()[pos]);
 }
 
 TEMPLATE_HEADER
@@ -2882,10 +2907,7 @@ void Opal::String<CodeUnitType, EncodingType>::Reverse(iterator start_it, iterat
     {
         return;
     }
-    if (start_it > end_it) [[unlikely]]
-    {
-        throw InvalidArgumentException(__FUNCTION__, "end_it - start_it", end_it - start_it);
-    }
+    OPAL_VERIFY(start_it <= end_it, "Reverse range starts after it ends");
 
     iterator last_it = end_it - 1;
     while (start_it < last_it)

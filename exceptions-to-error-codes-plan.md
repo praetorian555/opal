@@ -568,9 +568,26 @@ aborts instead of unwinding. Defensible for a real-time engine, but it is a prod
       `defines.h`, which follows the compiler's own `__cpp_exceptions` / `_CPPUNWIND` so a `-fno-exceptions` build does not have
       to be told twice.
 
-      What remains is the conversion itself: the ~40 sites listed in §10, and the **43 tests** that currently assert those
-      throws, which have to move to the `Try*` siblings instead. Deliberately left as its own change - the mechanism is additive
-      and safe, the conversion changes what every one of those call sites does on failure.
+- [x] The conversion itself. 33 sites across `dynamic-array.h`, `deque.h`, `hash-map.h`, `string.h`, `string-view.h`,
+      `in-place-array.h`, `variant.h` and `casts.h` now use `OPAL_VERIFY`. Only contract violations moved; the
+      `OutOfMemoryException` throws in constructors stay, since those are step 4's problem.
+
+      **§10 is wrong about the `Expected` siblings already existing.** It lists the bounds checks as safe to convert because
+      `TryAt`, `Front` and `Back` are available. Only `Deque` and `InPlaceArray` had `TryAt`; `DynamicArray`, `String` and
+      `StringView` had none, and `DynamicArray::Front`/`Back` threw rather than returning `Expected`. Converting those first
+      would have left callers with a check that ends the program and no way to ask the question safely. Added: `TryAt` on
+      `DynamicArray`, `String` and `StringView`, and `TryFront`/`TryBack` on `DynamicArray`.
+
+      Test coverage moved where it could and was dropped where it could not. `operator[]`, `At`, `Front`, `Back` and
+      `Variant::Get` are all checked through their `Try*` siblings now. What is no longer testable in-process, because the check
+      ends the program and Catch2 has no death tests: `DynamicArray::Insert`/`Emplace` with an out of range position or a
+      reversed range, and `Clone`/`Visit`/`VisitPartial` on a moved-from `Variant`. Those five sections are gone rather than
+      left to abort the runner. A `Variant` test that the moved-from state is reported through `IsActive` and `TryGet` replaces
+      part of it.
+
+      Also gone from the messages: the numbers. `OutOfBoundsException` carried the index and the range it violated, and several
+      tests asserted on that text. `OPAL_VERIFY` takes a fixed description, so a failure now names the check rather than the
+      values that failed it.
 
 **Step 4 - gate the remainder behind `OPAL_EXCEPTIONS`**
 

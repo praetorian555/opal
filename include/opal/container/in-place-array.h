@@ -224,7 +224,7 @@ public:
      * Access an element of the array.
      * @param index The index of the element.
      * @return A reference to the element.
-     * @throw OutOfBoundsException when index is out of bounds.
+     * @note Ends the program through the contract violation handler when the index is out of range. Use TryAt instead.
      */
     T& operator[](size_type index);
     const T& operator[](size_type index) const;
@@ -344,20 +344,14 @@ bool Opal::InPlaceArray<T, N>::operator==(const InPlaceArray& other) const
 template <typename T, Opal::u64 N>
 T& Opal::InPlaceArray<T, N>::operator[](size_type index)
 {
-    if (index >= N) [[unlikely]]
-    {
-        throw OutOfBoundsException(index, u64{0}, N - 1);
-    }
+    OPAL_VERIFY(index < N, "Index out of bounds");
     return m_data[index];
 }
 
 template <typename T, Opal::u64 N>
 const T& Opal::InPlaceArray<T, N>::operator[](size_type index) const
 {
-    if (index >= N) [[unlikely]]
-    {
-        throw OutOfBoundsException(index, u64{0}, N - 1);
-    }
+    OPAL_VERIFY(index < N, "Index out of bounds");
     return m_data[index];
 }
 
