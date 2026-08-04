@@ -731,6 +731,57 @@ TEST_CASE("Signal WaitFor returns true when state changes", "[Thread]")
     JoinThread(t);
 }
 
+// Both of these are about the moved-from object surviving its own destructor. It owns no handle, and pthread_cond_destroy does
+// not accept a null one, so this used to be a segfault on Linux that Windows could not see: CONDITION_VARIABLE has no destroy
+// call, so the Windows path never touched the null pointer.
+TEST_CASE("Condition variable move construction leaves a destructible source", "[Thread]")
+{
+    ConditionVariable source;
+    ConditionVariable moved(Move(source));
+
+    // Reaching the end of the scope destroys both.
+    SUCCEED();
+}
+
+TEST_CASE("Condition variable move assignment leaves a destructible source", "[Thread]")
+{
+    ConditionVariable source;
+    ConditionVariable target;
+    target = Move(source);
+
+    SUCCEED();
+}
+
+TEST_CASE("A moved condition variable still signals", "[Thread]")
+{
+    Mutex<bool> ready(false);
+    ConditionVariable source;
+    ConditionVariable cond(Move(source));
+
+    const ThreadHandle waiter = CreateThreadOrFail(
+        [](Mutex<bool>& in_ready, ConditionVariable& in_cond)
+        {
+            // The predicate is checked before waiting, not after. `while (!*cond.Wait(guard))`, which docs/threading.md
+            // demonstrates, waits first and so loses a notification that arrives before this thread gets here.
+            auto guard = in_ready.Lock();
+            while (!*guard.Deref())
+            {
+                in_cond.Wait(guard);
+            }
+        },
+        Ref(ready), Ref(cond));
+
+    {
+        auto guard = ready.Lock();
+        *guard.Deref() = true;
+    }
+    cond.NotifyOne();
+    JoinThread(waiter);
+
+    auto guard = ready.Lock();
+    REQUIRE(*guard.Deref());
+}
+
 TEST_CASE("Signal move constructor", "[Thread]")
 {
     Signal signal;

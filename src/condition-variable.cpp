@@ -29,6 +29,11 @@ Opal::ConditionVariable::ConditionVariable(AllocatorBase* allocator)
 
 Opal::ConditionVariable::~ConditionVariable()
 {
+    // A moved-from condition variable owns nothing. pthread_cond_destroy does not accept a null pointer, and neither does Delete.
+    if (m_native_handle == nullptr)
+    {
+        return;
+    }
 #if defined(OPAL_PLATFORM_WINDOWS)
     CONDITION_VARIABLE* condition_variable = static_cast<CONDITION_VARIABLE*>(m_native_handle);
     Delete(m_allocator, condition_variable);
@@ -39,6 +44,7 @@ Opal::ConditionVariable::~ConditionVariable()
 #else
 #error "Platform not supported"
 #endif
+    m_native_handle = nullptr;
 }
 
 Opal::ConditionVariable::ConditionVariable(ConditionVariable&& other) noexcept
