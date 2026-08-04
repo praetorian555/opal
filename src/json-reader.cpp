@@ -47,7 +47,9 @@ const char* JsonTypeToString(JsonType type)
     return "unknown";
 }
 
-void ThrowTypeMismatch(const char* expected, JsonType actual)
+// Both parameters go into the exception's message, and a build without exceptions has no message to build: OPAL_RAISE hands the
+// contract violation handler a fixed string instead.
+void ThrowTypeMismatch([[maybe_unused]] const char* expected, [[maybe_unused]] JsonType actual)
 {
     OPAL_RAISE(JsonTypeMismatchException(expected, JsonTypeToString(actual)));
 }

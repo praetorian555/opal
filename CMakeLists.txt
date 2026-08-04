@@ -7,6 +7,15 @@ option(OPAL_HARDENING "Enable hardening options" ON)
 message(STATUS "OPAL_HARDENING: ${OPAL_HARDENING}")
 option(OPAL_SHARED_LIBS "Build shared libraries" OFF)
 message(STATUS "OPAL_SHARED_LIBS: ${OPAL_SHARED_LIBS}")
+option(OPAL_EXCEPTIONS "Allow the library to throw. When off, a failure that cannot be returned ends the program instead" ON)
+message(STATUS "OPAL_EXCEPTIONS: ${OPAL_EXCEPTIONS}")
+
+# Catch2 is built around exceptions, and the suite asserts on thrown types in the places the library still throws. There is
+# nothing to gain from a half-built test binary, so say what happened rather than fail the configure.
+if (NOT OPAL_EXCEPTIONS AND OPAL_BUILD_TESTS)
+    message(WARNING "OPAL_EXCEPTIONS=OFF: the tests need exceptions, so OPAL_BUILD_TESTS is being forced off for this build.")
+    set(OPAL_BUILD_TESTS OFF)
+endif ()
 
 # Report the toolchain being used to ease debugging of platform-specific issues.
 message(STATUS "Compiler: ${CMAKE_CXX_COMPILER_ID} ${CMAKE_CXX_COMPILER_VERSION}")
@@ -151,6 +160,23 @@ if (WIN32)
 endif ()
 target_compile_features(opal PUBLIC cxx_std_20)
 set_target_properties(opal PROPERTIES VERSION ${OPAL_VERSION} SOVERSION ${OPAL_VERSION_MAJOR})
+
+# Whether the library may throw is part of what its headers mean, not just how the .cpp files were built: OPAL_RAISE decides
+# between a throw and the contract violation handler, and the containers are templates a consumer instantiates in its own
+# translation units. Both the flag and the define are PUBLIC so a consumer cannot end up disagreeing with what it links against.
+if (NOT OPAL_EXCEPTIONS)
+    target_compile_definitions(opal PUBLIC OPAL_NO_EXCEPTIONS)
+    if (MSVC)
+        # CMake puts /EHsc in the default flags, and leaving it next to /EHs-c- is a command line conflict rather than an
+        # override. Note that Microsoft does not support _HAS_EXCEPTIONS=0 for its standard library, so this configuration is
+        # best effort on MSVC; the GCC and Clang ones are the supported paths.
+        string(REPLACE "/EHsc" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+        target_compile_options(opal PUBLIC /EHs-c-)
+        target_compile_definitions(opal PUBLIC _HAS_EXCEPTIONS=0)
+    else ()
+        target_compile_options(opal PUBLIC -fno-exceptions)
+    endif ()
+endif ()
 
 ## Generate the export header for opal and attach it to the target
 include(GenerateExportHeader)

@@ -16,7 +16,20 @@ cmake --build build
 cd build && ctest
 ```
 
-CMake options: `OPAL_BUILD_TESTS` (ON), `OPAL_HARDENING` (ON), `OPAL_SHARED_LIBS` (OFF).
+CMake options: `OPAL_BUILD_TESTS` (ON), `OPAL_HARDENING` (ON), `OPAL_SHARED_LIBS` (OFF), `OPAL_EXCEPTIONS` (ON).
+
+`OPAL_EXCEPTIONS=OFF` adds `-fno-exceptions` (`/EHs-c-` on MSVC) and defines `OPAL_NO_EXCEPTIONS`, both `PUBLIC` so a consumer
+cannot disagree with the library it links. `OPAL_RAISE` then ends the program through the contract violation handler instead of
+throwing, and the `Create` factories are how a caller on a budgeted allocator reports a failed allocation instead. It also forces
+`OPAL_BUILD_TESTS` off, since Catch2 needs exceptions. `JsonReader::Parse` is the one API that disappears: the parser unwinds a
+recursive descent with a non-local jump. Nothing checks this configuration automatically, so build it by hand after touching a
+`throw`:
+
+```bash
+wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&
+  cmake -S . -B build/noexcept-wsl-gcc -DCMAKE_BUILD_TYPE=Debug -DOPAL_HARDENING=OFF -DOPAL_EXCEPTIONS=OFF &&
+  cmake --build build/noexcept-wsl-gcc -j "$(nproc)"'
+```
 
 ### Building with GCC and Clang from Windows
 
