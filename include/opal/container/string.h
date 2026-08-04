@@ -263,6 +263,25 @@ public:
     String(std::initializer_list<CodeUnitType> init_list, allocator_type* allocator = nullptr);
 
     /** The string does not copy. Use Clone to make an owning copy, or move it. */
+    /**
+     * Build a string the way the matching constructor does, reporting a failed allocation instead of throwing it. Use these when
+     * the allocator is budgeted and running out is an outcome to branch on.
+     * @return The string, or ErrorCode::OutOfMemory. The (str, count) overload reports ErrorCode::InvalidArgument for a null str
+     *         with a non-zero count.
+     */
+    [[nodiscard]] static Expected<String, ErrorCode> Create(size_type count, CodeUnitType value, allocator_type* allocator = nullptr);
+    [[nodiscard]] static Expected<String, ErrorCode> Create(const CodeUnitType* str, size_type count, allocator_type* allocator = nullptr);
+    [[nodiscard]] static Expected<String, ErrorCode> Create(const CodeUnitType* str, allocator_type* allocator = nullptr);
+    [[nodiscard]] static Expected<String, ErrorCode> Create(std::initializer_list<CodeUnitType> init_list,
+                                                            allocator_type* allocator = nullptr);
+
+    /**
+     * Create a deep copy of this string, reporting a failed allocation instead of throwing it.
+     * @param allocator Allocator to be used for the copy. If nullptr, the source string's allocator will be used.
+     * @return The copy, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] Expected<String, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const;
+
     String(const String& other) = delete;
     String& operator=(const String& other) = delete;
 
@@ -839,6 +858,12 @@ private:
         return Grow(current_size + added + 1);
     }
 
+    // The allocating half of each constructor, returning a code instead of throwing. The constructors throw over these, and the
+    // Create factories branch on them, so the two never drift apart. Each expects an empty, freshly built string.
+    ErrorCode Construct(allocator_type* alloc, size_type count, CodeUnitType value);
+    ErrorCode Construct(allocator_type* alloc, const CodeUnitType* str, size_type count);
+    ErrorCode Construct(allocator_type* alloc, std::initializer_list<CodeUnitType> init_list);
+
     // Builds the initial storage for a string of exactly count code units and writes the terminator.
     // The code units themselves are left uninitialized. Only valid on a freshly default-initialized
     // object, since it assumes m_storage is still zeroed. Leaves an empty string behind on failure.
@@ -1296,18 +1321,66 @@ CLASS_HEADER::String(allocator_type* allocator)
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(size_type count, CodeUnitType value, allocator_type* allocator)
+Opal::ErrorCode CLASS_HEADER::Construct(allocator_type* alloc, size_type count, CodeUnitType value)
 {
-    allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
-    if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
+    const ErrorCode error = InitStorage(alloc, count);
+    if (error != ErrorCode::Success) [[unlikely]]
     {
-        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(allocator->GetName(), count);
+        return error;
     }
     value_type* buf = GetData();
     for (size_type i = 0; i < count; i++)
     {
         buf[i] = value;
+    }
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Construct(allocator_type* alloc, const CodeUnitType* str, size_type count)
+{
+    if (str == nullptr && count > 0)
+    {
+        return ErrorCode::InvalidArgument;
+    }
+    const ErrorCode error = InitStorage(alloc, count);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return error;
+    }
+    value_type* buf = GetData();
+    for (size_type i = 0; i < count; i++)
+    {
+        buf[i] = str[i];
+    }
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Construct(allocator_type* alloc, std::initializer_list<CodeUnitType> init_list)
+{
+    const size_type count = init_list.size();
+    const ErrorCode error = InitStorage(alloc, count);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return error;
+    }
+    value_type* buf = GetData();
+    for (size_type i = 0; i < count; i++)
+    {
+        buf[i] = *(init_list.begin() + i);
+    }
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER::String(size_type count, CodeUnitType value, allocator_type* allocator)
+{
+    allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
+    if (Construct(allocator, count, value) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(allocator->GetName(), count);
     }
 }
 
@@ -1337,19 +1410,15 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(const CodeUnitType* str, size_type count, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
-    if (str == nullptr && count > 0)
+    const ErrorCode error = Construct(allocator, str, count);
+    if (error == ErrorCode::InvalidArgument)
     {
         throw InvalidArgumentException(__FUNCTION__, "str", count);
     }
-    if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
+    if (error != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
         throw OutOfMemoryException(allocator->GetName(), count);
-    }
-    value_type* buf = GetData();
-    for (size_type i = 0; i < count; i++)
-    {
-        buf[i] = str[i];
     }
 }
 
@@ -1357,16 +1426,10 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(std::initializer_list<CodeUnitType> init_list, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
-    const size_type count = init_list.size();
-    if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
+    if (Construct(allocator, init_list) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(allocator->GetName(), count);
-    }
-    value_type* buf = GetData();
-    for (size_type i = 0; i < count; i++)
-    {
-        buf[i] = *(init_list.begin() + i);
+        throw OutOfMemoryException(allocator->GetName(), init_list.size());
     }
 }
 
@@ -1375,15 +1438,10 @@ CLASS_HEADER::String(const CodeUnitType* str, allocator_type* allocator)
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
     const size_type count = GetStringLength(str);
-    if (InitStorage(allocator, count) != ErrorCode::Success) [[unlikely]]
+    if (Construct(allocator, str, count) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
         throw OutOfMemoryException(allocator->GetName(), count);
-    }
-    value_type* buf = GetData();
-    for (size_type i = 0; i < count; i++)
-    {
-        buf[i] = str[i];
     }
 }
 
@@ -1427,6 +1485,58 @@ Opal::String<CodeUnitType, EncodingType> CLASS_HEADER::Clone(AllocatorBase* allo
     allocator = allocator == nullptr ? GetAllocatorPtr() : allocator;
     String out(GetData(), GetSize(), allocator);
     return out;
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::TryClone(AllocatorBase* allocator) const
+{
+    return Create(GetData(), GetSize(), allocator == nullptr ? GetAllocatorPtr() : allocator);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(size_type count, CodeUnitType value, allocator_type* allocator)
+{
+    using Result = Expected<String, ErrorCode>;
+    String out(allocator);
+    const ErrorCode error = out.Construct(out.GetAllocatorPtr(), count, value);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(out));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(const CodeUnitType* str, size_type count, allocator_type* allocator)
+{
+    using Result = Expected<String, ErrorCode>;
+    String out(allocator);
+    const ErrorCode error = out.Construct(out.GetAllocatorPtr(), str, count);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(out));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(const CodeUnitType* str, allocator_type* allocator)
+{
+    return Create(str, GetStringLength(str), allocator);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(std::initializer_list<CodeUnitType> init_list,
+                                                                    allocator_type* allocator)
+{
+    using Result = Expected<String, ErrorCode>;
+    String out(allocator);
+    const ErrorCode error = out.Construct(out.GetAllocatorPtr(), init_list);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(out));
 }
 
 TEMPLATE_HEADER

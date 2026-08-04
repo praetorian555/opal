@@ -647,3 +647,40 @@ TEST_CASE("Clonable with user-defined constructor for pair", "[HashMap]")
     original.name = "Changed";
     REQUIRE(cloned.name == "Rectangle");
 }
+
+TEST_CASE("Create a hash map without throwing", "[HashMap]")
+{
+    SECTION("Capacity")
+    {
+        auto map = HashMap<i32, i32>::Create(16);
+        REQUIRE(map.HasValue());
+        REQUIRE(map.GetValue().GetSize() == 0);
+    }
+    SECTION("Initializer list")
+    {
+        auto map = HashMap<i32, i32>::Create({{1, 10}, {2, 20}});
+        REQUIRE(map.HasValue());
+        REQUIRE(map.GetValue().GetSize() == 2);
+        REQUIRE(map.GetValue().GetValue(1) == 10);
+    }
+    SECTION("Reports a failed allocation instead of throwing")
+    {
+        NullAllocator null_allocator;
+        auto map = HashMap<i32, i32>::Create(16, &null_allocator);
+        REQUIRE_FALSE(map.HasValue());
+        REQUIRE(map.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Initializer list reports a failed allocation")
+    {
+        NullAllocator null_allocator;
+        auto map = HashMap<i32, i32>::Create({{1, 10}, {2, 20}}, &null_allocator);
+        REQUIRE_FALSE(map.HasValue());
+        REQUIRE(map.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("The throwing constructor still throws")
+    {
+        NullAllocator null_allocator;
+        using MapType = HashMap<i32, i32>;
+        REQUIRE_THROWS_AS(MapType(16, &null_allocator), OutOfMemoryException);
+    }
+}

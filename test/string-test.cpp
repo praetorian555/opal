@@ -6242,3 +6242,93 @@ TEST_CASE("Operations with no error channel still throw", "[String]")
         REQUIRE_THROWS_AS(str = letters, OutOfMemoryException);
     }
 }
+
+TEST_CASE("Create a string without throwing", "[String]")
+{
+    SECTION("Count and value")
+    {
+        auto str = StringUtf8::Create(StringUtf8::k_sso_capacity * 4, 'a');
+        REQUIRE(str.HasValue());
+        REQUIRE(str.GetValue().GetSize() == StringUtf8::k_sso_capacity * 4);
+        REQUIRE(str.GetValue()[0] == 'a');
+    }
+    SECTION("Pointer and count")
+    {
+        auto str = StringUtf8::Create("Hello there", 5);
+        REQUIRE(str.HasValue());
+        REQUIRE(str.GetValue() == "Hello");
+    }
+    SECTION("Null terminated pointer")
+    {
+        auto str = StringUtf8::Create("Hello there");
+        REQUIRE(str.HasValue());
+        REQUIRE(str.GetValue() == "Hello there");
+    }
+    SECTION("Initializer list")
+    {
+        auto str = StringUtf8::Create({'a', 'b', 'c'});
+        REQUIRE(str.HasValue());
+        REQUIRE(str.GetValue() == "abc");
+    }
+    SECTION("Null pointer with a non-zero count is InvalidArgument")
+    {
+        auto str = StringUtf8::Create(nullptr, 4);
+        REQUIRE_FALSE(str.HasValue());
+        REQUIRE(str.GetError() == ErrorCode::InvalidArgument);
+    }
+}
+
+TEST_CASE("Create a string out of memory", "[String]")
+{
+    NullAllocator null_allocator;
+    // Past the small buffer, so the string has to ask the allocator for storage.
+    constexpr StringUtf8::size_type k_large = StringUtf8::k_sso_capacity * 4;
+
+    SECTION("Count and value")
+    {
+        auto str = StringUtf8::Create(k_large, 'a', &null_allocator);
+        REQUIRE_FALSE(str.HasValue());
+        REQUIRE(str.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Pointer and count")
+    {
+        const StringUtf8 source(k_large, 'a');
+        auto str = StringUtf8::Create(source.GetData(), source.GetSize(), &null_allocator);
+        REQUIRE_FALSE(str.HasValue());
+        REQUIRE(str.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("A string that fits the small buffer needs no allocator at all")
+    {
+        auto str = StringUtf8::Create("abc", &null_allocator);
+        REQUIRE(str.HasValue());
+        REQUIRE(str.GetValue() == "abc");
+    }
+    SECTION("The throwing constructor still throws")
+    {
+        REQUIRE_THROWS_AS(StringUtf8(k_large, 'a', &null_allocator), OutOfMemoryException);
+    }
+}
+
+TEST_CASE("TryClone a string", "[String]")
+{
+    const StringUtf8 source(StringUtf8::k_sso_capacity * 4, 'a');
+
+    SECTION("Copies the contents")
+    {
+        auto clone = source.TryClone();
+        REQUIRE(clone.HasValue());
+        REQUIRE(clone.GetValue() == source);
+    }
+    SECTION("Reports a failed allocation instead of throwing")
+    {
+        NullAllocator null_allocator;
+        auto clone = source.TryClone(&null_allocator);
+        REQUIRE_FALSE(clone.HasValue());
+        REQUIRE(clone.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Clone still throws for the same input")
+    {
+        NullAllocator null_allocator;
+        REQUIRE_THROWS_AS(source.Clone(&null_allocator), OutOfMemoryException);
+    }
+}

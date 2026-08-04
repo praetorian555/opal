@@ -3855,3 +3855,106 @@ TEST_CASE("Clonable with user-defined constructor for arrays", "[Array]")
     REQUIRE(cloned.items[0] == "A");
 }
 
+
+TEST_CASE("Create a dynamic array without throwing", "[DynamicArray]")
+{
+    SECTION("Count")
+    {
+        auto array = DynamicArray<i32>::Create(3);
+        REQUIRE(array.HasValue());
+        REQUIRE(array.GetValue().GetSize() == 3);
+        REQUIRE(array.GetValue()[0] == 0);
+    }
+    SECTION("Count and value")
+    {
+        auto array = DynamicArray<i32>::Create(3, 42);
+        REQUIRE(array.HasValue());
+        REQUIRE(array.GetValue().GetSize() == 3);
+        REQUIRE(array.GetValue()[2] == 42);
+    }
+    SECTION("Data and count")
+    {
+        const i32 data[] = {1, 2, 3};
+        auto array = DynamicArray<i32>::Create(data, 3);
+        REQUIRE(array.HasValue());
+        REQUIRE(array.GetValue().GetSize() == 3);
+        REQUIRE(array.GetValue()[1] == 2);
+    }
+    SECTION("Initializer list")
+    {
+        auto array = DynamicArray<i32>::Create({1, 2, 3});
+        REQUIRE(array.HasValue());
+        REQUIRE(array.GetValue().GetSize() == 3);
+        REQUIRE(array.GetValue()[2] == 3);
+    }
+    SECTION("Zero count allocates nothing, even from a null allocator")
+    {
+        NullAllocator null_allocator;
+        auto array = DynamicArray<i32>::Create(size_t{0}, &null_allocator);
+        REQUIRE(array.HasValue());
+        REQUIRE(array.GetValue().IsEmpty());
+    }
+}
+
+TEST_CASE("Create a dynamic array out of memory", "[DynamicArray]")
+{
+    NullAllocator null_allocator;
+
+    SECTION("Count")
+    {
+        auto array = DynamicArray<i32>::Create(3, &null_allocator);
+        REQUIRE_FALSE(array.HasValue());
+        REQUIRE(array.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Count and value")
+    {
+        auto array = DynamicArray<i32>::Create(3, 42, &null_allocator);
+        REQUIRE_FALSE(array.HasValue());
+        REQUIRE(array.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Data and count")
+    {
+        const i32 data[] = {1, 2, 3};
+        auto array = DynamicArray<i32>::Create(data, 3, &null_allocator);
+        REQUIRE_FALSE(array.HasValue());
+        REQUIRE(array.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Initializer list")
+    {
+        auto array = DynamicArray<i32>::Create({1, 2, 3}, &null_allocator);
+        REQUIRE_FALSE(array.HasValue());
+        REQUIRE(array.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("The throwing constructor still throws")
+    {
+        REQUIRE_THROWS_AS(DynamicArray<i32>(3, &null_allocator), OutOfMemoryException);
+    }
+}
+
+TEST_CASE("TryClone a dynamic array", "[DynamicArray]")
+{
+    DynamicArray<i32> source = {1, 2, 3};
+
+    SECTION("Copies the elements")
+    {
+        auto clone = source.TryClone();
+        REQUIRE(clone.HasValue());
+        REQUIRE(clone.GetValue().GetSize() == 3);
+        REQUIRE(clone.GetValue()[1] == 2);
+
+        source[1] = 99;
+        REQUIRE(clone.GetValue()[1] == 2);
+    }
+    SECTION("Reports a failed allocation instead of throwing")
+    {
+        NullAllocator null_allocator;
+        auto clone = source.TryClone(&null_allocator);
+        REQUIRE_FALSE(clone.HasValue());
+        REQUIRE(clone.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Clone still throws for the same input")
+    {
+        NullAllocator null_allocator;
+        REQUIRE_THROWS_AS(source.Clone(&null_allocator), OutOfMemoryException);
+    }
+}

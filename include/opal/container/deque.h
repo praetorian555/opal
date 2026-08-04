@@ -128,6 +128,22 @@ public:
     explicit Deque(SizeType count, AllocatorType* allocator = nullptr);
     Deque(SizeType count, const T& value, AllocatorType* allocator = nullptr);
 
+    /**
+     * Build a deque the way the matching constructor does, reporting a failed allocation instead of throwing it. Use these when
+     * the allocator is budgeted and running out is an outcome to branch on.
+     * @return The deque, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] static Expected<Deque, ErrorCode> Create(AllocatorType* allocator = nullptr);
+    [[nodiscard]] static Expected<Deque, ErrorCode> Create(SizeType count, AllocatorType* allocator = nullptr);
+    [[nodiscard]] static Expected<Deque, ErrorCode> Create(SizeType count, const T& value, AllocatorType* allocator = nullptr);
+
+    /**
+     * Create a deep copy of this deque, reporting a failed allocation instead of throwing it.
+     * @param allocator Allocator to be used for the copy. If nullptr, the source deque's allocator will be used.
+     * @return The copy, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] Expected<Deque, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const;
+
     Deque(const Deque& other) = delete;
     Deque& operator=(const Deque& other) = delete;
     Deque(Deque&& other) noexcept;
@@ -340,7 +356,15 @@ public:
     AllocatorType* GetAllocator() const { return m_allocator; }
 
 private:
-    void Initialize(const T& value);
+    // Builds a deque that owns nothing and has not touched an allocator, for the factories to fill in.
+    struct EmptyTag
+    {
+    };
+    explicit Deque(EmptyTag) {}
+
+    // Allocates m_capacity slots and fills the first m_size of them with `value`. Reports OutOfMemory instead of constructing
+    // into a null pointer, which is what it used to do when the allocator came up empty.
+    ErrorCode Initialize(const T& value);
 
     T* Allocate(SizeType count);
     void Deallocate(T* data);
@@ -391,7 +415,11 @@ TEMPLATE_HEADER
 CLASS_HEADER::Deque(AllocatorType* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(k_default_capacity)
 {
-    Initialize(T());
+    if (Initialize(T()) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(m_allocator->GetName(), k_default_capacity * sizeof(T));
+    }
 }
 
 TEMPLATE_HEADER
@@ -400,7 +428,10 @@ CLASS_HEADER::Deque(SizeType count, AllocatorType* allocator)
     , m_capacity(Max(k_default_capacity, NextPowerOf2(count)))
     , m_size(count)
 {
-    Initialize(T());
+    if (Initialize(T()) != ErrorCode::Success) [[unlikely]]
+    {
+        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+    }
 }
 
 TEMPLATE_HEADER
@@ -409,27 +440,91 @@ CLASS_HEADER::Deque(SizeType count, const T& value, AllocatorType* allocator)
     , m_capacity(Max(k_default_capacity, NextPowerOf2(count)))
     , m_size(count)
 {
-    Initialize(value);
+    if (Initialize(value) != ErrorCode::Success) [[unlikely]]
+    {
+        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+    }
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(AllocatorType* allocator)
+{
+    using Result = Expected<Deque, ErrorCode>;
+    // Not Create(0, allocator): the count overload rounds up to a power of two, and k_default_capacity is 0, so routing through
+    // it would give an empty deque a slot the matching constructor never allocates.
+    Deque deque{EmptyTag{}};
+    deque.m_allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
+    deque.m_capacity = k_default_capacity;
+    const ErrorCode error = deque.Initialize(T());
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(deque));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(SizeType count, AllocatorType* allocator)
+{
+    return Create(count, T(), allocator);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(SizeType count, const T& value, AllocatorType* allocator)
+{
+    using Result = Expected<Deque, ErrorCode>;
+    Deque deque{EmptyTag{}};
+    deque.m_allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
+    deque.m_capacity = Max(k_default_capacity, NextPowerOf2(count));
+    deque.m_size = count;
+    const ErrorCode error = deque.Initialize(value);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(deque));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> Opal::Deque<T>::TryClone(AllocatorBase* allocator) const
+{
+    using Result = Expected<Deque, ErrorCode>;
+    allocator = allocator == nullptr ? m_allocator : allocator;
+    Expected<Deque, ErrorCode> clone = Create(allocator);
+    if (!clone.HasValue()) [[unlikely]]
+    {
+        return clone;
+    }
+    if (m_size == 0)
+    {
+        return clone;
+    }
+    Deque& out = clone.GetValue();
+    const ErrorCode error = out.Reserve(m_capacity);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    for (SizeType i = m_first, count = 0; count < m_size; count++)
+    {
+        new (out.m_data + count) T(Opal::Clone(m_data[i], allocator));
+        ++i;
+        i &= (m_capacity - 1);
+    }
+    out.m_size = m_size;
+    return clone;
 }
 
 TEMPLATE_HEADER
 CLASS_HEADER Opal::Deque<T>::Clone(AllocatorBase* allocator) const
 {
-    allocator = allocator == nullptr ? m_allocator : allocator;
-    Deque clone(allocator);
-    if (m_size == 0)
+    // Clone hands back the copy itself, so it has nowhere to put a code and reports a failed allocation the way the constructors do.
+    Expected<Deque, ErrorCode> clone = TryClone(allocator);
+    if (!clone.HasValue()) [[unlikely]]
     {
-        return clone;
+        throw OutOfMemoryException(allocator == nullptr ? m_allocator->GetName() : allocator->GetName(), m_capacity * sizeof(T));
     }
-    clone.Reserve(m_capacity);
-    for (SizeType i = m_first, count = 0; count < m_size; count++)
-    {
-        new (clone.m_data + count) T(Opal::Clone(m_data[i], allocator));
-        ++i;
-        i &= (m_capacity - 1);
-    }
-    clone.m_size = m_size;
-    return clone;
+    return Move(clone).GetValue();
 }
 
 TEMPLATE_HEADER
@@ -1146,17 +1241,24 @@ Opal::Expected<typename CLASS_HEADER::IteratorType, Opal::ErrorCode> CLASS_HEADE
 }
 
 TEMPLATE_HEADER
-void CLASS_HEADER::Initialize(const T& value)
+Opal::ErrorCode CLASS_HEADER::Initialize(const T& value)
 {
     if (m_capacity == 0)
     {
-        return;
+        return ErrorCode::Success;
     }
     m_data = Allocate(m_capacity);
+    if (m_data == nullptr) [[unlikely]]
+    {
+        m_capacity = 0;
+        m_size = 0;
+        return ErrorCode::OutOfMemory;
+    }
     for (SizeType i = 0; i < m_size; i++)
     {
         new (m_data + i) T(value);
     }
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER

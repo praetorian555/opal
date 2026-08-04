@@ -255,12 +255,32 @@ public:
     DynamicArray(std::initializer_list<T> init_list, allocator_type* allocator = nullptr);
 
     /**
+     * Build an array the way the matching constructor does, reporting a failed allocation instead of throwing it. Use these when
+     * the allocator is budgeted and running out is an outcome to branch on.
+     * @return The array, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] static Expected<DynamicArray, ErrorCode> Create(size_type count, allocator_type* allocator = nullptr);
+    [[nodiscard]] static Expected<DynamicArray, ErrorCode> Create(size_type count, const T& default_value,
+                                                                  allocator_type* allocator = nullptr);
+    [[nodiscard]] static Expected<DynamicArray, ErrorCode> Create(const T* data, size_type count, allocator_type* allocator = nullptr);
+    [[nodiscard]] static Expected<DynamicArray, ErrorCode> Create(std::initializer_list<T> init_list,
+                                                                  allocator_type* allocator = nullptr);
+
+    /**
      * Create a deep copy of this array. Unlike the copy constructor, Clone allows specifying a different allocator for
      * the new array. The cloned array will have the same capacity and elements as the source array.
      * @param allocator Allocator to be used for the cloned array. If nullptr, the source array's allocator will be used.
      * @return A new DynamicArray that is a deep copy of this array.
+     * @throw OutOfMemoryException when the copy could not be allocated. Use TryClone to get a code instead.
      */
     DynamicArray Clone(AllocatorBase* allocator = nullptr) const;
+
+    /**
+     * Create a deep copy of this array, reporting a failed allocation instead of throwing it.
+     * @param allocator Allocator to be used for the cloned array. If nullptr, the source array's allocator will be used.
+     * @return The copy, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] Expected<DynamicArray, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const;
 
     ~DynamicArray();
 
@@ -660,6 +680,13 @@ public:
     const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
 
 private:
+    // The allocating half of each constructor, returning a code instead of throwing. The constructors throw over these, and the
+    // Create factories branch on them, so the two never drift apart. Each expects a freshly constructed, empty array.
+    ErrorCode Construct(size_type count);
+    ErrorCode Construct(size_type count, const T& default_value);
+    ErrorCode Construct(const T* data, size_type count);
+    ErrorCode Construct(std::initializer_list<T> init_list);
+
     T* Allocate(size_type count);
     void Deallocate(T* ptr);
 
@@ -731,18 +758,16 @@ TEMPLATE_HEADER
 CLASS_HEADER::DynamicArray(allocator_type* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
 
 TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(size_type count, allocator_type* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+Opal::ErrorCode CLASS_HEADER::Construct(size_type count)
 {
     if (count == 0)
     {
-        return;
+        return ErrorCode::Success;
     }
     m_data = Allocate(count);
     if (m_data == nullptr) [[unlikely]]
     {
-        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+        return ErrorCode::OutOfMemory;
     }
     m_capacity = count;
     m_size = count;
@@ -750,21 +775,20 @@ CLASS_HEADER::DynamicArray(size_type count, allocator_type* allocator)
     {
         new (&m_data[i]) T();  // Invokes default constructor on allocated memory
     }
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(size_type count, const T& default_value, allocator_type* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+Opal::ErrorCode CLASS_HEADER::Construct(size_type count, const T& default_value)
 {
     if (count == 0)
     {
-        return;
+        return ErrorCode::Success;
     }
     m_data = Allocate(count);
     if (m_data == nullptr) [[unlikely]]
     {
-        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+        return ErrorCode::OutOfMemory;
     }
     m_capacity = count;
     m_size = count;
@@ -772,21 +796,20 @@ CLASS_HEADER::DynamicArray(size_type count, const T& default_value, allocator_ty
     {
         new (&m_data[i]) T(Opal::Clone(default_value));  // Invokes copy constructor on allocated memory
     }
+    return ErrorCode::Success;
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(const T* data, size_type count, allocator_type* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+Opal::ErrorCode CLASS_HEADER::Construct(const T* data, size_type count)
 {
     if (count == 0)
     {
-        return;
+        return ErrorCode::Success;
     }
     m_data = Allocate(count);
     if (m_data == nullptr) [[unlikely]]
     {
-        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+        return ErrorCode::OutOfMemory;
     }
     m_capacity = count;
     m_size = count;
@@ -800,6 +823,69 @@ CLASS_HEADER::DynamicArray(const T* data, size_type count, allocator_type* alloc
         {
             new (&m_data[i]) T(data[i]);  // Invokes copy constructor on allocated memory
         }
+    }
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+Opal::ErrorCode CLASS_HEADER::Construct(std::initializer_list<T> init_list)
+{
+    const size_type count = init_list.size();
+    if (count == 0)
+    {
+        return ErrorCode::Success;
+    }
+    m_data = Allocate(count);
+    if (m_data == nullptr) [[unlikely]]
+    {
+        return ErrorCode::OutOfMemory;
+    }
+    m_capacity = count;
+    m_size = count;
+    if constexpr (IsPOD<T>)
+    {
+        memcpy(m_data, init_list.begin(), count * sizeof(T));
+    }
+    else
+    {
+        for (size_type i = 0; i < m_size; i++)
+        {
+            new (&m_data[i]) T(Opal::Clone(*(init_list.begin() + i)));  // Invokes copy constructor on allocated memory
+        }
+    }
+    return ErrorCode::Success;
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER::DynamicArray(size_type count, allocator_type* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+{
+    if (Construct(count) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+    }
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER::DynamicArray(size_type count, const T& default_value, allocator_type* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+{
+    if (Construct(count, default_value) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+    }
+}
+
+TEMPLATE_HEADER
+CLASS_HEADER::DynamicArray(const T* data, size_type count, allocator_type* allocator)
+    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
+{
+    if (Construct(data, count) != ErrorCode::Success) [[unlikely]]
+    {
+        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
+        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
     }
 }
 
@@ -816,43 +902,94 @@ TEMPLATE_HEADER
 CLASS_HEADER::DynamicArray(std::initializer_list<T> init_list, allocator_type* allocator)
     : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator)
 {
-    size_type count = init_list.size();
-    if (count == 0)
-    {
-        return;
-    }
-    m_data = Allocate(count);
-    if (m_data == nullptr) [[unlikely]]
+    if (Construct(init_list) != ErrorCode::Success) [[unlikely]]
     {
         // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        throw OutOfMemoryException(m_allocator->GetName(), count * sizeof(T));
+        throw OutOfMemoryException(m_allocator->GetName(), init_list.size() * sizeof(T));
     }
-    m_capacity = count;
-    m_size = count;
-    if constexpr (IsPOD<T>)
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(size_type count, allocator_type* allocator)
+{
+    using Result = Expected<DynamicArray, ErrorCode>;
+    DynamicArray array(allocator);
+    const ErrorCode error = array.Construct(count);
+    if (error != ErrorCode::Success) [[unlikely]]
     {
-        memcpy(m_data, init_list.begin(), count * sizeof(T));
+        return Result(error);
     }
-    else
+    return Result(Move(array));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(size_type count, const T& default_value, allocator_type* allocator)
+{
+    using Result = Expected<DynamicArray, ErrorCode>;
+    DynamicArray array(allocator);
+    const ErrorCode error = array.Construct(count, default_value);
+    if (error != ErrorCode::Success) [[unlikely]]
     {
-        for (size_type i = 0; i < m_size; i++)
-        {
-            new (&m_data[i]) T(Opal::Clone(*(init_list.begin() + i)));  // Invokes copy constructor on allocated memory
-        }
+        return Result(error);
     }
+    return Result(Move(array));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(const T* data, size_type count, allocator_type* allocator)
+{
+    using Result = Expected<DynamicArray, ErrorCode>;
+    DynamicArray array(allocator);
+    const ErrorCode error = array.Construct(data, count);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(array));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(std::initializer_list<T> init_list, allocator_type* allocator)
+{
+    using Result = Expected<DynamicArray, ErrorCode>;
+    DynamicArray array(allocator);
+    const ErrorCode error = array.Construct(init_list);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(array));
+}
+
+template <typename T>
+Opal::Expected<Opal::DynamicArray<T>, Opal::ErrorCode> Opal::DynamicArray<T>::TryClone(AllocatorBase* allocator) const
+{
+    using Result = Expected<DynamicArray, ErrorCode>;
+    allocator = allocator == nullptr ? m_allocator : allocator;
+    DynamicArray clone(allocator);
+    ErrorCode error = clone.Reserve(m_capacity);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    error = clone.Append(*this);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(clone));
 }
 
 template <typename T>
 Opal::DynamicArray<T> Opal::DynamicArray<T>::Clone(AllocatorBase* allocator) const
 {
-    allocator = allocator == nullptr ? m_allocator : allocator;
-    DynamicArray clone(allocator);
     // Clone hands back the copy itself, so it has nowhere to put a code and keeps reporting a failed allocation the way it always has.
-    if (clone.Reserve(m_capacity) != ErrorCode::Success || clone.Append(*this) != ErrorCode::Success) [[unlikely]]
+    Expected<DynamicArray, ErrorCode> clone = TryClone(allocator);
+    if (!clone.HasValue()) [[unlikely]]
     {
-        throw OutOfMemoryException(allocator->GetName(), m_capacity * sizeof(T));
+        throw OutOfMemoryException(allocator == nullptr ? m_allocator->GetName() : allocator->GetName(), m_capacity * sizeof(T));
     }
-    return clone;
+    return Move(clone).GetValue();
 }
 
 TEMPLATE_HEADER

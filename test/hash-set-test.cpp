@@ -736,3 +736,24 @@ TEST_CASE("HashSet ToArray", "[hash-set]")
         }
     }
 }
+TEST_CASE("Create a hash set without throwing", "[hash-set]")
+{
+    SECTION("Capacity")
+    {
+        auto set = HashSet<i32>::Create(16);
+        REQUIRE(set.HasValue());
+        REQUIRE(set.GetValue().GetSize() == 0);
+    }
+    SECTION("Reports a failed allocation instead of throwing")
+    {
+        NullAllocator null_allocator;
+        auto set = HashSet<i32>::Create(16, &null_allocator);
+        REQUIRE_FALSE(set.HasValue());
+        REQUIRE(set.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("The throwing constructor still throws")
+    {
+        NullAllocator null_allocator;
+        REQUIRE_THROWS_AS(HashSet<i32>(16, &null_allocator), OutOfMemoryException);
+    }
+}

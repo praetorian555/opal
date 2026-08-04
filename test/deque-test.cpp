@@ -1492,3 +1492,69 @@ TEST_CASE("Erase multiple", "[Deque]")
         REQUIRE(deque[1] == 10);
     }
 }
+
+TEST_CASE("Create a deque without throwing", "[Deque]")
+{
+    SECTION("Allocator only")
+    {
+        auto deque = Deque<i32>::Create();
+        REQUIRE(deque.HasValue());
+        REQUIRE(deque.GetValue().GetSize() == 0);
+    }
+    SECTION("Count")
+    {
+        auto deque = Deque<i32>::Create(4);
+        REQUIRE(deque.HasValue());
+        REQUIRE(deque.GetValue().GetSize() == 4);
+        REQUIRE(deque.GetValue()[0] == 0);
+    }
+    SECTION("Count and value")
+    {
+        auto deque = Deque<i32>::Create(4, 7);
+        REQUIRE(deque.HasValue());
+        REQUIRE(deque.GetValue().GetSize() == 4);
+        REQUIRE(deque.GetValue()[3] == 7);
+    }
+}
+
+TEST_CASE("Create a deque out of memory", "[Deque]")
+{
+    NullAllocator null_allocator;
+
+    SECTION("An empty deque needs no allocator at all")
+    {
+        auto deque = Deque<i32>::Create(&null_allocator);
+        REQUIRE(deque.HasValue());
+        REQUIRE(deque.GetValue().GetCapacity() == 0);
+    }
+    SECTION("Count and value")
+    {
+        auto deque = Deque<i32>::Create(4, 7, &null_allocator);
+        REQUIRE_FALSE(deque.HasValue());
+        REQUIRE(deque.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("The throwing constructor reports it too, instead of writing through a null pointer")
+    {
+        REQUIRE_THROWS_AS(Deque<i32>(4, &null_allocator), OutOfMemoryException);
+    }
+}
+
+TEST_CASE("TryClone a deque", "[Deque]")
+{
+    Deque<i32> source(3, 5);
+
+    SECTION("Copies the elements")
+    {
+        auto clone = source.TryClone();
+        REQUIRE(clone.HasValue());
+        REQUIRE(clone.GetValue().GetSize() == 3);
+        REQUIRE(clone.GetValue()[1] == 5);
+    }
+    SECTION("Reports a failed allocation instead of writing through a null pointer")
+    {
+        NullAllocator null_allocator;
+        auto clone = source.TryClone(&null_allocator);
+        REQUIRE_FALSE(clone.HasValue());
+        REQUIRE(clone.GetError() == ErrorCode::OutOfMemory);
+    }
+}

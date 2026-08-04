@@ -497,14 +497,31 @@ state. Step 1 alone closes §11.
 Same shape as `SharedPtr::Create` in `ccc93d8`: one private `Construct` returning `ErrorCode`, a throwing
 constructor over it, and a `[[nodiscard]] static Expected<T, ErrorCode> Create(...)` next to it.
 
-- [ ] `DynamicArray::Create` and `TryClone` - `dynamic-array.h:745,767,789,828,853,1110`
-- [ ] `String::Create` and `TryClone` - `string.h:1305,1327,1342,1347,1364,1381,1666`
-- [ ] `String::TryAppend` for what `operator+=` cannot report - `string.h:2797,2807,2818`
-- [ ] `HashMap::Create` - `hash-map.h:357,367,373,384,390`
-- [ ] `HashSet::Create` - `hash-set.h:286`
-- [ ] `Deque::Create`
-- [ ] Each one needs a `NullAllocator` test. Every allocation bug this document records was invisible for want
+- [x] `DynamicArray::Create` and `TryClone` - `dynamic-array.h:745,767,789,828,853,1110`. Four private `Construct` overloads hold
+      the allocating half of each constructor; the constructors throw over them and `Create` branches on them, so the two cannot
+      drift. `Clone` is now written over `TryClone`.
+- [x] `String::Create` and `TryClone` - `string.h:1305,1327,1342,1347,1364,1381,1666`. Same shape, over the `InitStorage` that was
+      already there.
+- [x] ~~`String::TryAppend`~~ - not needed. `Append` already returns `ErrorCode` for all six shapes and is exactly what
+      `operator+=` throws over. A `TryAppend` would have been an alias for it.
+- [x] `HashMap::Create` - `hash-map.h:357,367,373,384,390`
+- [x] `HashSet::Create` - `hash-set.h:286`
+- [x] `Deque::Create` and `TryClone`
+- [x] Each one needs a `NullAllocator` test. Every allocation bug this document records was invisible for want
       of exactly that test.
+
+Two things the factories turned up, both of the kind this document keeps finding:
+
+- **`Deque::Initialize` never checked its allocation.** It called `Allocate` and then placement-new'd into the result, so a
+  `Deque` built on an exhausted allocator wrote through a null pointer rather than throwing. All three constructors went through
+  it, and so did `Clone`, which additionally dropped the `ErrorCode` from its own `Reserve` before writing into the copy. So
+  `Deque` was the one container whose constructors did not report a failed allocation at all - the plan listed it as needing only
+  a `Create`. `Initialize` returns `ErrorCode` now, the constructors throw over it, and `Clone` is written over `TryClone`.
+- **`Reserve(0)` is not free on the hash containers.** The first attempt built the empty object for `Create` with
+  `HashMap(0, allocator)`, which still asks for the smallest table and therefore threw on a `NullAllocator` - from inside the
+  factory whose whole purpose is not to. Both containers got a private tag constructor that touches no allocator. `Deque` needed
+  the same, plus care that `Create(allocator)` uses `k_default_capacity` rather than routing through the count overload, which
+  rounds up to a power of two and would have given an empty deque a slot its constructor never allocates.
 
 **Step 2 - make `Expected` worth leaning on**
 

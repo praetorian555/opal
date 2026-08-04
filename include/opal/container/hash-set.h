@@ -145,6 +145,13 @@ public:
      */
     explicit HashSet(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
 
+    /**
+     * Build a set the way the matching constructor does, reporting a failed allocation instead of throwing it. Use this when the
+     * allocator is budgeted and running out is an outcome to branch on.
+     * @return The set, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] static Expected<HashSet, ErrorCode> Create(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
+
     HashSet(const HashSet& other) = delete;
     HashSet(HashSet&& other) noexcept;
     HashSet& operator=(const HashSet& other) = delete;
@@ -267,6 +274,13 @@ private:
     void DestroyAllKeys();
     ErrorCode Grow();
 
+    // Builds a set that owns nothing and has not touched an allocator, for the factory to fill in. Reserve(0) is not a
+    // substitute: it still asks the allocator for the smallest table and fails on a budgeted one.
+    struct EmptyTag
+    {
+    };
+    HashSet(EmptyTag, AllocatorBase* allocator) : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator()) {}
+
     AllocatorBase* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
     key_type* m_slots = nullptr;
@@ -285,6 +299,19 @@ Opal::HashSet<KeyType>::HashSet(size_type capacity, AllocatorBase* allocator)
     {
         throw OutOfMemoryException(m_allocator->GetName(), capacity * sizeof(key_type));
     }
+}
+
+template <typename KeyType>
+Opal::Expected<Opal::HashSet<KeyType>, Opal::ErrorCode> Opal::HashSet<KeyType>::Create(size_type capacity, AllocatorBase* allocator)
+{
+    using Result = Expected<HashSet, ErrorCode>;
+    HashSet set{EmptyTag{}, allocator};
+    const ErrorCode error = set.Reserve(capacity);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(set));
 }
 
 template <typename KeyType>

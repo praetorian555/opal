@@ -182,6 +182,16 @@ public:
     HashMap(const ArrayView<Pair<KeyType, ValueType>>& pairs, AllocatorBase* allocator = nullptr);
     HashMap(std::initializer_list<pair_type> pairs, AllocatorBase* allocator = nullptr);
 
+    /**
+     * Build a map the way the matching constructor does, reporting a failed allocation instead of throwing it. Use these when the
+     * allocator is budgeted and running out is an outcome to branch on.
+     * @return The map, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] static Expected<HashMap, ErrorCode> Create(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
+    [[nodiscard]] static Expected<HashMap, ErrorCode> Create(const ArrayView<Pair<KeyType, ValueType>>& pairs,
+                                                             AllocatorBase* allocator = nullptr);
+    [[nodiscard]] static Expected<HashMap, ErrorCode> Create(std::initializer_list<pair_type> pairs, AllocatorBase* allocator = nullptr);
+
     HashMap(const HashMap& other) = delete;
     HashMap(HashMap&& other) noexcept;
 
@@ -333,6 +343,13 @@ private:
     void DestroyAllPairs();
     ErrorCode Grow();
 
+    // Builds a map that owns nothing and has not touched an allocator, for the factories to fill in. Reserve(0) is not a
+    // substitute: it still asks the allocator for the smallest table and fails on a budgeted one.
+    struct EmptyTag
+    {
+    };
+    HashMap(EmptyTag, AllocatorBase* allocator) : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator()) {}
+
     AllocatorBase* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
     pair_type* m_slots = nullptr;
@@ -390,6 +407,64 @@ Opal::HashMap<KeyType, ValueType>::HashMap(std::initializer_list<pair_type> pair
             throw OutOfMemoryException(m_allocator->GetName(), pairs.size() * sizeof(pair_type));
         }
     }
+}
+
+template <typename KeyType, typename ValueType>
+Opal::Expected<Opal::HashMap<KeyType, ValueType>, Opal::ErrorCode> Opal::HashMap<KeyType, ValueType>::Create(size_type capacity,
+                                                                                                            AllocatorBase* allocator)
+{
+    using Result = Expected<HashMap, ErrorCode>;
+    HashMap map{EmptyTag{}, allocator};
+    const ErrorCode error = map.Reserve(capacity);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    return Result(Move(map));
+}
+
+template <typename KeyType, typename ValueType>
+Opal::Expected<Opal::HashMap<KeyType, ValueType>, Opal::ErrorCode> Opal::HashMap<KeyType, ValueType>::Create(
+    const ArrayView<Pair<KeyType, ValueType>>& pairs, AllocatorBase* allocator)
+{
+    using Result = Expected<HashMap, ErrorCode>;
+    HashMap map{EmptyTag{}, allocator};
+    ErrorCode error = map.Reserve(pairs.GetSize());
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    for (const auto& pair : pairs)
+    {
+        error = map.Insert(Opal::Clone(pair.key, map.m_allocator), Opal::Clone(pair.value, map.m_allocator));
+        if (error != ErrorCode::Success) [[unlikely]]
+        {
+            return Result(error);
+        }
+    }
+    return Result(Move(map));
+}
+
+template <typename KeyType, typename ValueType>
+Opal::Expected<Opal::HashMap<KeyType, ValueType>, Opal::ErrorCode> Opal::HashMap<KeyType, ValueType>::Create(
+    std::initializer_list<pair_type> pairs, AllocatorBase* allocator)
+{
+    using Result = Expected<HashMap, ErrorCode>;
+    HashMap map{EmptyTag{}, allocator};
+    ErrorCode error = map.Reserve(pairs.size());
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
+    for (const auto& pair : pairs)
+    {
+        error = map.Insert(Opal::Clone(pair.key, map.m_allocator), Opal::Clone(pair.value, map.m_allocator));
+        if (error != ErrorCode::Success) [[unlikely]]
+        {
+            return Result(error);
+        }
+    }
+    return Result(Move(map));
 }
 
 template <typename KeyType, typename ValueType>
