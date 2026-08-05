@@ -3,6 +3,7 @@
 #include <atomic>
 
 #include "opal/allocator.h"
+#include "opal/assert.h"
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/expected.h"
@@ -32,7 +33,8 @@ public:
     explicit QueueSPSC(size_t capacity, AllocatorBase* allocator = nullptr)
         : m_capacity(GetNextPowerOf2(capacity)), m_data(m_capacity, allocator)
     {
-        OPAL_ASSERT(m_data.GetAllocator()->IsThreadSafe(), "Allocator must be thread safe!");
+        OPAL_VERIFY(capacity > 0, "QueueSPSC capacity must be greater than zero");
+        OPAL_VERIFY(m_data.GetAllocator()->IsThreadSafe(), "QueueSPSC allocator must be thread safe");
         m_write_idx.store(0, std::memory_order_relaxed);
         m_read_idx.store(0, std::memory_order_relaxed);
     }
@@ -40,19 +42,21 @@ public:
     void Push(const T& item)
     {
         size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
-        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
+        // Acquire: the slot about to be written is one the consumer may still have been reading on the previous lap, and its
+        // release of m_read_idx is what orders that read before this write.
+        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
 
         while (write_idx - read_idx == m_capacity)
         {
             if constexpr (UseSignaling)
             {
-                m_read_idx.wait(read_idx, std::memory_order_relaxed);
+                m_read_idx.wait(read_idx, std::memory_order_acquire);
             }
             else
             {
                 CpuPause();
             }
-            read_idx = m_read_idx.load(std::memory_order_relaxed);
+            read_idx = m_read_idx.load(std::memory_order_acquire);
         }
 
         size_t bound_write_idx = write_idx & (m_capacity - 1);
@@ -68,7 +72,7 @@ public:
     bool TryPush(const T& item)
     {
         size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
-        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
+        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
 
         if (write_idx - read_idx == m_capacity)
         {
@@ -89,19 +93,21 @@ public:
     void Push(T&& item)
     {
         size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
-        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
+        // Acquire: the slot about to be written is one the consumer may still have been reading on the previous lap, and its
+        // release of m_read_idx is what orders that read before this write.
+        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
 
         while (write_idx - read_idx == m_capacity)
         {
             if constexpr (UseSignaling)
             {
-                m_read_idx.wait(read_idx, std::memory_order_relaxed);
+                m_read_idx.wait(read_idx, std::memory_order_acquire);
             }
             else
             {
                 CpuPause();
             }
-            read_idx = m_read_idx.load(std::memory_order_relaxed);
+            read_idx = m_read_idx.load(std::memory_order_acquire);
         }
 
         size_t bound_write_idx = write_idx & (m_capacity - 1);
@@ -118,19 +124,21 @@ public:
     void PushWithEmplace(const Args&... args)
     {
         size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
-        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
+        // Acquire: the slot about to be written is one the consumer may still have been reading on the previous lap, and its
+        // release of m_read_idx is what orders that read before this write.
+        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
 
         while (write_idx - read_idx == m_capacity)
         {
             if constexpr (UseSignaling)
             {
-                m_read_idx.wait(read_idx, std::memory_order_relaxed);
+                m_read_idx.wait(read_idx, std::memory_order_acquire);
             }
             else
             {
                 CpuPause();
             }
-            read_idx = m_read_idx.load(std::memory_order_relaxed);
+            read_idx = m_read_idx.load(std::memory_order_acquire);
         }
 
         size_t bound_write_idx = write_idx & (m_capacity - 1);
@@ -147,7 +155,7 @@ public:
     bool TryPushWithEmplace(const Args&... args)
     {
         size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
-        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
+        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
 
         if (write_idx - read_idx == m_capacity)
         {

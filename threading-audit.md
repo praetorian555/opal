@@ -96,7 +96,7 @@ of that same slot on the previous lap.
 Benign on x86's store ordering, a real race on ARM. Read from the code, not reproduced - the project
 targets x86_64 today.
 
-- [ ] Acquire on the `m_read_idx` loads in `Push` and `TryPush`
+- [x] Acquire on the `m_read_idx` loads in `Push` and `TryPush`, and on the `wait` that parks on it
 
 ### 6. Windows `PureMutex` destructor deletes through `void*`
 
@@ -110,24 +110,31 @@ it; the Linux branch passes the typed pointer and would not compile this way.
 
 ## Completeness
 
-- [ ] `Mutex::Unlock()` is public, so a caller can unlock behind the guard's back and the guard then
+- [x] `Mutex::Unlock()` is public, so a caller can unlock behind the guard's back and the guard then
       unlocks a second time on destruction. Make it private with `MutexGuard` as a friend
-- [ ] `Mutex`'s variadic constructor is unconstrained. `template <typename... Args> Mutex(Args&&...)`
+- [x] `Mutex`'s variadic constructor is unconstrained. `template <typename... Args> Mutex(Args&&...)`
       is a better match than the deleted copy constructor for a non-const `Mutex&`, the usual
       perfect-forwarding trap. Constrain it away from `Mutex` itself
-- [ ] `ConditionVariable` has no predicate `Wait`, and **the loop `docs/threading.md` demonstrates in its place is racy**.
+- [x] `ConditionVariable` has no predicate `Wait`, and **the loop `docs/threading.md` demonstrates in its place is racy**.
       `while (!*cond.Wait(guard))` waits *before* testing the predicate, so a notification that arrives before the waiter
       reaches `Wait` is lost and the thread blocks forever. Confirmed the hard way: a test written from that snippet hung the
       suite on both Linux and Windows until the predicate was moved ahead of the wait. A predicate overload,
-      `Wait(guard, pred)`, is the fix; the docs need correcting either way. The docs are corrected and the test that used to
-      hang is in the suite; the overload is still missing
+      `Wait(guard, pred)`, is the fix; the docs need correcting either way. Both done, and the test that used to hang is in
+      the suite
 - [ ] `ThreadPool::AddFunctionTask` uses the throwing `SharedPtr` constructor and does not document
       it, though `SharedPtr::Create` exists now
 - [ ] `ThreadPool::AddFunctionTask` accepts tasks after `Close()`. They queue behind departed
       workers and `WaitForCompletion` blocks forever
 - [ ] No `ThreadPool::WaitForAll()`. Callers can wait per task but not for the pool to drain
-- [ ] `QueueSPSC` accepts capacity 0. `m_capacity - 1` underflows and `Push` spins forever
-- [ ] `MutexGuard` has no `operator*` or `operator->`, and `Deref()` has no const overload
-- [ ] `MutexGuard` reports nothing when used after being moved from - `Deref()` returns `nullptr`
-- [ ] `QueueSPSC`'s allocator thread-safety check is `OPAL_ASSERT`, so it is gone in release.
+- [x] `QueueSPSC` accepts capacity 0. `m_capacity - 1` underflows and `Push` spins forever. Wrong as
+      written - `GetNextPowerOf2(0)` returns 1, so a request for 0 silently became a queue of 1 and
+      nothing underflowed. It is a caller mistake either way, so it is an `OPAL_VERIFY` now
+- [x] `MutexGuard` has no `operator*` or `operator->`, and `Deref()` has no const overload
+- [x] `MutexGuard` reports nothing when used after being moved from - `Deref()` returns `nullptr`
+- [x] `QueueSPSC`'s allocator thread-safety check is `OPAL_ASSERT`, so it is gone in release.
       `OPAL_VERIFY` is what the rest of the library settled on for contracts
+
+Also found while fixing the above, same shape as the `PureMutex::operator=` leak in §3:
+
+- [x] `MutexGuard::operator=` dropped the lock it already held instead of releasing it, so
+      `guard = other.Lock()` left the first mutex locked forever

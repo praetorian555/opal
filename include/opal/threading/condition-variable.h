@@ -35,6 +35,23 @@ public:
     }
 
     /**
+     * Wait until the predicate holds. The predicate is tested before the first wait, so a notification that arrived before this
+     * call is not lost, and again on every wake, so a spurious one does not return early.
+     * @param mutex_guard Guard holding the mutex lock.
+     * @param predicate Callable taking T& and returning something contextually convertible to bool. Called with the mutex held.
+     * @return Pointer to the protected data.
+     */
+    template <typename T, typename Predicate>
+    T* Wait(MutexGuard<T>& mutex_guard, Predicate&& predicate)
+    {
+        while (!predicate(*mutex_guard.Deref()))
+        {
+            Wait(mutex_guard.GetNativeHandle());
+        }
+        return mutex_guard.Deref();
+    }
+
+    /**
      * Wait for the condition variable to be signaled or for the timeout to expire.
      * @param mutex_guard Guard holding the mutex lock.
      * @param timeout_ms Timeout in milliseconds.

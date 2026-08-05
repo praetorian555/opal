@@ -793,6 +793,90 @@ TEST_CASE("A condition variable waiter that tests its predicate first does not l
     REQUIRE(*guard.Deref());
 }
 
+TEST_CASE("Condition variable predicate wait does not lose a notification", "[Thread]")
+{
+    Mutex<bool> ready(false);
+    ConditionVariable cond;
+
+    {
+        auto guard = ready.Lock();
+        *guard.Deref() = true;
+    }
+    cond.NotifyOne();
+
+    const ThreadHandle waiter = CreateThreadOrFail(
+        [](Mutex<bool>& in_ready, ConditionVariable& in_cond)
+        {
+            auto guard = in_ready.Lock();
+            in_cond.Wait(guard, [](bool& is_ready) { return is_ready; });
+        },
+        Ref(ready), Ref(cond));
+
+    JoinThread(waiter);
+
+    auto guard = ready.Lock();
+    REQUIRE(*guard.Deref());
+}
+
+TEST_CASE("Condition variable predicate wait blocks until the predicate holds", "[Thread]")
+{
+    Mutex<int> counter(0);
+    ConditionVariable cond;
+
+    const ThreadHandle waiter = CreateThreadOrFail(
+        [](Mutex<int>& in_counter, ConditionVariable& in_cond)
+        {
+            auto guard = in_counter.Lock();
+            in_cond.Wait(guard, [](int& value) { return value >= 3; });
+            REQUIRE(*guard.Deref() >= 3);
+        },
+        Ref(counter), Ref(cond));
+
+    for (int i = 0; i < 3; ++i)
+    {
+        {
+            auto guard = counter.Lock();
+            *guard.Deref() += 1;
+        }
+        cond.NotifyAll();
+    }
+
+    JoinThread(waiter);
+}
+
+TEST_CASE("Mutex guard dereference operators", "[Thread]")
+{
+    struct Counter
+    {
+        int value = 0;
+    };
+
+    Mutex<Counter> counter(Counter{});
+
+    auto guard = counter.Lock();
+    guard->value = 7;
+    REQUIRE((*guard).value == 7);
+    REQUIRE(guard.Deref()->value == 7);
+
+    const MutexGuard<Counter>& const_guard = guard;
+    REQUIRE(const_guard->value == 7);
+    REQUIRE((*const_guard).value == 7);
+}
+
+TEST_CASE("Mutex guard move assignment releases the lock it held", "[Thread]")
+{
+    Mutex<int> first(1);
+    Mutex<int> second(2);
+
+    MutexGuard<int> guard = first.Lock();
+    guard = second.Lock();
+
+    // The lock on first has to be gone, or this blocks forever.
+    auto reacquired = first.TryLock();
+    REQUIRE(reacquired.HasValue());
+    REQUIRE(*reacquired.GetValue().Deref() == 1);
+}
+
 TEST_CASE("Signal multiple notify calls", "[Thread]")
 {
     Signal signal;

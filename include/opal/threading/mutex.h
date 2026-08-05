@@ -1,6 +1,9 @@
 #pragma once
 
+#include <type_traits>
+
 #include "opal/allocator.h"
+#include "opal/assert.h"
 #include "opal/container/expected.h"
 #include "opal/export.h"
 
@@ -41,6 +44,10 @@ struct MutexGuard
         {
             return *this;
         }
+        if (m_lock != nullptr)
+        {
+            m_lock->Unlock();
+        }
         m_lock = other.m_lock;
         m_object = other.m_object;
         other.m_lock = nullptr;
@@ -48,7 +55,22 @@ struct MutexGuard
         return *this;
     }
 
-    T* Deref() { return m_object; }
+    /** @return Pointer to the protected data. Ends the program if this guard has been moved from and holds no lock. */
+    T* Deref()
+    {
+        OPAL_VERIFY(m_object != nullptr, "MutexGuard used after being moved from");
+        return m_object;
+    }
+    const T* Deref() const
+    {
+        OPAL_VERIFY(m_object != nullptr, "MutexGuard used after being moved from");
+        return m_object;
+    }
+
+    T& operator*() { return *Deref(); }
+    const T& operator*() const { return *Deref(); }
+    T* operator->() { return Deref(); }
+    const T* operator->() const { return Deref(); }
 
     void* GetNativeHandle() { return m_lock->GetNativeHandle(); }
 
@@ -93,7 +115,9 @@ struct Mutex
 {
     explicit Mutex(T&& object) : m_object(Move(object)) {}
 
+    /** Constructs the protected object in place. Never a better match for a Mutex than the deleted copy constructor is. */
     template <typename... Args>
+        requires(sizeof...(Args) != 1 || !(std::is_same_v<std::remove_cvref_t<Args>, Mutex> || ...))
     explicit Mutex(Args&&... args) : m_object(std::forward<Args>(args)...)
     {
     }
@@ -119,12 +143,13 @@ struct Mutex
         return Expected<MutexGuard<T>, bool>(false);
     }
 
-    void Unlock() { m_pure_mutex.Unlock(); }
-
     void* GetNativeHandle() { return m_pure_mutex.GetNativeHandle(); }
 
 private:
     friend struct MutexGuard<T>;
+
+    // Private: the guard owns the unlock. A caller that unlocked here would leave the guard to unlock a second time.
+    void Unlock() { m_pure_mutex.Unlock(); }
 
     T m_object;
     Impl::PureMutex m_pure_mutex;

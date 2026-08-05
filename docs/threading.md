@@ -205,12 +205,24 @@ Platform implementation: `SRWLOCK` on Windows, `pthread_mutex_t` on Linux.
 | `Mutex<T>` | `Mutex(Args&&... args)` | Construct T in place |
 | `Mutex<T>` | `Lock()` | Acquire the lock, returns `MutexGuard<T>` |
 | `Mutex<T>` | `TryLock()` | Non-blocking lock attempt, returns `Expected<MutexGuard<T>, bool>` |
-| `Mutex<T>` | `Unlock()` | Release the lock manually |
 | `MutexGuard<T>` | `Deref()` | Returns `T*` to the protected data |
+| `MutexGuard<T>` | `operator*` | Returns `T&` to the protected data |
+| `MutexGuard<T>` | `operator->` | Returns `T*` to the protected data |
 
 ## Condition Variable
 
 `ConditionVariable` allows threads to wait until another thread signals an event. Works together with `Mutex` and `MutexGuard`.
+
+Prefer the predicate overload of `Wait`. The plain overload waits first and only then returns, so a notification sent before
+the waiter got there is lost; the predicate overload tests before waiting at all. Writing the loop by hand works too, as long
+as the predicate is tested first:
+
+```cpp
+while (!*guard.Deref())
+{
+    cond.Wait(guard);
+}
+```
 
 ```cpp
 #include "opal/threading/condition-variable.h"
@@ -222,13 +234,8 @@ Opal::ConditionVariable cond;
 auto t = Opal::CreateThread([&]()
 {
     auto guard = ready.Lock();
-    while (!*guard.Deref())
-    {
-        // Re-check the predicate on every wake, the notify may have arrived
-        // before the wait started or the wake may be spurious
-        cond.Wait(guard);
-    }
-    // *guard.Deref() is now true
+    cond.Wait(guard, [](bool& is_ready) { return is_ready; });
+    // *guard is now true
 });
 
 // Main thread signals the worker
@@ -269,6 +276,7 @@ while (!*guard.Deref())
 | `NotifyOne()` | Wake one waiting thread |
 | `NotifyAll()` | Wake all waiting threads |
 | `Wait(MutexGuard<T>& guard)` | Atomically release mutex and wait, re-acquire on wake. Returns `T*` |
+| `Wait(MutexGuard<T>& guard, Predicate pred)` | Wait until `pred(T&)` holds. Tested before the first wait and on every wake. Returns `T*` |
 | `WaitFor(MutexGuard<T>& guard, u64 timeout_ms)` | Timed wait. Returns `true` if signaled, `false` if timed out |
 
 Platform implementation: `CONDITION_VARIABLE` on Windows, `pthread_cond_t` on Linux.
