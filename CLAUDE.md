@@ -20,6 +20,15 @@ CMake options: `OPAL_BUILD_TESTS` (ON), `OPAL_HARDENING` (ON), `OPAL_EXCEPTIONS`
 
 Opal is a static library. There is no shared build and no export annotations: symbols are whatever the archive holds.
 
+The test target uses a precompiled header (`test/test-helpers.h`), which is most of what a test file parses. It matters on a
+machine with few cores - a `-j4` clean build went from 47s to 25s - and is close to free on a machine with many, where the
+build is bound by the slowest translation unit rather than by total work. Disable it with
+`-DCMAKE_DISABLE_PRECOMPILE_HEADERS=ON` when bisecting a compile error, since a PCH moves where the error is reported.
+
+**Never start a header with a UTF-8 BOM.** GCC's `#pragma once` does not recognise a second inclusion of a file that begins
+with one once the file is also inside a precompiled header, so the header is parsed twice and every definition in it collides.
+Four headers had one and had to be stripped before the PCH would build. MSVC does not care, so this only shows up on GCC.
+
 `OPAL_EXCEPTIONS=OFF` adds `-fno-exceptions` (`/EHs-c-` on MSVC) and defines `OPAL_NO_EXCEPTIONS`, both `PUBLIC` so a consumer
 cannot disagree with the library it links. `OPAL_RAISE` then ends the program through the contract violation handler instead of
 throwing, and the `Create` factories are how a caller on a budgeted allocator reports a failed allocation instead. It also forces

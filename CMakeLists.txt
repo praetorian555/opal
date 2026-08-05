@@ -265,6 +265,17 @@ if (OPAL_BUILD_TESTS)
     target_link_libraries(opal_test opal_options)
     target_compile_definitions(opal_test PRIVATE CATCH_AMALGAMATED_CUSTOM_MAIN)
     target_compile_definitions(opal_test PRIVATE cxx_std_20)
+
+    # Every test file opens with test-helpers.h, and it is 136k lines after preprocessing, ~95% of a typical test translation
+    # unit and about three quarters of the time spent compiling one. Parsing it once instead of once per test file is what this
+    # buys. PRIVATE: a precompiled header is a property of how this target is built, not something to impose on anything that
+    # links it.
+    target_precompile_headers(opal_test PRIVATE test/test-helpers.h)
+
+    # Catch2's own amalgamated translation unit is not ours and includes what it needs. Force-feeding it our header only makes
+    # it recompile whenever the header changes.
+    set_source_files_properties(third-party/catch2/src/catch_amalgamated.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+
     enable_testing()
     add_test(NAME opal_test COMMAND opal_test)
 endif ()

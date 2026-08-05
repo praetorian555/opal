@@ -1,4 +1,4 @@
-﻿#include "test-helpers.h"
+#include "test-helpers.h"
 
 #include "opal/math/bounds2.h"
 

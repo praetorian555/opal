@@ -1,4 +1,4 @@
-﻿#include <limits>
+#include <limits>
 
 #include "test-helpers.h"
 
