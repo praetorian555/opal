@@ -47,9 +47,9 @@ This is the bug class the whole exceptions audit was about, still sitting in the
 primitives that allocate. Constructors have no return channel, so `OPAL_RAISE(OutOfMemoryException)`
 matches what every container does; a `Create` factory alongside is the §11 shape if wanted.
 
-- [ ] `PureMutex` reports a failed allocation
-- [ ] `ConditionVariable` reports a failed allocation
-- [ ] `NullAllocator` tests for both
+- [x] `PureMutex` reports a failed allocation
+- [x] `ConditionVariable` reports a failed allocation
+- [x] `NullAllocator` tests for both
 
 ### 3. `Mutex`, `ConditionVariable` and `Signal` are movable, and moving them is unsound
 
@@ -68,10 +68,13 @@ Deleting the move operations is the honest fix and is a breaking API change, so 
 rather than a patch. `ThreadPool` holds its members by value and would be unaffected; `Mutex<T>`
 members inside movable types are the thing to check before committing to it.
 
-- [ ] Decide: delete the move operations, or document them as valid only when provably unused
-- [ ] `Impl::PureMutex::operator=` leaks the existing handle - it overwrites `m_native_handle`
+- [x] Decide: delete the move operations, or document them as valid only when provably unused.
+      Decided: deleted on all four of `Mutex`, `Impl::PureMutex`, `ConditionVariable` and `Signal`.
+      `ConsoleSink` is the only type in the library holding one as a member and it was never movable
+- [x] `Impl::PureMutex::operator=` leaks the existing handle - it overwrites `m_native_handle`
       without destroying what was there. `ConditionVariable::operator=` does destroy first. Fix
-      regardless of what the decision above is, unless moves go away entirely
+      regardless of what the decision above is, unless moves go away entirely. Moot: the operator
+      is gone
 
 ### 4. `PureMutex` is recursive on Windows and not on Linux
 
@@ -79,8 +82,9 @@ members inside movable types are the thing to check before committing to it.
 locks twice on one thread works on Windows and hangs on Linux, which is the worst possible split
 given the project develops on Windows and CI runs both.
 
-- [ ] Pick one. `PTHREAD_MUTEX_RECURSIVE` to match Windows, or a non-recursive Windows mutex
-      (`SRWLOCK`) to match Linux, and say which in the docs
+- [x] Pick one. `PTHREAD_MUTEX_RECURSIVE` to match Windows, or a non-recursive Windows mutex
+      (`SRWLOCK`) to match Linux, and say which in the docs. Picked `SRWLOCK`, which also moved the
+      condition variable to `SleepConditionVariableSRW`
 
 ### 5. SPSC producer is missing an acquire
 
@@ -99,7 +103,8 @@ targets x86_64 today.
 `Delete(m_allocator, m_native_handle)` deduces `T = void` and calls `ptr->~T()` on it. MSVC accepts
 it; the Linux branch passes the typed pointer and would not compile this way.
 
-- [ ] Pass `critical_section` rather than `m_native_handle`
+- [x] Pass `critical_section` rather than `m_native_handle`. The `SRWLOCK` rewrite passes a typed
+      `SRWLOCK*`
 
 ---
 
@@ -114,7 +119,8 @@ it; the Linux branch passes the typed pointer and would not compile this way.
       `while (!*cond.Wait(guard))` waits *before* testing the predicate, so a notification that arrives before the waiter
       reaches `Wait` is lost and the thread blocks forever. Confirmed the hard way: a test written from that snippet hung the
       suite on both Linux and Windows until the predicate was moved ahead of the wait. A predicate overload,
-      `Wait(guard, pred)`, is the fix; the docs need correcting either way
+      `Wait(guard, pred)`, is the fix; the docs need correcting either way. The docs are corrected and the test that used to
+      hang is in the suite; the overload is still missing
 - [ ] `ThreadPool::AddFunctionTask` uses the throwing `SharedPtr` constructor and does not document
       it, though `SharedPtr::Create` exists now
 - [ ] `ThreadPool::AddFunctionTask` accepts tasks after `Close()`. They queue behind departed

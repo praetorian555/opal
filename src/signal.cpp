@@ -16,23 +16,6 @@ Opal::Signal::Signal() = default;
 
 Opal::Signal::~Signal() = default;
 
-Opal::Signal::Signal(Signal&& other) noexcept
-{
-    m_state.store(other.m_state.load(std::memory_order_relaxed), std::memory_order_relaxed);
-    other.m_state.store(0, std::memory_order_relaxed);
-}
-
-Opal::Signal& Opal::Signal::operator=(Signal&& other) noexcept
-{
-    if (this == &other)
-    {
-        return *this;
-    }
-    m_state.store(other.m_state.load(std::memory_order_relaxed), std::memory_order_relaxed);
-    other.m_state.store(0, std::memory_order_relaxed);
-    return *this;
-}
-
 Opal::u32 Opal::Signal::GetState() const
 {
     return m_state.load(std::memory_order_acquire);

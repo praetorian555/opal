@@ -188,7 +188,14 @@ else
 }
 ```
 
-Platform implementation: `CRITICAL_SECTION` on Windows, `pthread_mutex_t` on Linux.
+The mutex is not recursive on either platform. A thread that locks one it already holds deadlocks; hold the guard instead of
+locking twice.
+
+`Mutex`, `ConditionVariable` and `Signal` can be neither copied nor moved. A live `MutexGuard` points at its mutex and at the
+data behind it, and a thread inside `Wait` is parked on the address of the condition variable or signal, so relocating any of
+them would strand a guard or a waiter. Hold them by value in a type that does not move, or behind a pointer.
+
+Platform implementation: `SRWLOCK` on Windows, `pthread_mutex_t` on Linux.
 
 ### API Reference
 

@@ -1,5 +1,7 @@
 #include "opal/threading/condition-variable.h"
 
+#include "opal/exceptions.h"
+
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
 #elif defined(OPAL_PLATFORM_LINUX)
@@ -16,10 +18,18 @@ Opal::ConditionVariable::ConditionVariable(AllocatorBase* allocator)
     }
 #if defined(OPAL_PLATFORM_WINDOWS)
     CONDITION_VARIABLE* condition_variable = New<CONDITION_VARIABLE>(m_allocator);
+    if (condition_variable == nullptr)
+    {
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), sizeof(CONDITION_VARIABLE)));
+    }
     InitializeConditionVariable(condition_variable);
     m_native_handle = reinterpret_cast<void*>(condition_variable);
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_cond_t* cond = New<pthread_cond_t>(m_allocator);
+    if (cond == nullptr)
+    {
+        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), sizeof(pthread_cond_t)));
+    }
     pthread_cond_init(cond, nullptr);
     m_native_handle = reinterpret_cast<void*>(cond);
 #else
@@ -29,11 +39,6 @@ Opal::ConditionVariable::ConditionVariable(AllocatorBase* allocator)
 
 Opal::ConditionVariable::~ConditionVariable()
 {
-    // A moved-from condition variable owns nothing. pthread_cond_destroy does not accept a null pointer, and neither does Delete.
-    if (m_native_handle == nullptr)
-    {
-        return;
-    }
 #if defined(OPAL_PLATFORM_WINDOWS)
     CONDITION_VARIABLE* condition_variable = static_cast<CONDITION_VARIABLE*>(m_native_handle);
     Delete(m_allocator, condition_variable);
@@ -45,34 +50,6 @@ Opal::ConditionVariable::~ConditionVariable()
 #error "Platform not supported"
 #endif
     m_native_handle = nullptr;
-}
-
-Opal::ConditionVariable::ConditionVariable(ConditionVariable&& other) noexcept
-{
-    if (this == &other)
-    {
-        return;
-    }
-    m_native_handle = other.m_native_handle;
-    m_allocator = other.m_allocator;
-    other.m_native_handle = nullptr;
-    other.m_allocator = nullptr;
-}
-
-Opal::ConditionVariable& Opal::ConditionVariable::operator=(ConditionVariable&& other) noexcept
-{
-    if (this == &other)
-    {
-        return *this;
-    }
-    if (m_native_handle != nullptr)
-    {
-        this->~ConditionVariable();
-    }
-    m_native_handle = other.m_native_handle;
-    m_allocator = other.m_allocator;
-    other.m_native_handle = nullptr;
-    return *this;
 }
 
 void Opal::ConditionVariable::NotifyOne()
@@ -100,8 +77,7 @@ void Opal::ConditionVariable::NotifyAll()
 void Opal::ConditionVariable::Wait(void* native_mutex_handle)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    SleepConditionVariableCS(static_cast<CONDITION_VARIABLE*>(m_native_handle), static_cast<CRITICAL_SECTION*>(native_mutex_handle),
-                             INFINITE);
+    SleepConditionVariableSRW(static_cast<CONDITION_VARIABLE*>(m_native_handle), static_cast<SRWLOCK*>(native_mutex_handle), INFINITE, 0);
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_cond_wait(static_cast<pthread_cond_t*>(m_native_handle), static_cast<pthread_mutex_t*>(native_mutex_handle));
 #else
@@ -112,9 +88,8 @@ void Opal::ConditionVariable::Wait(void* native_mutex_handle)
 bool Opal::ConditionVariable::WaitFor(void* native_mutex_handle, u64 timeout_ms)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    const BOOL result = SleepConditionVariableCS(static_cast<CONDITION_VARIABLE*>(m_native_handle),
-                                                 static_cast<CRITICAL_SECTION*>(native_mutex_handle),
-                                                 static_cast<DWORD>(timeout_ms));
+    const BOOL result = SleepConditionVariableSRW(static_cast<CONDITION_VARIABLE*>(m_native_handle),
+                                                  static_cast<SRWLOCK*>(native_mutex_handle), static_cast<DWORD>(timeout_ms), 0);
     return result != 0;
 #elif defined(OPAL_PLATFORM_LINUX)
     struct timespec ts;

@@ -12,6 +12,8 @@ namespace Opal
  * Lightweight synchronization primitive for signaling changes between threads.
  * Uses WaitOnAddress on Windows and futex on Linux. Does not require a mutex or an allocator.
  * Internally uses a monotonic u32 counter to avoid lost notifications.
+ * Can be neither copied nor moved: waiters are parked on the address of this object, so a relocated signal would never reach
+ * them again.
  */
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_MSVC_WARNING(4324)
@@ -24,8 +26,8 @@ public:
     Signal(const Signal&) = delete;
     Signal& operator=(const Signal&) = delete;
 
-    Signal(Signal&& other) noexcept;
-    Signal& operator=(Signal&& other) noexcept;
+    Signal(Signal&&) = delete;
+    Signal& operator=(Signal&&) = delete;
 
     /**
      * Returns the current state counter.

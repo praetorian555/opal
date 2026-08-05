@@ -67,8 +67,8 @@ struct OPAL_EXPORT PureMutex
     PureMutex(const PureMutex&) = delete;
     PureMutex& operator=(const PureMutex&) = delete;
 
-    PureMutex(PureMutex&& other) noexcept;
-    PureMutex& operator=(PureMutex&& other) noexcept;
+    PureMutex(PureMutex&&) = delete;
+    PureMutex& operator=(PureMutex&&) = delete;
 
     void Lock();
     bool TryLock();
@@ -84,7 +84,8 @@ private:
 
 /**
  * Wrapper around object of type T used to secure exclusive access to it.
- * Can't be copied, only moved.
+ * Can be neither copied nor moved: a live MutexGuard points at this object and at the data it protects, so relocating either
+ * would leave the guard unlocking and dereferencing storage that has been moved out of.
  * @tparam T Type of data to secure access to.
  */
 template <typename T>
@@ -100,17 +101,8 @@ struct Mutex
     Mutex(const Mutex&) = delete;
     Mutex& operator=(const Mutex&) = delete;
 
-    Mutex(Mutex&& other) noexcept : m_object(Move(other.m_object)), m_pure_mutex(Move(other.m_pure_mutex)) {}
-    Mutex& operator=(Mutex&& other) noexcept
-    {
-        if (this == &other)
-        {
-            return *this;
-        }
-        m_object = Move(other.m_object);
-        m_pure_mutex = Move(other.m_pure_mutex);
-        return *this;
-    }
+    Mutex(Mutex&&) = delete;
+    Mutex& operator=(Mutex&&) = delete;
 
     MutexGuard<T> Lock()
     {

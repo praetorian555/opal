@@ -1,8 +1,10 @@
 #include "test-helpers.h"
 
 #include <chrono>
+#include <type_traits>
 
 #include "opal/container/scope-ptr.h"
+#include "opal/exceptions.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/container/string.h"
 #include "opal/rng.h"
@@ -731,38 +733,52 @@ TEST_CASE("Signal WaitFor returns true when state changes", "[Thread]")
     JoinThread(t);
 }
 
-// Both of these are about the moved-from object surviving its own destructor. It owns no handle, and pthread_cond_destroy does
-// not accept a null one, so this used to be a segfault on Linux that Windows could not see: CONDITION_VARIABLE has no destroy
-// call, so the Windows path never touched the null pointer.
-TEST_CASE("Condition variable move construction leaves a destructible source", "[Thread]")
+TEST_CASE("Mutex reports a failed allocation", "[Thread]")
 {
-    ConditionVariable source;
-    ConditionVariable moved(Move(source));
+    ThreadSafeNullAllocator null_allocator;
+    PushDefault guard(&null_allocator);
 
-    // Reaching the end of the scope destroys both.
-    SUCCEED();
+    REQUIRE_THROWS_AS(Mutex<bool>(false), OutOfMemoryException);
 }
 
-TEST_CASE("Condition variable move assignment leaves a destructible source", "[Thread]")
+TEST_CASE("Condition variable reports a failed allocation", "[Thread]")
 {
-    ConditionVariable source;
-    ConditionVariable target;
-    target = Move(source);
+    ThreadSafeNullAllocator null_allocator;
 
-    SUCCEED();
+    REQUIRE_THROWS_AS(ConditionVariable(&null_allocator), OutOfMemoryException);
 }
 
-TEST_CASE("A moved condition variable still signals", "[Thread]")
+TEST_CASE("Mutex, condition variable and signal are neither copyable nor movable", "[Thread]")
+{
+    STATIC_REQUIRE_FALSE(std::is_move_constructible_v<Mutex<bool>>);
+    STATIC_REQUIRE_FALSE(std::is_move_assignable_v<Mutex<bool>>);
+    STATIC_REQUIRE_FALSE(std::is_move_constructible_v<ConditionVariable>);
+    STATIC_REQUIRE_FALSE(std::is_move_assignable_v<ConditionVariable>);
+    STATIC_REQUIRE_FALSE(std::is_move_constructible_v<Signal>);
+    STATIC_REQUIRE_FALSE(std::is_move_assignable_v<Signal>);
+
+    STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<Mutex<bool>>);
+    STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<ConditionVariable>);
+    STATIC_REQUIRE_FALSE(std::is_copy_constructible_v<Signal>);
+}
+
+// This is the loop docs/threading.md used to demonstrate, inverted. `while (!*cond.Wait(guard))` waits before it tests the
+// predicate, so the notification below arrives while nobody is waiting yet and the thread never wakes. Written that way this
+// test hung the suite on both platforms.
+TEST_CASE("A condition variable waiter that tests its predicate first does not lose a notification", "[Thread]")
 {
     Mutex<bool> ready(false);
-    ConditionVariable source;
-    ConditionVariable cond(Move(source));
+    ConditionVariable cond;
+
+    {
+        auto guard = ready.Lock();
+        *guard.Deref() = true;
+    }
+    cond.NotifyOne();
 
     const ThreadHandle waiter = CreateThreadOrFail(
         [](Mutex<bool>& in_ready, ConditionVariable& in_cond)
         {
-            // The predicate is checked before waiting, not after. `while (!*cond.Wait(guard))`, which docs/threading.md
-            // demonstrates, waits first and so loses a notification that arrives before this thread gets here.
             auto guard = in_ready.Lock();
             while (!*guard.Deref())
             {
@@ -771,38 +787,10 @@ TEST_CASE("A moved condition variable still signals", "[Thread]")
         },
         Ref(ready), Ref(cond));
 
-    {
-        auto guard = ready.Lock();
-        *guard.Deref() = true;
-    }
-    cond.NotifyOne();
     JoinThread(waiter);
 
     auto guard = ready.Lock();
     REQUIRE(*guard.Deref());
-}
-
-TEST_CASE("Signal move constructor", "[Thread]")
-{
-    Signal signal;
-    signal.NotifyOne();
-    REQUIRE(signal.GetState() == 1);
-
-    Signal moved_signal(Move(signal));
-    REQUIRE(moved_signal.GetState() == 1);
-    REQUIRE(signal.GetState() == 0);
-}
-
-TEST_CASE("Signal move assignment", "[Thread]")
-{
-    Signal signal;
-    signal.NotifyOne();
-    REQUIRE(signal.GetState() == 1);
-
-    Signal other;
-    other = Move(signal);
-    REQUIRE(other.GetState() == 1);
-    REQUIRE(signal.GetState() == 0);
 }
 
 TEST_CASE("Signal multiple notify calls", "[Thread]")
