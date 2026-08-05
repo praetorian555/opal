@@ -215,9 +215,11 @@ Opal::ConditionVariable cond;
 auto t = Opal::CreateThread([&]()
 {
     auto guard = ready.Lock();
-    while (!*cond.Wait(guard))
+    while (!*guard.Deref())
     {
-        // Spurious wakeup, keep waiting
+        // Re-check the predicate on every wake, the notify may have arrived
+        // before the wait started or the wake may be spurious
+        cond.Wait(guard);
     }
     // *guard.Deref() is now true
 });
