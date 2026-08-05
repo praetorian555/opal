@@ -73,7 +73,7 @@ jobs:
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Set up MSVC developer environment
       # Ninja + cl needs the MSVC toolchain on PATH (the VS generator did this implicitly).
@@ -113,7 +113,7 @@ jobs:
       # UBSan only prints and keeps going by default, which would let a finding pass as a green run. ASan aborts on its own.
       UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Configure CMake
       run: cmake -B ${{github.workspace}}/build -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=${{matrix.config.cxx}} -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=ON
@@ -145,7 +145,7 @@ jobs:
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v7
 
     - name: Set up MSVC developer environment
       if: matrix.config.cxx == 'cl'
