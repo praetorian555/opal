@@ -91,21 +91,40 @@ public:
     ~ThreadPool();
 
     /**
-     * Submits a callable as a task. Returns a SharedPtr<Task> that can be used to wait for completion.
+     * Submits a callable as a task.
      * @param function Callable that accepts a Task::TransmitterType& parameter.
-     * @return SharedPtr<Task> handle to the submitted task.
+     * @return Handle that can be used to wait for the task, ErrorCode::ChannelClosed if the pool has been closed, or
+     *         ErrorCode::OutOfMemory if the task could not be allocated.
      */
     template <typename Function>
-    SharedPtr<Task> AddFunctionTask(Function function)
+    Expected<SharedPtr<Task>, ErrorCode> AddFunctionTask(Function function)
     {
-        SharedPtr<FunctionTask<Function>> task(m_allocator, std::move(function));
-        m_communicator.transmitter.Send(SharedPtr<Task>{task.Clone()});
-        return SharedPtr<Task>{std::move(task)};
+        using ReturnType = Expected<SharedPtr<Task>, ErrorCode>;
+        if (m_is_closed.load(std::memory_order_acquire))
+        {
+            return ReturnType(ErrorCode::ChannelClosed);
+        }
+        Expected<SharedPtr<FunctionTask<Function>>, ErrorCode> task =
+            SharedPtr<FunctionTask<Function>>::Create(m_allocator, std::move(function));
+        if (!task.HasValue())
+        {
+            return ReturnType(task.GetError());
+        }
+        SharedPtr<FunctionTask<Function>> handle = std::move(task).GetValue();
+        m_communicator.transmitter.Send(SharedPtr<Task>{handle.Clone()});
+        return ReturnType(SharedPtr<Task>{std::move(handle)});
     }
 
     /**
-     * Shuts down the thread pool. Sends sentinel tasks to unblock all workers and joins all threads.
-     * Safe to call multiple times. Called automatically by the destructor.
+     * Blocks until every task submitted to the pool has run, including the ones submitted by tasks that were already running.
+     * Returns immediately on a closed pool.
+     * @note Not safe to call concurrently with Close.
+     */
+    void WaitForAll();
+
+    /**
+     * Shuts down the thread pool. Sends sentinel tasks to unblock all workers and joins all threads. Tasks submitted after this
+     * are rejected. Safe to call multiple times. Called automatically by the destructor.
      */
     void Close();
 
@@ -116,7 +135,8 @@ private:
     AllocatorBase* m_allocator = nullptr;
     DynamicArray<ThreadHandle> m_threads;
     ChannelMPMC<SharedPtr<Task>, true> m_communicator;
-    bool m_is_closed = false;
+    std::atomic<u64> m_completed_count = 0;
+    std::atomic<bool> m_is_closed = false;
 };
 
 }  // namespace Opal

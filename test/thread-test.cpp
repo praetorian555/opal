@@ -38,6 +38,19 @@ struct ThreadSafeNullAllocator final : AllocatorBase
     void Free(void*) override {}
     [[nodiscard]] bool IsThreadSafe() const override { return true; }
 };
+
+// Hands out memory until it is switched off, so a type that allocates in its constructor can be built and then be made to fail.
+struct FailAfterSwitchAllocator final : AllocatorBase
+{
+    FailAfterSwitchAllocator() : AllocatorBase("FailAfterSwitchAllocator") {}
+
+    void* Alloc(u64 size, u64 alignment) override { return m_fail.load() ? nullptr : m_inner.Alloc(size, alignment); }
+    void Free(void* ptr) override { m_inner.Free(ptr); }
+    [[nodiscard]] bool IsThreadSafe() const override { return true; }
+
+    MallocAllocator m_inner;
+    std::atomic<bool> m_fail{false};
+};
 }  // namespace
 
 TEST_CASE("Create a thread", "[Thread]")
@@ -631,7 +644,8 @@ TEST_CASE("Thread pool", "[Thread]")
     ThreadPool pool(8);
     i32 value = 5;
     auto task = pool.AddFunctionTask([&value](Task::TransmitterType&) { value = 10; });
-    task->WaitForCompletion();
+    REQUIRE(task.HasValue());
+    task.GetValue()->WaitForCompletion();
     REQUIRE(value == 10);
 }
 
@@ -640,8 +654,69 @@ TEST_CASE("Thread pool captures string", "[Thread]")
     ThreadPool pool(8);
     StringUtf8 value = "Hello";
     auto task = pool.AddFunctionTask([moved_value = value.Clone()](Task::TransmitterType&) { REQUIRE(moved_value == "Hello"); });
-    task->WaitForCompletion();
+    REQUIRE(task.HasValue());
+    task.GetValue()->WaitForCompletion();
     REQUIRE(value == "Hello");
+}
+
+TEST_CASE("Thread pool rejects tasks after it is closed", "[Thread]")
+{
+    ThreadPool pool(2);
+    pool.Close();
+
+    auto task = pool.AddFunctionTask([](Task::TransmitterType&) {});
+    REQUIRE_FALSE(task.HasValue());
+    REQUIRE(task.GetError() == ErrorCode::ChannelClosed);
+}
+
+TEST_CASE("Thread pool reports a task it could not allocate", "[Thread]")
+{
+    FailAfterSwitchAllocator allocator;
+    ThreadPool pool(2, 128, &allocator);
+    allocator.m_fail.store(true);
+
+    auto task = pool.AddFunctionTask([](Task::TransmitterType&) {});
+    REQUIRE_FALSE(task.HasValue());
+    REQUIRE(task.GetError() == ErrorCode::OutOfMemory);
+
+    allocator.m_fail.store(false);
+}
+
+TEST_CASE("Thread pool WaitForAll drains every task", "[Thread]")
+{
+    ThreadPool pool(4);
+    std::atomic<i32> counter{0};
+
+    for (i32 i = 0; i < 64; ++i)
+    {
+        auto task = pool.AddFunctionTask([&counter](Task::TransmitterType&) { counter.fetch_add(1); });
+        REQUIRE(task.HasValue());
+    }
+
+    pool.WaitForAll();
+    REQUIRE(counter.load() == 64);
+}
+
+TEST_CASE("Thread pool WaitForAll drains tasks submitted by other tasks", "[Thread]")
+{
+    ThreadPool pool(4);
+    std::atomic<i32> counter{0};
+
+    auto parent = pool.AddFunctionTask(
+        [&counter](Task::TransmitterType& transmitter)
+        {
+            counter.fetch_add(1);
+            auto child_work = [&counter](Task::TransmitterType&) { counter.fetch_add(1); };
+            for (i32 i = 0; i < 8; ++i)
+            {
+                SharedPtr<FunctionTask<decltype(child_work)>> child(GetDefaultAllocator(), child_work);
+                transmitter.Send(SharedPtr<Task>{Move(child)});
+            }
+        });
+    REQUIRE(parent.HasValue());
+
+    pool.WaitForAll();
+    REQUIRE(counter.load() == 9);
 }
 
 TEST_CASE("Signal initial state", "[Thread]")

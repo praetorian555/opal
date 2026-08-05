@@ -529,14 +529,28 @@ A task-based thread pool that distributes work across a fixed number of worker t
 Opal::ThreadPool pool(8);  // 8 worker threads
 
 // Submit a task
-Opal::SharedPtr<Opal::Task> task = pool.AddFunctionTask(
+auto task = pool.AddFunctionTask(
     [](Opal::Task::TransmitterType&)
     {
         // Do work
     });
 
-// Wait for completion
-task->WaitForCompletion();
+if (task.HasValue())
+{
+    // Wait for completion
+    task.GetValue()->WaitForCompletion();
+}
+```
+
+`AddFunctionTask` returns `ErrorCode::ChannelClosed` once the pool has been closed and `ErrorCode::OutOfMemory` when the task
+could not be allocated. `WaitForAll()` waits for the whole pool to drain instead of for one task.
+
+```cpp
+for (int i = 0; i < 64; ++i)
+{
+    pool.AddFunctionTask([](Opal::Task::TransmitterType&) { /* work */ });
+}
+pool.WaitForAll();
 ```
 
 ### Submitting Child Tasks
@@ -556,16 +570,20 @@ auto parent = pool.AddFunctionTask([&pool](Opal::Task::TransmitterType& tx)
     child->WaitForCompletion();
 });
 
-parent->WaitForCompletion();
+parent.GetValue()->WaitForCompletion();
 ```
+
+`WaitForAll()` covers child tasks too: a task is counted as finished only after it returns, so anything it submitted is already
+in the queue by then.
 
 ### API Reference
 
 | Method | Description |
 |--------|-------------|
 | `ThreadPool(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)` | Create pool with N workers |
-| `AddFunctionTask(Function)` | Submit a callable, returns `SharedPtr<Task>` |
-| `Close()` | Send sentinel tasks to unblock workers, then join all threads. Safe to call multiple times |
+| `AddFunctionTask(Function)` | Submit a callable, returns `Expected<SharedPtr<Task>, ErrorCode>` |
+| `WaitForAll()` | Block until every submitted task has run, child tasks included. Not safe to call while another thread is closing the pool |
+| `Close()` | Send sentinel tasks to unblock workers, then join all threads. Rejects later tasks. Safe to call multiple times |
 | `GetThreadCount()` | Number of worker threads |
 | `GetAllocator()` | Allocator used by the pool |
 

@@ -180,6 +180,9 @@ public:
         }
     }
 
+    /** @return How many items have ever been pushed. Only grows, so a caller can compare two readings of it. */
+    [[nodiscard]] size_t GetPushCount() const { return m_write_idx.load(std::memory_order_acquire); }
+
 private:
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
@@ -235,6 +238,9 @@ struct TransmitterMPMC
     void Send(const T& item) { m_queue->Push(item); }
     void Send(T&& item) { m_queue->Push(std::move(item)); }
     bool TrySend(const T& item) { return m_queue->TryPush(item); }
+
+    /** @return How many items have ever been sent through this channel, by any transmitter sharing it. */
+    [[nodiscard]] size_t GetSendCount() const { return m_queue->GetPushCount(); }
 
     /**
      * Marks the channel as closed. After this, Receive() and TryReceive() on the

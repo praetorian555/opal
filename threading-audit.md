@@ -121,11 +121,15 @@ it; the Linux branch passes the typed pointer and would not compile this way.
       suite on both Linux and Windows until the predicate was moved ahead of the wait. A predicate overload,
       `Wait(guard, pred)`, is the fix; the docs need correcting either way. Both done, and the test that used to hang is in
       the suite
-- [ ] `ThreadPool::AddFunctionTask` uses the throwing `SharedPtr` constructor and does not document
-      it, though `SharedPtr::Create` exists now
-- [ ] `ThreadPool::AddFunctionTask` accepts tasks after `Close()`. They queue behind departed
-      workers and `WaitForCompletion` blocks forever
-- [ ] No `ThreadPool::WaitForAll()`. Callers can wait per task but not for the pool to drain
+- [x] `ThreadPool::AddFunctionTask` uses the throwing `SharedPtr` constructor and does not document
+      it, though `SharedPtr::Create` exists now. It returns `Expected<SharedPtr<Task>, ErrorCode>`
+      now, which is where the two failures below report as well
+- [x] `ThreadPool::AddFunctionTask` accepts tasks after `Close()`. They queue behind departed
+      workers and `WaitForCompletion` blocks forever. `ErrorCode::ChannelClosed` now
+- [x] No `ThreadPool::WaitForAll()`. Callers can wait per task but not for the pool to drain.
+      Added, and it covers tasks that running tasks submitted: a worker counts a task as completed
+      only after `Execute` returns, so a follow-up is already in the queue by then. It compares that
+      count against `TransmitterMPMC::GetSendCount`, which is new
 - [x] `QueueSPSC` accepts capacity 0. `m_capacity - 1` underflows and `Push` spins forever. Wrong as
       written - `GetNextPowerOf2(0)` returns 1, so a request for 0 silently became a queue of 1 and
       nothing underflowed. It is a caller mistake either way, so it is an `OPAL_VERIFY` now
