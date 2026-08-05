@@ -1,5 +1,6 @@
 #pragma once
 
+#include "opal/assert.h"
 #include "opal/casts.h"
 #include "opal/container/expected.h"
 #include "opal/container/iterator.h"
@@ -64,8 +65,9 @@ class ArrayViewConstIterator
 public:
     using value_type = typename MySpan::value_type;
     using difference_type = typename MySpan::difference_type;
-    using reference = typename MySpan::reference;
-    using pointer = typename MySpan::pointer;
+    using reference = typename MySpan::const_reference;
+    using const_reference = typename MySpan::const_reference;
+    using pointer = typename MySpan::const_pointer;
 
     ArrayViewConstIterator() = default;
     explicit ArrayViewConstIterator(pointer ptr) : m_ptr(ptr) {}
@@ -167,9 +169,9 @@ public:
     ArrayView& operator=(ArrayView&& other) noexcept = default;
 
     /**
-     * Compare two spans for equality. Two spans are equal if they point to the same data and have the same size.
+     * Compare two spans for equality.
      * @param other Span to compare with.
-     * @return True if the spans are equal, false otherwise.
+     * @return True if both spans hold the same number of elements and those elements compare equal.
      */
     bool operator==(const ArrayView& other) const;
 
@@ -186,20 +188,30 @@ public:
     [[nodiscard]] bool empty() const { return m_size == 0; }
 
     /**
-     * Get a reference to the element at the specified index.
-     * @param index Index of the element.
-     * @return Reference to the element. If the index is out of bounds, an ErrorCode::OutOfBounds is returned.
-     */
-    Expected<T&, ErrorCode> At(size_type index);
-    [[nodiscard]] Expected<const T&, ErrorCode> At(size_type index) const;
-
-    /**
-     * Get a reference to the element at the specified index. No bounds checking is performed.
+     * Get a reference to the element at the specified index. No index bounds checking outside of debug builds.
      * @param index Index of the element.
      * @return Reference to the element.
      */
-    T& operator[](size_type index) { return m_data[index]; }
-    const T& operator[](size_type index) const { return m_data[index]; }
+    reference At(size_type index);
+    [[nodiscard]] const_reference At(size_type index) const;
+
+    /**
+     * Get a reference to the element at the specified index.
+     * @param index Index of the element.
+     * @return Reference to the element.
+     * @note An out of range index is a caller mistake, not a runtime outcome: the check runs in every build and ends the program
+     *       through the contract violation handler. Use TryAt when the index is not known to be in range.
+     */
+    reference operator[](size_type index);
+    const_reference operator[](size_type index) const;
+
+    /**
+     * Get a reference to the element at the specified index, for callers that did not check the size first.
+     * @param index Index of the element.
+     * @return Reference to the element, or ErrorCode::OutOfBounds.
+     */
+    [[nodiscard]] Expected<T&, ErrorCode> TryAt(size_type index);
+    [[nodiscard]] Expected<const T&, ErrorCode> TryAt(size_type index) const;
 
     /**
      * Get a reference to the first element.
@@ -312,15 +324,18 @@ ArrayView<u8> AsWritableBytes(Container& container);
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-CLASS_HEADER::ArrayView(InputIt first, size_type count) : m_data(&(*first)), m_size(count)
+CLASS_HEADER::ArrayView(InputIt first, size_type count) : m_size(count)
 {
+    // The iterator is dereferenced only when there is an element to point at. first can be an end iterator when count is zero.
+    m_data = count == 0 ? nullptr : &(*first);
 }
 
 TEMPLATE_HEADER
 template <typename InputIt>
     requires Opal::RandomAccessIterator<InputIt>
-CLASS_HEADER::ArrayView(InputIt first, InputIt last) : m_data(&(*first)), m_size(static_cast<size_type>(last - first))
+CLASS_HEADER::ArrayView(InputIt first, InputIt last) : m_size(static_cast<size_type>(last - first))
 {
+    m_data = m_size == 0 ? nullptr : &(*first);
 }
 
 TEMPLATE_HEADER
@@ -349,13 +364,56 @@ CLASS_HEADER::ArrayView(Container& container)
 TEMPLATE_HEADER
 bool CLASS_HEADER::operator==(const ArrayView& other) const
 {
-    return m_data == other.m_data && m_size == other.m_size;
+    if (m_size != other.m_size)
+    {
+        return false;
+    }
+    if (m_data == other.m_data)
+    {
+        return true;
+    }
+    for (size_type i = 0; i < m_size; ++i)
+    {
+        if (!(m_data[i] == other.m_data[i]))
+        {
+            return false;
+        }
+    }
+    return true;
 }
 
 TEMPLATE_HEADER
-Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::At(size_type index)
+typename CLASS_HEADER::reference CLASS_HEADER::At(size_type index)
 {
-    if (index >= m_size)
+    OPAL_ASSERT(index < m_size, "Index out of bounds");
+    return m_data[index];
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::const_reference CLASS_HEADER::At(size_type index) const
+{
+    OPAL_ASSERT(index < m_size, "Index out of bounds");
+    return m_data[index];
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::reference CLASS_HEADER::operator[](size_type index)
+{
+    OPAL_VERIFY(index < m_size, "Index out of bounds");
+    return m_data[index];
+}
+
+TEMPLATE_HEADER
+typename CLASS_HEADER::const_reference CLASS_HEADER::operator[](size_type index) const
+{
+    OPAL_VERIFY(index < m_size, "Index out of bounds");
+    return m_data[index];
+}
+
+TEMPLATE_HEADER
+Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::TryAt(size_type index)
+{
+    if (index >= m_size) [[unlikely]]
     {
         return Expected<T&, ErrorCode>(ErrorCode::OutOfBounds);
     }
@@ -363,9 +421,9 @@ Opal::Expected<T&, Opal::ErrorCode> CLASS_HEADER::At(size_type index)
 }
 
 TEMPLATE_HEADER
-Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::At(size_type index) const
+Opal::Expected<const T&, Opal::ErrorCode> CLASS_HEADER::TryAt(size_type index) const
 {
-    if (index >= m_size)
+    if (index >= m_size) [[unlikely]]
     {
         return Expected<const T&, ErrorCode>(ErrorCode::OutOfBounds);
     }
@@ -457,7 +515,8 @@ Opal::ArrayView<Opal::u8> Opal::AsWritableBytes(Container& container)
 TEMPLATE_HEADER
 Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::SubSpan(size_type offset, size_type count) const
 {
-    if (offset + count > m_size)
+    // Compared without adding, since offset + count wraps for a large count and would let the check pass.
+    if (offset > m_size || count > m_size - offset)
     {
         return Expected<ArrayView<T>, ErrorCode>(ErrorCode::OutOfBounds);
     }

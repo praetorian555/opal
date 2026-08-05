@@ -226,6 +226,29 @@ TEST_CASE("View operations", "[StringView]")
         REQUIRE(result.HasValue());
         REQUIRE(result.GetValue().GetSize() == 2);
     }
+
+    // pos + count wrapped, so the clamp was skipped and the view kept the count it was given.
+    SECTION("SubView count that overflows the sum with the position")
+    {
+        StringViewUtf8 view("Hello");
+        auto result = view.SubView(2, StringViewUtf8::k_npos - 1);
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue().GetSize() == 3);
+    }
+
+    SECTION("RemovePrefix of the whole view")
+    {
+        StringViewUtf8 view("Hello");
+        view.RemovePrefix(5);
+        REQUIRE(view.GetSize() == 0);
+    }
+
+    SECTION("RemoveSuffix of the whole view")
+    {
+        StringViewUtf8 view("Hello");
+        view.RemoveSuffix(5);
+        REQUIRE(view.GetSize() == 0);
+    }
 }
 
 TEST_CASE("Comparison", "[StringView]")

@@ -112,11 +112,15 @@ public:
     }
 
     /**
-     * @brief Get the code unit at a specific position. Unchecked.
+     * @brief Get the code unit at a specific position. No bounds checking outside of debug builds.
      * @param pos Position in the view.
      * @return Reference to the code unit.
      */
-    const CodeUnitType& At(size_type pos) const { return m_data[pos]; }
+    const CodeUnitType& At(size_type pos) const
+    {
+        OPAL_ASSERT(pos < m_size, "Index out of bounds");
+        return m_data[pos];
+    }
 
     /**
      * @brief Get the first code unit.
@@ -147,9 +151,12 @@ public:
     /**
      * @brief Advance the start of the view by n code units.
      * @param n Number of code units to remove from the front.
+     * @note More than the view holds is a caller mistake, not a runtime outcome: the check runs in every build and ends the
+     *       program through the contract violation handler.
      */
     void RemovePrefix(size_type n)
     {
+        OPAL_VERIFY(n <= m_size, "Removing more code units than the view holds");
         m_data += n;
         m_size -= n;
     }
@@ -157,8 +164,14 @@ public:
     /**
      * @brief Shrink the view by n code units from the end.
      * @param n Number of code units to remove from the back.
+     * @note More than the view holds is a caller mistake, not a runtime outcome: the check runs in every build and ends the
+     *       program through the contract violation handler.
      */
-    void RemoveSuffix(size_type n) { m_size -= n; }
+    void RemoveSuffix(size_type n)
+    {
+        OPAL_VERIFY(n <= m_size, "Removing more code units than the view holds");
+        m_size -= n;
+    }
 
     /**
      * @brief Get a sub-view.
@@ -172,8 +185,9 @@ public:
         {
             return Expected<StringView, ErrorCode>(ErrorCode::OutOfBounds);
         }
+        // Compared without adding, since pos + count wraps for a large count and would leave actual_count past the end.
         size_type actual_count = count;
-        if (count == k_npos || pos + count > m_size)
+        if (count == k_npos || count > m_size - pos)
         {
             actual_count = m_size - pos;
         }

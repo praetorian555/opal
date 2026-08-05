@@ -1,6 +1,8 @@
 #include "test-helpers.h"
 
 #include <array>
+#include <limits>
+#include <type_traits>
 
 #include "opal/container/array-view.h"
 #include "opal/container/dynamic-array.h"
@@ -80,15 +82,49 @@ TEST_CASE("Equality", "[Span]")
     ArrayView<i32> span3(array + 2, 3);
     REQUIRE(span1 == span2);
     REQUIRE(span1 != span3);
+
+    SECTION("Equal contents in different storage")
+    {
+        i32 other[] = {1, 2, 3, 4, 5};
+        ArrayView<i32> span4(other);
+        REQUIRE(span1 == span4);
+    }
+    SECTION("Same size, different contents")
+    {
+        i32 other[] = {1, 2, 3, 4, 6};
+        ArrayView<i32> span4(other);
+        REQUIRE(span1 != span4);
+    }
+    SECTION("Two empty views")
+    {
+        REQUIRE(ArrayView<i32>() == ArrayView<i32>());
+    }
 }
 
 TEST_CASE("At access", "[Span]")
+{
+    SECTION("Const access")
+    {
+        i32 array[] = {1, 2, 3, 4, 5};
+        const ArrayView<i32> span(array);
+        REQUIRE(span.At(2) == 3);
+    }
+    SECTION("Non-const access")
+    {
+        i32 array[] = {1, 2, 3, 4, 5};
+        ArrayView<i32> span(array);
+        span.At(2) = 30;
+        REQUIRE(array[2] == 30);
+    }
+}
+
+TEST_CASE("TryAt access", "[Span]")
 {
     SECTION("Const good access")
     {
         i32 array[] = {1, 2, 3, 4, 5};
         const ArrayView<i32> span(array);
-        auto value = span.At(2);
+        auto value = span.TryAt(2);
         REQUIRE(value.HasValue());
         REQUIRE(value.GetValue() == 3);
     }
@@ -96,7 +132,7 @@ TEST_CASE("At access", "[Span]")
     {
         i32 array[] = {1, 2, 3, 4, 5};
         const ArrayView<i32> span(array);
-        auto value = span.At(5);
+        auto value = span.TryAt(5);
         REQUIRE(!value.HasValue());
         REQUIRE(value.GetError() == ErrorCode::OutOfBounds);
     }
@@ -104,7 +140,7 @@ TEST_CASE("At access", "[Span]")
     {
         i32 array[] = {1, 2, 3, 4, 5};
         ArrayView<i32> span(array);
-        auto value = span.At(2);
+        auto value = span.TryAt(2);
         REQUIRE(value.HasValue());
         REQUIRE(value.GetValue() == 3);
     }
@@ -112,7 +148,7 @@ TEST_CASE("At access", "[Span]")
     {
         i32 array[] = {1, 2, 3, 4, 5};
         ArrayView<i32> span(array);
-        auto value = span.At(5);
+        auto value = span.TryAt(5);
         REQUIRE(!value.HasValue());
         REQUIRE(value.GetError() == ErrorCode::OutOfBounds);
     }
@@ -287,6 +323,45 @@ TEST_CASE("Sub span", "[Span]")
         REQUIRE(subSpan.GetValue().GetData() == array + 2);
         REQUIRE(subSpan.GetValue().GetSize() == 3);
     }
+    // offset + count wrapped, so the check passed and the caller got a view over memory that was never theirs.
+    SECTION("Count that overflows the sum with the offset")
+    {
+        i32 array[] = {1, 2, 3, 4, 5};
+        ArrayView<i32> span(array);
+        auto subSpan = span.SubSpan(3, std::numeric_limits<u64>::max() - 1);
+        REQUIRE(!subSpan.HasValue());
+        REQUIRE(subSpan.GetError() == ErrorCode::OutOfBounds);
+    }
+    SECTION("Offset past the end")
+    {
+        i32 array[] = {1, 2, 3, 4, 5};
+        ArrayView<i32> span(array);
+        auto subSpan = span.SubSpan(6, 0);
+        REQUIRE(!subSpan.HasValue());
+        REQUIRE(subSpan.GetError() == ErrorCode::OutOfBounds);
+    }
+}
+
+TEST_CASE("Const iterator does not allow mutation", "[Span]")
+{
+    STATIC_REQUIRE(std::is_const_v<std::remove_reference_t<ArrayView<i32>::const_iterator::reference>>);
+    STATIC_REQUIRE(std::is_const_v<std::remove_pointer_t<ArrayView<i32>::const_iterator::pointer>>);
+
+    // A const view hands out const iterators, so this reads and does not write.
+    i32 array[] = {1, 2, 3, 4, 5};
+    const ArrayView<i32> span(array);
+    REQUIRE(*span.begin() == 1);
+    REQUIRE(*span.cbegin() == 1);
+}
+
+TEST_CASE("Zero count does not dereference the iterator", "[Span]")
+{
+    DynamicArray<i32> array;
+    REQUIRE(array.PushBack(1) == ErrorCode::Success);
+
+    ArrayView<i32> span(array.end(), static_cast<u64>(0));
+    REQUIRE(span.GetSize() == 0);
+    REQUIRE(span.GetData() == nullptr);
 }
 
 TEST_CASE("Iterator", "[Span]")
