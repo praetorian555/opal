@@ -96,6 +96,35 @@ jobs:
       # Execute tests defined by the CMake configuration.
       run: ctest --output-on-failure
 
+  # Every job above passes OPAL_HARDENING=OFF, so none of them instruments anything. Without this job a use-after-free reaches
+  # main green. ASan and UBSan are what OPAL_HARDENING=ON turns on for GCC and Clang.
+  sanitizers:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: "GCC sanitizers"
+          cxx: "g++"
+        - name: "Clang sanitizers"
+          cxx: "clang++"
+    name: ${{matrix.config.name}}
+    runs-on: ubuntu-latest
+    env:
+      # UBSan only prints and keeps going by default, which would let a finding pass as a green run. ASan aborts on its own.
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=${{matrix.config.cxx}} -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=ON
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: ctest --output-on-failure
+
   # OPAL_EXCEPTIONS=OFF turns every throw into a call to the contract violation handler, which is a different compile of every
   # header. Nothing in the job above covers it, so a new throw would break that build without anyone noticing until they tried
   # it. There is no test step: the option forces OPAL_BUILD_TESTS off, since Catch2 needs exceptions.

@@ -58,10 +58,11 @@ wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&
   cd build/debug-wsl-clang && ctest --output-on-failure'
 ```
 
-`OPAL_HARDENING=ON` turns on the sanitizers, so the Clang build above is also the only place
-AddressSanitizer runs. CI passes `-DOPAL_HARDENING=OFF` to every job, which means no CI job runs a
-sanitizer and a use-after-free can reach `main` green. Treat a local sanitizer run as part of testing
-anything touching lifetimes or threading, not as an optional extra.
+`OPAL_HARDENING=ON` turns on ASan and UBSan, which is what the two builds above run under. CI has a
+`sanitizers` job covering the same thing on GCC and Clang, with `UBSAN_OPTIONS=halt_on_error=1` so a
+UBSan finding fails the run rather than being printed into a green log. Every other CI job passes
+`-DOPAL_HARDENING=OFF`. Still run the local build for anything touching lifetimes or threading -
+finding it before the push is cheaper than reading it off a CI log.
 
 The build directories match the CLion profiles of the same name and are gitignored.
 
