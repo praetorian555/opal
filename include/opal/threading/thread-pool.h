@@ -2,6 +2,7 @@
 
 #include "opal/allocator.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/defines.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/threading/channel-mpmc.h"
 #include "opal/threading/thread.h"
@@ -135,8 +136,13 @@ private:
     AllocatorBase* m_allocator = nullptr;
     DynamicArray<ThreadHandle> m_threads;
     ChannelMPMC<SharedPtr<Task>, true> m_communicator;
-    std::atomic<u64> m_completed_count = 0;
-    std::atomic<bool> m_is_closed = false;
+    OPAL_START_DISABLE_WARNINGS
+    OPAL_DISABLE_MSVC_WARNING(4324)
+    // Every worker writes the count on every task it finishes, and every submission reads the flag. Sharing a line would put
+    // the readers behind an invalidation per completed task.
+    alignas(OPAL_CACHE_LINE_SIZE) std::atomic<u64> m_completed_count = 0;
+    alignas(OPAL_CACHE_LINE_SIZE) std::atomic<bool> m_is_closed = false;
+    OPAL_END_DISABLE_WARNINGS
 };
 
 }  // namespace Opal
