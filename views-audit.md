@@ -113,8 +113,8 @@ learn separately:
       and 1 respectively. `ArrayView`'s behaviour is documented, so this is a decision to make rather than a bug to fix -
       `std::span` deliberately has no `==` at all, which is the third option
 - [x] `StringView::Min` is a public static member function of the view. Made private. The only thing outside the class using
-      it was the free `GetSubString`, which now clamps without it. `String::Min` is public for the same no-longer-existing
-      reason, and is left alone because its access section holds the SSO constants
+      it was the free `GetSubString`, which now clamps without it. `String::Min` was public for the same no-longer-existing
+      reason and moved to the private section as well, below the SSO constants that shared its access section
 
 Missing from `ArrayView`:
 

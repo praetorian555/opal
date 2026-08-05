@@ -772,8 +772,6 @@ public:
     [[nodiscard]] const_reverse_iterator rend() const { return const_reverse_iterator(cbegin()); }
     [[nodiscard]] const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
 
-    [[nodiscard]] static constexpr size_type Min(size_type a, size_type b) { return a > b ? b : a; }
-
     /**
      * @brief Maximum number of code units (including null terminator) that fit in the SSO buffer.
      */
@@ -782,6 +780,8 @@ public:
 
 private:
     static_assert(sizeof(void*) == 8, "SSO pointer tagging requires a 64-bit platform");
+
+    [[nodiscard]] static constexpr size_type Min(size_type a, size_type b) { return a > b ? b : a; }
 
     static constexpr uintptr_t k_sso_flag_bit = uintptr_t(1) << 63;
     static constexpr int k_sso_size_shift = 57;
