@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iterator>
+
 #include "opal/assert.h"
 #include "opal/casts.h"
 #include "opal/container/expected.h"
@@ -118,6 +120,10 @@ public:
     using const_pointer = const T*;
     using iterator = ArrayViewIterator<ArrayView<T>>;
     using const_iterator = ArrayViewConstIterator<ArrayView<T>>;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+    static constexpr size_type k_npos = static_cast<size_type>(-1);
 
     ArrayView() = default;
 
@@ -180,6 +186,9 @@ public:
 
     [[nodiscard]] size_type GetSize() const { return m_size; }
 
+    /** @return Number of bytes the viewed elements occupy. */
+    [[nodiscard]] size_type GetSizeInBytes() const { return m_size * sizeof(T); }
+
     /**
      * Check if the span is empty.
      * @return True if the span is empty, false otherwise.
@@ -230,10 +239,24 @@ public:
     /**
      * Get a sub span of the span.
      * @param offset Offset of the sub span.
-     * @param count Number of elements in the sub span.
+     * @param count Number of elements in the sub span. Defaults to k_npos, which is the rest of the span.
      * @return Sub span. If the offset or count are out of bounds, an ErrorCode::OutOfBounds is returned.
      */
-    [[nodiscard]] Expected<ArrayView<T>, ErrorCode> SubSpan(size_type offset, size_type count) const;
+    [[nodiscard]] Expected<ArrayView<T>, ErrorCode> SubSpan(size_type offset, size_type count = k_npos) const;
+
+    /**
+     * Get a span over the first elements.
+     * @param count Number of elements.
+     * @return Sub span. If count is larger than the span, an ErrorCode::OutOfBounds is returned.
+     */
+    [[nodiscard]] Expected<ArrayView<T>, ErrorCode> First(size_type count) const;
+
+    /**
+     * Get a span over the last elements.
+     * @param count Number of elements.
+     * @return Sub span. If count is larger than the span, an ErrorCode::OutOfBounds is returned.
+     */
+    [[nodiscard]] Expected<ArrayView<T>, ErrorCode> Last(size_type count) const;
 
     /** Iterator API - Compatible with standard library. */
 
@@ -272,6 +295,22 @@ public:
      * @return Const iterator to the element after the last element.
      */
     [[nodiscard]] const_iterator cend() const { return const_iterator(m_data + m_size); }
+
+    /**
+     * Get an iterator to the last element, walking towards the first.
+     * @return Reverse iterator to the last element.
+     */
+    reverse_iterator rbegin() { return reverse_iterator(end()); }
+    [[nodiscard]] const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
+    [[nodiscard]] const_reverse_iterator crbegin() const { return const_reverse_iterator(cend()); }
+
+    /**
+     * Get an iterator to the element before the first.
+     * @return Reverse iterator to the element before the first.
+     */
+    reverse_iterator rend() { return reverse_iterator(begin()); }
+    [[nodiscard]] const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
+    [[nodiscard]] const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
 
 private:
     T* m_data = nullptr;
@@ -516,11 +555,36 @@ TEMPLATE_HEADER
 Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::SubSpan(size_type offset, size_type count) const
 {
     // Compared without adding, since offset + count wraps for a large count and would let the check pass.
-    if (offset > m_size || count > m_size - offset)
+    if (offset > m_size)
+    {
+        return Expected<ArrayView<T>, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    const size_type remaining = m_size - offset;
+    if (count == k_npos)
+    {
+        count = remaining;
+    }
+    else if (count > remaining)
     {
         return Expected<ArrayView<T>, ErrorCode>(ErrorCode::OutOfBounds);
     }
     return Expected<ArrayView<T>, ErrorCode>(ArrayView<T>(m_data + offset, count));
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::First(size_type count) const
+{
+    return SubSpan(0, count);
+}
+
+TEMPLATE_HEADER
+Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Last(size_type count) const
+{
+    if (count > m_size)
+    {
+        return Expected<ArrayView<T>, ErrorCode>(ErrorCode::OutOfBounds);
+    }
+    return SubSpan(m_size - count, count);
 }
 
 #undef TEMPLATE_HEADER

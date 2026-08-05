@@ -342,6 +342,106 @@ TEST_CASE("Sub span", "[Span]")
     }
 }
 
+TEST_CASE("SubSpan defaulting to the rest of the span", "[Span]")
+{
+    i32 array[] = {1, 2, 3, 4, 5};
+    ArrayView<i32> span(array);
+
+    SECTION("From an offset")
+    {
+        auto rest = span.SubSpan(2);
+        REQUIRE(rest.HasValue());
+        REQUIRE(rest.GetValue().GetSize() == 3);
+        REQUIRE(rest.GetValue()[0] == 3);
+    }
+    SECTION("From the end")
+    {
+        auto rest = span.SubSpan(5);
+        REQUIRE(rest.HasValue());
+        REQUIRE(rest.GetValue().GetSize() == 0);
+    }
+}
+
+TEST_CASE("First and Last", "[Span]")
+{
+    i32 array[] = {1, 2, 3, 4, 5};
+    ArrayView<i32> span(array);
+
+    SECTION("First")
+    {
+        auto first = span.First(2);
+        REQUIRE(first.HasValue());
+        REQUIRE(first.GetValue().GetSize() == 2);
+        REQUIRE(first.GetValue()[0] == 1);
+        REQUIRE(first.GetValue()[1] == 2);
+    }
+    SECTION("Last")
+    {
+        auto last = span.Last(2);
+        REQUIRE(last.HasValue());
+        REQUIRE(last.GetValue().GetSize() == 2);
+        REQUIRE(last.GetValue()[0] == 4);
+        REQUIRE(last.GetValue()[1] == 5);
+    }
+    SECTION("The whole span")
+    {
+        REQUIRE(span.First(5).GetValue().GetSize() == 5);
+        REQUIRE(span.Last(5).GetValue().GetSize() == 5);
+    }
+    SECTION("Nothing")
+    {
+        REQUIRE(span.First(0).GetValue().GetSize() == 0);
+        REQUIRE(span.Last(0).GetValue().GetSize() == 0);
+    }
+    SECTION("More than the span holds")
+    {
+        REQUIRE(span.First(6).GetError() == ErrorCode::OutOfBounds);
+        REQUIRE(span.Last(6).GetError() == ErrorCode::OutOfBounds);
+    }
+}
+
+TEST_CASE("GetSizeInBytes", "[Span]")
+{
+    i32 array[] = {1, 2, 3, 4, 5};
+    ArrayView<i32> span(array);
+    REQUIRE(span.GetSizeInBytes() == 5 * sizeof(i32));
+    REQUIRE(ArrayView<i32>().GetSizeInBytes() == 0);
+}
+
+TEST_CASE("Reverse iterators", "[Span]")
+{
+    i32 array[] = {1, 2, 3, 4, 5};
+    ArrayView<i32> span(array);
+
+    SECTION("Walk backwards")
+    {
+        i32 expected = 5;
+        for (auto it = span.rbegin(); it != span.rend(); ++it)
+        {
+            REQUIRE(*it == expected);
+            --expected;
+        }
+        REQUIRE(expected == 0);
+    }
+    SECTION("Write through a reverse iterator")
+    {
+        *span.rbegin() = 50;
+        REQUIRE(array[4] == 50);
+    }
+    SECTION("Const reverse iterators")
+    {
+        const ArrayView<i32> const_span(array);
+        REQUIRE(*const_span.rbegin() == 5);
+        REQUIRE(*span.crbegin() == 5);
+        REQUIRE(span.crend() - span.crbegin() == 5);
+    }
+    SECTION("Empty span")
+    {
+        ArrayView<i32> empty;
+        REQUIRE(empty.rbegin() == empty.rend());
+    }
+}
+
 TEST_CASE("Const iterator does not allow mutation", "[Span]")
 {
     STATIC_REQUIRE(std::is_const_v<std::remove_reference_t<ArrayView<i32>::const_iterator::reference>>);

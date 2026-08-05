@@ -493,4 +493,112 @@ TEST_CASE("ToString", "[StringView]")
     StringViewUtf8 view("Hello World");
     StringUtf8 str = view.ToString();
     REQUIRE(str == "Hello World");
+
+    SECTION("With an explicit allocator")
+    {
+        MallocAllocator allocator;
+        StringUtf8 with_allocator = view.ToString(&allocator);
+        REQUIRE(with_allocator == "Hello World");
+    }
+}
+
+TEST_CASE("TryToString", "[StringView]")
+{
+    StringViewUtf8 view("Hello World");
+
+    SECTION("Succeeds on an allocator that can supply the storage")
+    {
+        auto str = view.TryToString();
+        REQUIRE(str.HasValue());
+        REQUIRE(str.GetValue() == "Hello World");
+    }
+    // Past the small-string buffer, so the allocator is actually asked for storage.
+    SECTION("Reports an allocator that cannot")
+    {
+        StringViewUtf8 long_view("Hello World, and quite a lot more of it than fits inline");
+        REQUIRE(long_view.GetSize() > StringUtf8::k_sso_capacity);
+
+        NullAllocator allocator;
+        auto str = long_view.TryToString(&allocator);
+        REQUIRE_FALSE(str.HasValue());
+        REQUIRE(str.GetError() == ErrorCode::OutOfMemory);
+    }
+}
+
+TEST_CASE("Reverse iterators", "[StringView]")
+{
+    StringViewUtf8 view("abc");
+
+    SECTION("Walk backwards")
+    {
+        auto it = view.rbegin();
+        REQUIRE(*it == 'c');
+        ++it;
+        REQUIRE(*it == 'b');
+        ++it;
+        REQUIRE(*it == 'a');
+        ++it;
+        REQUIRE(it == view.rend());
+    }
+    SECTION("Const forms")
+    {
+        REQUIRE(*view.crbegin() == 'c');
+        REQUIRE(view.crend() - view.crbegin() == 3);
+    }
+    SECTION("Empty view")
+    {
+        StringViewUtf8 empty;
+        REQUIRE(empty.rbegin() == empty.rend());
+    }
+}
+
+TEST_CASE("StartsWith, EndsWith and Contains", "[StringView]")
+{
+    StringViewUtf8 view("Hello World");
+
+    SECTION("StartsWith")
+    {
+        REQUIRE(StartsWith(view, StringViewUtf8("Hello")));
+        REQUIRE(StartsWith(view, "Hello"));
+        REQUIRE(StartsWith(view, 'H'));
+        REQUIRE_FALSE(StartsWith(view, "World"));
+        REQUIRE_FALSE(StartsWith(view, 'W'));
+        REQUIRE(StartsWith(view, ""));
+        REQUIRE_FALSE(StartsWith(view, "Hello World and then some"));
+    }
+    SECTION("EndsWith")
+    {
+        REQUIRE(EndsWith(view, StringViewUtf8("World")));
+        REQUIRE(EndsWith(view, "World"));
+        REQUIRE(EndsWith(view, 'd'));
+        REQUIRE_FALSE(EndsWith(view, "Hello"));
+        REQUIRE_FALSE(EndsWith(view, 'H'));
+        REQUIRE(EndsWith(view, ""));
+        REQUIRE_FALSE(EndsWith(view, "and then some Hello World"));
+    }
+    SECTION("Contains")
+    {
+        REQUIRE(Contains(view, StringViewUtf8("lo Wo")));
+        REQUIRE(Contains(view, "lo Wo"));
+        REQUIRE(Contains(view, 'W'));
+        REQUIRE_FALSE(Contains(view, "planet"));
+        REQUIRE_FALSE(Contains(view, 'z'));
+        REQUIRE(Contains(view, ""));
+    }
+    SECTION("An empty view holds nothing but the empty needle")
+    {
+        StringViewUtf8 empty;
+        REQUIRE_FALSE(StartsWith(empty, 'a'));
+        REQUIRE_FALSE(EndsWith(empty, 'a'));
+        REQUIRE_FALSE(Contains(empty, "a"));
+        REQUIRE(StartsWith(empty, ""));
+        REQUIRE(EndsWith(empty, ""));
+    }
+    SECTION("The same functions take a String")
+    {
+        StringUtf8 str("Hello World");
+        REQUIRE(StartsWith(str, "Hello"));
+        REQUIRE(EndsWith(str, 'd'));
+        REQUIRE(Contains(str, "lo Wo"));
+    }
 }

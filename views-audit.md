@@ -112,22 +112,30 @@ learn separately:
       equal contents are unequal. `StringView` compares contents. **Reproduced**: same contents in different storage give 0
       and 1 respectively. `ArrayView`'s behaviour is documented, so this is a decision to make rather than a bug to fix -
       `std::span` deliberately has no `==` at all, which is the third option
-- [ ] `StringView::Min` is a public static member function of the view. `Opal::Min` already exists in `math-base.h`
+- [x] `StringView::Min` is a public static member function of the view. Made private. The only thing outside the class using
+      it was the free `GetSubString`, which now clamps without it. `String::Min` is public for the same no-longer-existing
+      reason, and is left alone because its access section holds the SSO constants
 
 Missing from `ArrayView`:
 
-- [ ] `First(count)` and `Last(count)`, and a one-argument `SubSpan(offset)` for the rest of the view. `StringView::SubView`
-      already defaults its count
-- [ ] Reverse iterators. Neither view has `rbegin`/`rend`
-- [ ] `GetSizeInBytes()`
+- [x] `First(count)` and `Last(count)`, and a one-argument `SubSpan(offset)` for the rest of the view. `StringView::SubView`
+      already defaults its count. `SubSpan` still refuses a count that runs past the end rather than clamping to it, which is
+      what it always did and what its test expects; only `k_npos` means the rest
+- [x] Reverse iterators. Neither view has `rbegin`/`rend`. Both have them now, as `std::reverse_iterator` over the existing
+      iterators, which model `std::random_access_iterator`. `DynamicArray`'s hand-written reverse iterator lives in
+      `dynamic-array.h` and reusing it would have made a lightweight view header pull in the whole array container
+- [x] `GetSizeInBytes()`
 
 Missing from `StringView`:
 
-- [ ] `StartsWith`, `EndsWith` and `Contains`. `Contains` exists on `String` only, and nothing in the library has the other
-      two. The free `Find`, `ReverseFind`, `Compare` and `Split` are constrained on `StringLike` and do already accept a
-      view, so this is a smaller gap than it looks
-- [ ] `ToString()` calls the throwing `String` constructor and cannot be given an allocator. Every other type that allocates
-      grew a `Create` during the exceptions work; this one did not
+- [x] ~~`StartsWith`, `EndsWith` and `Contains`. `Contains` exists on `String` only, and nothing in the library has the other
+      two.~~ **Wrong as written.** Free `StartsWith` and `EndsWith` on `StringLike` already existed at `string.h:1237,1247`;
+      the grep behind this item required leading whitespace and so only saw member declarations. What was really missing was
+      a free `Contains`, which a view had no way to reach, and a needle that is not a whole `StringClass`. Added: free
+      `Contains` and the `const value_type*` and single code unit needles for all three
+- [x] `ToString()` calls the throwing `String` constructor and cannot be given an allocator. Every other type that allocates
+      grew a `Create` during the exceptions work; this one did not. It takes an allocator now, and `TryToString` reports
+      `ErrorCode::OutOfMemory` instead of throwing
 
 ---
 

@@ -32,6 +32,7 @@ public:
     using const_pointer = const CodeUnitType*;
     using encoding_type = EncodingType;
     using const_iterator = StringConstIterator<StringView>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     static constexpr size_type k_npos = static_cast<size_type>(-1);
 
@@ -68,7 +69,20 @@ public:
 
     ~StringView() = default;
 
-    String<CodeUnitType, EncodingType> ToString() const;
+    /**
+     * @brief Copy the viewed code units into a string.
+     * @param allocator Allocator for the string's storage. If null, uses the default allocator.
+     * @return The new string.
+     * @throws OutOfMemoryException If the storage could not be allocated. Use TryToString on a budgeted allocator.
+     */
+    String<CodeUnitType, EncodingType> ToString(AllocatorBase* allocator = nullptr) const;
+
+    /**
+     * @brief Copy the viewed code units into a string, for callers whose allocator can refuse.
+     * @param allocator Allocator for the string's storage. If null, uses the default allocator.
+     * @return The new string, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] Expected<String<CodeUnitType, EncodingType>, ErrorCode> TryToString(AllocatorBase* allocator = nullptr) const;
 
     /** @brief Get the underlying data pointer. */
     [[nodiscard]] const CodeUnitType* GetData() const { return m_data; }
@@ -291,17 +305,32 @@ public:
     const_iterator cbegin() const { return const_iterator(m_data); }
     const_iterator cend() const { return const_iterator(m_data + m_size); }
 
-    [[nodiscard]] static constexpr size_type Min(size_type a, size_type b) { return a > b ? b : a; }
+    /** @brief Get an iterator to the last code unit, walking towards the first. */
+    [[nodiscard]] const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
+    [[nodiscard]] const_reverse_iterator crbegin() const { return const_reverse_iterator(cend()); }
+
+    /** @brief Get an iterator to the code unit before the first. */
+    [[nodiscard]] const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
+    [[nodiscard]] const_reverse_iterator crend() const { return const_reverse_iterator(cbegin()); }
 
 private:
+    [[nodiscard]] static constexpr size_type Min(size_type a, size_type b) { return a > b ? b : a; }
+
     const CodeUnitType* m_data = nullptr;
     size_type m_size = 0;
 };
 
 template <typename CodeUnitType, typename EncodingType>
-String<CodeUnitType, EncodingType> StringView<CodeUnitType, EncodingType>::ToString() const
+String<CodeUnitType, EncodingType> StringView<CodeUnitType, EncodingType>::ToString(AllocatorBase* allocator) const
 {
-    return {m_data, m_size};
+    return {m_data, m_size, allocator};
+}
+
+template <typename CodeUnitType, typename EncodingType>
+Opal::Expected<Opal::String<CodeUnitType, EncodingType>, Opal::ErrorCode> StringView<CodeUnitType, EncodingType>::TryToString(
+    AllocatorBase* allocator) const
+{
+    return String<CodeUnitType, EncodingType>::Create(m_data, m_size, allocator);
 }
 
 /*************************************************************************************************/

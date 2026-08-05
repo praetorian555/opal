@@ -1247,6 +1247,62 @@ template <StringLike StringClass>
 bool EndsWith(const StringClass& str, const StringClass& suffix);
 
 /**
+ * @brief Check if a given string starts with a specified prefix.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
+ * @param str String which to check.
+ * @param prefix Null-terminated prefix which to use. An empty prefix matches any string.
+ * @return Returns true if str starts with prefix, false otherwise.
+ */
+template <StringLike StringClass>
+bool StartsWith(const StringClass& str, const typename StringClass::value_type* prefix);
+
+/**
+ * @brief Check if a given string starts with a specified code unit.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
+ * @param str String which to check.
+ * @param ch Code unit which to use.
+ * @return Returns true if str starts with ch, false otherwise. An empty string starts with nothing.
+ */
+template <StringLike StringClass>
+bool StartsWith(const StringClass& str, const typename StringClass::value_type& ch);
+
+/**
+ * @brief Check if a given string ends with a specified suffix.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
+ * @param str String which to check.
+ * @param suffix Null-terminated suffix which to use. An empty suffix matches any string.
+ * @return Returns true if str ends with suffix, false otherwise.
+ */
+template <StringLike StringClass>
+bool EndsWith(const StringClass& str, const typename StringClass::value_type* suffix);
+
+/**
+ * @brief Check if a given string ends with a specified code unit.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
+ * @param str String which to check.
+ * @param ch Code unit which to use.
+ * @return Returns true if str ends with ch, false otherwise. An empty string ends with nothing.
+ */
+template <StringLike StringClass>
+bool EndsWith(const StringClass& str, const typename StringClass::value_type& ch);
+
+/**
+ * @brief Check if a given string holds another anywhere. String has this as a member; this is what a view uses.
+ * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
+ * @param str String to search in.
+ * @param needle What to look for. An empty needle is held by any string.
+ * @return Returns true if needle occurs in str, false otherwise.
+ */
+template <StringLike StringClass>
+bool Contains(const StringClass& str, const StringClass& needle);
+
+template <StringLike StringClass>
+bool Contains(const StringClass& str, const typename StringClass::value_type* needle);
+
+template <StringLike StringClass>
+bool Contains(const StringClass& str, const typename StringClass::value_type& ch);
+
+/**
  * @brief Split string into two parts around the specified delimiter.
  * @tparam StringClass Type of the string used. Defines code unit type, encoding and allocator.
  * @param str String to split.
@@ -3805,7 +3861,8 @@ Opal::Expected<StringClass, Opal::ErrorCode> Opal::GetSubString(const StringClas
     {
         return ReturnType(ErrorCode::OutOfBounds);
     }
-    count = StringClass::Min(count, str.GetSize() - start_pos);
+    const typename StringClass::size_type remaining = str.GetSize() - start_pos;
+    count = count > remaining ? remaining : count;
     if constexpr (k_is_string_view_value<StringClass>)
     {
         return ReturnType(StringClass(str.GetData() + start_pos, count));
@@ -3864,6 +3921,72 @@ bool Opal::EndsWith(const StringClass& str, const StringClass& suffix)
         }
     }
     return true;
+}
+
+template <Opal::StringLike StringClass>
+bool Opal::StartsWith(const StringClass& str, const typename StringClass::value_type* prefix)
+{
+    const typename StringClass::size_type prefix_size = GetStringLength(prefix);
+    if (prefix_size > str.GetSize())
+    {
+        return false;
+    }
+    for (typename StringClass::size_type i = 0; i < prefix_size; ++i)
+    {
+        if (prefix[i] != str.At(i))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <Opal::StringLike StringClass>
+bool Opal::StartsWith(const StringClass& str, const typename StringClass::value_type& ch)
+{
+    return !str.IsEmpty() && str.At(0) == ch;
+}
+
+template <Opal::StringLike StringClass>
+bool Opal::EndsWith(const StringClass& str, const typename StringClass::value_type* suffix)
+{
+    const typename StringClass::size_type suffix_size = GetStringLength(suffix);
+    if (suffix_size > str.GetSize())
+    {
+        return false;
+    }
+    for (typename StringClass::size_type i = 0; i < suffix_size; ++i)
+    {
+        if (suffix[i] != str.At(str.GetSize() - suffix_size + i))
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <Opal::StringLike StringClass>
+bool Opal::EndsWith(const StringClass& str, const typename StringClass::value_type& ch)
+{
+    return !str.IsEmpty() && str.At(str.GetSize() - 1) == ch;
+}
+
+template <Opal::StringLike StringClass>
+bool Opal::Contains(const StringClass& str, const StringClass& needle)
+{
+    return Find(str, needle) != StringClass::k_npos;
+}
+
+template <Opal::StringLike StringClass>
+bool Opal::Contains(const StringClass& str, const typename StringClass::value_type* needle)
+{
+    return Find(str, needle) != StringClass::k_npos;
+}
+
+template <Opal::StringLike StringClass>
+bool Opal::Contains(const StringClass& str, const typename StringClass::value_type& ch)
+{
+    return Find(str, ch) != StringClass::k_npos;
 }
 
 template <Opal::StringLike StringClass>
