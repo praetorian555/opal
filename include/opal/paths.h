@@ -12,7 +12,7 @@ namespace Opal::Paths
  * @return Path to the current working directory, ErrorCode::OutOfMemory when the result could not be grown, or
  *         ErrorCode::OSFailure when the OS would not report it.
  */
-[[nodiscard]] Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetCurrentWorkingDirectory();
+[[nodiscard]] Expected<StringUtf8, ErrorCode> GetCurrentWorkingDirectory();
 
 /**
  * @brief Set current working directory.
@@ -21,7 +21,7 @@ namespace Opal::Paths
  * @return ErrorCode::Success, ErrorCode::OutOfMemory when normalizing the path could not allocate, or
  *         ErrorCode::OSFailure when the OS would not accept it.
  */
-[[nodiscard]] ErrorCode OPAL_EXPORT SetCurrentWorkingDirectory(const StringUtf8& path);
+[[nodiscard]] ErrorCode SetCurrentWorkingDirectory(const StringUtf8& path);
 
 /**
  * @brief Normalize the path. This will remove redundant separators, switch separators with preferred separators, resolve relative paths,
@@ -32,14 +32,14 @@ namespace Opal::Paths
  * @return Normalized path, ErrorCode::OutOfMemory when it could not be built, or ErrorCode::OSFailure when a relative
  *         path needed the working directory and the OS would not report it.
  */
-[[nodiscard]] Expected<StringUtf8, ErrorCode> OPAL_EXPORT NormalizePath(const StringUtf8& path);
+[[nodiscard]] Expected<StringUtf8, ErrorCode> NormalizePath(const StringUtf8& path);
 
 /**
  * @brief Check if the path is absolute.
  * @param path Path to check.
  * @return True if the path is absolute, otherwise false.
  */
-bool OPAL_EXPORT IsPathAbsolute(const StringUtf8& path);
+bool IsPathAbsolute(const StringUtf8& path);
 
 /**
  * @brief Get name of the file with the extension from the path.
@@ -48,7 +48,7 @@ bool OPAL_EXPORT IsPathAbsolute(const StringUtf8& path);
  * @return Name of the file with the extension in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for the
  * result.
  */
-Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetFileName(const StringUtf8& path, AllocatorBase* allocator = nullptr);
+Expected<StringUtf8, ErrorCode> GetFileName(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
  * @brief Get name of the file without the extension from the path.
@@ -57,7 +57,7 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetFileName(const StringUtf8& path, 
  * @return Name of the file without the extension in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for
  * the result.
  */
-Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetStem(const StringUtf8& path, AllocatorBase* allocator = nullptr);
+Expected<StringUtf8, ErrorCode> GetStem(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
  * @brief Get extension of the file from the path.
@@ -65,7 +65,7 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetStem(const StringUtf8& path, Allo
  * @param path Path to the file.
  * @return Extension of the file in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
  */
-Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetExtension(const StringUtf8& path, AllocatorBase* allocator = nullptr);
+Expected<StringUtf8, ErrorCode> GetExtension(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
  * @brief Get parent path of the file from the path.
@@ -73,7 +73,7 @@ Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetExtension(const StringUtf8& path,
  * @param path Path to the file.
  * @return Parent path of the file in case of a success. ErrorCode::OutOfMemory in case that it can't allocate memory for the result.
  */
-Expected<StringUtf8, ErrorCode> OPAL_EXPORT GetParentPath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
+Expected<StringUtf8, ErrorCode> GetParentPath(const StringUtf8& path, AllocatorBase* allocator = nullptr);
 
 /**
  * @brief Combine paths, inserting a separator between components that do not already have one.

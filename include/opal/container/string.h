@@ -973,7 +973,7 @@ private:
     } m_storage = {};
 };
 
-extern template class OPAL_EXPORT String<char8, EncodingUtf8<char8>>;
+extern template class String<char8, EncodingUtf8<char8>>;
 
 // Forward declare StringView so the StringLike concept can reference it.
 template <typename CodeUnitType, typename EncodingType>

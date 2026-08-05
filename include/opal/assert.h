@@ -3,7 +3,6 @@
 #include <cassert>
 
 #include "opal/defines.h"
-#include "opal/export.h"
 
 namespace Opal
 {
@@ -15,13 +14,13 @@ using ContractViolationHandler = void (*)(const char* message);
  * Install the handler run when a contract check fails. Pass nullptr to restore the default.
  * @note Not thread-safe. Set it before the threads that could trip a check are started.
  */
-OPAL_EXPORT void SetContractViolationHandler(ContractViolationHandler handler);
+void SetContractViolationHandler(ContractViolationHandler handler);
 
 /** @return The handler currently installed. Never nullptr. */
-OPAL_EXPORT ContractViolationHandler GetContractViolationHandler();
+ContractViolationHandler GetContractViolationHandler();
 
 /** Runs the installed handler, then aborts if it returned anyway. */
-[[noreturn]] OPAL_EXPORT void HandleContractViolation(const char* message);
+[[noreturn]] void HandleContractViolation(const char* message);
 
 }  // namespace Opal
 

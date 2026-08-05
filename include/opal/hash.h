@@ -1,6 +1,5 @@
 #pragma once
 
-#include "opal/export.h"
 #include "opal/types.h"
 #include "opal/type-traits.h"
 #include "opal/casts.h"
@@ -16,7 +15,7 @@ namespace Hash
  * @param seed Specific seed to use. Default is 0.
  * @return Returns 64-bit hash value.
  */
-OPAL_EXPORT u64 CalcRawArray(const u8* data, u64 size, u64 seed = 0);
+u64 CalcRawArray(const u8* data, u64 size, u64 seed = 0);
 
 /**
  * Calculates 64-bit hash from the POD object.

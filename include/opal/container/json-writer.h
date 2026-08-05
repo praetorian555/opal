@@ -4,7 +4,6 @@
 #include "opal/container/json-reader.h"
 #include "opal/container/string.h"
 #include "opal/error-codes.h"
-#include "opal/export.h"
 
 namespace Opal
 {
@@ -24,7 +23,7 @@ struct JsonWriteOptions
 // JsonWriter.
 // ------------------------------------------------------------------------------------------------
 
-class OPAL_EXPORT JsonWriter
+class JsonWriter
 {
 public:
     /**

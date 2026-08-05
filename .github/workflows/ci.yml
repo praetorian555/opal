@@ -21,55 +21,46 @@ jobs:
           build_type: "Debug"
           cxx: "cl"
           generators: "Ninja"
-          shared_libs: "OFF"
         - name: "MSVC Test"
           os: windows-2022
           build_type: "RelWithDebInfo"
           cxx: "cl"
           generators: "Ninja"
-          shared_libs: "OFF"
         - name: "MSVC Release"
           os: windows-2022
           build_type: "Release"
           cxx: "cl"
           generators: "Ninja"
-          shared_libs: "OFF"
         - name: "GCC Debug"
           os: ubuntu-latest
           build_type: "Debug"
           cxx: "g++"
           generators: "Ninja"
-          shared_libs: "OFF"
         - name: "GCC Test"
           os: ubuntu-latest
           build_type: "RelWithDebInfo"
           cxx: "g++"
           generators: "Ninja"
-          shared_libs: "OFF"
         - name: "GCC Release"
           os: ubuntu-latest
           build_type: "Release"
           cxx: "g++"
           generators: "Ninja"
-          shared_libs: "OFF"
         - name: Clang Debug
           os: ubuntu-latest
           build_type: "Debug"
           cxx: "clang++"
           generators: "Ninja"
-          shared_libs: "OFF"
         - name: Clang Test
           os: ubuntu-latest
           build_type: "RelWithDebInfo"
           cxx: "clang++"
           generators: "Ninja"
-          shared_libs: "OFF"
         - name: Clang Release
           os: ubuntu-latest
           build_type: "Release"
           cxx: "clang++"
           generators: "Ninja"
-          shared_libs: "OFF"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
     steps:
@@ -85,7 +76,7 @@ jobs:
 
     - name: Configure CMake
       # Ninja is single-config, so the build type must be set at configure time via CMAKE_BUILD_TYPE.
-      run: cmake -B ${{github.workspace}}/build -G "${{matrix.config.generators}}" -DCMAKE_BUILD_TYPE=${{matrix.config.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.config.cxx}} -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF -DOPAL_SHARED_LIBS=${{matrix.config.shared_libs}}
+      run: cmake -B ${{github.workspace}}/build -G "${{matrix.config.generators}}" -DCMAKE_BUILD_TYPE=${{matrix.config.build_type}} -DCMAKE_CXX_COMPILER=${{matrix.config.cxx}} -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF
 
     - name: Build
       # Build your program with the given configuration

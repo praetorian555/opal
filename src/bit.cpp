@@ -74,25 +74,25 @@ Opal::u64 Opal::CountSetBits(u64 value)
 }
 
 template <>
-OPAL_EXPORT Opal::u32 Opal::GetBitWidth<Opal::u8>()
+Opal::u32 Opal::GetBitWidth<Opal::u8>()
 {
     return 8;
 }
 
 template <>
-OPAL_EXPORT Opal::u32 Opal::GetBitWidth<Opal::u16>()
+Opal::u32 Opal::GetBitWidth<Opal::u16>()
 {
     return 16;
 }
 
 template <>
-OPAL_EXPORT Opal::u32 Opal::GetBitWidth<Opal::u32>()
+Opal::u32 Opal::GetBitWidth<Opal::u32>()
 {
     return 32;
 }
 
 template <>
-OPAL_EXPORT Opal::u32 Opal::GetBitWidth<Opal::u64>()
+Opal::u32 Opal::GetBitWidth<Opal::u64>()
 {
     return 64;
 }

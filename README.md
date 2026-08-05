@@ -23,12 +23,14 @@ cmake --build build
 |--------|---------|-------------|
 | `OPAL_BUILD_TESTS` | `ON` | Build the test suite |
 | `OPAL_HARDENING` | `ON` | Enable sanitizers (address, undefined behavior) |
-| `OPAL_SHARED_LIBS` | `OFF` | Build as shared library instead of static |
+| `OPAL_EXCEPTIONS` | `ON` | Allow the library to throw. When off, a failure that cannot be returned ends the program instead |
+
+Opal builds as a static library. There is no shared build.
 
 Example with custom options:
 
 ```bash
-cmake -B build -DOPAL_BUILD_TESTS=OFF -DOPAL_SHARED_LIBS=ON
+cmake -B build -DOPAL_BUILD_TESTS=OFF -DOPAL_HARDENING=OFF
 cmake --build build
 ```
 

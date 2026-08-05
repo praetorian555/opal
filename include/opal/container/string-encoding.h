@@ -4,7 +4,6 @@
 
 #include "opal/container/array-view.h"
 #include "opal/error-codes.h"
-#include "opal/export.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -102,7 +101,7 @@ struct EncodingUtf32LE
     ErrorCode DecodeOne(ArrayView<const CodeUnitT>& input, CodePointType& out_code_point);
 };
 
-struct OPAL_EXPORT EncodingLocale
+struct EncodingLocale
 {
     using CodeUnitType = char;
     using CodePointType = uchar32;

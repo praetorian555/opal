@@ -5,7 +5,6 @@
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/container/expected.h"
-#include "opal/export.h"
 
 namespace Opal
 {
@@ -81,7 +80,7 @@ private:
 
 namespace Impl
 {
-struct OPAL_EXPORT PureMutex
+struct PureMutex
 {
     PureMutex();
     ~PureMutex();

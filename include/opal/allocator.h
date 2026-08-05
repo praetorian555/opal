@@ -7,13 +7,12 @@
 #include "container/ref.h"
 #include "exceptions.h"
 #include "opal/error-codes.h"
-#include "opal/export.h"
 #include "opal/types.h"
 
 namespace Opal
 {
 
-struct OPAL_EXPORT AllocatorBase
+struct AllocatorBase
 {
     AllocatorBase(const char* debug_name) : m_debug_name(debug_name) {}
     virtual ~AllocatorBase() = default;
@@ -34,7 +33,7 @@ protected:
     const char* m_debug_name = nullptr;
 };
 
-struct OPAL_EXPORT SystemMemoryAllocatorDesc
+struct SystemMemoryAllocatorDesc
 {
     u64 bytes_to_reserve = OPAL_MB(1);
     u64 bytes_to_initially_alloc = OPAL_KB(100);
@@ -46,7 +45,7 @@ struct OPAL_EXPORT SystemMemoryAllocatorDesc
 /**
  * Allocator that has access to the system memory and is mostly used as a part of other allocators.
  */
-struct OPAL_EXPORT SystemMemoryAllocator : public AllocatorBase
+struct SystemMemoryAllocator : public AllocatorBase
 {
     SystemMemoryAllocator(const char* debug_name, const SystemMemoryAllocatorDesc& desc = {});
     ~SystemMemoryAllocator() override;
@@ -82,7 +81,7 @@ protected:
 /**
  * Stateless allocator that uses system's malloc and free API.
  */
-struct OPAL_EXPORT MallocAllocator final : public AllocatorBase
+struct MallocAllocator final : public AllocatorBase
 {
     MallocAllocator() : AllocatorBase("MallocAllocator") {}
     MallocAllocator(const MallocAllocator& other) = default;
@@ -103,7 +102,7 @@ struct OPAL_EXPORT MallocAllocator final : public AllocatorBase
     [[nodiscard]] const char* GetName() const override { return "MallocAllocator"; }
 };
 
-struct OPAL_EXPORT NullAllocator final : public AllocatorBase
+struct NullAllocator final : public AllocatorBase
 {
     NullAllocator() : AllocatorBase("NullAllocator") {}
     NullAllocator(const NullAllocator& other) = default;
@@ -124,7 +123,7 @@ struct OPAL_EXPORT NullAllocator final : public AllocatorBase
     [[nodiscard]] const char* GetName() const override { return "NullAllocator"; }
 };
 
-struct OPAL_EXPORT LinearAllocator final : public AllocatorBase
+struct LinearAllocator final : public AllocatorBase
 {
     explicit LinearAllocator(const char* debug_name, const SystemMemoryAllocatorDesc& desc = {});
     LinearAllocator(const LinearAllocator& other) = delete;
@@ -159,19 +158,19 @@ private:
  * @note The stack is per thread. A thread that has pushed nothing gets a system provided allocator.
  * @return Pointer to the default allocator. Never nullptr.
  */
-OPAL_EXPORT AllocatorBase* GetDefaultAllocator();
+AllocatorBase* GetDefaultAllocator();
 
 /**
  * Push desired allocator to be new default allocator on the calling thread.
  * @param allocator Pointer to the allocator. Must not be nullptr.
  */
-OPAL_EXPORT void PushDefaultAllocator(AllocatorBase* allocator);
+void PushDefaultAllocator(AllocatorBase* allocator);
 
 /**
  * Remove allocator from the top of the stack. Must be matched with a PushDefaultAllocator on the same thread; the system provided
  * allocator at the bottom cannot be popped.
  */
-OPAL_EXPORT void PopDefaultAllocator();
+void PopDefaultAllocator();
 
 /**
  * Get default scratch allocator. This allocator should be used for short-lived allocations, usually inside a function span. Deallocation
@@ -179,25 +178,25 @@ OPAL_EXPORT void PopDefaultAllocator();
  * @note Unlike the default allocator, there is no system provided scratch allocator. The calling thread must have pushed one.
  * @return Pointer to a scratch allocator.
  */
-OPAL_EXPORT LinearAllocator* GetScratchAllocator();
+LinearAllocator* GetScratchAllocator();
 
 /**
  * Push desired allocator to be new scratch allocator on the calling thread.
  * @param allocator New allocator. Must not be nullptr.
  */
-OPAL_EXPORT void PushScratchAllocator(LinearAllocator* allocator);
+void PushScratchAllocator(LinearAllocator* allocator);
 
 /**
  * Remove allocator from top of the scratch allocator stack. Must be matched with a PushScratchAllocator on the same thread.
  */
-OPAL_EXPORT void PopScratchAllocator();
+void PopScratchAllocator();
 
 /**
  * Reset current scratch allocator. The calling thread must have pushed one.
  */
-OPAL_EXPORT void ResetScratchAllocator();
+void ResetScratchAllocator();
 
-struct OPAL_EXPORT ScratchAsDefault
+struct ScratchAsDefault
 {
     ScratchAsDefault(bool should_reset_on_destroy = true);
     ~ScratchAsDefault();
@@ -208,13 +207,13 @@ private:
     LinearAllocator* m_allocator = nullptr;
 };
 
-struct OPAL_EXPORT PushDefault
+struct PushDefault
 {
     PushDefault(AllocatorBase* allocator);
     ~PushDefault();
 };
 
-struct OPAL_EXPORT PushScratch
+struct PushScratch
 {
     PushScratch(LinearAllocator* allocator);
     ~PushScratch();

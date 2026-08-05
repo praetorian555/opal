@@ -554,7 +554,7 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
  *     }
  * @endcode
  */
-struct OPAL_EXPORT ProgramArgumentsBuilder
+struct ProgramArgumentsBuilder
 {
     /**
      * @brief Set the program description displayed in help output.

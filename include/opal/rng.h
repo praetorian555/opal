@@ -1,6 +1,5 @@
 ﻿#pragma once
 
-#include "opal/export.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -11,7 +10,7 @@ namespace Opal
  * Space-Efficient Statistically Good Algorithms for Random Number Generation by O'Neill (2014).
  * Uniformally generates number in a given range.
  */
-class OPAL_EXPORT RNG
+class RNG
 {
 public:
     /**

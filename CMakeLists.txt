@@ -5,8 +5,6 @@ option(OPAL_BUILD_TESTS "Build tests" ON)
 message(STATUS "OPAL_BUILD_TESTS: ${OPAL_BUILD_TESTS}")
 option(OPAL_HARDENING "Enable hardening options" ON)
 message(STATUS "OPAL_HARDENING: ${OPAL_HARDENING}")
-option(OPAL_SHARED_LIBS "Build shared libraries" OFF)
-message(STATUS "OPAL_SHARED_LIBS: ${OPAL_SHARED_LIBS}")
 option(OPAL_EXCEPTIONS "Allow the library to throw. When off, a failure that cannot be returned ends the program instead" ON)
 message(STATUS "OPAL_EXCEPTIONS: ${OPAL_EXCEPTIONS}")
 
@@ -36,17 +34,6 @@ endif ()
 
 # Don't use C++ 20 modules
 set(CMAKE_CXX_SCAN_FOR_MODULES 0)
-
-## C++ language configuration boilerplate, hide symbols by default
-if (NOT DEFINED CMAKE_CXX_VISIBILITY_PRESET AND NOT DEFINED CMAKE_VISIBILITY_INLINES_HIDDEN)
-    set(CMAKE_CXX_VISIBILITY_PRESET hidden)
-    set(CMAKE_VISIBILITY_INLINES_HIDDEN YES)
-endif ()
-
-## Let OPAL_SHARED_LIBS override BUILD_SHARED_LIBS
-if (DEFINED OPAL_SHARED_LIBS)
-    set(BUILD_SHARED_LIBS "${OPAL_SHARED_LIBS}")
-endif ()
 
 # Configure desired compilation options and warnings
 include(cmake/compiler-warnings.cmake)
@@ -144,11 +131,10 @@ set(OPAL_FILES
         include/opal/threading/channel-mpmc.h
         include/opal/threading/thread-pool.h
         include/opal/clonable-base.h
-        ${CMAKE_CURRENT_BINARY_DIR}/include/opal/export.h
         include/opal/variant.h
         include/opal/container/string-format.h
 )
-add_library(opal ${OPAL_FILES})
+add_library(opal STATIC ${OPAL_FILES})
 add_library(opal::opal ALIAS opal)
 target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
 target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/wyhash/include>)
@@ -159,7 +145,6 @@ if (WIN32)
     target_link_libraries(opal PRIVATE synchronization)
 endif ()
 target_compile_features(opal PUBLIC cxx_std_20)
-set_target_properties(opal PROPERTIES VERSION ${OPAL_VERSION} SOVERSION ${OPAL_VERSION_MAJOR})
 
 # Whether the library may throw is part of what its headers mean, not just how the .cpp files were built: OPAL_RAISE decides
 # between a throw and the contract violation handler, and the containers are templates a consumer instantiates in its own
@@ -178,13 +163,6 @@ if (NOT OPAL_EXCEPTIONS)
     endif ()
 endif ()
 
-## Generate the export header for opal and attach it to the target
-include(GenerateExportHeader)
-generate_export_header(opal EXPORT_FILE_NAME include/opal/export.h)
-target_compile_definitions(opal PUBLIC "$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:OPAL_STATIC_DEFINE>")
-target_include_directories(opal PUBLIC "$<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>")
-target_include_directories(opal PUBLIC "$<INSTALL_INTERFACE:include>")
-
 # Install the library
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
@@ -199,16 +177,10 @@ endif ()
 
 install(TARGETS opal
         EXPORT opalTargets
-        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}  # For Windows DLL files
         INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include/
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-        FILES_MATCHING PATTERN "*.h"
-        PATTERN "*.hpp")
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         FILES_MATCHING PATTERN "*.h"
         PATTERN "*.hpp")

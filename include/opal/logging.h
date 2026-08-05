@@ -10,7 +10,6 @@
 #include "opal/container/shared-ptr.h"
 #include "opal/container/string-view.h"
 #include "opal/container/string.h"
-#include "opal/export.h"
 #include "opal/threading/mutex.h"
 #include "opal/types.h"
 
@@ -27,14 +26,14 @@ enum class LogLevel : u8
     Verbose,
 };
 
-struct OPAL_EXPORT LogSink
+struct LogSink
 {
     virtual ~LogSink() = default;
     virtual void Write(LogLevel level, StringViewUtf8 category, StringViewUtf8 formatted_message) = 0;
     virtual void Flush() = 0;
 };
 
-class OPAL_EXPORT ConsoleSink : public LogSink
+class ConsoleSink : public LogSink
 {
 public:
     ConsoleSink();
@@ -60,14 +59,14 @@ using FatalLogHandler = void (*)(StringViewUtf8 category, StringViewUtf8 message
  * Install the handler run after a fatal log message. Pass nullptr to restore the default.
  * @note Not thread-safe. Set it before the threads that log are started.
  */
-OPAL_EXPORT void SetFatalLogHandler(FatalLogHandler handler);
+void SetFatalLogHandler(FatalLogHandler handler);
 
 /** @return The handler currently installed. Never nullptr. */
-OPAL_EXPORT FatalLogHandler GetFatalLogHandler();
+FatalLogHandler GetFatalLogHandler();
 
-OPAL_EXPORT const char* LogLevelToString(LogLevel level);
+const char* LogLevelToString(LogLevel level);
 
-class OPAL_EXPORT Logger
+class Logger
 {
 public:
     static constexpr size_t k_max_message_size = 2048;
@@ -124,8 +123,8 @@ private:
     StringUtf8 m_pattern;
 };
 
-OPAL_EXPORT Logger& GetLogger();
-OPAL_EXPORT void SetLogger(Logger* logger);
+Logger& GetLogger();
+void SetLogger(Logger* logger);
 
 /*************************************************************************************************/
 /** Template implementations *********************************************************************/

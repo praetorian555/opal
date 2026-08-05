@@ -12,7 +12,7 @@ namespace Opal
  * Can be neither copied nor moved: a thread already inside Wait is parked on this object, and relocating it would leave that
  * thread unreachable by any later notification.
  */
-class OPAL_EXPORT ConditionVariable
+class ConditionVariable
 {
 public:
     explicit ConditionVariable(AllocatorBase* allocator = nullptr);
