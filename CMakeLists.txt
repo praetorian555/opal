@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(OPAL VERSION 0.3.8 LANGUAGES CXX)
+project(OPAL VERSION 0.4.0 LANGUAGES CXX)
 
 option(OPAL_BUILD_TESTS "Build tests" ON)
 message(STATUS "OPAL_BUILD_TESTS: ${OPAL_BUILD_TESTS}")
