@@ -286,14 +286,14 @@ T Opal::Mod(T a, T b)
         {
             return static_cast<T>(k_nan_double);
         }
-        return fmod(a, b);
+        return static_cast<T>(fmod(a, b));
     }
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Sqrt(T value)
 {
-    return sqrt(value);
+    return static_cast<T>(sqrt(value));
 }
 
 template <Opal::FloatingPoint T>
@@ -305,49 +305,49 @@ T Opal::Lerp(T t, T p0, T p1)
 template <Opal::FloatingPoint T>
 T Opal::Round(T value)
 {
-    return round(value);
+    return static_cast<T>(round(value));
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Floor(T value)
 {
-    return floor(value);
+    return static_cast<T>(floor(value));
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Ceil(T value)
 {
-    return ceil(value);
+    return static_cast<T>(ceil(value));
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Sin(T radians)
 {
-    return sin(radians);
+    return static_cast<T>(sin(radians));
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Cos(T radians)
 {
-    return cos(radians);
+    return static_cast<T>(cos(radians));
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Tan(T radians)
 {
-    return tan(radians);
+    return static_cast<T>(tan(radians));
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Power(T base, T exponent)
 {
-    return pow(base, exponent);
+    return static_cast<T>(pow(base, exponent));
 }
 
 template <Opal::FloatingPoint T>
 T Opal::LogNatural(T value)
 {
-    return log(value);
+    return static_cast<T>(log(value));
 }
 
 template <Opal::FloatingPoint T>
@@ -355,5 +355,5 @@ T Opal::Log2(T value)
 {
     constexpr T k_inv_log2 =
         static_cast<T>(1.4426950408889634073599246810018921374266459541529859341354494069);
-    return log(value) * k_inv_log2;
+    return static_cast<T>(log(value)) * k_inv_log2;
 }
