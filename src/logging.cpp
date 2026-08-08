@@ -4,9 +4,9 @@
 #include <Windows.h>
 #endif
 
-#include <chrono>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "opal/threading/thread.h"
 
@@ -34,21 +34,26 @@ struct TimeParts
 TimeParts GetTimeParts()
 {
     TimeParts parts = {};
-    const auto now = std::chrono::system_clock::now();
-    const auto time_t_now = std::chrono::system_clock::to_time_t(now);
-    const auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+
+    struct timespec now = {};
+    if (timespec_get(&now, TIME_UTC) != TIME_UTC)
+    {
+        now.tv_sec = time(nullptr);
+        now.tv_nsec = 0;
+    }
+    const int milliseconds = static_cast<int>(now.tv_nsec / 1000000);
 
     struct tm tm_buf = {};
 #if defined(OPAL_PLATFORM_WINDOWS)
-    localtime_s(&tm_buf, &time_t_now);
+    localtime_s(&tm_buf, &now.tv_sec);
 #else
-    localtime_r(&time_t_now, &tm_buf);
+    localtime_r(&now.tv_sec, &tm_buf);
 #endif
 
     parts.date_len = static_cast<Opal::u64>(
         snprintf(parts.date, sizeof(parts.date), "%04d-%02d-%02d", tm_buf.tm_year + 1900, tm_buf.tm_mon + 1, tm_buf.tm_mday));
     parts.time_len = static_cast<Opal::u64>(snprintf(parts.time, sizeof(parts.time), "%02d:%02d:%02d.%03d", tm_buf.tm_hour, tm_buf.tm_min,
-                                                     tm_buf.tm_sec, static_cast<int>(ms.count())));
+                                                     tm_buf.tm_sec, milliseconds));
     return parts;
 }
 
