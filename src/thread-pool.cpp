@@ -5,7 +5,7 @@
 using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Task>, true>;
 using TransmitterType = Opal::TransmitterMPMC<Opal::SharedPtr<Opal::Task>, true>;
 static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, Opal::Ref<Opal::AllocatorBase> default_allocator,
-                           std::atomic<Opal::u64>* completed_count)
+                           Opal::Atomic<Opal::u64>* completed_count)
 {
     OPAL_ASSERT(default_allocator->IsThreadSafe(), "Allocator must be thread safe");
     Opal::PushDefaultAllocator(default_allocator.GetPtr());
@@ -25,8 +25,8 @@ static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, O
         }
         task->Execute(transmitter);
         task->SetCompleted();
-        completed_count->fetch_add(1, std::memory_order_release);
-        completed_count->notify_all();
+        completed_count->FetchAdd<Opal::MemoryOrder::Release>(1);
+        completed_count->NotifyAll();
     }
 }
 
@@ -65,23 +65,23 @@ Opal::ThreadPool::~ThreadPool()
 
 void Opal::ThreadPool::WaitForAll()
 {
-    while (!m_is_closed.load(std::memory_order_acquire))
+    while (!m_is_closed.Load<MemoryOrder::Acquire>())
     {
         // Read the send count first. Anything counted here has either completed already or is still to come, and a task that
         // submits a follow-up does so before it is counted as completed, so the follow-up is in the next reading.
         const size_t sent = m_communicator.transmitter.GetSendCount();
-        const u64 completed = m_completed_count.load(std::memory_order_acquire);
+        const u64 completed = m_completed_count.Load<MemoryOrder::Acquire>();
         if (completed >= sent)
         {
             return;
         }
-        m_completed_count.wait(completed, std::memory_order_acquire);
+        m_completed_count.Wait<MemoryOrder::Acquire>(completed);
     }
 }
 
 void Opal::ThreadPool::Close()
 {
-    if (m_is_closed.exchange(true, std::memory_order_acq_rel))
+    if (m_is_closed.Exchange<MemoryOrder::AcqRel>(true))
     {
         return;
     }

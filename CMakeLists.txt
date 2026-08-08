@@ -128,6 +128,7 @@ set(OPAL_FILES
         include/opal/math/dual-quaternion.h
         include/opal/math/transform.h
         include/opal/logging.h
+        include/opal/threading/atomic.h
         include/opal/threading/thread.h
         include/opal/threading/mutex.h
         include/opal/threading/condition-variable.h
@@ -251,6 +252,7 @@ if (OPAL_BUILD_TESTS)
             test/file-system-test.cpp
             test/program-arguments-test.cpp
             test/shared-ptr-test.cpp
+            test/atomic-test.cpp
             test/thread-test.cpp
             test/delegate-test.cpp
             test/function-test.cpp

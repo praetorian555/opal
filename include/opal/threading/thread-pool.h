@@ -33,28 +33,28 @@ struct Task
      */
     void SetCompleted()
     {
-        m_is_completed.store(true, std::memory_order_release);
-        m_is_completed.notify_all();
+        m_is_completed.Store<MemoryOrder::Release>(true);
+        m_is_completed.NotifyAll();
     }
 
     /**
      * Returns true if the task has been completed.
      */
-    bool IsCompleted() const { return m_is_completed.load(std::memory_order_acquire); }
+    bool IsCompleted() const { return m_is_completed.Load<MemoryOrder::Acquire>(); }
 
     /**
      * Blocks the calling thread until the task is completed. Uses OS signaling, not busy-waiting.
      */
     void WaitForCompletion()
     {
-        while (!m_is_completed.load(std::memory_order_acquire))
+        while (!m_is_completed.Load<MemoryOrder::Acquire>())
         {
-            m_is_completed.wait(false, std::memory_order_acquire);
+            m_is_completed.Wait<MemoryOrder::Acquire>(false);
         }
     }
 
 protected:
-    std::atomic<bool> m_is_completed = false;
+    Atomic<bool> m_is_completed = false;
 };
 
 /**
@@ -101,7 +101,7 @@ public:
     Expected<SharedPtr<Task>, ErrorCode> AddFunctionTask(Function function)
     {
         using ReturnType = Expected<SharedPtr<Task>, ErrorCode>;
-        if (m_is_closed.load(std::memory_order_acquire))
+        if (m_is_closed.Load<MemoryOrder::Acquire>())
         {
             return ReturnType(ErrorCode::ChannelClosed);
         }
@@ -140,8 +140,8 @@ private:
     OPAL_DISABLE_MSVC_WARNING(4324)
     // Every worker writes the count on every task it finishes, and every submission reads the flag. Sharing a line would put
     // the readers behind an invalidation per completed task.
-    alignas(OPAL_CACHE_LINE_SIZE) std::atomic<u64> m_completed_count = 0;
-    alignas(OPAL_CACHE_LINE_SIZE) std::atomic<bool> m_is_closed = false;
+    alignas(OPAL_CACHE_LINE_SIZE) Atomic<u64> m_completed_count = 0;
+    alignas(OPAL_CACHE_LINE_SIZE) Atomic<bool> m_is_closed = false;
     OPAL_END_DISABLE_WARNINGS
 };
 

@@ -1,8 +1,7 @@
 #pragma once
 
-#include <atomic>
-
 #include "opal/defines.h"
+#include "opal/threading/atomic.h"
 #include "opal/types.h"
 
 namespace Opal
@@ -61,7 +60,7 @@ public:
     void NotifyAll();
 
 private:
-    std::atomic<u32> m_state{0};
+    Atomic<u32> m_state{0};
 };
 OPAL_END_DISABLE_WARNINGS
 

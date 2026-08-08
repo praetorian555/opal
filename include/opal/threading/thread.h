@@ -1,6 +1,6 @@
 #pragma once
 
-#include <atomic>
+#include "opal/threading/atomic.h"
 #include <thread>
 #include <tuple>
 #include <type_traits>

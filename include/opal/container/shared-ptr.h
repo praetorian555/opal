@@ -1,11 +1,10 @@
 #pragma once
 
-#include <atomic>
-
 #include "opal/allocator.h"
 #include "opal/container/expected.h"
 #include "opal/error-codes.h"
 #include "opal/exceptions.h"
+#include "opal/threading/atomic.h"
 
 namespace Opal
 {
@@ -25,11 +24,11 @@ struct RefCountType;
 template <>
 struct RefCountType<ThreadingPolicy::ThreadSafe>
 {
-    using Type = std::atomic<size_t>;
+    using Type = Atomic<size_t>;
 
-    static void Store(Type* refcount, size_t value) { refcount->store(value, std::memory_order_relaxed); }
-    static void Increment(Type* refcount) { refcount->fetch_add(1, std::memory_order_relaxed); }
-    static size_t DecrementAndGet(Type* refcount) { return refcount->fetch_sub(1, std::memory_order_acq_rel); }
+    static void Store(Type* refcount, size_t value) { refcount->Store<MemoryOrder::Relaxed>(value); }
+    static void Increment(Type* refcount) { refcount->FetchAdd<MemoryOrder::Relaxed>(1); }
+    static size_t DecrementAndGet(Type* refcount) { return refcount->FetchSub<MemoryOrder::AcqRel>(1); }
 };
 
 template <>

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <atomic>
+#include "opal/threading/atomic.h"
 
 #include "opal/allocator.h"
 #include "opal/bit.h"
@@ -22,7 +22,7 @@ struct QueueMPMCSlot
 {
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
-    alignas(OPAL_CACHE_LINE_SIZE) std::atomic<size_t> turn = 0;
+    alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> turn = 0;
     alignas(OPAL_CACHE_LINE_SIZE) T data;
     OPAL_END_DISABLE_WARNINGS
 };
@@ -30,7 +30,7 @@ struct QueueMPMCSlot
 /**
  * Lock-free multiple-producer multiple-consumer bounded queue.
  * @tparam T Type of data stored in the queue. Must be default constructable, and either copy assignable or clonable.
- * @tparam UseSignaling If true, uses std::atomic::wait/notify to block when waiting for a slot's turn.
+ * @tparam UseSignaling If true, uses Atomic::Wait/Notify to block when waiting for a slot's turn.
  *         If false, busy-waits using a CPU pause instruction. Defaults to false.
  */
 template <typename T, bool UseSignaling = false>
@@ -42,22 +42,22 @@ public:
 
     void Push(const T& data)
     {
-        size_t write_idx = m_write_idx.fetch_add(1, std::memory_order_relaxed);
+        size_t write_idx = m_write_idx.FetchAdd<MemoryOrder::Relaxed>(1);
         size_t slot_idx = write_idx & (m_capacity - 1);
         auto& slot = m_data[slot_idx];
         size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
-        size_t current_turn = slot.turn.load(std::memory_order_acquire);
+        size_t current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
         while (2 * turn != current_turn)
         {
             if constexpr (UseSignaling)
             {
-                slot.turn.wait(current_turn, std::memory_order_relaxed);
+                slot.turn.template Wait<MemoryOrder::Relaxed>(current_turn);
             }
             else
             {
                 CpuPause();
             }
-            current_turn = slot.turn.load(std::memory_order_acquire);
+            current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
         }
         if constexpr (Opal::CopyAssignable<T>)
         {
@@ -67,26 +67,26 @@ public:
         {
             slot.data = data.Clone();
         }
-        slot.turn.store(2 * turn + 1, std::memory_order_release);
+        slot.turn.template Store<MemoryOrder::Release>(2 * turn + 1);
         if constexpr (UseSignaling)
         {
-            slot.turn.notify_all();
+            slot.turn.NotifyAll();
         }
     }
 
     bool TryPush(const T& data)
     {
-        size_t write_idx = m_write_idx.load(std::memory_order_acquire);
+        size_t write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
         while (true)
         {
             size_t slot_idx = write_idx & (m_capacity - 1);
             auto& slot = m_data[slot_idx];
             size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
-            if (2 * turn != slot.turn.load(std::memory_order_acquire))
+            if (2 * turn != slot.turn.template Load<MemoryOrder::Acquire>())
             {
                 // Slot is not empty, we are most likely full
                 const size_t prev_write_idx = write_idx;
-                write_idx = m_write_idx.load(std::memory_order_acquire);
+                write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
                 if (write_idx == prev_write_idx)
                 {
                     // Nothing changed since the time we loaded the write_idx
@@ -96,7 +96,7 @@ public:
             }
             else
             {
-                if (m_write_idx.compare_exchange_strong(write_idx, write_idx + 1))
+                if (m_write_idx.CompareExchangeStrong(write_idx, write_idx + 1))
                 {
                     // If write_idx didn't change since last check, consume it and increment the
                     // atomic
@@ -108,10 +108,10 @@ public:
                     {
                         slot.data = data.Clone();
                     }
-                    slot.turn.store(2 * turn + 1, std::memory_order_release);
+                    slot.turn.template Store<MemoryOrder::Release>(2 * turn + 1);
                     if constexpr (UseSignaling)
                     {
-                        slot.turn.notify_all();
+                        slot.turn.NotifyAll();
                     }
                     return true;
                 }
@@ -121,44 +121,44 @@ public:
 
     T Pop()
     {
-        size_t read_idx = m_read_idx.fetch_add(1, std::memory_order_relaxed);
+        size_t read_idx = m_read_idx.FetchAdd<MemoryOrder::Relaxed>(1);
         size_t slot_idx = read_idx & (m_capacity - 1);
         auto& slot = m_data[slot_idx];
         size_t turn = read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
-        size_t current_turn = slot.turn.load(std::memory_order_acquire);
+        size_t current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
         while (2 * turn + 1 != current_turn)
         {
             if constexpr (UseSignaling)
             {
-                slot.turn.wait(current_turn, std::memory_order_relaxed);
+                slot.turn.template Wait<MemoryOrder::Relaxed>(current_turn);
             }
             else
             {
                 CpuPause();
             }
-            current_turn = slot.turn.load(std::memory_order_acquire);
+            current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
         }
         T result = std::move(slot.data);
-        slot.turn.store(2 * turn + 2, std::memory_order_release);
+        slot.turn.template Store<MemoryOrder::Release>(2 * turn + 2);
         if constexpr (UseSignaling)
         {
-            slot.turn.notify_all();
+            slot.turn.NotifyAll();
         }
         return result;
     }
 
     bool TryPop(T& result)
     {
-        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
+        size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         while (true)
         {
             size_t slot_idx = read_idx & (m_capacity - 1);
             auto& slot = m_data[slot_idx];
             size_t turn = read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
-            if (2 * turn + 1 != slot.turn.load(std::memory_order_acquire))
+            if (2 * turn + 1 != slot.turn.template Load<MemoryOrder::Acquire>())
             {
                 const size_t prev_read_idx = read_idx;
-                read_idx = m_read_idx.load(std::memory_order_acquire);
+                read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
                 if (prev_read_idx == read_idx)
                 {
                     return false;
@@ -166,13 +166,13 @@ public:
             }
             else
             {
-                if (m_read_idx.compare_exchange_strong(read_idx, read_idx + 1))
+                if (m_read_idx.CompareExchangeStrong(read_idx, read_idx + 1))
                 {
                     result = std::move(slot.data);
-                    slot.turn.store(2 * turn + 2, std::memory_order_release);
+                    slot.turn.template Store<MemoryOrder::Release>(2 * turn + 2);
                     if constexpr (UseSignaling)
                     {
-                        slot.turn.notify_all();
+                        slot.turn.NotifyAll();
                     }
                     return true;
                 }
@@ -181,13 +181,13 @@ public:
     }
 
     /** @return How many items have ever been pushed. Only grows, so a caller can compare two readings of it. */
-    [[nodiscard]] size_t GetPushCount() const { return m_write_idx.load(std::memory_order_acquire); }
+    [[nodiscard]] size_t GetPushCount() const { return m_write_idx.Load<MemoryOrder::Acquire>(); }
 
 private:
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
-    alignas(OPAL_CACHE_LINE_SIZE) std::atomic<size_t> m_write_idx = 0;
-    alignas(OPAL_CACHE_LINE_SIZE) std::atomic<size_t> m_read_idx = 0;
+    alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_write_idx = 0;
+    alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_read_idx = 0;
     OPAL_END_DISABLE_WARNINGS
     DynamicArray<QueueMPMCSlot<T>> m_data;
     size_t m_capacity = 0;
@@ -205,7 +205,7 @@ template <typename T, bool UseSignaling = false>
 struct TransmitterMPMC
 {
     TransmitterMPMC() = default;
-    TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q, Ref<std::atomic<bool>> is_closed)
+    TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q, Ref<Atomic<bool>> is_closed)
         : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
     {
     }
@@ -246,11 +246,11 @@ struct TransmitterMPMC
      * Marks the channel as closed. After this, Receive() and TryReceive() on the
      * corresponding receiver will return ErrorCode::ChannelClosed without blocking.
      */
-    void Close() const { m_is_closed->store(true, std::memory_order_release); }
+    void Close() const { m_is_closed->Store<MemoryOrder::Release>(true); }
 
 private:
     SharedPtr<Impl::QueueMPMC<T, UseSignaling>> m_queue;
-    Ref<std::atomic<bool>> m_is_closed;
+    Ref<Atomic<bool>> m_is_closed;
 };
 
 /**
@@ -263,7 +263,7 @@ template <typename T, bool UseSignaling = false>
 struct ReceiverMPMC
 {
     ReceiverMPMC() = default;
-    ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q, Ref<std::atomic<bool>> is_closed)
+    ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q, Ref<Atomic<bool>> is_closed)
         : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
     {
     }
@@ -301,7 +301,7 @@ struct ReceiverMPMC
         {
             return Expected<T, ErrorCode>(std::move(result));
         }
-        if (m_is_closed->load(std::memory_order_acquire))
+        if (m_is_closed->Load<MemoryOrder::Acquire>())
         {
             return Expected<T, ErrorCode>(ErrorCode::ChannelClosed);
         }
@@ -319,7 +319,7 @@ struct ReceiverMPMC
         {
             return ErrorCode::Success;
         }
-        if (m_is_closed->load(std::memory_order_acquire))
+        if (m_is_closed->Load<MemoryOrder::Acquire>())
         {
             return ErrorCode::ChannelClosed;
         }
@@ -332,7 +332,7 @@ struct ReceiverMPMC
 
 private:
     SharedPtr<Impl::QueueMPMC<T, UseSignaling>> m_queue;
-    Ref<std::atomic<bool>> m_is_closed;
+    Ref<Atomic<bool>> m_is_closed;
 };
 
 /**
@@ -346,7 +346,7 @@ struct ChannelMPMC
 {
     TransmitterMPMC<T, UseSignaling> transmitter;
     ReceiverMPMC<T, UseSignaling> receiver;
-    std::atomic<bool> m_is_closed = false;
+    Atomic<bool> m_is_closed = false;
 
     explicit ChannelMPMC(size_t capacity, AllocatorBase* allocator = nullptr)
     {

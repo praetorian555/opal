@@ -33,7 +33,7 @@ DWORD WINAPI WindowsThread(LPVOID param)
 struct ThreadLaunch
 {
     Opal::Impl::ThreadDataBase* data = nullptr;
-    std::atomic<Opal::u64> thread_id{0};
+    Opal::Atomic<Opal::u64> thread_id{0};
 };
 
 void* ThreadFunction(void* param)
@@ -41,7 +41,7 @@ void* ThreadFunction(void* param)
     ThreadLaunch* launch = static_cast<ThreadLaunch*>(param);
     Opal::Impl::ThreadDataBase* data = launch->data;
     // Everything needed from `launch` is read above, because publishing the id releases the launcher, and its frame goes with it.
-    launch->thread_id.store(static_cast<Opal::u64>(syscall(SYS_gettid)), std::memory_order_release);
+    launch->thread_id.Store<Opal::MemoryOrder::Release>(static_cast<Opal::u64>(syscall(SYS_gettid)));
     launch = nullptr;
     Opal::PushDefaultAllocator(data->allocator);
     data->Invoke();
@@ -75,7 +75,7 @@ Opal::Expected<Opal::ThreadHandle, Opal::ErrorCode> Opal::Impl::CreateThread(Thr
     // Spin until the thread has stored its kernel thread id, and keep what it stored. Reading it a second time afterwards is not an
     // option: the thread may have finished and freed its data by then, and `launch` is only alive for as long as this loop.
     u64 thread_id = 0;
-    while ((thread_id = launch.thread_id.load(std::memory_order_acquire)) == 0)
+    while ((thread_id = launch.thread_id.Load<MemoryOrder::Acquire>()) == 0)
     {
     }
     return Result(ThreadHandle{.native_handle = reinterpret_cast<void*>(native_handle), .id = thread_id});

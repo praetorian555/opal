@@ -1,6 +1,6 @@
 #pragma once
 
-#include <atomic>
+#include "opal/threading/atomic.h"
 
 #include "opal/allocator.h"
 #include "opal/assert.h"
@@ -20,7 +20,7 @@ namespace Impl
  * Lock-free single-producer single-consumer bounded queue.
  * Capacity is rounded up to the next power of two.
  * @tparam T Type of data stored in the queue. Must be default constructable.
- * @tparam UseSignaling If true, uses std::atomic::wait/notify to block when the queue is full/empty.
+ * @tparam UseSignaling If true, uses Atomic::Wait/Notify to block when the queue is full/empty.
  *         If false, busy-waits using a CPU pause instruction. Defaults to true.
  */
 template <typename T, bool UseSignaling = true>
@@ -28,51 +28,51 @@ template <typename T, bool UseSignaling = true>
 class QueueSPSC
 {
 public:
-    static_assert(std::atomic<size_t>::is_always_lock_free, "Type size_t is not atomic on this platform!");
+    static_assert(Atomic<size_t>::k_is_always_lock_free, "Type size_t is not atomic on this platform!");
 
     explicit QueueSPSC(size_t capacity, AllocatorBase* allocator = nullptr)
         : m_capacity(GetNextPowerOf2(capacity)), m_data(m_capacity, allocator)
     {
         OPAL_VERIFY(capacity > 0, "QueueSPSC capacity must be greater than zero");
         OPAL_VERIFY(m_data.GetAllocator()->IsThreadSafe(), "QueueSPSC allocator must be thread safe");
-        m_write_idx.store(0, std::memory_order_relaxed);
-        m_read_idx.store(0, std::memory_order_relaxed);
+        m_write_idx.Store<MemoryOrder::Relaxed>(0);
+        m_read_idx.Store<MemoryOrder::Relaxed>(0);
     }
 
     void Push(const T& item)
     {
-        size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
+        size_t write_idx = m_write_idx.Load<MemoryOrder::Relaxed>();
         // Acquire: the slot about to be written is one the consumer may still have been reading on the previous lap, and its
         // release of m_read_idx is what orders that read before this write.
-        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
+        size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
 
         while (write_idx - read_idx == m_capacity)
         {
             if constexpr (UseSignaling)
             {
-                m_read_idx.wait(read_idx, std::memory_order_acquire);
+                m_read_idx.Wait<MemoryOrder::Acquire>(read_idx);
             }
             else
             {
                 CpuPause();
             }
-            read_idx = m_read_idx.load(std::memory_order_acquire);
+            read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         }
 
         size_t bound_write_idx = write_idx & (m_capacity - 1);
         m_data[bound_write_idx] = item;  // Do copy
 
-        m_write_idx.store(write_idx + 1, std::memory_order_release);
+        m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
         if constexpr (UseSignaling)
         {
-            m_write_idx.notify_one();
+            m_write_idx.NotifyOne();
         }
     }
 
     bool TryPush(const T& item)
     {
-        size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
-        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
+        size_t write_idx = m_write_idx.Load<MemoryOrder::Relaxed>();
+        size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
 
         if (write_idx - read_idx == m_capacity)
         {
@@ -82,80 +82,80 @@ public:
         size_t bound_write_idx = write_idx & (m_capacity - 1);
         m_data[bound_write_idx] = item;  // Do copy
 
-        m_write_idx.store(write_idx + 1, std::memory_order_release);
+        m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
         if constexpr (UseSignaling)
         {
-            m_write_idx.notify_one();
+            m_write_idx.NotifyOne();
         }
         return true;
     }
 
     void Push(T&& item)
     {
-        size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
+        size_t write_idx = m_write_idx.Load<MemoryOrder::Relaxed>();
         // Acquire: the slot about to be written is one the consumer may still have been reading on the previous lap, and its
         // release of m_read_idx is what orders that read before this write.
-        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
+        size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
 
         while (write_idx - read_idx == m_capacity)
         {
             if constexpr (UseSignaling)
             {
-                m_read_idx.wait(read_idx, std::memory_order_acquire);
+                m_read_idx.Wait<MemoryOrder::Acquire>(read_idx);
             }
             else
             {
                 CpuPause();
             }
-            read_idx = m_read_idx.load(std::memory_order_acquire);
+            read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         }
 
         size_t bound_write_idx = write_idx & (m_capacity - 1);
         m_data[bound_write_idx] = std::move(item);  // Do move
 
-        m_write_idx.store(write_idx + 1, std::memory_order_release);
+        m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
         if constexpr (UseSignaling)
         {
-            m_write_idx.notify_one();
+            m_write_idx.NotifyOne();
         }
     }
 
     template <typename... Args>
     void PushWithEmplace(const Args&... args)
     {
-        size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
+        size_t write_idx = m_write_idx.Load<MemoryOrder::Relaxed>();
         // Acquire: the slot about to be written is one the consumer may still have been reading on the previous lap, and its
         // release of m_read_idx is what orders that read before this write.
-        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
+        size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
 
         while (write_idx - read_idx == m_capacity)
         {
             if constexpr (UseSignaling)
             {
-                m_read_idx.wait(read_idx, std::memory_order_acquire);
+                m_read_idx.Wait<MemoryOrder::Acquire>(read_idx);
             }
             else
             {
                 CpuPause();
             }
-            read_idx = m_read_idx.load(std::memory_order_acquire);
+            read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         }
 
         size_t bound_write_idx = write_idx & (m_capacity - 1);
         new (&m_data[bound_write_idx]) T(args...);
 
-        m_write_idx.store(write_idx + 1, std::memory_order_release);
+        m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
         if constexpr (UseSignaling)
         {
-            m_write_idx.notify_one();
+            m_write_idx.NotifyOne();
         }
     }
 
     template <typename... Args>
     bool TryPushWithEmplace(const Args&... args)
     {
-        size_t write_idx = m_write_idx.load(std::memory_order_relaxed);
-        size_t read_idx = m_read_idx.load(std::memory_order_acquire);
+        size_t write_idx = m_write_idx.Load<MemoryOrder::Relaxed>();
+        size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
 
         if (write_idx - read_idx == m_capacity)
         {
@@ -165,56 +165,56 @@ public:
         size_t bound_write_idx = write_idx & (m_capacity - 1);
         new (&m_data[bound_write_idx]) T(args...);
 
-        m_write_idx.store(write_idx + 1, std::memory_order_release);
+        m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
         if constexpr (UseSignaling)
         {
-            m_write_idx.notify_one();
+            m_write_idx.NotifyOne();
         }
         return true;
     }
 
     T Pop()
     {
-        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
-        size_t write_idx = m_write_idx.load(std::memory_order_acquire);
+        size_t read_idx = m_read_idx.Load<MemoryOrder::Relaxed>();
+        size_t write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
 
         while (write_idx - read_idx == 0)
         {
             if constexpr (UseSignaling)
             {
-                m_write_idx.wait(write_idx, std::memory_order_acquire);
+                m_write_idx.Wait<MemoryOrder::Acquire>(write_idx);
             }
             else
             {
                 CpuPause();
             }
-            write_idx = m_write_idx.load(std::memory_order_acquire);
+            write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
         }
 
         size_t bound_read_idx = read_idx & (m_capacity - 1);
         T result = std::move(m_data[bound_read_idx]);
-        m_read_idx.store(read_idx + 1, std::memory_order_release);
+        m_read_idx.Store<MemoryOrder::Release>(read_idx + 1);
         if constexpr (UseSignaling)
         {
-            m_read_idx.notify_one();
+            m_read_idx.NotifyOne();
         }
         return result;
     }
 
     bool TryPop(T& result)
     {
-        size_t read_idx = m_read_idx.load(std::memory_order_relaxed);
-        size_t write_idx = m_write_idx.load(std::memory_order_acquire);
+        size_t read_idx = m_read_idx.Load<MemoryOrder::Relaxed>();
+        size_t write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
         if (write_idx - read_idx == 0)
         {
             return false;
         }
         size_t bound_read_idx = read_idx & (m_capacity - 1);
         result = std::move(m_data[bound_read_idx]);
-        m_read_idx.store(read_idx + 1, std::memory_order_release);
+        m_read_idx.Store<MemoryOrder::Release>(read_idx + 1);
         if constexpr (UseSignaling)
         {
-            m_read_idx.notify_one();
+            m_read_idx.NotifyOne();
         }
         return true;
     }
@@ -222,8 +222,8 @@ public:
 private:
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
-    alignas(OPAL_CACHE_LINE_SIZE) std::atomic<size_t> m_write_idx;
-    alignas(OPAL_CACHE_LINE_SIZE) std::atomic<size_t> m_read_idx;
+    alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_write_idx;
+    alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_read_idx;
     OPAL_END_DISABLE_WARNINGS
 
     size_t m_capacity = 0;
@@ -241,7 +241,7 @@ template <typename T, bool UseSignaling = true>
 struct TransmitterSPSC
 {
     TransmitterSPSC() = default;
-    TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q, Ref<std::atomic<bool>> is_closed)
+    TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q, Ref<Atomic<bool>> is_closed)
         : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
     {
     }
@@ -278,11 +278,11 @@ struct TransmitterSPSC
      * Marks the channel as closed. After this, Receive() and TryReceive() on the
      * corresponding receiver will return ErrorCode::ChannelClosed without blocking.
      */
-    void Close() const { m_is_closed->store(true, std::memory_order_release); }
+    void Close() const { m_is_closed->Store<MemoryOrder::Release>(true); }
 
 private:
     SharedPtr<Impl::QueueSPSC<T, UseSignaling>> m_queue;
-    Ref<std::atomic<bool>> m_is_closed;
+    Ref<Atomic<bool>> m_is_closed;
 };
 
 /**
@@ -295,7 +295,7 @@ template <typename T, bool UseSignaling = true>
 struct ReceiverSPSC
 {
     ReceiverSPSC() = default;
-    ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q, Ref<std::atomic<bool>> is_closed)
+    ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q, Ref<Atomic<bool>> is_closed)
         : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
     {
     }
@@ -331,7 +331,7 @@ struct ReceiverSPSC
         {
             return Expected<T, ErrorCode>(std::move(result));
         }
-        if (m_is_closed->load(std::memory_order_acquire))
+        if (m_is_closed->Load<MemoryOrder::Acquire>())
         {
             return Expected<T, ErrorCode>(ErrorCode::ChannelClosed);
         }
@@ -349,7 +349,7 @@ struct ReceiverSPSC
         {
             return ErrorCode::Success;
         }
-        if (m_is_closed->load(std::memory_order_acquire))
+        if (m_is_closed->Load<MemoryOrder::Acquire>())
         {
             return ErrorCode::ChannelClosed;
         }
@@ -362,7 +362,7 @@ struct ReceiverSPSC
 
 private:
     SharedPtr<Impl::QueueSPSC<T, UseSignaling>> m_queue;
-    Ref<std::atomic<bool>> m_is_closed;
+    Ref<Atomic<bool>> m_is_closed;
 };
 
 /**
@@ -377,7 +377,7 @@ struct ChannelSPSC
 {
     TransmitterSPSC<T, UseSignaling> transmitter;
     ReceiverSPSC<T, UseSignaling> receiver;
-    std::atomic<bool> m_is_closed = false;
+    Atomic<bool> m_is_closed = false;
 
     ChannelSPSC(size_t capacity, AllocatorBase* allocator = nullptr)
     {
