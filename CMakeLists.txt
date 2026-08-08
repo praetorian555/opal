@@ -91,6 +91,7 @@ set(OPAL_FILES
         include/opal/math-constants.h
         include/opal/container/iterator.h
         include/opal/container/expected.h
+        include/opal/container/function.h
         include/opal/container/optional.h
         include/opal/container/deque.h
         include/opal/container/array-view.h
@@ -252,6 +253,7 @@ if (OPAL_BUILD_TESTS)
             test/shared-ptr-test.cpp
             test/thread-test.cpp
             test/delegate-test.cpp
+            test/function-test.cpp
             test/logging-test.cpp
             test/enum-flags-test.cpp
             test/type-traits-test.cpp

@@ -153,6 +153,30 @@ inline constexpr bool k_is_reference_value<T&> = true;
 template <typename T>
 inline constexpr bool k_is_reference_value<T&&> = true;
 
+/** True if T is an lvalue reference. */
+template <typename T>
+inline constexpr bool k_is_lvalue_reference_value = false;
+
+template <typename T>
+inline constexpr bool k_is_lvalue_reference_value<T&> = true;
+
+/**
+ * Casts value back to the reference category it was passed with, preserving it across a call.
+ * Equivalent to std::forward.
+ */
+template <typename T>
+T&& Forward(RemoveReferenceType<T>& value)
+{
+    return static_cast<T&&>(value);
+}
+
+template <typename T>
+T&& Forward(RemoveReferenceType<T>&& value)
+{
+    static_assert(!k_is_lvalue_reference_value<T>, "Cannot forward an rvalue as an lvalue");
+    return static_cast<T&&>(value);
+}
+
 /** True if T is const-qualified. */
 template <typename T>
 inline constexpr bool k_is_const_value = false;
