@@ -161,7 +161,7 @@ TEST_CASE("Default allocator", "[Allocator]")
 {
     // MallocAllocator is pushed in main-test.cpp before tests run.
     Opal::AllocatorBase* allocator = Opal::GetDefaultAllocator();
-    REQUIRE(std::strcmp(allocator->GetName(), "MallocAllocator") == 0);
+    REQUIRE(strcmp(allocator->GetName(), "MallocAllocator") == 0);
     void* memory = allocator->Alloc(16, 16);
     REQUIRE(memory != nullptr);
     allocator->Free(memory);
@@ -172,7 +172,7 @@ TEST_CASE("Default allocator", "[Allocator]")
     REQUIRE_NOTHROW(linear_allocator = new Opal::LinearAllocator("Linear Allocator", desc));
     Opal::PushDefault pd(linear_allocator);
     allocator = Opal::GetDefaultAllocator();
-    REQUIRE(std::strcmp(allocator->GetName(), "Linear Allocator") == 0);
+    REQUIRE(strcmp(allocator->GetName(), "Linear Allocator") == 0);
     void* memory2 = allocator->Alloc(16, 16);
     REQUIRE(memory2 != nullptr);
     REQUIRE(memory != memory2);
@@ -180,7 +180,7 @@ TEST_CASE("Default allocator", "[Allocator]")
     Opal::MallocAllocator malloc_allocator;
     Opal::PushDefault pd2(&malloc_allocator);
     allocator = Opal::GetDefaultAllocator();
-    REQUIRE(std::strcmp(allocator->GetName(), "MallocAllocator") == 0);
+    REQUIRE(strcmp(allocator->GetName(), "MallocAllocator") == 0);
     void* memory3 = allocator->Alloc(16, 16);
     REQUIRE(memory3 != nullptr);
     allocator->Free(memory3);
@@ -309,7 +309,7 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
         Opal::JoinThread(handle);
 
         REQUIRE(result.allocator != nullptr);
-        REQUIRE(std::strcmp(result.allocator->GetName(), "MallocAllocator") == 0);
+        REQUIRE(strcmp(result.allocator->GetName(), "MallocAllocator") == 0);
         REQUIRE(Opal::GetDefaultAllocator() == main_allocator);
     }
     SECTION("Push on main thread does not affect child thread")
@@ -323,7 +323,7 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
             .bytes_to_reserve = OPAL_GB(1), .bytes_to_initially_alloc = OPAL_MB(1), .commit_step_size = OPAL_MB(1)};
         Opal::LinearAllocator linear("Thread Test Allocator", desc);
         const Opal::PushDefault pd(&linear);
-        REQUIRE(std::strcmp(Opal::GetDefaultAllocator()->GetName(), "Thread Test Allocator") == 0);
+        REQUIRE(strcmp(Opal::GetDefaultAllocator()->GetName(), "Thread Test Allocator") == 0);
     }
     SECTION("Each child thread has independent stack")
     {
@@ -440,7 +440,7 @@ TEST_CASE("Opal exceptions are standard exceptions", "[Exceptions]")
         } catch (const std::exception& e)
         {
             caught = true;
-            REQUIRE(std::strcmp(e.what(), "a message") == 0);
+            REQUIRE(strcmp(e.what(), "a message") == 0);
         }
         REQUIRE(caught);
     }
@@ -453,14 +453,14 @@ TEST_CASE("Opal exceptions are standard exceptions", "[Exceptions]")
         } catch (const std::exception& e)
         {
             caught = true;
-            REQUIRE(std::strstr(e.what(), "TestAllocator") != nullptr);
+            REQUIRE(strstr(e.what(), "TestAllocator") != nullptr);
         }
         REQUIRE(caught);
     }
     SECTION("what and What report the same message")
     {
         const Opal::OutOfBoundsException ex(Opal::u64{5}, Opal::u64{0}, Opal::u64{3});
-        REQUIRE(std::strcmp(ex.what(), *ex.What()) == 0);
+        REQUIRE(strcmp(ex.what(), *ex.What()) == 0);
     }
 }
 

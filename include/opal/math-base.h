@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cmath>
+#include <math.h>
 
 #include "opal/type-traits.h"
 #include "opal/math-constants.h"
@@ -248,7 +248,7 @@ bool Opal::IsNaN(T value)
 template <typename T>
 bool Opal::IsFinite(T value)
 {
-    return std::isfinite(value);
+    return isfinite(value);
 }
 
 template <Opal::FloatingPoint T>
@@ -286,14 +286,14 @@ T Opal::Mod(T a, T b)
         {
             return static_cast<T>(k_nan_double);
         }
-        return std::fmod(a, b);
+        return fmod(a, b);
     }
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Sqrt(T value)
 {
-    return std::sqrt(value);
+    return sqrt(value);
 }
 
 template <Opal::FloatingPoint T>
@@ -305,49 +305,49 @@ T Opal::Lerp(T t, T p0, T p1)
 template <Opal::FloatingPoint T>
 T Opal::Round(T value)
 {
-    return std::round(value);
+    return round(value);
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Floor(T value)
 {
-    return std::floor(value);
+    return floor(value);
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Ceil(T value)
 {
-    return std::ceil(value);
+    return ceil(value);
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Sin(T radians)
 {
-    return std::sin(radians);
+    return sin(radians);
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Cos(T radians)
 {
-    return std::cos(radians);
+    return cos(radians);
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Tan(T radians)
 {
-    return std::tan(radians);
+    return tan(radians);
 }
 
 template <Opal::FloatingPoint T>
 T Opal::Power(T base, T exponent)
 {
-    return std::pow(base, exponent);
+    return pow(base, exponent);
 }
 
 template <Opal::FloatingPoint T>
 T Opal::LogNatural(T value)
 {
-    return std::log(value);
+    return log(value);
 }
 
 template <Opal::FloatingPoint T>
@@ -355,5 +355,5 @@ T Opal::Log2(T value)
 {
     constexpr T k_inv_log2 =
         static_cast<T>(1.4426950408889634073599246810018921374266459541529859341354494069);
-    return std::log(value) * k_inv_log2;
+    return log(value) * k_inv_log2;
 }

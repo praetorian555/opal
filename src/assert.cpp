@@ -1,15 +1,15 @@
 #include "opal/assert.h"
 
-#include <cstdio>
-#include <cstdlib>
+#include <stdio.h>
+#include <stdlib.h>
 
 namespace
 {
 [[noreturn]] void AbortOnContractViolation(const char* message)
 {
-    std::fprintf(stderr, "Opal contract violation: %s\n", message != nullptr ? message : "(no message)");
-    std::fflush(stderr);
-    std::abort();
+    fprintf(stderr, "Opal contract violation: %s\n", message != nullptr ? message : "(no message)");
+    fflush(stderr);
+    abort();
 }
 
 Opal::ContractViolationHandler g_contract_handler = &AbortOnContractViolation;

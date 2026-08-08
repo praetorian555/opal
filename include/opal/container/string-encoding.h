@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cuchar>
+#include <uchar.h>
 
 #include "opal/container/array-view.h"
 #include "opal/error-codes.h"
@@ -128,8 +128,8 @@ struct EncodingLocale
     ErrorCode DecodeOne(ArrayView<const CodeUnitType>& input, CodePointType& out_code_point);
 
 private:
-    std::mbstate_t m_encoding_state;
-    std::mbstate_t m_decoding_state;
+    mbstate_t m_encoding_state;
+    mbstate_t m_decoding_state;
 };
 
 }  // namespace Opal

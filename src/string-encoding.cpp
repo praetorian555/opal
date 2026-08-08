@@ -1,21 +1,21 @@
 #include "opal/container/string-encoding.h"
 
-#include <climits>
-#include <cstdlib>
-#include <cstring>
-#include <cuchar>
-#include <cwchar>
+#include <limits.h>
+#include <stdlib.h>
+#include <string.h>
+#include <uchar.h>
+#include <wchar.h>
 
 Opal::EncodingLocale::EncodingLocale() : m_encoding_state(), m_decoding_state()
 {
-    OPAL_ASSERT(std::mbsinit(&m_encoding_state) != 0, "Encoding state is not initialized!");
-    OPAL_ASSERT(std::mbsinit(&m_decoding_state) != 0, "Decoding state is not initialized!");
+    OPAL_ASSERT(mbsinit(&m_encoding_state) != 0, "Encoding state is not initialized!");
+    OPAL_ASSERT(mbsinit(&m_decoding_state) != 0, "Decoding state is not initialized!");
 }
 
 Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, ArrayView<CodeUnitType>& output)
 {
     CodeUnitType buffer[MB_LEN_MAX];
-    const std::mbstate_t saved_state = m_encoding_state;
+    const mbstate_t saved_state = m_encoding_state;
     const size_t count = c32rtomb(buffer, in_code_point, &m_encoding_state);
     if (count == static_cast<size_t>(-1))
     {
@@ -29,7 +29,7 @@ Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, Arr
     }
     if (count > 0)
     {
-        std::memcpy(output.GetData(), buffer, count);
+        memcpy(output.GetData(), buffer, count);
         output = ArrayView<CodeUnitType>(output.begin() + static_cast<i64>(count), output.end());
     }
     return ErrorCode::Success;

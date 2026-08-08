@@ -448,19 +448,19 @@ TEST_CASE("Vector2 length", "[math][vector2]")
     {
         const Vec2f v1(3, 4);
 
-        CHECK(Opal::Length(v1) == std::sqrt(25.0));
+        CHECK(Opal::Length(v1) == sqrt(25.0));
         CHECK(Opal::LengthSquared(v1) == 25.0f);
     }
     {
         const Vec2d v1(3, 4);
 
-        CHECK(Opal::Length(v1) == std::sqrt(25.0));
+        CHECK(Opal::Length(v1) == sqrt(25.0));
         CHECK(Opal::LengthSquared(v1) == 25);
     }
     {
         const Vec2i v1(3, 4);
 
-        CHECK(Opal::Length(v1) == std::sqrt(25.0));
+        CHECK(Opal::Length(v1) == sqrt(25.0));
         CHECK(Opal::LengthSquared(v1) == 25);
     }
 }

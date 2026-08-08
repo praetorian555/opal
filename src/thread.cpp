@@ -3,7 +3,7 @@
 #include "opal/container/scope-ptr.h"
 #include "opal/logging.h"
 
-#include <cstdio>
+#include <stdio.h>
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
@@ -12,10 +12,10 @@
 #include <sys/syscall.h>
 #include <unistd.h>
 
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
 #include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #endif
 
 #if defined(OPAL_PLATFORM_WINDOWS)

@@ -384,13 +384,13 @@ TEST_CASE("Normal3 length", "[math][normal3]")
     {
         const Normal3f v1(3, 4, 5);
 
-        CHECK(Opal::Length(v1) == std::sqrt(50.0));
+        CHECK(Opal::Length(v1) == sqrt(50.0));
         CHECK(Opal::LengthSquared(v1) == 50.0f);
     }
     {
         const Normal3d v1(3, 4, 5);
 
-        CHECK(Opal::Length(v1) == std::sqrt(50.0));
+        CHECK(Opal::Length(v1) == sqrt(50.0));
         CHECK(Opal::LengthSquared(v1) == 50);
     }
 }

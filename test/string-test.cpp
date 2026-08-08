@@ -1,7 +1,7 @@
 #include <algorithm>
-#include <cstring>
 #include <iostream>
 #include <iterator>
+#include <string.h>
 
 #include "test-helpers.h"
 
@@ -1234,7 +1234,7 @@ TEST_CASE("Resize", "[String]")
             REQUIRE(str.GetCapacity() == StringLocale::k_sso_capacity);
             REQUIRE(str.GetSize() == 0);
             REQUIRE(str.GetData() != nullptr);
-            REQUIRE(std::strlen(str.GetData()) == 0);
+            REQUIRE(strlen(str.GetData()) == 0);
         }
         SECTION("New size smaller then old")
         {
@@ -2026,7 +2026,7 @@ TEST_CASE("Locale encoder stays inside the output span", "[String]")
         ArrayView<char8> reference_span(reference, 8);
         REQUIRE(fresh_encoding.EncodeOne(U'日', reference_span) == ErrorCode::Success);
         REQUIRE(span.GetSize() == reference_span.GetSize());
-        REQUIRE(std::memcmp(buffer, reference, sizeof(buffer)) == 0);
+        REQUIRE(memcmp(buffer, reference, sizeof(buffer)) == 0);
     }
 }
 

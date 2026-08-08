@@ -1,12 +1,12 @@
 #pragma once
 
-#include <cinttypes>
 #include <compare>
 #include <initializer_list>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
+#include <inttypes.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "opal/allocator.h"
 #include "opal/container/array-view.h"
@@ -1531,7 +1531,7 @@ TEMPLATE_HEADER
 CLASS_HEADER::String(String&& other) noexcept
     : m_allocator_and_tag(other.m_allocator_and_tag)
 {
-    std::memcpy(&m_storage, &other.m_storage, k_sso_buf_size);
+    memcpy(&m_storage, &other.m_storage, k_sso_buf_size);
     allocator_type* alloc = other.GetAllocatorPtr();
     other.InitSmall(alloc, 0);
     other.m_storage.raw[0] = 0;
@@ -1657,7 +1657,7 @@ CLASS_HEADER& CLASS_HEADER::operator=(String&& other) noexcept
         Deallocate(m_storage.large.data);
     }
     m_allocator_and_tag = other.m_allocator_and_tag;
-    std::memcpy(&m_storage, &other.m_storage, k_sso_buf_size);
+    memcpy(&m_storage, &other.m_storage, k_sso_buf_size);
     allocator_type* alloc = other.GetAllocatorPtr();
     other.InitSmall(alloc, 0);
     other.m_storage.raw[0] = 0;
@@ -1677,7 +1677,7 @@ bool CLASS_HEADER::operator==(const String& other) const
     {
         return true;
     }
-    return std::memcmp(GetData(), other.GetData(), my_size * sizeof(value_type)) == 0;
+    return memcmp(GetData(), other.GetData(), my_size * sizeof(value_type)) == 0;
 }
 
 TEMPLATE_HEADER
@@ -1693,7 +1693,7 @@ bool CLASS_HEADER::operator==(const CodeUnitType* other) const
     {
         return true;
     }
-    return std::memcmp(GetData(), other, my_size * sizeof(value_type)) == 0;
+    return memcmp(GetData(), other, my_size * sizeof(value_type)) == 0;
 }
 
 TEMPLATE_HEADER
@@ -1765,7 +1765,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
     value_type* data = GetData();
     if (other_size > 0)
     {
-        std::memcpy(data, other.GetData(), other_size * sizeof(CodeUnitType));
+        memcpy(data, other.GetData(), other_size * sizeof(CodeUnitType));
     }
     SetSize(other_size);
     data[other_size] = 0;
@@ -1800,7 +1800,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other, size_type pos, size_ty
     value_type* data = GetData();
     if (count > 0)
     {
-        std::memcpy(data, other.GetData() + pos, count * sizeof(CodeUnitType));
+        memcpy(data, other.GetData() + pos, count * sizeof(CodeUnitType));
     }
     SetSize(count);
     data[count] = 0;
@@ -2014,7 +2014,7 @@ Opal::ErrorCode CLASS_HEADER::Reserve(size_type new_capacity)
         const size_type old_size = GetSmallSize();
         if (old_size > 0)
         {
-            std::memcpy(new_data, GetSmallData(), (old_size + 1) * sizeof(value_type));
+            memcpy(new_data, GetSmallData(), (old_size + 1) * sizeof(value_type));
         }
         else
         {
@@ -2030,7 +2030,7 @@ Opal::ErrorCode CLASS_HEADER::Reserve(size_type new_capacity)
     {
         if (m_storage.large.data != nullptr)
         {
-            std::memcpy(new_data, m_storage.large.data, (m_storage.large.size + 1) * sizeof(value_type));
+            memcpy(new_data, m_storage.large.data, (m_storage.large.size + 1) * sizeof(value_type));
             Deallocate(m_storage.large.data);
         }
         m_storage.large.data = new_data;
@@ -2115,7 +2115,7 @@ Opal::ErrorCode CLASS_HEADER::ShrinkToFit()
         allocator_type* alloc = GetAllocatorPtr();
         InitSmall(alloc, sz);
         value_type* buf = GetSmallData();
-        std::memcpy(buf, old_data, (sz + 1) * sizeof(value_type));
+        memcpy(buf, old_data, (sz + 1) * sizeof(value_type));
         Deallocate(old_data);
         return ErrorCode::Success;
     }
@@ -2124,7 +2124,7 @@ Opal::ErrorCode CLASS_HEADER::ShrinkToFit()
     {
         return ErrorCode::OutOfMemory;
     }
-    std::memcpy(new_data, old_data, (sz + 1) * sizeof(value_type));
+    memcpy(new_data, old_data, (sz + 1) * sizeof(value_type));
     Deallocate(old_data);
     m_storage.large.data = new_data;
     m_storage.large.capacity = sz + 1;
@@ -2397,7 +2397,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const value_type* str, size_type size)
     if (size > 0)
     {
         const value_type* source = alias_offset == k_npos ? str : data + alias_offset;
-        std::memmove(data + sz, source, size * sizeof(value_type));
+        memmove(data + sz, source, size * sizeof(value_type));
     }
     sz += size;
     data[sz] = 0;
@@ -2438,7 +2438,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other)
     value_type* data = GetData();
     if (other_size > 0)
     {
-        std::memcpy(data + sz, other.GetData(), other_size * sizeof(CodeUnitType));
+        memcpy(data + sz, other.GetData(), other_size * sizeof(CodeUnitType));
     }
     sz += other_size;
     data[sz] = 0;
@@ -2471,7 +2471,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, size_type pos, size_ty
     value_type* data = GetData();
     if (count > 0)
     {
-        std::memcpy(data + sz, other.GetData() + pos, count * sizeof(CodeUnitType));
+        memcpy(data + sz, other.GetData() + pos, count * sizeof(CodeUnitType));
     }
     sz += count;
     data[sz] = 0;
@@ -4269,7 +4269,7 @@ T Opal::StringToNumber(const StringClass& str, i32 base)
     {
         if (size > 0)
         {
-            std::memcpy(stack_buffer, *str, size);
+            memcpy(stack_buffer, *str, size);
         }
         stack_buffer[size] = 0;
     }

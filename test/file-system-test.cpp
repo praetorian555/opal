@@ -1,6 +1,6 @@
 #include "opal/file-system.h"
 
-#include <cstdio>
+#include <stdio.h>
 
 #include "opal/exceptions.h"
 #include "opal/paths.h"
@@ -237,7 +237,7 @@ TEST_CASE("Creating and destroying directory", "[FileSystem]")
 }
 
 template<> struct std::hash<Opal::StringUtf8> {
-    std::size_t operator()(const Opal::StringUtf8& s) const noexcept {
+    size_t operator()(const Opal::StringUtf8& s) const noexcept {
         return Opal::Hash::CalcRawArray(reinterpret_cast<const Opal::u8*>(s.GetData()), s.GetSize());
     }
 };

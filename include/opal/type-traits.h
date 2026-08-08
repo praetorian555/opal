@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stddef.h>
 #include <utility>
 
 #include "types.h"
@@ -79,7 +80,7 @@ static constexpr bool k_is_raw_array = false;
 template <typename T>
 static constexpr bool k_is_raw_array<T[]> = true;
 
-template <typename T, std::size_t N>
+template <typename T, size_t N>
 static constexpr bool k_is_raw_array<T[N]> = true;
 
 /** Concept: T is a raw C array (bounded or unbounded). */
@@ -87,8 +88,8 @@ template <typename T>
 concept RawArray = k_is_raw_array<T>;
 
 /** Returns the number of elements in a bounded raw array. */
-template <typename T, std::size_t N>
-std::size_t GetRawArraySize(const T (&)[N]) { return N; }
+template <typename T, size_t N>
+size_t GetRawArraySize(const T (&)[N]) { return N; }
 
 /** Strips one array dimension from a raw array type. For T[N] or T[], yields T. */
 template <typename T>
@@ -103,7 +104,7 @@ struct RemoveExtent<T[]>
     using Type = T;
 };
 
-template <typename T, std::size_t N>
+template <typename T, size_t N>
 struct RemoveExtent<T[N]>
 {
     using Type = T;

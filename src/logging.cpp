@@ -5,8 +5,8 @@
 #endif
 
 #include <chrono>
-#include <cstdio>
-#include <cstring>
+#include <stdio.h>
+#include <string.h>
 
 #include "opal/threading/thread.h"
 

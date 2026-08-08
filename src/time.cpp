@@ -4,7 +4,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #elif defined(OPAL_PLATFORM_LINUX)
-#include <ctime>
+#include <time.h>
 #include <sys/stat.h>
 #else
 #error "Unsupported platform"

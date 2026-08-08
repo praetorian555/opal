@@ -493,19 +493,19 @@ TEST_CASE("Vector3 length", "[math][vector3]")
     {
         const Vec3f v1(3, 4, 5);
 
-        CHECK(Opal::Length(v1) == std::sqrt(50.0));
+        CHECK(Opal::Length(v1) == sqrt(50.0));
         CHECK(Opal::LengthSquared(v1) == 50.0f);
     }
     {
         const Vec3d v1(3, 4, 5);
 
-        CHECK(Opal::Length(v1) == std::sqrt(50.0));
+        CHECK(Opal::Length(v1) == sqrt(50.0));
         CHECK(Opal::LengthSquared(v1) == 50);
     }
     {
         const Vec3i v1(3, 4, 5);
 
-        CHECK(Opal::Length(v1) == std::sqrt(50.0));
+        CHECK(Opal::Length(v1) == sqrt(50.0));
         CHECK(Opal::LengthSquared(v1) == 50);
     }
 }

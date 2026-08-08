@@ -4,8 +4,6 @@
 
 #include "opal/paths.h"
 
-#include <complex>
-
 using namespace Opal;
 
 #if defined(OPAL_PLATFORM_WINDOWS)

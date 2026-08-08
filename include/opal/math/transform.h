@@ -1,5 +1,7 @@
 #pragma once
 
+#include <math.h>
+
 #include "opal/math/matrix.h"
 #include "opal/math/point4.h"
 #include "opal/math/quaternion.h"
@@ -202,14 +204,14 @@ template <typename T>
 Opal::Matrix4x4<T> Opal::RotateX(T angle_degrees)
 {
     const T angle_radians = Radians(angle_degrees);
-    const T cos = std::cos(angle_radians);
-    const T sin = std::sin(angle_radians);
+    const T cos_angle = cos(angle_radians);
+    const T sin_angle = sin(angle_radians);
 
     Matrix4x4<T> result = Identity<T>();
-    result.elements[1][1] = cos;
-    result.elements[1][2] = -sin;
-    result.elements[2][1] = sin;
-    result.elements[2][2] = cos;
+    result.elements[1][1] = cos_angle;
+    result.elements[1][2] = -sin_angle;
+    result.elements[2][1] = sin_angle;
+    result.elements[2][2] = cos_angle;
     return result;
 }
 
@@ -217,14 +219,14 @@ template <typename T>
 Opal::Matrix4x4<T> Opal::RotateY(T angle_degrees)
 {
     const T angle_radians = Radians(angle_degrees);
-    const T cos = std::cos(angle_radians);
-    const T sin = std::sin(angle_radians);
+    const T cos_angle = cos(angle_radians);
+    const T sin_angle = sin(angle_radians);
 
     Matrix4x4<T> result = Identity<T>();
-    result.elements[0][0] = cos;
-    result.elements[0][2] = sin;
-    result.elements[2][0] = -sin;
-    result.elements[2][2] = cos;
+    result.elements[0][0] = cos_angle;
+    result.elements[0][2] = sin_angle;
+    result.elements[2][0] = -sin_angle;
+    result.elements[2][2] = cos_angle;
     return result;
 }
 
@@ -232,14 +234,14 @@ template <typename T>
 Opal::Matrix4x4<T> Opal::RotateZ(T angle_degrees)
 {
     const T angle_radians = Radians(angle_degrees);
-    const T cos = std::cos(angle_radians);
-    const T sin = std::sin(angle_radians);
+    const T cos_angle = cos(angle_radians);
+    const T sin_angle = sin(angle_radians);
 
     Matrix4x4<T> result = Identity<T>();
-    result.elements[0][0] = cos;
-    result.elements[0][1] = -sin;
-    result.elements[1][0] = sin;
-    result.elements[1][1] = cos;
+    result.elements[0][0] = cos_angle;
+    result.elements[0][1] = -sin_angle;
+    result.elements[1][0] = sin_angle;
+    result.elements[1][1] = cos_angle;
     return result;
 }
 
@@ -247,9 +249,9 @@ template <typename T>
 Opal::Matrix4x4<T> Opal::Rotate(T angle_degrees, const Vector3<T>& axis)
 {
     const T angle_radians = Radians(angle_degrees);
-    const T cos = std::cos(angle_radians);
-    const T sin = std::sin(angle_radians);
-    const T one_minus_cos = 1 - cos;
+    const T cos_angle = cos(angle_radians);
+    const T sin_angle = sin(angle_radians);
+    const T one_minus_cos = 1 - cos_angle;
 
     const Vector3<T> norm_axis = Normalize(axis);
     const T x = norm_axis.x;
@@ -257,15 +259,15 @@ Opal::Matrix4x4<T> Opal::Rotate(T angle_degrees, const Vector3<T>& axis)
     const T z = norm_axis.z;
 
     Matrix4x4<T> result = Identity<T>();
-    result.elements[0][0] = x * x * one_minus_cos + cos;
-    result.elements[0][1] = x * y * one_minus_cos - z * sin;
-    result.elements[0][2] = x * z * one_minus_cos + y * sin;
-    result.elements[1][0] = y * x * one_minus_cos + z * sin;
-    result.elements[1][1] = y * y * one_minus_cos + cos;
-    result.elements[1][2] = y * z * one_minus_cos - x * sin;
-    result.elements[2][0] = z * x * one_minus_cos - y * sin;
-    result.elements[2][1] = z * y * one_minus_cos + x * sin;
-    result.elements[2][2] = z * z * one_minus_cos + cos;
+    result.elements[0][0] = x * x * one_minus_cos + cos_angle;
+    result.elements[0][1] = x * y * one_minus_cos - z * sin_angle;
+    result.elements[0][2] = x * z * one_minus_cos + y * sin_angle;
+    result.elements[1][0] = y * x * one_minus_cos + z * sin_angle;
+    result.elements[1][1] = y * y * one_minus_cos + cos_angle;
+    result.elements[1][2] = y * z * one_minus_cos - x * sin_angle;
+    result.elements[2][0] = z * x * one_minus_cos - y * sin_angle;
+    result.elements[2][1] = z * y * one_minus_cos + x * sin_angle;
+    result.elements[2][2] = z * z * one_minus_cos + cos_angle;
     return result;
 }
 

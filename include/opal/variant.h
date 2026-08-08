@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstddef>
+#include <stddef.h>
 
 #include "common.h"
 #include "container/expected.h"
@@ -34,7 +34,7 @@ union VariantStorage<T, Rest...>
  * Compile-time accessor that retrieves a reference to the value stored at a given
  * index within a VariantStorage.
  */
-template <std::size_t Index, typename... Ts>
+template <size_t Index, typename... Ts>
 struct VariantAccessor;
 
 /** Base case: Index == 0, return head. */
@@ -52,7 +52,7 @@ struct VariantAccessor<0, T, Rest...>
 };
 
 /** Recursive case: skip head, decrement index, recurse into tail. */
-template <std::size_t Index, typename T, typename... Rest>
+template <size_t Index, typename T, typename... Rest>
 struct VariantAccessor<Index, T, Rest...>
 {
     static auto& Get(VariantStorage<T, Rest...>& storage)
@@ -69,13 +69,13 @@ struct VariantAccessor<Index, T, Rest...>
 template <typename T, typename... Rest>
 struct TypeIndex
 {
-    static constexpr std::size_t k_index = 0;
+    static constexpr size_t k_index = 0;
 };
 
 template <typename T, typename First, typename... Rest>
 struct TypeIndex<T, First, Rest...>
 {
-    static constexpr std::size_t k_index = Opal::SameAs<T, First> ? 0 : 1 + TypeIndex<T, Rest...>::k_index;
+    static constexpr size_t k_index = Opal::SameAs<T, First> ? 0 : 1 + TypeIndex<T, Rest...>::k_index;
 };
 
 }  // namespace Impl
@@ -123,7 +123,7 @@ public:
     Variant(T&& value)
     {
         using DecayT = Decay<T>::Type;
-        constexpr std::size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
+        constexpr size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
         auto& slot = Impl::VariantAccessor<k_idx, Ts...>::Get(m_storage);
         new (&slot) DecayT(std::forward<T>(value));
         m_index = k_idx;
@@ -170,7 +170,7 @@ public:
     auto& Get()
     {
         using DecayT = Decay<T>::Type;
-        constexpr std::size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
+        constexpr size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
         OPAL_VERIFY(k_idx == m_index, "Requested alternative is not the active one");
         return Impl::VariantAccessor<k_idx, Ts...>::Get(m_storage);
     }
@@ -183,7 +183,7 @@ public:
     const auto& Get() const
     {
         using DecayT = Decay<T>::Type;
-        constexpr std::size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
+        constexpr size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
         OPAL_VERIFY(k_idx == m_index, "Requested alternative is not the active one");
         return Impl::VariantAccessor<k_idx, Ts...>::Get(m_storage);
     }
@@ -192,7 +192,7 @@ public:
      * Returns a reference to the stored value at the compile-time Index.
      * @note Ends the program through the contract violation handler when Index is not the active alternative. Use TryGet instead.
      */
-    template <std::size_t Index>
+    template <size_t Index>
     auto& Get()
     {
         OPAL_VERIFY(Index == m_index, "Requested alternative is not the active one");
@@ -203,7 +203,7 @@ public:
      * Returns a const reference to the stored value at the compile-time Index.
      * @note Ends the program through the contract violation handler when Index is not the active alternative. Use TryGet instead.
      */
-    template <std::size_t Index>
+    template <size_t Index>
     const auto& Get() const
     {
 
@@ -220,7 +220,7 @@ public:
     {
         using DecayT = Decay<T>::Type;
         using Result = Expected<DecayT&, ErrorCode>;
-        constexpr std::size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
+        constexpr size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
         if (k_idx != m_index)
         {
             return Result(ErrorCode::TypeMismatch);
@@ -233,7 +233,7 @@ public:
     {
         using DecayT = Decay<T>::Type;
         using Result = Expected<const DecayT&, ErrorCode>;
-        constexpr std::size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
+        constexpr size_t k_idx = Impl::TypeIndex<DecayT, Ts...>::k_index;
         if (k_idx != m_index)
         {
             return Result(ErrorCode::TypeMismatch);
@@ -242,7 +242,7 @@ public:
     }
 
     /** Returns the zero-based index of the currently active alternative. */
-    [[nodiscard]] std::size_t GetIndex() const
+    [[nodiscard]] size_t GetIndex() const
     {
         return m_index;
     }
@@ -325,7 +325,7 @@ private:
 
     // Per-alternative operation implementations, instantiated once per index.
 
-    template <std::size_t I>
+    template <size_t I>
     static void DestroyAt(Storage& storage)
     {
         auto& slot = Impl::VariantAccessor<I, Ts...>::Get(storage);
@@ -333,7 +333,7 @@ private:
         slot.~Type();
     }
 
-    template <std::size_t I>
+    template <size_t I>
     static void MoveAt(Storage& dst, Storage& src)
     {
         auto& src_slot = Impl::VariantAccessor<I, Ts...>::Get(src);
@@ -343,7 +343,7 @@ private:
         src_slot.~Type();
     }
 
-    template <std::size_t I>
+    template <size_t I>
     static void CloneAt(Storage& dst, const Storage& src, AllocatorBase* allocator)
     {
         const auto& src_slot = Impl::VariantAccessor<I, Ts...>::Get(src);
@@ -361,7 +361,7 @@ private:
     template <typename>
     struct FnTables;
 
-    template <std::size_t... Is>
+    template <size_t... Is>
     struct FnTables<std::index_sequence<Is...>>
     {
         static constexpr DestroyFn k_destroy[] = {&DestroyAt<Is>...};
@@ -376,7 +376,7 @@ private:
         if (m_index < sizeof...(Ts))
         {
             Tables::k_destroy[m_index](m_storage);
-            m_index = static_cast<std::size_t>(-1);
+            m_index = static_cast<size_t>(-1);
         }
     }
 
@@ -386,7 +386,7 @@ private:
         {
             Tables::k_move[other.m_index](m_storage, other.m_storage);
             m_index = other.m_index;
-            other.m_index = static_cast<std::size_t>(-1);
+            other.m_index = static_cast<size_t>(-1);
         }
     }
 
@@ -401,19 +401,19 @@ private:
 
     // Per-alternative visit implementations.
 
-    template <std::size_t Index, typename ReturnType, typename Visitor>
+    template <size_t Index, typename ReturnType, typename Visitor>
     static ReturnType VisitAt(Visitor&& visitor, Storage& storage)
     {
         return std::forward<Visitor>(visitor)(Impl::VariantAccessor<Index, Ts...>::Get(storage));
     }
 
-    template <std::size_t Index, typename ReturnType, typename Visitor>
+    template <size_t Index, typename ReturnType, typename Visitor>
     static ReturnType ConstVisitAt(Visitor&& visitor, const Storage& storage)
     {
         return std::forward<Visitor>(visitor)(Impl::VariantAccessor<Index, Ts...>::Get(storage));
     }
 
-    template <typename Visitor, std::size_t... Indices>
+    template <typename Visitor, size_t... Indices>
     auto VisitDispatch(Visitor&& visitor, std::index_sequence<Indices...>)
     {
         using ReturnType = decltype(std::forward<Visitor>(visitor)(Impl::VariantAccessor<0, Ts...>::Get(m_storage)));
@@ -422,7 +422,7 @@ private:
         return table[m_index](std::forward<Visitor>(visitor), m_storage);
     }
 
-    template <typename Visitor, std::size_t... Indices>
+    template <typename Visitor, size_t... Indices>
     auto VisitDispatch(Visitor&& visitor, std::index_sequence<Indices...>) const
     {
         using ReturnType = decltype(std::forward<Visitor>(visitor)(Impl::VariantAccessor<0, Ts...>::Get(m_storage)));
@@ -437,7 +437,7 @@ private:
     }
 
     Storage m_storage;
-    std::size_t m_index = static_cast<std::size_t>(-1);
+    size_t m_index = static_cast<size_t>(-1);
 };
 
 }  // namespace Opal

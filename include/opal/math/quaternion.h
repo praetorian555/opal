@@ -1,5 +1,7 @@
 #pragma once
 
+#include <math.h>
+
 #include "opal/math/matrix.h"
 #include "opal/math/point3.h"
 #include "opal/math/vector3.h"
@@ -450,14 +452,14 @@ Opal::Point3<T> Opal::operator*(const Quaternion<T>& q, const Point3<T>& p)
 template <Opal::FloatingPoint T>
 bool Opal::ContainsNonFinite(const Quaternion<T>& q)
 {
-    return !std::isfinite(q.vec.x) || !std::isfinite(q.vec.y) || !std::isfinite(q.vec.z) ||
-           !std::isfinite(q.w);
+    return !isfinite(q.vec.x) || !isfinite(q.vec.y) || !isfinite(q.vec.z) ||
+           !isfinite(q.w);
 }
 
 template <Opal::FloatingPoint T>
 bool Opal::ContainsNaN(const Quaternion<T>& q)
 {
-    return std::isnan(q.vec.x) || std::isnan(q.vec.y) || std::isnan(q.vec.z) || std::isnan(q.w);
+    return isnan(q.vec.x) || isnan(q.vec.y) || isnan(q.vec.z) || isnan(q.w);
 }
 
 template <Opal::FloatingPoint T>
@@ -518,7 +520,7 @@ Opal::Quaternion<T> Opal::Slerp(T param, const Quaternion<T>& q1, const Quaterni
         return Lerp(param, q1, q2);
     }
 
-    const T theta0 = std::acos(cos_theta0);
+    const T theta0 = acos(cos_theta0);
     const T theta = theta0 * param;
 
     Quaternion q3 = q2 - q1 * cos_theta0;

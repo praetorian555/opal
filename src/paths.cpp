@@ -6,8 +6,8 @@
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
 #elif defined(OPAL_PLATFORM_LINUX)
+#include <limits.h>
 #include <unistd.h>
-#include <climits>
 #endif
 
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorkingDirectory()

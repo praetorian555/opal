@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstring>
+#include <string.h>
 
 #include "opal/assert.h"
 #include "opal/common.h"

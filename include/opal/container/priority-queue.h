@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdint>
-#include <cassert>
+#include <assert.h>
+#include <stdint.h>
 #include <utility>
 
 /**

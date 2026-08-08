@@ -1,7 +1,7 @@
 #include "opal/container/json-reader.h"
 
-#include <cerrno>
-#include <cstdlib>
+#include <errno.h>
+#include <stdlib.h>
 
 #include "opal/container/dynamic-array.h"
 #include "opal/container/in-place-array.h"

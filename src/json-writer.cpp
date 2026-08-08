@@ -1,6 +1,6 @@
 #include "opal/container/json-writer.h"
 
-#include <cmath>
+#include <math.h>
 
 #include "opal/container/dynamic-array.h"
 #include "opal/container/string-format.h"
@@ -157,7 +157,7 @@ private:
     void WriteNumber(f64 value)
     {
         // JSON has no spelling for either, and a JsonValue can hold one because a f64 can.
-        if (std::isnan(value) || std::isinf(value))
+        if (isnan(value) || isinf(value))
         {
             m_error = ErrorCode::InvalidArgument;
             return;

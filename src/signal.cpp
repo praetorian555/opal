@@ -5,11 +5,11 @@
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
 #elif defined(OPAL_PLATFORM_LINUX)
+#include <errno.h>
+#include <limits.h>
 #include <linux/futex.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-#include <cerrno>
-#include <climits>
 #endif
 
 Opal::Signal::Signal() = default;

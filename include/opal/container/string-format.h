@@ -1,6 +1,7 @@
 #pragma once
 
 #include <format>
+#include <stddef.h>
 
 #include "opal/container/expected.h"
 #include "opal/container/string-view.h"
@@ -24,7 +25,7 @@ struct StringFormatIterator
 {
     using iterator_category = std::output_iterator_tag;
     using value_type = void;
-    using difference_type = std::ptrdiff_t;
+    using difference_type = ptrdiff_t;
     using pointer = void;
     using reference = void;
 
