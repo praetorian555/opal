@@ -106,7 +106,11 @@ set(OPAL_FILES
         include/opal/container/scope-ptr.h
         include/opal/container/ref.h
         include/opal/delegate.h
+        include/opal/sort/heap-sort.h
+        include/opal/sort/insertion-sort.h
         include/opal/sort/key-indexed-counting.h
+        include/opal/sort/merge-sort.h
+        include/opal/sort/quick-sort.h
         third-party/wyhash/include/wyhash/wyhash.h
         include/opal/math/vector2.h
         include/opal/math/vector3.h

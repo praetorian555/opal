@@ -1,134 +1,210 @@
 #pragma once
 
-#include <span>
-#include <vector>
+#include "opal/container/array-view.h"
+#include "opal/container/dynamic-array.h"
+#include "opal/error-codes.h"
+#include "opal/sort/insertion-sort.h"
+#include "opal/types.h"
 
-#include "insertion-sort.h"
-
-namespace PrivateMergeSort
+namespace Opal
 {
-	template <typename T>
-	void Merge(std::span<T>& dst, std::span<T>& src, int lo, int mid, int hi)
-	{
-		int i = lo, j = mid + 1;
+namespace Impl
+{
 
-		// Copy from arr to aux since arr contains sorted values
-		for (int k = lo; k <= hi; k++)
-		{
-			src[k] = dst[k];
-		}
+/** Merge the sorted inclusive ranges [lo, mid] and [mid + 1, hi] of dst into dst, using src as working space. */
+template <typename T>
+void MergeSortMerge(ArrayView<T>& dst, ArrayView<T>& src, u64 lo, u64 mid, u64 hi)
+{
+    for (u64 k = lo; k <= hi; ++k)
+    {
+        src.At(k) = dst.At(k);
+    }
 
-		for (int k = lo; k <= hi; k++)
-		{
-			if (i > mid)
-			{
-				dst[k] = src[j++];
-			}
-			else if (j > hi)
-			{
-				dst[k] = src[i++];
-			}
-			else if (src[i] < src[j])
-			{
-				dst[k] = src[i++];
-			}
-			else
-			{
-				dst[k] = src[j++];
-			}
-		}
-	}
-
-	template <typename T>
-	void MergeSort(std::span<T>& arr, std::span<T>& aux, int lo, int hi)
-	{
-		if (hi <= lo) return;
-		const int mid = lo + (hi - lo) / 2;
-		MergeSort(arr, aux, lo, mid);
-		MergeSort(arr, aux, mid + 1, hi);
-		Merge(arr, aux, lo, mid, hi);
-	}
-
-	template <typename T>
-	void MergeImproved(std::span<T>& dst, std::span<T>& src, int lo, int mid, int hi)
-	{
-		int i = lo, j = mid + 1;
-
-		for (int k = lo; k <= hi; k++)
-		{
-			if (i > mid)
-			{
-				dst[k] = src[j++];
-			}
-			else if (j > hi)
-			{
-				dst[k] = src[i++];
-			}
-			else if (src[i] < src[j])
-			{
-				dst[k] = src[i++];
-			}
-			else
-			{
-				dst[k] = src[j++];
-			}
-		}
-	}
-
-	template <typename T>
-	void MergeSortImproved(std::span<T>& arr, std::span<T>& aux, int lo, int hi)
-	{
-		constexpr int k_small_array_cutoff = 15;
-		if (hi - lo <= k_small_array_cutoff)
-		{
-			std::span<T> s(arr.begin() + lo, arr.begin() + hi + 1);
-			InsertionSortImproved(s);
-			return;
-		}
-		const int mid = lo + (hi - lo) / 2;
-		MergeSortImproved(aux, arr, lo, mid);
-		MergeSortImproved(aux, arr, mid + 1, hi);
-		if (aux[mid] > aux[mid + 1])
-		{
-			MergeImproved(arr, aux, lo, mid, hi);
-		}
-		else
-		{
-			std::copy(aux.begin() + lo, aux.begin() + hi + 1, arr.begin() + lo);
-		}
-	}
+    u64 i = lo;
+    u64 j = mid + 1;
+    for (u64 k = lo; k <= hi; ++k)
+    {
+        if (i > mid)
+        {
+            dst.At(k) = src.At(j++);
+        }
+        else if (j > hi)
+        {
+            dst.At(k) = src.At(i++);
+        }
+        else if (src.At(j) < src.At(i))
+        {
+            dst.At(k) = src.At(j++);
+        }
+        else
+        {
+            dst.At(k) = src.At(i++);
+        }
+    }
 }
 
 template <typename T>
-void MergeSort(std::span<T>& arr)
+void MergeSortRange(ArrayView<T>& array, ArrayView<T>& aux, u64 lo, u64 hi)
 {
-	std::vector<T> aux(arr.size());
-	std::span<T> aux_s(aux);
-	PrivateMergeSort::MergeSort(arr, aux_s, 0, arr.size() - 1);
+    if (hi <= lo)
+    {
+        return;
+    }
+    const u64 mid = lo + (hi - lo) / 2;
+    MergeSortRange(array, aux, lo, mid);
+    MergeSortRange(array, aux, mid + 1, hi);
+    MergeSortMerge(array, aux, lo, mid, hi);
 }
 
+/** Merge the sorted inclusive ranges [lo, mid] and [mid + 1, hi] of src into dst. */
 template <typename T>
-void MergeSortBottomUp(std::span<T>& arr)
+void MergeSortMergeImproved(ArrayView<T>& dst, ArrayView<T>& src, u64 lo, u64 mid, u64 hi)
 {
-	std::vector<T> aux(arr.size());
-	std::span<T> aux_s(aux);
-	for (int sz = 1; sz < arr.size(); sz *= 2)
-	{
-		for (int lo = 0; lo < arr.size() - sz; lo += sz + sz)
-		{
-			PrivateMergeSort::Merge(arr, aux_s, lo, lo + sz - 1, std::min(lo + sz + sz - 1, static_cast<int>(arr.size() - 1)));
-		}
-	}
+    u64 i = lo;
+    u64 j = mid + 1;
+    for (u64 k = lo; k <= hi; ++k)
+    {
+        if (i > mid)
+        {
+            dst.At(k) = src.At(j++);
+        }
+        else if (j > hi)
+        {
+            dst.At(k) = src.At(i++);
+        }
+        else if (src.At(j) < src.At(i))
+        {
+            dst.At(k) = src.At(j++);
+        }
+        else
+        {
+            dst.At(k) = src.At(i++);
+        }
+    }
 }
 
-// Improved version of merge sort which:
-// 1. Uses insertion sort for small arrays
-// 2. Eliminates the copy from arr to aux in the merge function
-// 3. Eliminates the merge if the mid element is smaller then mid + 1 element in the array
+/**
+ * Sort the inclusive range [lo, hi] into dst, reading from src. The two views swap roles on each level, so both must
+ * hold the same elements when the recursion starts.
+ */
 template <typename T>
-void MergeSortImproved(std::span<T>& arr)
+void MergeSortRangeImproved(ArrayView<T>& dst, ArrayView<T>& src, u64 lo, u64 hi)
 {
-	std::vector<T> aux(arr.size());
-	std::span<T> aux_s(aux);
-	PrivateMergeSort::MergeSortImproved(arr, aux_s, 0, arr.size() - 1);
+    constexpr u64 k_small_range_cutoff = 15;
+    if (hi <= lo || hi - lo <= k_small_range_cutoff)
+    {
+        InsertionSortRangeImproved(dst, lo, hi);
+        return;
+    }
+    const u64 mid = lo + (hi - lo) / 2;
+    MergeSortRangeImproved(src, dst, lo, mid);
+    MergeSortRangeImproved(src, dst, mid + 1, hi);
+    if (src.At(mid + 1) < src.At(mid))
+    {
+        MergeSortMergeImproved(dst, src, lo, mid, hi);
+    }
+    else
+    {
+        for (u64 k = lo; k <= hi; ++k)
+        {
+            dst.At(k) = src.At(k);
+        }
+    }
 }
+
+}  // namespace Impl
+
+/**
+ * Sort the elements in ascending order using top down merge sort. This sort is stable and runs in O(n log n) on every
+ * input.
+ * @tparam T The type of the elements. Must be less-than comparable, default constructible and copy assignable.
+ * @param in_out_values The elements to sort.
+ * @param scratch_allocator The allocator to use for temporary storage. If nullptr, the default allocator is used.
+ * @return ErrorCode::Success if the sort was successful, ErrorCode::OutOfMemory if the temporary storage could not be
+ *         allocated.
+ */
+template <typename T>
+ErrorCode MergeSort(ArrayView<T>& in_out_values, AllocatorBase* scratch_allocator = nullptr)
+{
+    if (in_out_values.GetSize() < 2)
+    {
+        return ErrorCode::Success;
+    }
+
+    Expected<DynamicArray<T>, ErrorCode> aux_result = DynamicArray<T>::Create(in_out_values.GetSize(), scratch_allocator);
+    if (!aux_result.HasValue())
+    {
+        return aux_result.GetError();
+    }
+    ArrayView<T> aux(aux_result.GetValue());
+
+    Impl::MergeSortRange(in_out_values, aux, 0, in_out_values.GetSize() - 1);
+    return ErrorCode::Success;
+}
+
+/**
+ * Sort the elements in ascending order using bottom up merge sort. This sort is stable, runs in O(n log n) on every
+ * input, and recurses nowhere.
+ * @tparam T The type of the elements. Must be less-than comparable, default constructible and copy assignable.
+ * @param in_out_values The elements to sort.
+ * @param scratch_allocator The allocator to use for temporary storage. If nullptr, the default allocator is used.
+ * @return ErrorCode::Success if the sort was successful, ErrorCode::OutOfMemory if the temporary storage could not be
+ *         allocated.
+ */
+template <typename T>
+ErrorCode MergeSortBottomUp(ArrayView<T>& in_out_values, AllocatorBase* scratch_allocator = nullptr)
+{
+    if (in_out_values.GetSize() < 2)
+    {
+        return ErrorCode::Success;
+    }
+
+    Expected<DynamicArray<T>, ErrorCode> aux_result = DynamicArray<T>::Create(in_out_values.GetSize(), scratch_allocator);
+    if (!aux_result.HasValue())
+    {
+        return aux_result.GetError();
+    }
+    ArrayView<T> aux(aux_result.GetValue());
+
+    const u64 size = in_out_values.GetSize();
+    for (u64 width = 1; width < size; width *= 2)
+    {
+        for (u64 lo = 0; lo < size - width; lo += 2 * width)
+        {
+            const u64 hi = lo + 2 * width - 1;
+            Impl::MergeSortMerge(in_out_values, aux, lo, lo + width - 1, hi < size - 1 ? hi : size - 1);
+        }
+    }
+    return ErrorCode::Success;
+}
+
+/**
+ * Sort the elements in ascending order using merge sort. Faster than MergeSort on the same input, but not stable.
+ * @tparam T The type of the elements. Must be less-than comparable, copy constructible, copy assignable, movable and
+ *           swappable.
+ * @param in_out_values The elements to sort.
+ * @param scratch_allocator The allocator to use for temporary storage. If nullptr, the default allocator is used.
+ * @return ErrorCode::Success if the sort was successful, ErrorCode::OutOfMemory if the temporary storage could not be
+ *         allocated.
+ */
+template <typename T>
+ErrorCode MergeSortImproved(ArrayView<T>& in_out_values, AllocatorBase* scratch_allocator = nullptr)
+{
+    if (in_out_values.GetSize() < 2)
+    {
+        return ErrorCode::Success;
+    }
+
+    Expected<DynamicArray<T>, ErrorCode> aux_result =
+        DynamicArray<T>::Create(in_out_values.GetData(), in_out_values.GetSize(), scratch_allocator);
+    if (!aux_result.HasValue())
+    {
+        return aux_result.GetError();
+    }
+    ArrayView<T> aux(aux_result.GetValue());
+
+    Impl::MergeSortRangeImproved(in_out_values, aux, 0, in_out_values.GetSize() - 1);
+    return ErrorCode::Success;
+}
+
+}  // namespace Opal
