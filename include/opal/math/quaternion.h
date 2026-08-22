@@ -244,8 +244,8 @@ Opal::Quaternion<T>::Quaternion(T ww, T x, T y, T z) : vec(x, y, z), w(ww)
 template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>::Quaternion(const Matrix4x4<T>& transform)
 {
-    // A positive trace is exactly the case where the real part is the largest of the four, and so the only case where
-    // dividing by it is safe. Everything else goes to the branch below, which divides by the largest of the other three.
+    // A positive trace puts the real part above one half, far enough from zero for the division by it to be safe.
+    // Everything else goes to the branch below, which divides by the largest of the other three.
     const T trace = transform.elements[0][0] + transform.elements[1][1] + transform.elements[2][2];
 
     if (trace > static_cast<T>(0))

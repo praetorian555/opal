@@ -32,7 +32,7 @@ Vector3<f64> RotateReference(const Vector3<f64>& axis, f64 angle_degrees, const 
 }
 }  // namespace
 
-TEST_CASE("Matrix accepts a fixed point element type", "[math][fixed-point][Matrix]")
+TEST_CASE("Matrix accepts a fixed point element type", "[math][fixed-point][matrix]")
 {
     static_assert(FloatingPointOrFixedPoint<Q16>);
     static_assert(FloatingPointOrFixedPoint<Q32>);
@@ -71,7 +71,7 @@ TEST_CASE("Matrix accepts a fixed point element type", "[math][fixed-point][Matr
     }
 }
 
-TEST_CASE("Fixed point matrix arithmetic", "[math][fixed-point][Matrix]")
+TEST_CASE("Fixed point matrix arithmetic", "[math][fixed-point][matrix]")
 {
     const Matrix4x4<Q16> a(Q16(2));
     const Matrix4x4<Q16> b(Q16(3));
@@ -116,7 +116,7 @@ TEST_CASE("Fixed point matrix arithmetic", "[math][fixed-point][Matrix]")
     }
 }
 
-TEST_CASE("Fixed point matrix transforms points and vectors", "[math][fixed-point][Matrix]")
+TEST_CASE("Fixed point matrix transforms points and vectors", "[math][fixed-point][matrix]")
 {
     Matrix4x4<Q16> transform(Q16(1));
     transform(0, 3) = Q16(2);
@@ -159,7 +159,7 @@ TEST_CASE("Fixed point matrix transforms points and vectors", "[math][fixed-poin
     }
 }
 
-TEST_CASE("Fixed point matrix inverse", "[math][fixed-point][Matrix]")
+TEST_CASE("Fixed point matrix inverse", "[math][fixed-point][matrix]")
 {
     SECTION("The identity inverts to itself")
     {
@@ -233,7 +233,7 @@ TEST_CASE("Fixed point matrix inverse", "[math][fixed-point][Matrix]")
     }
 }
 
-TEST_CASE("Quaternion accepts a fixed point element type", "[math][fixed-point][Quaternion]")
+TEST_CASE("Quaternion accepts a fixed point element type", "[math][fixed-point][quaternion]")
 {
     static_assert(IsPOD<Quaternion<Q16>>);
     static_assert(SameAs<decltype(Length(Quaternion<Q16>::Identity())), Q16>);
@@ -285,7 +285,7 @@ TEST_CASE("Quaternion accepts a fixed point element type", "[math][fixed-point][
     }
 }
 
-TEST_CASE("Fixed point quaternion rotation", "[math][fixed-point][Quaternion]")
+TEST_CASE("Fixed point quaternion rotation", "[math][fixed-point][quaternion]")
 {
     SECTION("A quarter turn about z is exact")
     {
@@ -331,7 +331,7 @@ TEST_CASE("Fixed point quaternion rotation", "[math][fixed-point][Quaternion]")
     }
 }
 
-TEST_CASE("Fixed point quaternion and matrix round trip", "[math][fixed-point][Quaternion]")
+TEST_CASE("Fixed point quaternion and matrix round trip", "[math][fixed-point][quaternion]")
 {
     SECTION("Through the trace")
     {
@@ -368,7 +368,7 @@ TEST_CASE("Fixed point quaternion and matrix round trip", "[math][fixed-point][Q
     }
 }
 
-TEST_CASE("Fixed point quaternion interpolation", "[math][fixed-point][Quaternion]")
+TEST_CASE("Fixed point quaternion interpolation", "[math][fixed-point][quaternion]")
 {
     const Quaternion<Q32> start = Quaternion<Q32>::FromAxisAngleDegrees(Vector3<Q32>(Q32(0), Q32(0), Q32(1)), Q32(0));
     const Quaternion<Q32> end = Quaternion<Q32>::FromAxisAngleDegrees(Vector3<Q32>(Q32(0), Q32(0), Q32(1)), Q32(90));
@@ -401,6 +401,17 @@ TEST_CASE("Fixed point quaternion interpolation", "[math][fixed-point][Quaternio
         CHECK(IsCloseTo(Length(interpolated), 1.0, 1e-6));
         CHECK(IsCloseTo(interpolated.vec.z, std::sin(0.25 * 0.05 * 3.14159265358979324 / 180.0), 1e-6));
     }
+    SECTION("Near parallel inputs take the linear shortcut at Q16.16 as well")
+    {
+        // The dot of these two rounds to one at this width, which is inside the shortcut threshold, so the slerp has
+        // to come back through the linear path.
+        const Quaternion<Q16> from = Quaternion<Q16>::FromAxisAngleDegrees(Vector3<Q16>(Q16(0), Q16(0), Q16(1)), Q16(0));
+        const Quaternion<Q16> almost = Quaternion<Q16>::FromAxisAngleDegrees(Vector3<Q16>(Q16(0), Q16(0), Q16(1)), Q16(0.05));
+        const Quaternion<Q16> middle = Quaternion<Q16>::FromAxisAngleDegrees(Vector3<Q16>(Q16(0), Q16(0), Q16(1)), Q16(0.025));
+        const Quaternion<Q16> interpolated = Slerp(Q16(0.5), from, almost);
+        CHECK_QUATERNION(interpolated, middle, Q16(0.001));
+        CHECK(IsCloseTo(Length(interpolated), 1.0, k_q16_tolerance));
+    }
     SECTION("Slerp holds at Q16.16 for a quarter turn")
     {
         // The unit length assert Slerp opens with allows a milli, and an axis angle quaternion built at this width
@@ -412,7 +423,7 @@ TEST_CASE("Fixed point quaternion interpolation", "[math][fixed-point][Quaternio
     }
 }
 
-TEST_CASE("Fixed point matrix and quaternion are bit exact", "[math][fixed-point][Matrix][Quaternion]")
+TEST_CASE("Fixed point matrix and quaternion are bit exact", "[math][fixed-point][matrix][quaternion]")
 {
     // The expected values come from an independent model of the arithmetic, not from a previous run. They exist so that
     // the __int128 path and the _mul128 path cannot drift apart without saying so.
