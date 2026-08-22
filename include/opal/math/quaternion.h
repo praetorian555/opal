@@ -514,10 +514,12 @@ Opal::Quaternion<T> Opal::Slerp(T param, const Quaternion<T>& q1, const Quaterni
     // Implementation based on: Understanding Slerp, Then Not Using It, Jonathan Blow
     // http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
 
+#if _DEBUG
     constexpr T k_length_epsilon = static_cast<T>(0.001);
-    constexpr T k_parallel_epsilon = static_cast<T>(0.0001);
     assert(IsEqual(Length(q1), static_cast<T>(1.0), k_length_epsilon));
     assert(IsEqual(Length(q2), static_cast<T>(1.0), k_length_epsilon));
+#endif
+    constexpr T k_parallel_epsilon = static_cast<T>(0.0001);
 
     const T cos_theta0 = Dot(q1, q2);
     if (cos_theta0 > static_cast<T>(1.0) - k_parallel_epsilon)
