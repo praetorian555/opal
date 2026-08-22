@@ -113,6 +113,8 @@ set(OPAL_FILES
         include/opal/sort/merge-sort.h
         include/opal/sort/quick-sort.h
         third-party/rapidhash/include/rapidhash/rapidhash.h
+        include/opal/math/fixed-point.h
+        include/opal/math/fixed-point-vector.h
         include/opal/math/vector2.h
         include/opal/math/vector3.h
         include/opal/math/vector4.h
@@ -235,6 +237,7 @@ if (OPAL_BUILD_TESTS)
             test/bit-test.cpp
             test/rng-test.cpp
             test/math-base-test.cpp
+            test/fixed-point-test.cpp
             test/vector2-test.cpp
             test/vector3-test.cpp
             test/vector4-test.cpp

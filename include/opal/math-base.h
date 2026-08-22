@@ -61,7 +61,7 @@ bool IsNaN(T value);
  * @brief Checks if the given value is finite.
  * @tparam T Value type.
  * @param value The value to check.
- * @return True if the given value is finite, false otherwise.
+ * @return True if the given value is finite, false otherwise. A type with no infinities is always finite.
  */
 template <typename T>
 bool IsFinite(T value);
@@ -248,7 +248,14 @@ bool Opal::IsNaN(T value)
 template <typename T>
 bool Opal::IsFinite(T value)
 {
-    return isfinite(value);
+    if constexpr (FloatingPoint<T>)
+    {
+        return isfinite(value);
+    }
+    else
+    {
+        return true;
+    }
 }
 
 template <Opal::FloatingPoint T>

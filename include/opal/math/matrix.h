@@ -109,7 +109,18 @@ struct Matrix
     Matrix<T, 4, 4> ToMatrix4x4() const;
 };
 
-template <typename MatrixType, IntegralOrFloatingPoint U>
+/**
+ * @brief Concept that checks if a type is a Matrix.
+ * @tparam T The type to be evaluated.
+ */
+template <typename T>
+concept IsMatrix = requires {
+    typename T::value_type;
+    T::k_row_count_value;
+    T::k_col_count_value;
+};
+
+template <IsMatrix MatrixType, IntegralOrFloatingPoint U>
 MatrixType operator*(U scalar, const MatrixType& m);
 
 /**
@@ -490,7 +501,7 @@ Opal::Matrix<T, 3, 3> Opal::Matrix<T, k_row_count, k_col_count>::ToMatrix3x3() c
     return mat;
 }
 
-template <typename MatrixType, Opal::IntegralOrFloatingPoint U>
+template <Opal::IsMatrix MatrixType, Opal::IntegralOrFloatingPoint U>
 MatrixType Opal::operator*(U scalar, const MatrixType& m)
 {
     return m * static_cast<typename MatrixType::value_type>(scalar);

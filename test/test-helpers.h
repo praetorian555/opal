@@ -4,8 +4,16 @@
 #include <string>
 
 #include "opal/math/dual-quaternion.h"
+#include "opal/math/fixed-point.h"
 #include "opal/math/point2.h"
 #include "opal/math/quaternion.h"
+
+template <Opal::FixedPointStorage T, Opal::u32 k_frac_bits>
+std::ostream& operator<<(std::ostream& os, const Opal::FixedPoint<T, k_frac_bits>& value)
+{
+    os << static_cast<double>(value) << " (raw=" << static_cast<long long>(value.raw) << ")";
+    return os;
+}
 
 template <typename T>
 std::ostream& operator<<(std::ostream& os, const Opal::Point2<T>& value)
