@@ -2,6 +2,7 @@
 
 #include <math.h>
 
+#include "opal/math/fixed-point-vector.h"
 #include "opal/math/matrix.h"
 #include "opal/math/point3.h"
 #include "opal/math/vector3.h"
@@ -9,7 +10,7 @@
 namespace Opal
 {
 
-template <FloatingPoint T>
+template <FloatingPointOrFixedPoint T>
 class Quaternion
 {
 public:
@@ -85,22 +86,22 @@ public:
     Matrix4x4<T> ToMatrix4x4() const;
 };
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 bool IsEqual(const Quaternion<T>& q1, const Quaternion<T>& q2, T epsilon);
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> operator+(const Quaternion<T>& q);
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> operator-(const Quaternion<T>& q);
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> operator+(const Quaternion<T>& q1, const Quaternion<T>& q2);
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> operator-(const Quaternion<T>& q1, const Quaternion<T>& q2);
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> operator*(const Quaternion<T>& q1, const Quaternion<T>& q2);
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> operator*(T scalar, const Quaternion<T>& q);
 
 /**
@@ -110,7 +111,7 @@ Quaternion<T> operator*(T scalar, const Quaternion<T>& q);
  * @param vec Vector to rotate.
  * @return Returns a new Quaternion.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Vector3<T> operator*(const Quaternion<T>& q, const Vector3<T>& vec);
 
 /**
@@ -120,7 +121,7 @@ Vector3<T> operator*(const Quaternion<T>& q, const Vector3<T>& vec);
  * @param p point to rotate.
  * @return Returns a new Quaternion.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Point3<T> operator*(const Quaternion<T>& q, const Point3<T>& p);
 
 /**
@@ -128,7 +129,7 @@ Point3<T> operator*(const Quaternion<T>& q, const Point3<T>& p);
  * @param q Quaternion to check.
  * @return True if any of the components are NaN or infinite value, false otherwise.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 [[nodiscard]] bool ContainsNonFinite(const Quaternion<T>& q);
 
 /**
@@ -136,7 +137,7 @@ template <Opal::FloatingPoint T>
  * @param q Quaternion to check.
  * @return True if any of the components are NaN, false otherwise.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 [[nodiscard]] bool ContainsNaN(const Quaternion<T>& q);
 
 /**
@@ -145,7 +146,7 @@ template <Opal::FloatingPoint T>
  * @param q Quaternion to calculate the length squared of.
  * @return Returns the length squared of the Quaternion.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 [[nodiscard]] T LengthSquared(const Quaternion<T>& q);
 
 /**
@@ -154,7 +155,7 @@ template <Opal::FloatingPoint T>
  * @param q Quaternion to calculate the length of.
  * @return Returns the length of the Quaternion.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 [[nodiscard]] T Length(const Quaternion<T>& q);
 
 /**
@@ -164,7 +165,7 @@ template <Opal::FloatingPoint T>
  * @param q2 Second Quaternion.
  * @return Returns the dot product of the two Quaternions.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 T Dot(const Quaternion<T>& q1, const Quaternion<T>& q2);
 
 /**
@@ -173,7 +174,7 @@ T Dot(const Quaternion<T>& q1, const Quaternion<T>& q2);
  * @param q Quaternion to normalize. Can't have a magnitude of 0.
  * @return Returns the normalized Quaternion in a new object.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> Normalize(const Quaternion<T>& q);
 
 /**
@@ -187,7 +188,7 @@ Quaternion<T> Normalize(const Quaternion<T>& q);
  * absolute precision and constant angular velocity, use Slerp instead.
  * @see Slerp
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> Lerp(T param, const Quaternion<T>& q1, const Quaternion<T>& q2);
 
 /**
@@ -202,7 +203,7 @@ Quaternion<T> Lerp(T param, const Quaternion<T>& q1, const Quaternion<T>& q2);
  * instead.
  * @see Lerp
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> Slerp(T param, const Quaternion<T>& q1, const Quaternion<T>& q2);
 
 /**
@@ -211,7 +212,7 @@ Quaternion<T> Slerp(T param, const Quaternion<T>& q1, const Quaternion<T>& q2);
  * @param q - The Quaternion to get the conjugate of.
  * @return The conjugate of the Quaternion.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> Conjugate(const Quaternion<T>& q);
 
 /**
@@ -220,31 +221,31 @@ Quaternion<T> Conjugate(const Quaternion<T>& q);
  * @param q - The Quaternion to get the inverse of.
  * @return The inverse of the Quaternion.
  */
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Quaternion<T> Inverse(const Quaternion<T>& q);
 
 }  // namespace Math
 
 // Implementation //////////////////////////////////////////////////////////////////////////////////
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>::Quaternion()
 {
     // Do nothing.
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>::Quaternion(T ww, T x, T y, T z) : vec(x, y, z), w(ww)
 {
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>::Quaternion(const Matrix4x4<T>& transform)
 {
     const T trace = transform.elements[0][0] + transform.elements[1][1] + transform.elements[2][2] +
                     transform.elements[3][3];
 
-    if (trace > static_cast<T>(0.0))
+    if (trace > static_cast<T>(0))
     {
         w = Opal::Sqrt(trace) / 2;
         const T scalar = 1 / (4 * w);
@@ -274,7 +275,7 @@ Opal::Quaternion<T>::Quaternion(const Matrix4x4<T>& transform)
         static_cast<T>(1.0));
     T dir[3];
     dir[i] = scalar * static_cast<T>(0.5);
-    if (scalar != 0.f)
+    if (scalar != static_cast<T>(0))
     {
         scalar = static_cast<T>(0.5) / scalar;
     }
@@ -286,7 +287,7 @@ Opal::Quaternion<T>::Quaternion(const Matrix4x4<T>& transform)
     vec.z = dir[2];
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 template <Opal::FloatingPoint U>
 Opal::Quaternion<T>::Quaternion(const Quaternion<U>& other)
     : vec(static_cast<T>(other.vec.x), static_cast<T>(other.vec.y), static_cast<T>(other.vec.z)),
@@ -294,14 +295,14 @@ Opal::Quaternion<T>::Quaternion(const Quaternion<U>& other)
 {
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Quaternion<T>::FromAxisAngleDegrees(const Vector3<T>& axis,
                                                               T angle_degrees)
 {
     return FromAxisAngleRadians(axis, Radians(angle_degrees));
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Quaternion<T>::FromAxisAngleRadians(const Vector3<T>& axis,
                                                               T angle_radians)
 {
@@ -311,31 +312,31 @@ Opal::Quaternion<T> Opal::Quaternion<T>::FromAxisAngleRadians(const Vector3<T>& 
     return {c, vec.x * s, vec.y * s, vec.z * s};
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Quaternion<T>::Identity()
 {
     return {1, 0, 0, 0};
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Quaternion<T>::Zero()
 {
     return {0, 0, 0, 0};
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 bool Opal::Quaternion<T>::operator==(const Quaternion& other) const
 {
     return vec == other.vec && w == other.w;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 bool Opal::Quaternion<T>::operator!=(const Quaternion& other) const
 {
     return !(*this == other);
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>& Opal::Quaternion<T>::operator+=(const Quaternion& other)
 {
     vec += other.vec;
@@ -343,7 +344,7 @@ Opal::Quaternion<T>& Opal::Quaternion<T>::operator+=(const Quaternion& other)
     return *this;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>& Opal::Quaternion<T>::operator-=(const Quaternion& other)
 {
     vec -= other.vec;
@@ -351,7 +352,7 @@ Opal::Quaternion<T>& Opal::Quaternion<T>::operator-=(const Quaternion& other)
     return *this;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>& Opal::Quaternion<T>::operator*=(const Quaternion& other)
 {
     Quaternion q;
@@ -363,7 +364,7 @@ Opal::Quaternion<T>& Opal::Quaternion<T>::operator*=(const Quaternion& other)
     return *this;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>& Opal::Quaternion<T>::operator*=(T scalar)
 {
     vec *= scalar;
@@ -371,7 +372,7 @@ Opal::Quaternion<T>& Opal::Quaternion<T>::operator*=(T scalar)
     return *this;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>& Opal::Quaternion<T>::operator/=(T scalar)
 {
     vec /= scalar;
@@ -379,7 +380,7 @@ Opal::Quaternion<T>& Opal::Quaternion<T>::operator/=(T scalar)
     return *this;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Quaternion<T>::operator*(T scalar) const
 {
     Quaternion q = *this;
@@ -387,7 +388,7 @@ Opal::Quaternion<T> Opal::Quaternion<T>::operator*(T scalar) const
     return q;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Quaternion<T>::operator/(T scalar) const
 {
     Quaternion q = *this;
@@ -395,13 +396,13 @@ Opal::Quaternion<T> Opal::Quaternion<T>::operator/(T scalar) const
     return q;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 bool Opal::IsEqual(const Quaternion<T>& q1, const Quaternion<T>& q2, T epsilon)
 {
     return IsEqual(q1.vec, q2.vec, epsilon) && IsEqual(q1.w, q2.w, epsilon);
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::operator+(const Quaternion<T>& q1, const Quaternion<T>& q2)
 {
     Quaternion<T> q = q1;
@@ -409,7 +410,7 @@ Opal::Quaternion<T> Opal::operator+(const Quaternion<T>& q1, const Quaternion<T>
     return q;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::operator-(const Quaternion<T>& q1, const Quaternion<T>& q2)
 {
     Quaternion<T> q = q1;
@@ -417,7 +418,7 @@ Opal::Quaternion<T> Opal::operator-(const Quaternion<T>& q1, const Quaternion<T>
     return q;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::operator*(const Quaternion<T>& q1, const Quaternion<T>& q2)
 {
     Quaternion<T> q = q1;
@@ -425,7 +426,7 @@ Opal::Quaternion<T> Opal::operator*(const Quaternion<T>& q1, const Quaternion<T>
     return q;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::operator*(T scalar, const Quaternion<T>& q)
 {
     Quaternion<T> result = q;
@@ -433,7 +434,7 @@ Opal::Quaternion<T> Opal::operator*(T scalar, const Quaternion<T>& q)
     return result;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Vector3<T> Opal::operator*(const Quaternion<T>& q, const Vector3<T>& vec)
 {
     const Quaternion<T> qp(0, vec.x, vec.y, vec.z);
@@ -441,7 +442,7 @@ Opal::Vector3<T> Opal::operator*(const Quaternion<T>& q, const Vector3<T>& vec)
     return {result.vec.x, result.vec.y, result.vec.z};
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Point3<T> Opal::operator*(const Quaternion<T>& q, const Point3<T>& p)
 {
     const Quaternion<T> qp(0, p.x, p.y, p.z);
@@ -449,38 +450,37 @@ Opal::Point3<T> Opal::operator*(const Quaternion<T>& q, const Point3<T>& p)
     return {result.vec.x, result.vec.y, result.vec.z};
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 bool Opal::ContainsNonFinite(const Quaternion<T>& q)
 {
-    return !isfinite(q.vec.x) || !isfinite(q.vec.y) || !isfinite(q.vec.z) ||
-           !isfinite(q.w);
+    return !Opal::IsFinite(q.vec.x) || !Opal::IsFinite(q.vec.y) || !Opal::IsFinite(q.vec.z) || !Opal::IsFinite(q.w);
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 bool Opal::ContainsNaN(const Quaternion<T>& q)
 {
-    return isnan(q.vec.x) || isnan(q.vec.y) || isnan(q.vec.z) || isnan(q.w);
+    return Opal::IsNaN(q.vec.x) || Opal::IsNaN(q.vec.y) || Opal::IsNaN(q.vec.z) || Opal::IsNaN(q.w);
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 T Opal::LengthSquared(const Quaternion<T>& q)
 {
     return q.vec.x * q.vec.x + q.vec.y * q.vec.y + q.vec.z * q.vec.z + q.w * q.w;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 T Opal::Length(const Quaternion<T>& q)
 {
     return Opal::Sqrt(LengthSquared(q));
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 T Opal::Dot(const Quaternion<T>& q1, const Quaternion<T>& q2)
 {
     return q1.vec.x * q2.vec.x + q1.vec.y * q2.vec.y + q1.vec.z * q2.vec.z + q1.w * q2.w;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Normalize(const Quaternion<T>& q)
 {
     const T length = Length(q);
@@ -491,7 +491,7 @@ Opal::Quaternion<T> Opal::Normalize(const Quaternion<T>& q)
     return q / length;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Lerp(T param, const Quaternion<T>& q1, const Quaternion<T>& q2)
 {
 #if _DEBUG
@@ -504,7 +504,7 @@ Opal::Quaternion<T> Opal::Lerp(T param, const Quaternion<T>& q1, const Quaternio
     return Normalize(q3);
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Slerp(T param, const Quaternion<T>& q1, const Quaternion<T>& q2)
 {
     // Implementation based on: Understanding Slerp, Then Not Using It, Jonathan Blow
@@ -520,7 +520,7 @@ Opal::Quaternion<T> Opal::Slerp(T param, const Quaternion<T>& q1, const Quaterni
         return Lerp(param, q1, q2);
     }
 
-    const T theta0 = acos(cos_theta0);
+    const T theta0 = Opal::ArcCos(cos_theta0);
     const T theta = theta0 * param;
 
     Quaternion q3 = q2 - q1 * cos_theta0;
@@ -529,7 +529,7 @@ Opal::Quaternion<T> Opal::Slerp(T param, const Quaternion<T>& q1, const Quaterni
     return q1 * Opal::Cos(theta) + q3 * Opal::Sin(theta);
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Conjugate(const Quaternion<T>& q)
 {
     Quaternion<T> ret = q;
@@ -537,7 +537,7 @@ Opal::Quaternion<T> Opal::Conjugate(const Quaternion<T>& q)
     return ret;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Inverse(const Quaternion<T>& q)
 {
     const T length_squared = LengthSquared(q);
@@ -545,7 +545,7 @@ Opal::Quaternion<T> Opal::Inverse(const Quaternion<T>& q)
     return Conjugate(q) / length_squared;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Matrix3x3<T> Opal::Quaternion<T>::ToMatrix3x3() const
 {
     Matrix3x3<T> mat(1);
@@ -560,20 +560,20 @@ Opal::Matrix3x3<T> Opal::Quaternion<T>::ToMatrix3x3() const
     const T wy = w * vec.y;
     const T wz = w * vec.z;
 
-    mat(0, 0) = 1.0f - 2.0f * (yy + zz);
-    mat(0, 1) = 2.0f * (xy - wz);
-    mat(0, 2) = 2.0f * (xz + wy);
-    mat(1, 0) = 2.0f * (xy + wz);
-    mat(1, 1) = 1.0f - 2.0f * (xx + zz);
-    mat(1, 2) = 2.0f * (yz - wx);
-    mat(2, 0) = 2.0f * (xz - wy);
-    mat(2, 1) = 2.0f * (yz + wx);
-    mat(2, 2) = 1.0f - 2.0f * (xx + yy);
+    mat(0, 0) = 1 - 2 * (yy + zz);
+    mat(0, 1) = 2 * (xy - wz);
+    mat(0, 2) = 2 * (xz + wy);
+    mat(1, 0) = 2 * (xy + wz);
+    mat(1, 1) = 1 - 2 * (xx + zz);
+    mat(1, 2) = 2 * (yz - wx);
+    mat(2, 0) = 2 * (xz - wy);
+    mat(2, 1) = 2 * (yz + wx);
+    mat(2, 2) = 1 - 2 * (xx + yy);
 
     return mat;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Matrix4x4<T> Opal::Quaternion<T>::ToMatrix4x4() const
 {
     Matrix4x4<T> mat(1);
@@ -588,26 +588,26 @@ Opal::Matrix4x4<T> Opal::Quaternion<T>::ToMatrix4x4() const
     const T wy = w * vec.y;
     const T wz = w * vec.z;
 
-    mat(0, 0) = 1.0f - 2.0f * (yy + zz);
-    mat(0, 1) = 2.0f * (xy - wz);
-    mat(0, 2) = 2.0f * (xz + wy);
-    mat(1, 0) = 2.0f * (xy + wz);
-    mat(1, 1) = 1.0f - 2.0f * (xx + zz);
-    mat(1, 2) = 2.0f * (yz - wx);
-    mat(2, 0) = 2.0f * (xz - wy);
-    mat(2, 1) = 2.0f * (yz + wx);
-    mat(2, 2) = 1.0f - 2.0f * (xx + yy);
+    mat(0, 0) = 1 - 2 * (yy + zz);
+    mat(0, 1) = 2 * (xy - wz);
+    mat(0, 2) = 2 * (xz + wy);
+    mat(1, 0) = 2 * (xy + wz);
+    mat(1, 1) = 1 - 2 * (xx + zz);
+    mat(1, 2) = 2 * (yz - wx);
+    mat(2, 0) = 2 * (xz - wy);
+    mat(2, 1) = 2 * (yz + wx);
+    mat(2, 2) = 1 - 2 * (xx + yy);
 
     return mat;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::operator+(const Quaternion<T>& q)
 {
     return q;
 }
 
-template <Opal::FloatingPoint T>
+template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::operator-(const Quaternion<T>& q)
 {
     return {-q.w, -q.vec.x, -q.vec.y, -q.vec.z};

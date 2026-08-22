@@ -19,6 +19,13 @@ template <typename T>
 concept IsFixedPoint = k_is_fixed_point_value<typename RemoveConstVolatile<T>::Type>;
 
 /**
+ * @brief Concept that checks if a type is a real number type, meaning either a floating point or a fixed point one.
+ * @tparam T The type to be evaluated.
+ */
+template <typename T>
+concept FloatingPointOrFixedPoint = FloatingPoint<T> || IsFixedPoint<T>;
+
+/**
  * @brief Returns the absolute value of the given value.
  * @tparam T Value type.
  * @param value The value to take the absolute value of.
@@ -191,6 +198,43 @@ template <FloatingPoint T>
 T Tan(T radians);
 
 /**
+ * @brief Returns the arc sine of the given value.
+ * @tparam T Value type. Must be a floating point type.
+ * @param value The value to take the arc sine of. Must be in the range of minus one to one.
+ * @return The arc sine of the given value in radians, in the range of minus half pi to half pi.
+ */
+template <FloatingPoint T>
+T ArcSin(T value);
+
+/**
+ * @brief Returns the arc cosine of the given value.
+ * @tparam T Value type. Must be a floating point type.
+ * @param value The value to take the arc cosine of. Must be in the range of minus one to one.
+ * @return The arc cosine of the given value in radians, in the range of zero to pi.
+ */
+template <FloatingPoint T>
+T ArcCos(T value);
+
+/**
+ * @brief Returns the arc tangent of the given value.
+ * @tparam T Value type. Must be a floating point type.
+ * @param value The value to take the arc tangent of.
+ * @return The arc tangent of the given value in radians, in the range of minus half pi to half pi.
+ */
+template <FloatingPoint T>
+T ArcTan(T value);
+
+/**
+ * @brief Returns the angle between the positive x axis and the point (x, y).
+ * @tparam T Value type. Must be a floating point type.
+ * @param y The y coordinate of the point.
+ * @param x The x coordinate of the point.
+ * @return The angle in radians, in the range of minus pi to pi. Zero when both coordinates are zero.
+ */
+template <FloatingPoint T>
+T ArcTan2(T y, T x);
+
+/**
  * @brief Returns the base raised to the exponent power.
  * @tparam T Value type. Must be a floating point type.
  * @param base The base.
@@ -353,6 +397,30 @@ template <Opal::FloatingPoint T>
 T Opal::Tan(T radians)
 {
     return static_cast<T>(tan(radians));
+}
+
+template <Opal::FloatingPoint T>
+T Opal::ArcSin(T value)
+{
+    return static_cast<T>(asin(value));
+}
+
+template <Opal::FloatingPoint T>
+T Opal::ArcCos(T value)
+{
+    return static_cast<T>(acos(value));
+}
+
+template <Opal::FloatingPoint T>
+T Opal::ArcTan(T value)
+{
+    return static_cast<T>(atan(value));
+}
+
+template <Opal::FloatingPoint T>
+T Opal::ArcTan2(T y, T x)
+{
+    return static_cast<T>(atan2(y, x));
 }
 
 template <Opal::FloatingPoint T>

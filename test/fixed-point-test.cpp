@@ -23,6 +23,9 @@ bool IsCloseTo(FixedType value, double expected, double tolerance)
 // them a few steps of room. Q31.32 is limited by the approximating polynomial rather than by its own resolution.
 constexpr double k_q16_tolerance = 3e-4;
 constexpr double k_q32_tolerance = 1e-5;
+
+constexpr double k_pi = 3.14159265358979324;
+constexpr double k_quarter_pi = 0.25 * k_pi;
 }  // namespace
 
 TEST_CASE("FixedPoint traits", "[math][fixed-point]")
@@ -367,6 +370,98 @@ TEST_CASE("FixedPoint trigonometry", "[math][fixed-point]")
     }
 }
 
+TEST_CASE("FixedPoint inverse trigonometry", "[math][fixed-point]")
+{
+    SECTION("Anchor points")
+    {
+        CHECK(ArcTan(Q16(0)) == Q16(0));
+        CHECK(IsCloseTo(ArcTan(Q16(1)), k_quarter_pi, k_q16_tolerance));
+        CHECK(IsCloseTo(ArcTan(Q16(-1)), -k_quarter_pi, k_q16_tolerance));
+        CHECK(ArcSin(Q16(0)) == Q16(0));
+        CHECK(IsCloseTo(ArcSin(Q16(1)), 0.5 * k_pi, k_q16_tolerance));
+        CHECK(IsCloseTo(ArcSin(Q16(-1)), -0.5 * k_pi, k_q16_tolerance));
+        CHECK(ArcCos(Q16(1)) == Q16(0));
+        CHECK(IsCloseTo(ArcCos(Q16(0)), 0.5 * k_pi, k_q16_tolerance));
+        CHECK(IsCloseTo(ArcCos(Q16(-1)), k_pi, k_q16_tolerance));
+    }
+    SECTION("Arc tangent of two arguments covers every quadrant")
+    {
+        CHECK(IsCloseTo(ArcTan2(Q16(1), Q16(1)), 0.25 * k_pi, k_q16_tolerance));
+        CHECK(IsCloseTo(ArcTan2(Q16(1), Q16(-1)), 0.75 * k_pi, k_q16_tolerance));
+        CHECK(IsCloseTo(ArcTan2(Q16(-1), Q16(-1)), -0.75 * k_pi, k_q16_tolerance));
+        CHECK(IsCloseTo(ArcTan2(Q16(-1), Q16(1)), -0.25 * k_pi, k_q16_tolerance));
+    }
+    SECTION("Arc tangent of two arguments on the axes")
+    {
+        CHECK(ArcTan2(Q16(0), Q16(0)) == Q16(0));
+        CHECK(ArcTan2(Q16(0), Q16(2)) == Q16(0));
+        CHECK(IsCloseTo(ArcTan2(Q16(0), Q16(-2)), k_pi, k_q16_tolerance));
+        CHECK(IsCloseTo(ArcTan2(Q16(2), Q16(0)), 0.5 * k_pi, k_q16_tolerance));
+        CHECK(IsCloseTo(ArcTan2(Q16(-2), Q16(0)), -0.5 * k_pi, k_q16_tolerance));
+    }
+    SECTION("Sweeps the arc tangent")
+    {
+        for (int i = -400; i <= 400; ++i)
+        {
+            const double value = static_cast<double>(i) * 0.05;
+            CHECK(IsCloseTo(ArcTan(Q16(value)), std::atan(value), k_q16_tolerance));
+            CHECK(IsCloseTo(ArcTan(Q32(value)), std::atan(value), k_q32_tolerance));
+        }
+    }
+    SECTION("Sweeps the arc tangent of two arguments")
+    {
+        for (int i = -32; i <= 32; ++i)
+        {
+            for (int j = -32; j <= 32; ++j)
+            {
+                const double y = static_cast<double>(i) * 0.125;
+                const double x = static_cast<double>(j) * 0.125;
+                CHECK(IsCloseTo(ArcTan2(Q16(y), Q16(x)), std::atan2(y, x), k_q16_tolerance));
+                CHECK(IsCloseTo(ArcTan2(Q32(y), Q32(x)), std::atan2(y, x), k_q32_tolerance));
+            }
+        }
+    }
+    SECTION("Sweeps the arc sine and the arc cosine")
+    {
+        for (int i = -1000; i <= 1000; ++i)
+        {
+            const double value = static_cast<double>(i) * 0.001;
+            CHECK(IsCloseTo(ArcSin(Q16(value)), std::asin(value), k_q16_tolerance));
+            CHECK(IsCloseTo(ArcCos(Q16(value)), std::acos(value), k_q16_tolerance));
+            CHECK(IsCloseTo(ArcSin(Q32(value)), std::asin(value), k_q32_tolerance));
+            CHECK(IsCloseTo(ArcCos(Q32(value)), std::acos(value), k_q32_tolerance));
+        }
+    }
+    SECTION("Round trips against the forward functions")
+    {
+        for (int i = -150; i <= 150; ++i)
+        {
+            const Q32 angle(static_cast<double>(i) * 0.01);
+            CHECK(IsCloseTo(ArcSin(Sin(angle)), static_cast<double>(angle), 1e-5));
+            CHECK(IsCloseTo(ArcTan2(Sin(angle), Cos(angle)), static_cast<double>(angle), 1e-5));
+        }
+    }
+    SECTION("Never leaves the range of the function")
+    {
+        for (int i = -1000; i <= 1000; ++i)
+        {
+            const Q16 value(static_cast<double>(i) * 0.001);
+            CHECK(ArcSin(value) >= Q16(-2));
+            CHECK(ArcSin(value) <= Q16(2));
+            CHECK(ArcCos(value) >= Q16(0));
+            CHECK(ArcCos(value) <= Q16(4));
+        }
+    }
+    SECTION("Narrow storage")
+    {
+        using Q8 = FixedPoint<i16, 8>;
+        CHECK(ArcTan(Q8(0)) == Q8(0));
+        CHECK(IsCloseTo(ArcTan(Q8(1)), k_quarter_pi, 0.02));
+        CHECK(IsCloseTo(ArcTan2(Q8(-1), Q8(-1)), -0.75 * k_pi, 0.02));
+        CHECK(IsCloseTo(ArcCos(Q8(0.5)), k_pi / 3.0, 0.02));
+    }
+}
+
 TEST_CASE("FixedPoint is bit exact", "[math][fixed-point]")
 {
     // The point of the type is that every platform agrees on the bits, so these pin the exact result rather than a
@@ -380,6 +475,12 @@ TEST_CASE("FixedPoint is bit exact", "[math][fixed-point]")
         CHECK(Sin(Q16(1)).raw == 55145);
         CHECK(Cos(Q16(1)).raw == 35411);
         CHECK(Sin(Q16(-1)).raw == -55145);
+        CHECK(ArcTan(Q16(1)).raw == 51472);
+        CHECK(ArcTan(Q16(0.5)).raw == 30387);
+        CHECK(ArcTan(Q16(-2)).raw == -72557);
+        CHECK(ArcTan2(Q16(1), Q16(-1)).raw == 154415);
+        CHECK(ArcSin(Q16(0.5)).raw == 34315);
+        CHECK(ArcCos(Q16(0.5)).raw == 68629);
     }
     SECTION("Q31.32")
     {
@@ -390,6 +491,12 @@ TEST_CASE("FixedPoint is bit exact", "[math][fixed-point]")
         CHECK(Sin(Q32(1)).raw == 3614090207);
         CHECK(Cos(Q32(1)).raw == 2320580730);
         CHECK(Sin(Q32(-1)).raw == -3614090207);
+        CHECK(ArcTan(Q32(1)).raw == 3373259425);
+        CHECK(ArcTan(Q32(0.5)).raw == 1991351317);
+        CHECK(ArcTan(Q32(-2)).raw == -4755167535);
+        CHECK(ArcTan2(Q32(1), Q32(-1)).raw == 10119778280);
+        CHECK(ArcSin(Q32(0.5)).raw == 2248839617);
+        CHECK(ArcCos(Q32(0.5)).raw == 4497679235);
     }
 }
 

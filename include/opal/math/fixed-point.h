@@ -522,6 +522,42 @@ template <FixedPointStorage T, u32 k_frac_bits>
 template <FixedPointStorage T, u32 k_frac_bits>
 [[nodiscard]] FixedPoint<T, k_frac_bits> Tan(FixedPoint<T, k_frac_bits> radians);
 
+/**
+ * @brief Returns the angle between the positive x axis and the point (x, y).
+ * @param y The y coordinate of the point.
+ * @param x The x coordinate of the point.
+ * @return The angle in radians, in the range of minus pi to pi. Zero when both coordinates are zero. The type needs
+ * three integer bits to hold the result.
+ */
+template <FixedPointStorage T, u32 k_frac_bits>
+[[nodiscard]] FixedPoint<T, k_frac_bits> ArcTan2(FixedPoint<T, k_frac_bits> y, FixedPoint<T, k_frac_bits> x);
+
+/**
+ * @brief Returns the arc tangent of the given value.
+ * @param value The value to take the arc tangent of.
+ * @return The arc tangent of the given value in radians, in the range of minus half pi to half pi.
+ */
+template <FixedPointStorage T, u32 k_frac_bits>
+[[nodiscard]] FixedPoint<T, k_frac_bits> ArcTan(FixedPoint<T, k_frac_bits> value);
+
+/**
+ * @brief Returns the arc sine of the given value.
+ * @param value The value to take the arc sine of. Must be in the range of minus one to one.
+ * @return The arc sine of the given value in radians, in the range of minus half pi to half pi. Accuracy falls off as
+ * the value approaches either end of its range, where the result turns on a difference of two nearly equal numbers.
+ */
+template <FixedPointStorage T, u32 k_frac_bits>
+[[nodiscard]] FixedPoint<T, k_frac_bits> ArcSin(FixedPoint<T, k_frac_bits> value);
+
+/**
+ * @brief Returns the arc cosine of the given value.
+ * @param value The value to take the arc cosine of. Must be in the range of minus one to one.
+ * @return The arc cosine of the given value in radians, in the range of zero to pi. Accuracy falls off as the value
+ * approaches either end of its range.
+ */
+template <FixedPointStorage T, u32 k_frac_bits>
+[[nodiscard]] FixedPoint<T, k_frac_bits> ArcCos(FixedPoint<T, k_frac_bits> value);
+
 }  // namespace Opal
 
 /*************************************************************************************************/
@@ -729,6 +765,92 @@ T FixedPointRadiansToTurns(T radians)
     return FixedPointMulShift<T>(radians, k_inv_two_pi, k_shift);
 }
 
+/**
+ * Evaluates the arc tangent of a ratio whose magnitude is at most one. Argument and result are raw values.
+ *
+ * A ratio above the tangent of a twelfth of a turn is folded below it first, which is what keeps the series short
+ * enough that its truncation stays under one resolution step at every supported width.
+ */
+template <FixedPointStorage T, u32 k_frac_bits>
+T FixedPointArcTanUnitRatio(T ratio)
+{
+    static_assert(k_frac_bits + 3 <= k_fixed_point_bit_count_value<T>,
+                  "Fixed point inverse trigonometry needs three integer bits to hold pi");
+
+    constexpr T k_one = static_cast<T>(static_cast<T>(1) << k_frac_bits);
+    constexpr T k_tan_twelfth_turn = FixedPointScale<T>(0.2679491924311227064725, k_frac_bits);
+    constexpr T k_sqrt_three = FixedPointScale<T>(1.7320508075688772935274, k_frac_bits);
+    constexpr T k_sixth_pi = FixedPointScale<T>(0.5235987755982988730771, k_frac_bits);
+
+    constexpr T k_c1 = FixedPointScale<T>(1.0, k_frac_bits);
+    constexpr T k_c3 = FixedPointScale<T>(-1.0 / 3.0, k_frac_bits);
+    constexpr T k_c5 = FixedPointScale<T>(1.0 / 5.0, k_frac_bits);
+    constexpr T k_c7 = FixedPointScale<T>(-1.0 / 7.0, k_frac_bits);
+    constexpr T k_c9 = FixedPointScale<T>(1.0 / 9.0, k_frac_bits);
+    constexpr T k_c11 = FixedPointScale<T>(-1.0 / 11.0, k_frac_bits);
+    constexpr T k_c13 = FixedPointScale<T>(1.0 / 13.0, k_frac_bits);
+    constexpr T k_c15 = FixedPointScale<T>(-1.0 / 15.0, k_frac_bits);
+
+    const bool is_negative = ratio < 0;
+    T magnitude = is_negative ? FixedPointNegate<T>(ratio) : ratio;
+
+    T offset = static_cast<T>(0);
+    if (magnitude > k_tan_twelfth_turn)
+    {
+        const T numerator = FixedPointSub<T>(FixedPointMulShift<T>(magnitude, k_sqrt_three, k_frac_bits), k_one);
+        const T denominator = FixedPointAdd<T>(magnitude, k_sqrt_three);
+        magnitude = FixedPointDivShift<T>(numerator, denominator, k_frac_bits);
+        offset = k_sixth_pi;
+    }
+
+    const T squared = FixedPointMulShift<T>(magnitude, magnitude, k_frac_bits);
+    T accumulator = k_c15;
+    accumulator = static_cast<T>(k_c13 + FixedPointMulShift<T>(squared, accumulator, k_frac_bits));
+    accumulator = static_cast<T>(k_c11 + FixedPointMulShift<T>(squared, accumulator, k_frac_bits));
+    accumulator = static_cast<T>(k_c9 + FixedPointMulShift<T>(squared, accumulator, k_frac_bits));
+    accumulator = static_cast<T>(k_c7 + FixedPointMulShift<T>(squared, accumulator, k_frac_bits));
+    accumulator = static_cast<T>(k_c5 + FixedPointMulShift<T>(squared, accumulator, k_frac_bits));
+    accumulator = static_cast<T>(k_c3 + FixedPointMulShift<T>(squared, accumulator, k_frac_bits));
+    accumulator = static_cast<T>(k_c1 + FixedPointMulShift<T>(squared, accumulator, k_frac_bits));
+
+    const T result = FixedPointAdd<T>(offset, FixedPointMulShift<T>(magnitude, accumulator, k_frac_bits));
+    return is_negative ? FixedPointNegate<T>(result) : result;
+}
+
+/** Evaluates the angle of the point (x, y) measured from the positive x axis. Arguments and result are raw values. */
+template <FixedPointStorage T, u32 k_frac_bits>
+T FixedPointArcTan2(T y, T x)
+{
+    constexpr T k_half_pi = FixedPointScale<T>(0.5 * k_pi_double, k_frac_bits);
+    constexpr T k_whole_pi = FixedPointScale<T>(k_pi_double, k_frac_bits);
+
+    if (x == 0 && y == 0)
+    {
+        return static_cast<T>(0);
+    }
+
+    const T y_magnitude = y < 0 ? FixedPointNegate<T>(y) : y;
+    const T x_magnitude = x < 0 ? FixedPointNegate<T>(x) : x;
+
+    T angle;
+    if (x_magnitude >= y_magnitude)
+    {
+        const T ratio = FixedPointDivShift<T>(y_magnitude, x_magnitude, k_frac_bits);
+        angle = FixedPointArcTanUnitRatio<T, k_frac_bits>(ratio);
+    }
+    else
+    {
+        const T ratio = FixedPointDivShift<T>(x_magnitude, y_magnitude, k_frac_bits);
+        angle = FixedPointSub<T>(k_half_pi, FixedPointArcTanUnitRatio<T, k_frac_bits>(ratio));
+    }
+
+    if (x < 0)
+    {
+        angle = FixedPointSub<T>(k_whole_pi, angle);
+    }
+    return y < 0 ? FixedPointNegate<T>(angle) : angle;
+}
+
 }  // namespace Opal::Impl
 
 template <Opal::FixedPointStorage T, Opal::u32 k_frac_bits>
@@ -863,4 +985,33 @@ Opal::FixedPoint<T, k_frac_bits> Opal::Tan(FixedPoint<T, k_frac_bits> radians)
         return is_negative ? FixedPoint<T, k_frac_bits>::Min() : FixedPoint<T, k_frac_bits>::Max();
     }
     return sine / cosine;
+}
+
+template <Opal::FixedPointStorage T, Opal::u32 k_frac_bits>
+Opal::FixedPoint<T, k_frac_bits> Opal::ArcTan2(FixedPoint<T, k_frac_bits> y, FixedPoint<T, k_frac_bits> x)
+{
+    return FixedPoint<T, k_frac_bits>::FromRaw(Impl::FixedPointArcTan2<T, k_frac_bits>(y.raw, x.raw));
+}
+
+template <Opal::FixedPointStorage T, Opal::u32 k_frac_bits>
+Opal::FixedPoint<T, k_frac_bits> Opal::ArcTan(FixedPoint<T, k_frac_bits> value)
+{
+    return ArcTan2(value, FixedPoint<T, k_frac_bits>::One());
+}
+
+template <Opal::FixedPointStorage T, Opal::u32 k_frac_bits>
+Opal::FixedPoint<T, k_frac_bits> Opal::ArcSin(FixedPoint<T, k_frac_bits> value)
+{
+    using Fixed = FixedPoint<T, k_frac_bits>;
+    OPAL_ASSERT(value >= Fixed(-1) && value <= Fixed(1), "Arc sine of a fixed point value outside of minus one to one");
+    // A value at either end of the range squares to a hair over one once rounding is in play, so what is left of the
+    // radicand has to be held at zero for the root to stay defined.
+    const Fixed radicand = 1 - value * value;
+    return ArcTan2(value, Sqrt(radicand.raw < 0 ? Fixed::Zero() : radicand));
+}
+
+template <Opal::FixedPointStorage T, Opal::u32 k_frac_bits>
+Opal::FixedPoint<T, k_frac_bits> Opal::ArcCos(FixedPoint<T, k_frac_bits> value)
+{
+    return FixedPoint<T, k_frac_bits>::HalfPi() - ArcSin(value);
 }

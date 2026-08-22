@@ -8,6 +8,7 @@
 #include "opal/error-codes.h"
 #include "opal/exceptions.h"
 #include "opal/math-base.h"
+#include "opal/math/fixed-point.h"
 #include "opal/math/normal3.h"
 #include "opal/math/point3.h"
 #include "opal/math/point4.h"
@@ -18,7 +19,7 @@
 namespace Opal
 {
 
-template <FloatingPoint T, u32 k_row_count = 4, u32 k_col_count = 4>
+template <FloatingPointOrFixedPoint T, u32 k_row_count = 4, u32 k_col_count = 4>
 struct Matrix
 {
     static_assert(k_row_count > 0);
@@ -120,7 +121,8 @@ concept IsMatrix = requires {
     T::k_col_count_value;
 };
 
-template <IsMatrix MatrixType, IntegralOrFloatingPoint U>
+template <IsMatrix MatrixType, typename U>
+    requires(IntegralOrFloatingPoint<U> || IsFixedPoint<U>)
 MatrixType operator*(U scalar, const MatrixType& m);
 
 /**
@@ -145,6 +147,9 @@ template <typename MatrixType>
  * Invert the matrix. Only defined for square matrices.
  * @param m The matrix to invert.
  * @return The inverted matrix, or ErrorCode::InvalidArgument when it is singular.
+ * @note A fixed point element type needs the width. Accuracy falls off as the elements move away from the scale of one,
+ * and a 32 bit storage type is already a thousandth out on a transform holding a translation of ten. Use a 64 bit one,
+ * and keep the matrix to a rotation with a modest scale and translation.
  */
 template <typename MatrixType>
     requires(MatrixType::k_row_count_value == MatrixType::k_col_count_value)
@@ -170,13 +175,13 @@ using Matrix4x3 = Matrix<T, 4, 3>;
 
 // Implementation //////////////////////////////////////////////////////////////////////////////////
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 constexpr Opal::Matrix<T, k_row_count, k_col_count>::Matrix()
 {
     // Do nothing
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 constexpr Opal::Matrix<T, k_row_count, k_col_count>::Matrix(T value)
 {
     for (u32 i = 0; i < k_row_count; ++i)
@@ -188,25 +193,25 @@ constexpr Opal::Matrix<T, k_row_count, k_col_count>::Matrix(T value)
     }
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 constexpr Opal::Matrix<T, k_row_count, k_col_count>::Matrix(const T (&mat_elements)[k_row_count * k_col_count])
 {
     memcpy(elements, mat_elements, k_row_count * k_col_count * sizeof(T));
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 constexpr Opal::Matrix<T, k_row_count, k_col_count>::Matrix(const T (&mat_elements)[k_row_count][k_col_count])
 {
     memcpy(elements, mat_elements, k_row_count * k_col_count * sizeof(T));
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::Zero()
 {
     return Matrix(static_cast<T>(0));
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, 4, 4> Opal::Matrix<T, k_row_count, k_col_count>::FromRows(const Vector4<T>& row0,
                                                                                               const Vector4<T>& row1,
                                                                                               const Vector4<T>& row2,
@@ -220,7 +225,7 @@ Opal::Matrix<T, 4, 4> Opal::Matrix<T, k_row_count, k_col_count>::FromRows(const 
     return mat;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, 4, 4> Opal::Matrix<T, k_row_count, k_col_count>::FromColumns(const Vector4<T>& column0,
                                                                                                  const Vector4<T>& column1,
                                                                                                  const Vector4<T>& column2,
@@ -246,19 +251,19 @@ Opal::Matrix<T, 4, 4> Opal::Matrix<T, k_row_count, k_col_count>::FromColumns(con
     return mat;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 bool Opal::Matrix<T, k_row_count, k_col_count>::operator==(const Matrix& other) const
 {
     return memcmp(elements, other.elements, k_row_count * k_col_count * sizeof(T)) == 0;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 bool Opal::Matrix<T, k_row_count, k_col_count>::operator!=(const Matrix& other) const
 {
     return !(*this == other);
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 T& Opal::Matrix<T, k_row_count, k_col_count>::operator()(u32 row, u32 column)
 {
     OPAL_ASSERT(row < k_row_count, "Row index out of range.");
@@ -266,7 +271,7 @@ T& Opal::Matrix<T, k_row_count, k_col_count>::operator()(u32 row, u32 column)
     return elements[row][column];
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 const T& Opal::Matrix<T, k_row_count, k_col_count>::operator()(u32 row, u32 column) const
 {
     OPAL_ASSERT(row < k_row_count, "Row index out of range.");
@@ -274,7 +279,7 @@ const T& Opal::Matrix<T, k_row_count, k_col_count>::operator()(u32 row, u32 colu
     return elements[row][column];
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Matrix& other) const
 {
     Matrix result;
@@ -292,14 +297,14 @@ Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_cou
     return result;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_count>::operator*=(const Matrix& other)
 {
     *this = *this * other;
     return *this;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator+(const Matrix& other) const
 {
     Matrix result;
@@ -313,14 +318,14 @@ Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_cou
     return result;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_count>::operator+=(const Matrix& other)
 {
     *this = *this + other;
     return *this;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator-(const Matrix& other) const
 {
     Matrix result;
@@ -334,14 +339,14 @@ Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_cou
     return result;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_count>::operator-=(const Matrix& other)
 {
     *this = *this - other;
     return *this;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 template <typename U>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator*(U scalar) const
 {
@@ -356,7 +361,7 @@ Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_cou
     return result;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 template <typename U>
 Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_count>::operator*=(U scalar)
 {
@@ -364,7 +369,7 @@ Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_co
     return *this;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 template <typename U>
 Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_count>::operator/(U scalar) const
 {
@@ -379,7 +384,7 @@ Opal::Matrix<T, k_row_count, k_col_count> Opal::Matrix<T, k_row_count, k_col_cou
     return result;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 template <typename U>
 Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_count>::operator/=(U scalar)
 {
@@ -387,7 +392,7 @@ Opal::Matrix<T, k_row_count, k_col_count>& Opal::Matrix<T, k_row_count, k_col_co
     return *this;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Point3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Point3<T>& p) const
 {
     static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
@@ -407,7 +412,7 @@ Opal::Point3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Point
     }
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Point4<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Point4<T>& p) const
 {
     static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
@@ -426,7 +431,7 @@ Opal::Point4<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Point
     }
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Vector3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Vector3<T>& v) const
 {
     static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
@@ -437,7 +442,7 @@ Opal::Vector3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Vect
     return Vector3<T>(x, y, z);
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Vector4<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Vector4<T>& v) const
 {
     static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
@@ -456,7 +461,7 @@ Opal::Vector4<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Vect
     }
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Normal3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Normal3<T>& n) const
 {
     static_assert(k_row_count == 3 || k_row_count == 4, "Matrix must have at least 3 rows!");
@@ -467,7 +472,7 @@ Opal::Normal3<T> Opal::Matrix<T, k_row_count, k_col_count>::operator*(const Norm
     return Normal3<T>(x, y, z);
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T> Opal::Matrix<T, k_row_count, k_col_count>::ToMatrix4x4() const
 {
     static_assert(k_row_count == 3 && k_col_count == 3);
@@ -484,7 +489,7 @@ Opal::Matrix<T> Opal::Matrix<T, k_row_count, k_col_count>::ToMatrix4x4() const
     return mat;
 }
 
-template <Opal::FloatingPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
+template <Opal::FloatingPointOrFixedPoint T, Opal::u32 k_row_count, Opal::u32 k_col_count>
 Opal::Matrix<T, 3, 3> Opal::Matrix<T, k_row_count, k_col_count>::ToMatrix3x3() const
 {
     static_assert(k_row_count == 4 && k_col_count == 4);
@@ -501,7 +506,8 @@ Opal::Matrix<T, 3, 3> Opal::Matrix<T, k_row_count, k_col_count>::ToMatrix3x3() c
     return mat;
 }
 
-template <Opal::IsMatrix MatrixType, Opal::IntegralOrFloatingPoint U>
+template <Opal::IsMatrix MatrixType, typename U>
+    requires(Opal::IntegralOrFloatingPoint<U> || Opal::IsFixedPoint<U>)
 MatrixType Opal::operator*(U scalar, const MatrixType& m)
 {
     return m * static_cast<typename MatrixType::value_type>(scalar);

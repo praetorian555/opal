@@ -238,6 +238,7 @@ if (OPAL_BUILD_TESTS)
             test/rng-test.cpp
             test/math-base-test.cpp
             test/fixed-point-test.cpp
+            test/fixed-point-matrix-test.cpp
             test/vector2-test.cpp
             test/vector3-test.cpp
             test/vector4-test.cpp
