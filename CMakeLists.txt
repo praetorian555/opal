@@ -112,7 +112,7 @@ set(OPAL_FILES
         include/opal/sort/key-indexed-counting.h
         include/opal/sort/merge-sort.h
         include/opal/sort/quick-sort.h
-        third-party/wyhash/include/wyhash/wyhash.h
+        third-party/rapidhash/include/rapidhash/rapidhash.h
         include/opal/math/vector2.h
         include/opal/math/vector3.h
         include/opal/math/vector4.h
@@ -143,7 +143,7 @@ set(OPAL_FILES
 add_library(opal STATIC ${OPAL_FILES})
 add_library(opal::opal ALIAS opal)
 target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
-target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/wyhash/include>)
+target_include_directories(opal PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/third-party/rapidhash/include>)
 target_include_directories(opal PUBLIC $<INSTALL_INTERFACE:include>)
 target_link_libraries(opal PRIVATE $<BUILD_INTERFACE:opal_warnings>)
 target_link_libraries(opal PRIVATE $<BUILD_INTERFACE:opal_options>)

@@ -8,7 +8,7 @@ A modern C++20 utility library providing data structures, math primitives, threa
 - **CMake 3.28+**
 - **Platforms:** Windows, Linux
 
-No external dependencies. Third-party libraries (Catch2, wyhash) are vendored.
+No external dependencies. Third-party libraries (Catch2, rapidhash) are vendored.
 
 ## Building
 
@@ -391,7 +391,7 @@ See [docs/json-reader.md](docs/json-reader.md) and [docs/json-writer.md](docs/js
 | `opal/paths.h` | Cross-platform path manipulation |
 | `opal/file-system.h` | File and directory operations |
 | `opal/bit.h` | Bitwise utility functions |
-| `opal/hash.h` | Hash functions (wyhash) |
+| `opal/hash.h` | Hash functions (rapidhash) |
 | `opal/rng.h` | Random number generation |
 | `opal/source-location.h` | Source code location information |
 
