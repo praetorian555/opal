@@ -341,11 +341,13 @@ TEST_CASE("Fixed point quaternion and matrix round trip", "[math][fixed-point][Q
     }
     SECTION("Through the largest diagonal element")
     {
-        // A real part of exactly zero is what sends the constructor down its other branch, and a half turn written out
-        // by hand is the way to get one: the same rotation built from an axis and an angle lands a step off it.
-        const Quaternion<Q32> q(Q32(0), Q32(1), Q32(0), Q32(0));
-        const Quaternion<Q32> round_tripped(q.ToMatrix4x4());
-        CHECK_QUATERNION(round_tripped, q, Q32(1e-6));
+        // Anything past two thirds of a half turn leaves the real part too small to recover the rest from, which is
+        // what sends the constructor down its other branch.
+        const Quaternion<Q32> half_turn = Quaternion<Q32>::FromAxisAngleDegrees(Vector3<Q32>(Q32(1), Q32(0), Q32(0)), Q32(180));
+        CHECK_QUATERNION(Quaternion<Q32>(half_turn.ToMatrix4x4()), half_turn, Q32(1e-6));
+
+        const Quaternion<Q32> wide = Quaternion<Q32>::FromAxisAngleDegrees(Vector3<Q32>(Q32(1), Q32(2), Q32(3)), Q32(150));
+        CHECK_QUATERNION(Quaternion<Q32>(wide.ToMatrix4x4()), wide, Q32(1e-6));
     }
     SECTION("The matrix agrees with rotating the vector")
     {
@@ -401,8 +403,8 @@ TEST_CASE("Fixed point quaternion interpolation", "[math][fixed-point][Quaternio
     }
     SECTION("Slerp holds at Q16.16 for a quarter turn")
     {
-        // The unit length assert Slerp opens with allows a tenth of a milli, and an axis angle quaternion built at this
-        // width lands within about half of that, so the margin is real but thin.
+        // The unit length assert Slerp opens with allows a milli, and an axis angle quaternion built at this width
+        // lands within a twentieth of that.
         const Quaternion<Q16> from = Quaternion<Q16>::FromAxisAngleDegrees(Vector3<Q16>(Q16(0), Q16(0), Q16(1)), Q16(0));
         const Quaternion<Q16> to = Quaternion<Q16>::FromAxisAngleDegrees(Vector3<Q16>(Q16(0), Q16(0), Q16(1)), Q16(90));
         const Quaternion<Q16> middle = Quaternion<Q16>::FromAxisAngleDegrees(Vector3<Q16>(Q16(0), Q16(0), Q16(1)), Q16(45));

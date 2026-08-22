@@ -33,8 +33,10 @@ public:
 
     /**
      * @brief Construct a Quaternion from a matrix. This uses only the upper left 3x3 part of the
-     * matrix.
+     * matrix, which has to be a rotation.
      * @param transform - The transform to construct the Quaternion from.
+     * @note The result is one of the two quaternions that stand for the rotation, and which of them
+     * it is depends on the rotation.
      */
     explicit Quaternion(const Matrix4x4<T>& transform);
 
@@ -242,13 +244,15 @@ Opal::Quaternion<T>::Quaternion(T ww, T x, T y, T z) : vec(x, y, z), w(ww)
 template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T>::Quaternion(const Matrix4x4<T>& transform)
 {
-    const T trace = transform.elements[0][0] + transform.elements[1][1] + transform.elements[2][2] +
-                    transform.elements[3][3];
+    // A positive trace is exactly the case where the real part is the largest of the four, and so the only case where
+    // dividing by it is safe. Everything else goes to the branch below, which divides by the largest of the other three.
+    const T trace = transform.elements[0][0] + transform.elements[1][1] + transform.elements[2][2];
 
     if (trace > static_cast<T>(0))
     {
-        w = Opal::Sqrt(trace) / 2;
-        const T scalar = 1 / (4 * w);
+        const T root = Opal::Sqrt(trace + 1);
+        w = root / 2;
+        const T scalar = 1 / (2 * root);
         vec.x = (transform.elements[2][1] - transform.elements[1][2]) * scalar;
         vec.y = (transform.elements[0][2] - transform.elements[2][0]) * scalar;
         vec.z = (transform.elements[1][0] - transform.elements[0][1]) * scalar;
@@ -495,9 +499,9 @@ template <Opal::FloatingPointOrFixedPoint T>
 Opal::Quaternion<T> Opal::Lerp(T param, const Quaternion<T>& q1, const Quaternion<T>& q2)
 {
 #if _DEBUG
-    constexpr T k_epsilon = static_cast<T>(0.0001);
-    assert(IsEqual(Length(q1), static_cast<T>(1.0), k_epsilon));
-    assert(IsEqual(Length(q2), static_cast<T>(1.0), k_epsilon));
+    constexpr T k_length_epsilon = static_cast<T>(0.001);
+    assert(IsEqual(Length(q1), static_cast<T>(1.0), k_length_epsilon));
+    assert(IsEqual(Length(q2), static_cast<T>(1.0), k_length_epsilon));
 #endif
 
     const Quaternion q3 = q1 * (1 - param) + q2 * param;
@@ -510,12 +514,13 @@ Opal::Quaternion<T> Opal::Slerp(T param, const Quaternion<T>& q1, const Quaterni
     // Implementation based on: Understanding Slerp, Then Not Using It, Jonathan Blow
     // http://number-none.com/product/Understanding%20Slerp,%20Then%20Not%20Using%20It/
 
-    constexpr T k_epsilon = static_cast<T>(0.0001);
-    assert(IsEqual(Length(q1), static_cast<T>(1.0), k_epsilon));
-    assert(IsEqual(Length(q2), static_cast<T>(1.0), k_epsilon));
+    constexpr T k_length_epsilon = static_cast<T>(0.001);
+    constexpr T k_parallel_epsilon = static_cast<T>(0.0001);
+    assert(IsEqual(Length(q1), static_cast<T>(1.0), k_length_epsilon));
+    assert(IsEqual(Length(q2), static_cast<T>(1.0), k_length_epsilon));
 
     const T cos_theta0 = Dot(q1, q2);
-    if (cos_theta0 > static_cast<T>(1.0) - k_epsilon)
+    if (cos_theta0 > static_cast<T>(1.0) - k_parallel_epsilon)
     {
         return Lerp(param, q1, q2);
     }

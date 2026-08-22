@@ -641,6 +641,25 @@ TEST_CASE("Quaternion rotate a point", "[math][quaternion]")
     }
 }
 
+TEST_CASE("Quaternion from matrix", "[math][quaternion]")
+{
+    // The two branches of the constructor are picked by whether the real part is the largest component, which for a
+    // rotation about a single axis means whether the angle is under or over two thirds of a half turn.
+    const Vector3f axis(1.0f, 2.0f, 3.0f);
+    for (i32 degrees = 0; degrees <= 360; degrees += 5)
+    {
+        const Quatf q = Quatf::FromAxisAngleDegrees(axis, static_cast<f32>(degrees));
+        const Quatf round_tripped(q.ToMatrix4x4());
+
+        // A rotation has two quaternions, and which one comes back depends on the branch, so compare what they do.
+        const Vector3f probe(1.0f, -2.0f, 0.5f);
+        const Vector3f by_original = q * probe;
+        const Vector3f by_round_trip = round_tripped * probe;
+        CHECK(IsEqual(by_original, by_round_trip, 0.0001f));
+        CHECK(IsEqual(Length(round_tripped), 1.0f, 0.0001f));
+    }
+}
+
 TEST_CASE("Quaternion to matrix", "[math][quaternion]")
 {
     const Quatf q = Quatf::FromAxisAngleDegrees(Vector3f(0, 0, 1), 45);
