@@ -8,6 +8,16 @@
 namespace Opal
 {
 
+template <typename T>
+inline constexpr bool k_is_fixed_point_value = false;
+
+/**
+ * @brief Concept that checks if a type is a FixedPoint.
+ * @tparam T The type to be evaluated.
+ */
+template <typename T>
+concept IsFixedPoint = k_is_fixed_point_value<typename RemoveConstVolatile<T>::Type>;
+
 /**
  * @brief Returns the absolute value of the given value.
  * @tparam T Value type.

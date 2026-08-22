@@ -124,6 +124,7 @@ template <typename T>
  * @return The length of the vector.
  */
 template <typename T>
+    requires(!IsFixedPoint<T>)
 [[nodiscard]] double Length(const Vector4<T>& vec);
 
 /**
@@ -175,6 +176,7 @@ T AbsDot(const Vector4<T>& vec1, const Vector4<T>& vec2);
  * @return The normalized vector.
  */
 template <typename T>
+    requires(!IsFixedPoint<T>)
 Vector4<T> Normalize(const Vector4<T>& vec);
 
 /**
@@ -453,6 +455,7 @@ T Opal::LengthSquared(const Vector4<T>& vec)
 }
 
 template <typename T>
+    requires(!Opal::IsFixedPoint<T>)
 double Opal::Length(const Vector4<T>& vec)
 {
     return Opal::Sqrt(static_cast<double>(LengthSquared(vec)));
@@ -484,6 +487,7 @@ T Opal::AbsDot(const Vector4<T>& vec1, const Vector4<T>& vec2)
 }
 
 template <typename T>
+    requires(!Opal::IsFixedPoint<T>)
 Opal::Vector4<T> Opal::Normalize(const Vector4<T>& vec)
 {
     double length = Length(vec);

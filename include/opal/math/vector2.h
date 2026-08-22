@@ -122,6 +122,7 @@ template <typename T>
  * @return The length of the vector.
  */
 template <typename T>
+    requires(!IsFixedPoint<T>)
 [[nodiscard]] double Length(const Vector2<T>& vec);
 
 /**
@@ -183,6 +184,7 @@ T Cross(const Vector2<T>& vec1, const Vector2<T>& vec2);
  * @return The normalized vector.
  */
 template <typename T>
+    requires(!IsFixedPoint<T>)
 Vector2<T> Normalize(const Vector2<T>& vec);
 
 /**
@@ -455,6 +457,7 @@ T Opal::LengthSquared(const Vector2<T>& vec)
 }
 
 template <typename T>
+    requires(!Opal::IsFixedPoint<T>)
 double Opal::Length(const Vector2<T>& vec)
 {
     return Opal::Sqrt(static_cast<double>(LengthSquared(vec)));
@@ -491,6 +494,7 @@ T Opal::Cross(const Vector2<T>& vec1, const Vector2<T>& vec2)
 }
 
 template <typename T>
+    requires(!Opal::IsFixedPoint<T>)
 Opal::Vector2<T> Opal::Normalize(const Vector2<T>& vec)
 {
     double length = Length(vec);

@@ -244,6 +244,25 @@ T FixedPointDivShift(T a, T b, u32 shift)
 #if defined(OPAL_COMPILER_MSVC)
         const u64 low = static_cast<u64>(a) << shift;
         const i64 high = shift == 0 ? (a >> 63) : (a >> (64 - shift));
+#if defined(OPAL_DEBUG)
+        // _div128 raises a hardware exception when the quotient does not fit, so the check has to run before it.
+        // The quotient fits when the numerator magnitude shifted down 63 bits stays under the divisor magnitude,
+        // plus the one extra value the negative side has room for.
+        u64 magnitude_low = low;
+        u64 magnitude_high = static_cast<u64>(high);
+        if (high < 0)
+        {
+            magnitude_low = 0ULL - low;
+            magnitude_high = ~magnitude_high + (low == 0 ? 1ULL : 0ULL);
+        }
+        const u64 divisor_magnitude = b < 0 ? 0ULL - static_cast<u64>(b) : static_cast<u64>(b);
+        const u64 quotient_magnitude_high = (magnitude_high << 1) | (magnitude_low >> 63);
+        const u64 numerator_low_bits = magnitude_low & ((1ULL << 63) - 1ULL);
+        const bool is_negative = (a < 0) != (b < 0);
+        OPAL_ASSERT(quotient_magnitude_high < divisor_magnitude ||
+                        (is_negative && quotient_magnitude_high == divisor_magnitude && numerator_low_bits < divisor_magnitude),
+                    "Fixed point division overflowed");
+#endif
         i64 remainder = 0;
         return _div128(high, static_cast<i64>(low), b, &remainder);
 #else
@@ -281,7 +300,8 @@ u32 FixedPointHighestSetBit(T value)
  * optimization level. That is what separates it from f32 and f64 and what makes it usable for lockstep simulation and
  * replays. In exchange the range is small and fixed, and there are no infinities and no NaN.
  *
- * Results that do not fit wrap around, the way the underlying integer does. Debug builds report the overflow instead.
+ * Results that do not fit wrap around, the way the underlying integer does, except in division: a quotient that does
+ * not fit, or a zero divisor, is a contract violation with no defined result. Debug builds report all of these instead.
  *
  * Construction from an integer is exact and implicit. Construction from a floating point value rounds to the nearest
  * representable value and is explicit, since it loses precision.
@@ -401,18 +421,8 @@ using Fixed32 = FixedPoint<i32, 16>;
 /** Signed 64-bit fixed point with 32 fractional bits. Spans about -2.1e9 to 2.1e9 with a resolution of about 2.3e-10. */
 using Fixed64 = FixedPoint<i64, 32>;
 
-template <typename T>
-inline constexpr bool k_is_fixed_point_value = false;
-
 template <FixedPointStorage T, u32 k_frac_bits>
 inline constexpr bool k_is_fixed_point_value<FixedPoint<T, k_frac_bits>> = true;
-
-/**
- * @brief Concept that checks if a type is a FixedPoint.
- * @tparam T The type to be evaluated.
- */
-template <typename T>
-concept IsFixedPoint = k_is_fixed_point_value<typename RemoveConstVolatile<T>::Type>;
 
 // ------------------------------------------------------------------------------------------------
 // Fixed point overloads of the math functions.
@@ -756,6 +766,12 @@ template <Opal::FixedPointStorage T, Opal::u32 k_frac_bits>
 constexpr Opal::FixedPoint<T, k_frac_bits> Opal::Mod(FixedPoint<T, k_frac_bits> a, FixedPoint<T, k_frac_bits> b)
 {
     OPAL_ASSERT(b.raw != 0, "Fixed point modulo by zero");
+    // Every remainder by one raw step is zero, and saying so keeps the hardware away from the one pair it traps on,
+    // the most negative value over minus one step.
+    if (b.raw == static_cast<T>(1) || b.raw == static_cast<T>(-1))
+    {
+        return FixedPoint<T, k_frac_bits>::Zero();
+    }
     return FixedPoint<T, k_frac_bits>::FromRaw(static_cast<T>(a.raw % b.raw));
 }
 
@@ -768,11 +784,14 @@ Opal::FixedPoint<T, k_frac_bits> Opal::Sqrt(FixedPoint<T, k_frac_bits> value)
         return FixedPoint<T, k_frac_bits>::Zero();
     }
 
+    // The iteration converges only from above the root. When the starting power of two does not fit in T, the largest
+    // representable value still sits above every root the type can produce, so it takes over as the starting point.
     constexpr u32 k_highest_guess_shift = FixedPoint<T, k_frac_bits>::k_bit_count_value - 2;
     const u32 highest_bit = Impl::FixedPointHighestSetBit<T>(value.raw);
-    const u32 guess_shift = Opal::Min((highest_bit + k_frac_bits) / 2 + 1, k_highest_guess_shift);
+    const u32 guess_shift = (highest_bit + k_frac_bits) / 2 + 1;
 
-    T estimate = static_cast<T>(static_cast<T>(1) << guess_shift);
+    T estimate = guess_shift > k_highest_guess_shift ? Impl::k_fixed_point_highest_value<T>
+                                                     : static_cast<T>(static_cast<T>(1) << guess_shift);
     while (true)
     {
         const T quotient = Impl::FixedPointDivShift<T>(value.raw, estimate, k_frac_bits);

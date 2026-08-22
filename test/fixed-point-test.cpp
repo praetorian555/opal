@@ -142,6 +142,7 @@ TEST_CASE("FixedPoint arithmetic", "[math][fixed-point]")
         CHECK(Q16(1) / Q16(4) == Q16(0.25));
         CHECK(Q16(-6) / Q16(3) == Q16(-2));
         CHECK(Q32(1) / Q32(4) == Q32(0.25));
+        CHECK(Q32::Min() / Q32(1) == Q32::Min());
 
         Q16 value(3);
         value /= Q16(2);
@@ -243,6 +244,8 @@ TEST_CASE("FixedPoint rounding", "[math][fixed-point]")
         CHECK(Mod(Q16(5.5), Q16(2)) == Q16(1.5));
         CHECK(Mod(Q16(-5.5), Q16(2)) == Q16(-1.5));
         CHECK(Mod(Q16(4), Q16(2)) == Q16(0));
+        CHECK(Mod(Q16(5.5), Q16::Epsilon()) == Q16(0));
+        CHECK(Mod(Q16::Min(), -Q16::Epsilon()) == Q16(0));
     }
 }
 
@@ -269,6 +272,28 @@ TEST_CASE("FixedPoint square root", "[math][fixed-point]")
     {
         CHECK(IsCloseTo(Sqrt(Q16(0.25)), 0.5, 2.0 / 65536.0));
         CHECK(IsCloseTo(Sqrt(Q16::Epsilon()), std::sqrt(1.0 / 65536.0), 2.0 / 65536.0));
+    }
+}
+
+TEST_CASE("FixedPoint narrow and single integer bit formats", "[math][fixed-point]")
+{
+    SECTION("16-bit storage")
+    {
+        using Q8 = FixedPoint<i16, 8>;
+        CHECK((Q8(1.5) * Q8(2)).raw == 768);
+        CHECK((Q8(1) / Q8(4)).raw == 64);
+        CHECK(Sqrt(Q8(4)) == Q8(2));
+        CHECK(IsCloseTo(Sin(Q8(1)), std::sin(1.0), 0.02));
+    }
+    SECTION("A single integer bit")
+    {
+        // The square root of anything at or above one needs a starting guess the storage cannot hold as a power of two.
+        using Q30 = FixedPoint<i32, 30>;
+        CHECK(Sqrt(Q30(1)) == Q30(1));
+        CHECK(IsCloseTo(Sqrt(Q30(1.5)), std::sqrt(1.5), 4.0 / 1073741824.0));
+        CHECK(IsCloseTo(Sqrt(Q30::Max()), std::sqrt(2.0), 4.0 / 1073741824.0));
+        using Q62 = FixedPoint<i64, 62>;
+        CHECK(IsCloseTo(Sqrt(Q62::Max()), std::sqrt(2.0), 1e-9));
     }
 }
 

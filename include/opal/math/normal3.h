@@ -129,6 +129,7 @@ template <typename T>
  * @return The length of the normal.
  */
 template <typename T>
+    requires(!IsFixedPoint<T>)
 [[nodiscard]] double Length(const Normal3<T>& n);
 
 /**
@@ -193,6 +194,7 @@ T AbsDot(const Vector3<T>& vec, const Normal3<T>& n);
  * @return The normalized normal.
  */
 template <typename T>
+    requires(!IsFixedPoint<T>)
 Normal3<T> Normalize(const Normal3<T>& n);
 
 /**
@@ -467,6 +469,7 @@ T Opal::LengthSquared(const Normal3<T>& n)
 }
 
 template <typename T>
+    requires(!Opal::IsFixedPoint<T>)
 double Opal::Length(const Normal3<T>& n)
 {
     return Opal::Sqrt(static_cast<double>(LengthSquared(n)));
@@ -516,6 +519,7 @@ T Opal::AbsDot(const Vector3<T>& vec, const Normal3<T>& n)
 }
 
 template <typename T>
+    requires(!Opal::IsFixedPoint<T>)
 Opal::Normal3<T> Opal::Normalize(const Normal3<T>& n)
 {
     double length = Length(n);

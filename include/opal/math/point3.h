@@ -133,6 +133,7 @@ bool IsEqual(const Point3<T>& p1, const Point3<T>& p2, T epsilon);
  * @return The distance between the two points.
  */
 template <typename T>
+    requires(!IsFixedPoint<T>)
 double Distance(const Point3<T>& p1, const Point3<T>& p2);
 
 /**
@@ -396,6 +397,7 @@ bool Opal::IsEqual(const Point3<T>& p1, const Point3<T>& p2, T epsilon)
 }
 
 template <typename T>
+    requires(!Opal::IsFixedPoint<T>)
 double Opal::Distance(const Point3<T>& p1, const Point3<T>& p2)
 {
     return Length(p1 - p2);
