@@ -70,6 +70,7 @@ set(OPAL_FILES
         src/json-reader.cpp
         src/json-writer.cpp
         src/optional.cpp
+        src/socket.cpp
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h
@@ -81,6 +82,7 @@ set(OPAL_FILES
         include/opal/time.h
         include/opal/paths.h
         include/opal/file-system.h
+        include/opal/socket.h
         include/opal/common.h
         include/opal/source-location.h
         include/opal/bit.h
@@ -150,7 +152,7 @@ target_include_directories(opal PUBLIC $<INSTALL_INTERFACE:include>)
 target_link_libraries(opal PRIVATE $<BUILD_INTERFACE:opal_warnings>)
 target_link_libraries(opal PRIVATE $<BUILD_INTERFACE:opal_options>)
 if (WIN32)
-    target_link_libraries(opal PRIVATE synchronization)
+    target_link_libraries(opal PRIVATE synchronization ws2_32)
 endif ()
 target_compile_features(opal PUBLIC cxx_std_20)
 
@@ -254,6 +256,7 @@ if (OPAL_BUILD_TESTS)
             test/dual-quaternion-test.cpp
             test/transform-test.cpp
             test/file-system-test.cpp
+            test/socket-test.cpp
             test/program-arguments-test.cpp
             test/shared-ptr-test.cpp
             test/atomic-test.cpp

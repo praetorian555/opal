@@ -28,6 +28,18 @@ enum class ErrorCode : u8
     TypeMismatch = 17,
     /** No entry is stored under the requested key. */
     KeyNotFound = 18,
+    /** A non-blocking operation had to wait, so it did nothing instead. */
+    WouldBlock = 19,
+    /** The peer closed the connection in an orderly way. */
+    ConnectionClosed = 20,
+    /** The remote host actively refused the connection. */
+    ConnectionRefused = 21,
+    /** The connection was torn down abruptly. */
+    ConnectionReset = 22,
+    /** The address is already bound by another socket. */
+    AddressInUse = 23,
+    /** The operation ran out of the time it was given. */
+    TimedOut = 24,
 };
 
 }
