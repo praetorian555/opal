@@ -35,7 +35,7 @@ TEST_CASE("Optional", "[Optional]")
         }
         SECTION("In-place construction")
         {
-            Optional<std::string> opt(k_in_place, 3, 'a');
+            Optional<std::string> opt(k_in_place, 3u, 'a');
             REQUIRE(opt.HasValue() == true);
             REQUIRE(opt.GetValue() == "aaa");
         }
@@ -84,7 +84,7 @@ TEST_CASE("Optional", "[Optional]")
         SECTION("Emplace constructs and returns value")
         {
             Optional<std::string> opt;
-            std::string& ref = opt.Emplace(4, 'z');
+            std::string& ref = opt.Emplace(4u, 'z');
             REQUIRE(opt.HasValue() == true);
             REQUIRE(ref == "zzzz");
             REQUIRE(&ref == &opt.GetValue());
