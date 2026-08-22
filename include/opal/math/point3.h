@@ -1,5 +1,6 @@
 #pragma once
 
+#include "opal/math/fixed-point.h"
 #include "opal/math/vector3.h"
 
 namespace Opal
@@ -337,7 +338,7 @@ template <typename T>
 template <typename U>
 Opal::Point3<T> Opal::Point3<T>::operator/(U scalar) const
 {
-    if constexpr (std::is_integral_v<T>)
+    if constexpr (std::is_integral_v<T> || IsFixedPoint<T>)
     {
         T sc = static_cast<T>(scalar);
         return {x / sc, y / sc, z / sc};
@@ -353,7 +354,7 @@ template <typename T>
 template <typename U>
 Opal::Point3<T>& Opal::Point3<T>::operator/=(U scalar)
 {
-    if constexpr (std::is_integral_v<T>)
+    if constexpr (std::is_integral_v<T> || IsFixedPoint<T>)
     {
         T sc = static_cast<T>(scalar);
         x /= sc;
@@ -440,7 +441,7 @@ Opal::Point3<T> Opal::Floor(const Point3<T>& p)
     {
         return p;
     }
-    if constexpr (std::is_floating_point_v<T>)
+    else
     {
         return {Opal::Floor(p.x), Opal::Floor(p.y), Opal::Floor(p.z)};
     }
@@ -453,7 +454,7 @@ Opal::Point3<T> Opal::Ceil(const Point3<T>& p)
     {
         return p;
     }
-    if constexpr (std::is_floating_point_v<T>)
+    else
     {
         return {Opal::Ceil(p.x), Opal::Ceil(p.y), Opal::Ceil(p.z)};
     }
@@ -466,7 +467,7 @@ Opal::Point3<T> Opal::Round(const Point3<T>& p)
     {
         return p;
     }
-    if constexpr (std::is_floating_point_v<T>)
+    else
     {
         return {Opal::Round(p.x), Opal::Round(p.y), Opal::Round(p.z)};
     }

@@ -562,6 +562,81 @@ TEST_CASE("FixedPoint in points", "[math][fixed-point]")
     CHECK(Distance(P3(Q16(0), Q16(0), Q16(0)), P3(Q16(2), Q16(3), Q16(6))) == Q16(7));
 }
 
+TEST_CASE("FixedPoint vector division divides", "[math][fixed-point]")
+{
+    // Turning a division into a multiplication by the reciprocal is a floating point trick. A fixed point reciprocal of
+    // a large divisor is mostly rounding error, and past a point it is nothing at all, so each component divides.
+    SECTION("A divisor larger than the type can invert well")
+    {
+        CHECK(Vector2<Q16>(Q16(1000), Q16(2000)) / Q16(1000) == Vector2<Q16>(Q16(1), Q16(2)));
+        CHECK(Vector3<Q16>(Q16(1000), Q16(2000), Q16(3000)) / Q16(1000) == Vector3<Q16>(Q16(1), Q16(2), Q16(3)));
+        CHECK(Vector4<Q16>(Q16(1000), Q16(2000), Q16(3000), Q16(4000)) / Q16(1000) == Vector4<Q16>(Q16(1), Q16(2), Q16(3), Q16(4)));
+        CHECK(Point2<Q16>(Q16(1000), Q16(2000)) / Q16(1000) == Point2<Q16>(Q16(1), Q16(2)));
+        CHECK(Point3<Q16>(Q16(1000), Q16(2000), Q16(3000)) / Q16(1000) == Point3<Q16>(Q16(1), Q16(2), Q16(3)));
+        CHECK(Point4<Q16>(Q16(1000), Q16(2000), Q16(3000), Q16(4000)) / Q16(1000) == Point4<Q16>(Q16(1), Q16(2), Q16(3), Q16(4)));
+        CHECK(Normal3<Q16>(Q16(1000), Q16(2000), Q16(3000)) / Q16(1000) == Normal3<Q16>(Q16(1), Q16(2), Q16(3)));
+    }
+    SECTION("In place")
+    {
+        Vector3<Q16> vec(Q16(1000), Q16(2000), Q16(3000));
+        vec /= Q16(1000);
+        CHECK(vec == Vector3<Q16>(Q16(1), Q16(2), Q16(3)));
+
+        Point3<Q16> point(Q16(1000), Q16(2000), Q16(3000));
+        point /= Q16(1000);
+        CHECK(point == Point3<Q16>(Q16(1), Q16(2), Q16(3)));
+    }
+    SECTION("A divisor whose reciprocal is two resolution steps")
+    {
+        CHECK(Vector2<Q16>(Q16(30000), Q16(15000)) / Q16(30000) == Vector2<Q16>(Q16(1), Q16(0.5)));
+    }
+    SECTION("Q31.32 divides exactly as well")
+    {
+        CHECK(Vector3<Q32>(Q32(1000000), Q32(2000000), Q32(3000000)) / Q32(1000000) == Vector3<Q32>(Q32(1), Q32(2), Q32(3)));
+    }
+}
+
+TEST_CASE("FixedPoint point rounding", "[math][fixed-point]")
+{
+    SECTION("Point2")
+    {
+        const Point2<Q16> p(Q16(1.25), Q16(-1.25));
+        CHECK(Floor(p) == Point2<Q16>(Q16(1), Q16(-2)));
+        CHECK(Ceil(p) == Point2<Q16>(Q16(2), Q16(-1)));
+        CHECK(Round(p) == Point2<Q16>(Q16(1), Q16(-1)));
+    }
+    SECTION("Point3")
+    {
+        const Point3<Q16> p(Q16(1.25), Q16(-1.25), Q16(2.75));
+        CHECK(Floor(p) == Point3<Q16>(Q16(1), Q16(-2), Q16(2)));
+        CHECK(Ceil(p) == Point3<Q16>(Q16(2), Q16(-1), Q16(3)));
+        CHECK(Round(p) == Point3<Q16>(Q16(1), Q16(-1), Q16(3)));
+    }
+    SECTION("Point4")
+    {
+        const Point4<Q16> p(Q16(1.25), Q16(-1.25), Q16(2.75), Q16(0.5));
+        CHECK(Floor(p) == Point4<Q16>(Q16(1), Q16(-2), Q16(2), Q16(0)));
+        CHECK(Ceil(p) == Point4<Q16>(Q16(2), Q16(-1), Q16(3), Q16(1)));
+        CHECK(Round(p) == Point4<Q16>(Q16(1), Q16(-1), Q16(3), Q16(1)));
+    }
+    SECTION("An exact integer stays where it is")
+    {
+        const Point3<Q32> p(Q32(3), Q32(-4), Q32(0));
+        CHECK(Floor(p) == p);
+        CHECK(Ceil(p) == p);
+        CHECK(Round(p) == p);
+    }
+}
+
+TEST_CASE("FixedPoint homogeneous points", "[math][fixed-point]")
+{
+    const Point4<Q16> homogeneous(Q16(2), Q16(4), Q16(6), Q16(2));
+    CHECK(ToEuclidean(homogeneous) == Point4<Q16>(Q16(1), Q16(2), Q16(3), Q16(1)));
+
+    const Point4<Q32> already_euclidean(Q32(1.5), Q32(-2.25), Q32(0.75), Q32(1));
+    CHECK(ToEuclidean(already_euclidean) == already_euclidean);
+}
+
 TEST_CASE("FixedPoint as a hash map key", "[math][fixed-point]")
 {
     HashMap<Q16, i32> map;

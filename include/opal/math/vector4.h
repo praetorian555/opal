@@ -393,7 +393,7 @@ template <typename T>
 template <typename U>
 Opal::Vector4<T> Opal::Vector4<T>::operator/(U scalar) const
 {
-    if constexpr (std::is_integral_v<T>)
+    if constexpr (std::is_integral_v<T> || IsFixedPoint<T>)
     {
         T sc = static_cast<T>(scalar);
         return {x / sc, y / sc, z / sc, w / sc};
@@ -409,7 +409,7 @@ template <typename T>
 template <typename U>
 Opal::Vector4<T>& Opal::Vector4<T>::operator/=(U scalar)
 {
-    if constexpr (std::is_integral_v<T>)
+    if constexpr (std::is_integral_v<T> || IsFixedPoint<T>)
     {
         T sc = static_cast<T>(scalar);
         x /= sc;
