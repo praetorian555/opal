@@ -962,6 +962,33 @@ TEST_CASE("To Matrix3x3 and Matrix4x4", "[math][matrix]")
     }
 }
 
+TEST_CASE("Matrix 4x4 from rows and columns", "[math][matrix]")
+{
+    const Matrix4x4f expected = Matrix4x4f::FromRows({1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 15, 16});
+
+    SECTION("Rows land in order")
+    {
+        CHECK(expected(0, 0) == 1.0f);
+        CHECK(expected(0, 3) == 4.0f);
+        CHECK(expected(2, 1) == 10.0f);
+        CHECK(expected(3, 3) == 16.0f);
+    }
+    SECTION("Columns are the transpose of the same values")
+    {
+        const Matrix4x4f from_columns = Matrix4x4f::FromColumns({1, 5, 9, 13}, {2, 6, 10, 14}, {3, 7, 11, 15}, {4, 8, 12, 16});
+        CHECK(from_columns == expected);
+    }
+    SECTION("Every element of the last column is written")
+    {
+        const Matrix4x4f from_columns = Matrix4x4f::FromColumns({0, 0, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {1, 2, 3, 4});
+        CHECK(from_columns(0, 3) == 1.0f);
+        CHECK(from_columns(1, 3) == 2.0f);
+        CHECK(from_columns(2, 3) == 3.0f);
+        CHECK(from_columns(3, 3) == 4.0f);
+        CHECK(from_columns(0, 0) == 0.0f);
+    }
+}
+
 TEST_CASE("Calculate cofactor", "[math][matrix]")
 {
     const Matrix4x4f m = Matrix4x4f::FromRows({1, 2, 3, 4}, {5, 6, 7, 8}, {9, 10, 11, 12}, {13, 14, 21, 27});

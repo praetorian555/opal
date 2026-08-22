@@ -244,9 +244,9 @@ Opal::Matrix<T, 4, 4> Opal::Matrix<T, k_row_count, k_col_count>::FromColumns(con
     mat.elements[1][2] = column2.y;
     mat.elements[2][2] = column2.z;
     mat.elements[3][2] = column2.w;
-    mat.elements[3][3] = column3.x;
-    mat.elements[3][3] = column3.y;
-    mat.elements[3][3] = column3.z;
+    mat.elements[0][3] = column3.x;
+    mat.elements[1][3] = column3.y;
+    mat.elements[2][3] = column3.z;
     mat.elements[3][3] = column3.w;
     return mat;
 }
