@@ -47,7 +47,8 @@ auto parsed = Opal::JsonReader::Parse(input, &my_allocator);
 ```
 
 Both return `Expected<JsonReader, JsonParseError>` and are `[[nodiscard]]`. JSON usually comes from outside the
-program, so malformed input is an expected outcome rather than an exception.
+program, so malformed input is an expected outcome rather than an exception. The parser never throws: it records the
+first failure on itself and returns, which is why parsing works in a build configured with `OPAL_EXCEPTIONS=OFF`.
 
 `JsonParseError` carries `code`, `line`, `column`, `byte_offset` and a message. The message is stored inline, so it
 stays readable after the parser and the input are gone.

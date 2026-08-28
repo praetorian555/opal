@@ -32,9 +32,9 @@ Four headers had one and had to be stripped before the PCH would build. MSVC doe
 `OPAL_EXCEPTIONS=OFF` adds `-fno-exceptions` (`/EHs-c-` on MSVC) and defines `OPAL_NO_EXCEPTIONS`, both `PUBLIC` so a consumer
 cannot disagree with the library it links. `OPAL_RAISE` then ends the program through the contract violation handler instead of
 throwing, and the `Create` factories are how a caller on a budgeted allocator reports a failed allocation instead. It also forces
-`OPAL_BUILD_TESTS` off, since Catch2 needs exceptions. `JsonReader::Parse` is the one API that disappears: the parser unwinds a
-recursive descent with a non-local jump. Nothing checks this configuration automatically, so build it by hand after touching a
-`throw`:
+`OPAL_BUILD_TESTS` off, since Catch2 needs exceptions. The whole public API is available either way, `JsonReader::Parse`
+included: the parser reports a failed parse by recording it on itself and returning, not by unwinding. Nothing checks this
+configuration automatically, so build it by hand after touching a `throw`:
 
 ```bash
 wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&

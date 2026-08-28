@@ -15,18 +15,6 @@ namespace Opal
 
 namespace
 {
-/**
- * Unwinds the parser out of however deep it got.
- *
- * The parser is a recursive descent over an explicit stack that fails from twenty-odd places, most of them with no
- * useful value to return. Threading a code back through every one of them would obscure the grammar, so the abort
- * stays a non-local jump. It is caught in Parse and handed back as a JsonParseError, so it never escapes the library.
- */
-struct ParseAbort
-{
-    JsonParseError error;
-};
-
 const char* JsonTypeToString(JsonType type)
 {
     switch (type)
@@ -579,10 +567,9 @@ struct ParseFrame
     bool is_object;
 };
 
-// The parser unwinds out of a recursive descent with a non-local jump, so it needs exceptions. Everything else in this file, the
-// JsonValue accessors included, works without them.
-#if defined(OPAL_EXCEPTIONS)
-
+// The parser fails from twenty-odd places, so rather than return a code from each one it records the first failure on itself and
+// lets every step above it unwind by returning a default value. A caller asks HasFailed once the parse is over. Nothing here
+// needs exceptions, so the reader parses the same way in a build that has them and a build that does not.
 class JsonParser
 {
 public:
@@ -591,15 +578,26 @@ public:
     {
     }
 
+    /** @return Whether the parse stopped on a failure. The value Parse returned means nothing when it did. */
+    [[nodiscard]] bool HasFailed() const { return m_failed; }
+
+    /** @return Where and why the parse stopped. Only meaningful once HasFailed says it did. */
+    [[nodiscard]] const JsonParseError& GetError() const { return m_error; }
+
     JsonValue Parse()
     {
         SkipWhitespace();
         if (m_pos >= m_size)
         {
-            ThrowError("Unexpected end of input");
+            FailParse("Unexpected end of input");
+            return {};
         }
 
         JsonValue value = ParseLeafOrOpenContainer();
+        if (m_failed) [[unlikely]]
+        {
+            return {};
+        }
 
         // Deliver completed values up the stack.
         for (;;)
@@ -609,7 +607,8 @@ public:
                 SkipWhitespace();
                 if (m_pos < m_size)
                 {
-                    ThrowError("Unexpected trailing content");
+                    FailParse("Unexpected trailing content");
+                    return {};
                 }
                 return value;
             }
@@ -628,7 +627,8 @@ public:
             SkipWhitespace();
             if (m_pos >= m_size)
             {
-                ThrowError(frame.is_object ? "Unterminated object" : "Unterminated array");
+                FailParse(frame.is_object ? "Unterminated object" : "Unterminated array");
+                return {};
             }
 
             const char8 c = m_input[m_pos];
@@ -644,7 +644,8 @@ public:
                 }
                 if (c != ',')
                 {
-                    ThrowError("Expected ',' or '}' in object");
+                    FailParse("Expected ',' or '}' in object");
+                    return {};
                 }
                 ++m_pos;
                 ++m_column;
@@ -653,11 +654,16 @@ public:
                 SkipWhitespace();
                 if (m_pos >= m_size || m_input[m_pos] != '"')
                 {
-                    ThrowError("Expected string key in object");
+                    FailParse("Expected string key in object");
+                    return {};
                 }
                 m_stack.Back().key = ParseString();
                 SkipWhitespace();
                 Expect(':');
+                if (m_failed) [[unlikely]]
+                {
+                    return {};
+                }
             }
             else
             {
@@ -671,7 +677,8 @@ public:
                 }
                 if (c != ',')
                 {
-                    ThrowError("Expected ',' or ']' in array");
+                    FailParse("Expected ',' or ']' in array");
+                    return {};
                 }
                 ++m_pos;
                 ++m_column;
@@ -681,9 +688,14 @@ public:
             SkipWhitespace();
             if (m_pos >= m_size)
             {
-                ThrowError("Unexpected end of input");
+                FailParse("Unexpected end of input");
+                return {};
             }
             value = ParseLeafOrOpenContainer();
+            if (m_failed) [[unlikely]]
+            {
+                return {};
+            }
         }
     }
 
@@ -710,11 +722,23 @@ private:
                 {
                     ++m_pos;
                     ++m_column;
-                    return JsonValue(MakeArray());
+                    JsonArray empty = MakeArray();
+                    return m_failed ? JsonValue{} : JsonValue(std::move(empty));
                 }
-                if (!(m_stack.EmplaceBack(ParseFrame{MakeArray(), JsonObject{}, StringViewUtf8{}, false})).HasValue()) [[unlikely]]
+                JsonArray array = MakeArray();
+                if (m_failed) [[unlikely]]
                 {
-                    AbortOutOfMemory();
+                    return {};
+                }
+                if (!(m_stack.EmplaceBack(ParseFrame{std::move(array), JsonObject{}, StringViewUtf8{}, false})).HasValue()) [[unlikely]]
+                {
+                    FailOutOfMemory();
+                    return {};
+                }
+                if (m_pos >= m_size)
+                {
+                    FailParse("Unterminated array");
+                    return {};
                 }
                 return ParseLeafOrOpenContainer();
             }
@@ -726,19 +750,32 @@ private:
                 {
                     ++m_pos;
                     ++m_column;
-                    return JsonValue(MakeObject());
+                    JsonObject empty = MakeObject();
+                    return m_failed ? JsonValue{} : JsonValue(std::move(empty));
                 }
                 if (m_pos >= m_size || m_input[m_pos] != '"')
                 {
-                    ThrowError("Expected string key in object");
+                    FailParse("Expected string key in object");
+                    return {};
                 }
                 const StringViewUtf8 key = ParseString();
                 SkipWhitespace();
                 Expect(':');
                 SkipWhitespace();
-                if (!(m_stack.EmplaceBack(JsonArray{}, MakeObject(), key, true)).HasValue()) [[unlikely]]
+                JsonObject object = MakeObject();
+                if (m_failed) [[unlikely]]
                 {
-                    AbortOutOfMemory();
+                    return {};
+                }
+                if (!(m_stack.EmplaceBack(JsonArray{}, std::move(object), key, true)).HasValue()) [[unlikely]]
+                {
+                    FailOutOfMemory();
+                    return {};
+                }
+                if (m_pos >= m_size)
+                {
+                    FailParse("Unterminated object");
+                    return {};
                 }
                 return ParseLeafOrOpenContainer();
             }
@@ -748,7 +785,8 @@ private:
                 {
                     return ParseNumber();
                 }
-                ThrowError("Unexpected character");
+                FailParse("Unexpected character");
+                return {};
             }
         }
     }
@@ -798,7 +836,8 @@ private:
 
         if (m_pos >= m_size || m_input[m_pos] < '0' || m_input[m_pos] > '9')
         {
-            ThrowError("Invalid number");
+            FailParse("Invalid number");
+            return {};
         }
 
         if (m_input[m_pos] == '0')
@@ -819,7 +858,8 @@ private:
             ++m_pos;
             if (m_pos >= m_size || m_input[m_pos] < '0' || m_input[m_pos] > '9')
             {
-                ThrowError("Invalid number: expected digit after decimal point");
+                FailParse("Invalid number: expected digit after decimal point");
+                return {};
             }
             while (m_pos < m_size && m_input[m_pos] >= '0' && m_input[m_pos] <= '9')
             {
@@ -837,7 +877,8 @@ private:
             }
             if (m_pos >= m_size || m_input[m_pos] < '0' || m_input[m_pos] > '9')
             {
-                ThrowError("Invalid number: expected digit in exponent");
+                FailParse("Invalid number: expected digit in exponent");
+                return {};
             }
             while (m_pos < m_size && m_input[m_pos] >= '0' && m_input[m_pos] <= '9')
             {
@@ -851,7 +892,8 @@ private:
         const u64 len = m_pos - start;
         if (len >= k_buf_size)
         {
-            ThrowError("Number literal too long");
+            FailParse("Number literal too long");
+            return {};
         }
         for (u64 i = 0; i < len; ++i)
         {
@@ -875,7 +917,8 @@ private:
         const f64 result = strtod(buf.GetData(), &end_ptr);
         if (end_ptr != buf.GetData() + len)
         {
-            ThrowError("Invalid number");
+            FailParse("Invalid number");
+            return {};
         }
         return JsonValue(result);
     }
@@ -885,6 +928,10 @@ private:
     StringViewUtf8 ParseString()
     {
         Expect('"');
+        if (m_failed) [[unlikely]]
+        {
+            return {};
+        }
         const u64 start = m_pos;
         bool has_escapes = false;
 
@@ -896,7 +943,8 @@ private:
                 ++m_pos;
                 if (m_pos >= m_size)
                 {
-                    ThrowError("Unterminated string escape");
+                    FailParse("Unterminated string escape");
+                    return {};
                 }
             }
             ++m_pos;
@@ -904,7 +952,8 @@ private:
 
         if (m_pos >= m_size)
         {
-            ThrowError("Unterminated string");
+            FailParse("Unterminated string");
+            return {};
         }
 
         if (!has_escapes)
@@ -918,7 +967,7 @@ private:
         StringUtf8 unescaped(m_allocator);
         const u64 end = m_pos;
         u64 i = start;
-        while (i < end)
+        while (i < end && !m_failed)
         {
             if (m_input[i] == '\\')
             {
@@ -926,42 +975,47 @@ private:
                 switch (m_input[i])
                 {
                     case '"':
-                        AppendOrAbort(unescaped, '"');
+                        AppendOrFail(unescaped, '"');
                         break;
                     case '\\':
-                        AppendOrAbort(unescaped, '\\');
+                        AppendOrFail(unescaped, '\\');
                         break;
                     case '/':
-                        AppendOrAbort(unescaped, '/');
+                        AppendOrFail(unescaped, '/');
                         break;
                     case 'b':
-                        AppendOrAbort(unescaped, '\b');
+                        AppendOrFail(unescaped, '\b');
                         break;
                     case 'f':
-                        AppendOrAbort(unescaped, '\f');
+                        AppendOrFail(unescaped, '\f');
                         break;
                     case 'n':
-                        AppendOrAbort(unescaped, '\n');
+                        AppendOrFail(unescaped, '\n');
                         break;
                     case 'r':
-                        AppendOrAbort(unescaped, '\r');
+                        AppendOrFail(unescaped, '\r');
                         break;
                     case 't':
-                        AppendOrAbort(unescaped, '\t');
+                        AppendOrFail(unescaped, '\t');
                         break;
                     case 'u':
                         UnescapeUnicode(unescaped, i);
                         break;
                     default:
-                        ThrowError("Invalid escape sequence");
+                        FailParse("Invalid escape sequence");
+                        break;
                 }
                 ++i;
             }
             else
             {
-                AppendOrAbort(unescaped, m_input[i]);
+                AppendOrFail(unescaped, m_input[i]);
                 ++i;
             }
+        }
+        if (m_failed) [[unlikely]]
+        {
+            return {};
         }
 
         ++m_pos;  // skip closing quote
@@ -971,15 +1025,20 @@ private:
         return {stored};
     }
 
-    void UnescapeUnicode(StringUtf8& out, u64& i) const
+    void UnescapeUnicode(StringUtf8& out, u64& i)
     {
         // i points to 'u', the 4 hex digits follow.
         ++i;
         if (i + 4 > m_size)
         {
-            ThrowError("Invalid unicode escape");
+            FailParse("Invalid unicode escape");
+            return;
         }
         u32 codepoint = ParseHex4(i);
+        if (m_failed) [[unlikely]]
+        {
+            return;
+        }
         i += 3;  // Advance 3 more (the outer loop will ++i for the 4th).
 
         // Handle surrogate pairs.
@@ -990,6 +1049,10 @@ private:
             if (next + 5 < m_size && m_input[next] == '\\' && m_input[next + 1] == 'u')
             {
                 const u32 low = ParseHex4(next + 2);
+                if (m_failed) [[unlikely]]
+                {
+                    return;
+                }
                 if (low >= 0xDC00 && low <= 0xDFFF)
                 {
                     codepoint = 0x10000 + ((codepoint - 0xD800) << 10) + (low - 0xDC00);
@@ -997,12 +1060,14 @@ private:
                 }
                 else
                 {
-                    ThrowError("Invalid surrogate pair");
+                    FailParse("Invalid surrogate pair");
+                    return;
                 }
             }
             else
             {
-                ThrowError("Expected low surrogate");
+                FailParse("Expected low surrogate");
+                return;
             }
         }
 
@@ -1010,7 +1075,7 @@ private:
         EncodeUtf8(out, codepoint);
     }
 
-    [[nodiscard]] u32 ParseHex4(u64 pos) const
+    [[nodiscard]] u32 ParseHex4(u64 pos)
     {
         u32 result = 0;
         for (u64 j = 0; j < 4; ++j)
@@ -1031,44 +1096,45 @@ private:
             }
             else
             {
-                ThrowError("Invalid hex digit in unicode escape");
+                FailParse("Invalid hex digit in unicode escape");
+                return 0;
             }
             result = (result << 4) | digit;
         }
         return result;
     }
 
-    void AppendOrAbort(StringUtf8& out, char8 ch) const
+    void AppendOrFail(StringUtf8& out, char8 ch)
     {
         if (out.Append(ch) != ErrorCode::Success) [[unlikely]]
         {
-            AbortOutOfMemory();
+            FailOutOfMemory();
         }
     }
 
-    void EncodeUtf8(StringUtf8& out, u32 codepoint) const
+    void EncodeUtf8(StringUtf8& out, u32 codepoint)
     {
         if (codepoint <= 0x7F)
         {
-            AppendOrAbort(out, static_cast<char8>(codepoint));
+            AppendOrFail(out, static_cast<char8>(codepoint));
         }
         else if (codepoint <= 0x7FF)
         {
-            AppendOrAbort(out, static_cast<char8>(0xC0 | (codepoint >> 6)));
-            AppendOrAbort(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
+            AppendOrFail(out, static_cast<char8>(0xC0 | (codepoint >> 6)));
+            AppendOrFail(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
         }
         else if (codepoint <= 0xFFFF)
         {
-            AppendOrAbort(out, static_cast<char8>(0xE0 | (codepoint >> 12)));
-            AppendOrAbort(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
-            AppendOrAbort(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
+            AppendOrFail(out, static_cast<char8>(0xE0 | (codepoint >> 12)));
+            AppendOrFail(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
+            AppendOrFail(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
         }
         else if (codepoint <= 0x10FFFF)
         {
-            AppendOrAbort(out, static_cast<char8>(0xF0 | (codepoint >> 18)));
-            AppendOrAbort(out, static_cast<char8>(0x80 | ((codepoint >> 12) & 0x3F)));
-            AppendOrAbort(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
-            AppendOrAbort(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
+            AppendOrFail(out, static_cast<char8>(0xF0 | (codepoint >> 18)));
+            AppendOrFail(out, static_cast<char8>(0x80 | ((codepoint >> 12) & 0x3F)));
+            AppendOrFail(out, static_cast<char8>(0x80 | ((codepoint >> 6) & 0x3F)));
+            AppendOrFail(out, static_cast<char8>(0x80 | (codepoint & 0x3F)));
         }
     }
 
@@ -1099,46 +1165,60 @@ private:
         }
     }
 
+    // Consumes one expected character. A parse that has already failed consumes nothing, so a run of these can be written
+    // without a check between them.
     void Expect(char8 expected)
     {
+        if (m_failed) [[unlikely]]
+        {
+            return;
+        }
         if (m_pos >= m_size || m_input[m_pos] != expected)
         {
             InPlaceArray<char, 64> msg;
             memset(msg.GetData(), 0, 64);
             snprintf(msg.GetData(), msg.GetSize(), "Expected '%c'", static_cast<char>(expected));
-            ThrowError(msg.GetData());
+            FailParse(msg.GetData());
+            return;
         }
         ++m_pos;
         ++m_column;
     }
 
-    [[noreturn]] void ThrowError(const char* message) const
+    // Records where and why the parse stopped. The first failure is the one kept: every step above it returns a default value
+    // and would otherwise overwrite the position that actually went wrong.
+    void Fail(ErrorCode code, const char* message)
     {
-        throw ParseAbort{JsonParseError(ErrorCode::InvalidArgument, m_line, m_column, m_pos, message)};
+        if (!m_failed)
+        {
+            m_failed = true;
+            m_error = JsonParseError(code, m_line, m_column, m_pos, message);
+        }
     }
 
-    [[noreturn]] void AbortOutOfMemory() const
-    {
-        throw ParseAbort{JsonParseError(ErrorCode::OutOfMemory, m_line, m_column, m_pos, "Out of memory")};
-    }
+    void FailParse(const char* message) { Fail(ErrorCode::InvalidArgument, message); }
+
+    void FailOutOfMemory() { Fail(ErrorCode::OutOfMemory, "Out of memory"); }
 
     // The containers are reference counted, so building one is an allocation that a budgeted allocator can refuse.
-    JsonArray MakeArray() const
+    JsonArray MakeArray()
     {
         Expected<JsonArray, ErrorCode> array = JsonArray::Create(m_allocator);
         if (!array.HasValue()) [[unlikely]]
         {
-            AbortOutOfMemory();
+            FailOutOfMemory();
+            return {};
         }
         return std::move(array).GetValue();
     }
 
-    JsonObject MakeObject() const
+    JsonObject MakeObject()
     {
         Expected<JsonObject, ErrorCode> object = JsonObject::Create(m_allocator);
         if (!object.HasValue()) [[unlikely]]
         {
-            AbortOutOfMemory();
+            FailOutOfMemory();
+            return {};
         }
         return std::move(object).GetValue();
     }
@@ -1151,17 +1231,15 @@ private:
     AllocatorBase* m_allocator = nullptr;
     Ref<DynamicArray<StringUtf8>> m_escaped_strings;
     DynamicArray<ParseFrame> m_stack;
+    JsonParseError m_error;
+    bool m_failed = false;
 };
-
-#endif  // OPAL_EXCEPTIONS
 
 }  // namespace
 
 // ------------------------------------------------------------------------------------------------
 // JsonReader.
 // ------------------------------------------------------------------------------------------------
-
-#if defined(OPAL_EXCEPTIONS)
 
 Expected<JsonReader, JsonParseError> JsonReader::Parse(const StringUtf8& input, AllocatorBase* allocator)
 {
@@ -1175,13 +1253,12 @@ Expected<JsonReader, JsonParseError> JsonReader::Parse(const StringUtf8& input, 
     reader.m_escaped_strings = DynamicArray<StringUtf8>(allocator);
 
     JsonParser parser(input, allocator, reader.m_escaped_strings);
-    try
+    JsonValue root = parser.Parse();
+    if (parser.HasFailed())
     {
-        reader.m_root = parser.Parse();
-    } catch (const ParseAbort& abort)
-    {
-        return Result(abort.error);
+        return Result(parser.GetError());
     }
+    reader.m_root = std::move(root);
     return Result(Move(reader));
 }
 
@@ -1203,17 +1280,14 @@ Expected<JsonReader, JsonParseError> JsonReader::Parse(StringUtf8&& input, Alloc
 
     const StringViewUtf8 view(*reader.m_owned_input.Get());
     JsonParser parser(view, allocator, reader.m_escaped_strings);
-    try
+    JsonValue root = parser.Parse();
+    if (parser.HasFailed())
     {
-        reader.m_root = parser.Parse();
-    } catch (const ParseAbort& abort)
-    {
-        return Result(abort.error);
+        return Result(parser.GetError());
     }
+    reader.m_root = std::move(root);
     return Result(Move(reader));
 }
-
-#endif  // OPAL_EXCEPTIONS
 
 const JsonValue& JsonReader::GetRoot() const
 {

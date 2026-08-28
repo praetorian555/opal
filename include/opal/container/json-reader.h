@@ -347,11 +347,7 @@ public:
      * @param allocator Allocator for all internal allocations. If nullptr, the default allocator is used.
      * @return A reader over the parsed document, or where and why the parse stopped. Malformed input is the expected
      *         case for JSON that came from outside the program, so it is reported rather than raised.
-     * @note Only available when the build has exceptions. The parser unwinds out of a recursive descent with a non-local jump,
-     *       which is the one place in the library that cannot be expressed without them. Everything else on JsonReader and
-     *       JsonValue, and all of JsonWriter, works either way.
      */
-#if defined(OPAL_EXCEPTIONS)
     [[nodiscard]] static Expected<JsonReader, JsonParseError> Parse(const StringUtf8& input, AllocatorBase* allocator = nullptr);
 
     /**
@@ -360,10 +356,8 @@ public:
      * @param allocator Allocator for all internal allocations. If nullptr, the default allocator is used.
      * @return A reader over the parsed document, or where and why the parse stopped. Malformed input is the expected
      *         case for JSON that came from outside the program, so it is reported rather than raised.
-     * @note Only available when the build has exceptions, as above.
      */
     [[nodiscard]] static Expected<JsonReader, JsonParseError> Parse(StringUtf8&& input, AllocatorBase* allocator = nullptr);
-#endif
 
     JsonReader(const JsonReader&) = delete;
     JsonReader& operator=(const JsonReader&) = delete;
