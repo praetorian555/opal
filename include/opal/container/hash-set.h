@@ -267,9 +267,9 @@ private:
         Hasher<key_type> hasher;
         return hasher(key);
     }
-    bool FindIndex(const key_type& key, u64& out_index) const;
-    void OccupySlot(const key_type& key, u64 index) requires IsPOD<KeyType>;
-    void OccupySlot(key_type&& key, u64 index);
+    bool FindIndex(const key_type& key, u64 hash, u64& out_index) const;
+    void OccupySlot(const key_type& key, u64 hash, u64 index) requires IsPOD<KeyType>;
+    void OccupySlot(key_type&& key, u64 hash, u64 index);
     void DeleteSlot(u64 index);
     void DestroyAllKeys();
     ErrorCode Grow();
@@ -475,13 +475,12 @@ Opal::HashSet<KeyType> Opal::HashSet<KeyType>::Clone(AllocatorBase* allocator) c
 }
 
 template <typename KeyType>
-bool Opal::HashSet<KeyType>::FindIndex(const key_type& key, u64& out_index) const
+bool Opal::HashSet<KeyType>::FindIndex(const key_type& key, u64 hash, u64& out_index) const
 {
     if (m_control_bytes == nullptr)
     {
         return false;
     }
-    u64 hash = CalculateHash(key);
     u64 offset = Impl::GetHash1(hash, m_control_bytes) & m_capacity;
     while (true)
     {
@@ -516,7 +515,7 @@ template <typename KeyType>
 typename Opal::HashSet<KeyType>::iterator Opal::HashSet<KeyType>::Find(const key_type& key)
 {
     u64 index = 0;
-    if (FindIndex(key, index))
+    if (FindIndex(key, CalculateHash(key), index))
     {
         return iterator(this, index);
     }
@@ -527,7 +526,7 @@ template <typename KeyType>
 typename Opal::HashSet<KeyType>::const_iterator Opal::HashSet<KeyType>::Find(const key_type& key) const
 {
     u64 index = 0;
-    if (FindIndex(key, index))
+    if (FindIndex(key, CalculateHash(key), index))
     {
         return const_iterator(this, index);
     }
@@ -537,13 +536,13 @@ typename Opal::HashSet<KeyType>::const_iterator Opal::HashSet<KeyType>::Find(con
 template <typename KeyType>
 bool Opal::HashSet<KeyType>::Contains(const key_type& key) const
 {
-    return Find(key) != cend();
+    u64 index = 0;
+    return FindIndex(key, CalculateHash(key), index);
 }
 
 template <typename KeyType>
-void Opal::HashSet<KeyType>::OccupySlot(const key_type& key, u64 index) requires IsPOD<KeyType>
+void Opal::HashSet<KeyType>::OccupySlot(const key_type& key, u64 hash, u64 index) requires IsPOD<KeyType>
 {
-    const u64 hash = CalculateHash(key);
     Impl::SetControlByte(index, Impl::GetHash2(hash), m_control_bytes, m_capacity);
     new (&m_slots[index]) key_type(key);  // Invokes copy constructor on allocated memory
     m_size++;
@@ -551,9 +550,8 @@ void Opal::HashSet<KeyType>::OccupySlot(const key_type& key, u64 index) requires
 }
 
 template <typename KeyType>
-void Opal::HashSet<KeyType>::OccupySlot(key_type&& key, u64 index)
+void Opal::HashSet<KeyType>::OccupySlot(key_type&& key, u64 hash, u64 index)
 {
-    const u64 hash = CalculateHash(key);
     Impl::SetControlByte(index, Impl::GetHash2(hash), m_control_bytes, m_capacity);
     new (&m_slots[index]) key_type(Move(key));  // Invokes move constructor on allocated memory
     m_size++;
@@ -571,8 +569,9 @@ void Opal::HashSet<KeyType>::DeleteSlot(u64 index)
 template <typename KeyType>
 Opal::ErrorCode Opal::HashSet<KeyType>::Insert(const key_type& key) requires IsPOD<KeyType>
 {
+    const u64 hash = CalculateHash(key);
     u64 index = 0;
-    const bool has_key = FindIndex(key, index);
+    const bool has_key = FindIndex(key, hash, index);
     if (has_key)
     {
         m_slots[index] = key;
@@ -587,18 +586,19 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Insert(const key_type& key) requires IsP
             return status;
         }
         // We have to get the index again since we rehashed the table
-        FindIndex(key, index);
+        FindIndex(key, hash, index);
     }
 
-    OccupySlot(key, index);
+    OccupySlot(key, hash, index);
     return ErrorCode::Success;
 }
 
 template <typename KeyType>
 Opal::ErrorCode Opal::HashSet<KeyType>::Insert(key_type&& key)
 {
+    const u64 hash = CalculateHash(key);
     u64 index = 0;
-    const bool has_key = FindIndex(key, index);
+    const bool has_key = FindIndex(key, hash, index);
     if (has_key)
     {
         m_slots[index] = Move(key);
@@ -613,10 +613,10 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Insert(key_type&& key)
             return status;
         }
         // We have to get the index again since we rehashed the table
-        FindIndex(key, index);
+        FindIndex(key, hash, index);
     }
 
-    OccupySlot(Move(key), index);
+    OccupySlot(Move(key), hash, index);
     return ErrorCode::Success;
 }
 
@@ -624,7 +624,7 @@ template <typename KeyType>
 Opal::ErrorCode Opal::HashSet<KeyType>::Erase(const key_type& key)
 {
     u64 index = 0;
-    if (FindIndex(key, index))
+    if (FindIndex(key, CalculateHash(key), index))
     {
         DeleteSlot(index);
         return ErrorCode::Success;
