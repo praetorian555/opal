@@ -818,3 +818,61 @@ TEST_CASE("HashSet iteration across many groups", "[hash-set]")
         REQUIRE(count == 1);
     }
 }
+
+TEST_CASE("HashSet Clone after erasures", "[hash-set]")
+{
+    SECTION("POD keys")
+    {
+        HashSet<i32> set;
+        for (i32 i = 0; i < 300; i++)
+        {
+            set.Insert(i * 3);
+        }
+        for (i32 i = 0; i < 300; i += 2)
+        {
+            set.Erase(i * 3);
+        }
+
+        HashSet<i32> clone = set.Clone();
+        REQUIRE(clone.GetSize() == 150);
+        for (i32 i = 0; i < 300; i++)
+        {
+            REQUIRE(clone.Contains(i * 3) == (i % 2 == 1));
+        }
+
+        // The clone stays independent and usable, on both erased and live slots.
+        REQUIRE(clone.Insert(6) == ErrorCode::Success);
+        REQUIRE(clone.Contains(6));
+        REQUIRE_FALSE(set.Contains(6));
+        REQUIRE(clone.Erase(9) == ErrorCode::Success);
+        REQUIRE(set.Contains(9));
+        REQUIRE(clone.GetSize() == 150);
+    }
+    SECTION("String keys")
+    {
+        HashSet<StringUtf8> set;
+        for (i32 i = 0; i < 200; i++)
+        {
+            const char8 buffer[3] = {static_cast<char8>('a' + i / 26), static_cast<char8>('a' + i % 26), 0};
+            set.Insert(StringUtf8(buffer));
+        }
+        for (i32 i = 0; i < 200; i += 3)
+        {
+            const char8 buffer[3] = {static_cast<char8>('a' + i / 26), static_cast<char8>('a' + i % 26), 0};
+            set.Erase(StringUtf8(buffer));
+        }
+
+        HashSet<StringUtf8> clone = set.Clone();
+        REQUIRE(clone.GetSize() == set.GetSize());
+        for (i32 i = 0; i < 200; i++)
+        {
+            const char8 buffer[3] = {static_cast<char8>('a' + i / 26), static_cast<char8>('a' + i % 26), 0};
+            REQUIRE(clone.Contains(StringUtf8(buffer)) == (i % 3 != 0));
+        }
+
+        // Dropping the original must leave the clone intact, so the copy has to be deep.
+        set.Clear();
+        REQUIRE(clone.Contains("ab"));
+        REQUIRE_FALSE(clone.Contains("aa"));
+    }
+}

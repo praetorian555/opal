@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstring>
+
 #include "opal/allocator.h"
 #include "opal/assert.h"
 #include "opal/bit.h"
@@ -290,6 +292,8 @@ private:
     i8* m_control_bytes = nullptr;
     key_type* m_slots = nullptr;
     u64 m_capacity = 0;
+    // Varies the group a hash starts probing from per table. Set when the table allocates and shared with its clones.
+    u64 m_seed = 0;
     u64 m_size = 0;
     u64 m_growth_left = 0;
 };
@@ -325,12 +329,14 @@ Opal::HashSet<KeyType>::HashSet(HashSet&& other) noexcept
       m_control_bytes(other.m_control_bytes),
       m_slots(other.m_slots),
       m_capacity(other.m_capacity),
+      m_seed(other.m_seed),
       m_size(other.m_size),
       m_growth_left(other.m_growth_left)
 {
     other.m_control_bytes = nullptr;
     other.m_slots = nullptr;
     other.m_capacity = 0;
+    other.m_seed = 0;
     other.m_size = 0;
     other.m_growth_left = 0;
 }
@@ -352,12 +358,14 @@ Opal::HashSet<KeyType>& Opal::HashSet<KeyType>::operator=(HashSet&& other) noexc
     m_growth_left = other.m_growth_left;
     m_size = other.m_size;
     m_capacity = other.m_capacity;
+    m_seed = other.m_seed;
 
     other.m_control_bytes = nullptr;
     other.m_slots = nullptr;
     other.m_growth_left = 0;
     other.m_size = 0;
     other.m_capacity = 0;
+    other.m_seed = 0;
 
     return *this;
 }
@@ -409,6 +417,7 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Reserve(size_type capacity)
         return ErrorCode::OutOfMemory;
     }
     memset(new_control_bytes, Impl::k_control_empty, control_bytes_size);
+    const u64 new_seed = Impl::MakeTableSeed(new_control_bytes);
     new_control_bytes[new_capacity] = Impl::k_control_sentinel;
     key_type* new_slots = reinterpret_cast<key_type*>(new_control_bytes + slots_offset);
 
@@ -424,7 +433,7 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Reserve(size_type capacity)
             }
             key_type& key = m_slots[i];
             u64 hash = CalculateHash(key);
-            u64 offset = Impl::GetHash1(hash, new_control_bytes) & new_capacity;
+            u64 offset = Impl::GetHash1(hash, new_seed) & new_capacity;
             while (true)
             {
                 i8* group = new_control_bytes + offset;
@@ -447,6 +456,7 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Reserve(size_type capacity)
     m_allocator->Free(m_control_bytes);
 
     m_capacity = new_capacity;
+    m_seed = new_seed;
     m_size = new_size;
     m_growth_left = m_capacity - m_size;
     m_control_bytes = new_control_bytes;
@@ -472,10 +482,31 @@ Opal::HashSet<KeyType> Opal::HashSet<KeyType>::Clone(AllocatorBase* allocator) c
 {
     allocator = allocator == nullptr ? m_allocator : allocator;
     HashSet clone(m_capacity, allocator);
-    for (const key_type& key : *this)
+    if (m_control_bytes == nullptr)
     {
-        clone.Insert(Opal::Clone(key, allocator));
+        return clone;
     }
+    clone.m_seed = m_seed;
+    // Same capacity and seed, so every key keeps its slot and none is hashed again. The control bytes come over as they are,
+    // erased markers included, since a probe that passed over an erased slot on the way in has to pass over it on the way back.
+    if constexpr (IsPOD<key_type>)
+    {
+        memcpy(clone.m_slots, m_slots, m_capacity * sizeof(key_type));
+    }
+    else
+    {
+        // Each slot is marked as it is filled, so a clone that throws part way still destroys what it holds.
+        for (const_iterator it = cbegin(); it != cend(); ++it)
+        {
+            const u64 index = it.GetIndex();
+            new (&clone.m_slots[index]) key_type(Opal::Clone(m_slots[index], allocator));
+            Impl::SetControlByte(index, m_control_bytes[index], clone.m_control_bytes, m_capacity);
+            clone.m_size++;
+        }
+    }
+    memcpy(clone.m_control_bytes, m_control_bytes, m_capacity + Impl::k_group_width);
+    clone.m_size = m_size;
+    clone.m_growth_left = m_growth_left;
     return clone;
 }
 
@@ -486,7 +517,7 @@ bool Opal::HashSet<KeyType>::FindIndex(const key_type& key, u64 hash, u64& out_i
     {
         return false;
     }
-    u64 offset = Impl::GetHash1(hash, m_control_bytes) & m_capacity;
+    u64 offset = Impl::GetHash1(hash, m_seed) & m_capacity;
     while (true)
     {
         i8* group = m_control_bytes + offset;

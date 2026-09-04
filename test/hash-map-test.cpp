@@ -732,3 +732,67 @@ TEST_CASE("HashMap iteration across many groups", "[hash-map]")
         }
     }
 }
+
+TEST_CASE("HashMap Clone after erasures", "[hash-map]")
+{
+    SECTION("POD pairs")
+    {
+        HashMap<i32, i32> map;
+        for (i32 i = 0; i < 300; i++)
+        {
+            map.Insert(i * 3, i);
+        }
+        for (i32 i = 0; i < 300; i += 2)
+        {
+            map.Erase(i * 3);
+        }
+
+        HashMap<i32, i32> clone = map.Clone();
+        REQUIRE(clone.GetSize() == 150);
+        for (i32 i = 0; i < 300; i++)
+        {
+            REQUIRE(clone.Contains(i * 3) == (i % 2 == 1));
+        }
+        REQUIRE(clone.GetValue(9) == 3);
+
+        // The clone stays independent and usable, on both erased and live slots.
+        REQUIRE(clone.Insert(6, 2) == ErrorCode::Success);
+        REQUIRE(clone.GetValue(6) == 2);
+        REQUIRE_FALSE(map.Contains(6));
+        REQUIRE(clone.Erase(9) == ErrorCode::Success);
+        REQUIRE(map.Contains(9));
+        REQUIRE(clone.GetSize() == 150);
+    }
+    SECTION("String pairs")
+    {
+        HashMap<StringUtf8, StringUtf8> map;
+        for (i32 i = 0; i < 200; i++)
+        {
+            const char8 buffer[3] = {static_cast<char8>('a' + i / 26), static_cast<char8>('a' + i % 26), 0};
+            map.Insert(StringUtf8(buffer), StringUtf8(buffer));
+        }
+        for (i32 i = 0; i < 200; i += 3)
+        {
+            const char8 buffer[3] = {static_cast<char8>('a' + i / 26), static_cast<char8>('a' + i % 26), 0};
+            map.Erase(StringUtf8(buffer));
+        }
+
+        HashMap<StringUtf8, StringUtf8> clone = map.Clone();
+        REQUIRE(clone.GetSize() == map.GetSize());
+        for (i32 i = 0; i < 200; i++)
+        {
+            const char8 buffer[3] = {static_cast<char8>('a' + i / 26), static_cast<char8>('a' + i % 26), 0};
+            const StringUtf8 key(buffer);
+            REQUIRE(clone.Contains(key) == (i % 3 != 0));
+            if (i % 3 != 0)
+            {
+                REQUIRE(clone.GetValue(key) == key);
+            }
+        }
+
+        // Dropping the original must leave the clone intact, so the copy has to be deep.
+        map.Clear();
+        REQUIRE(clone.GetValue("ab") == "ab");
+        REQUIRE_FALSE(clone.Contains("aa"));
+    }
+}

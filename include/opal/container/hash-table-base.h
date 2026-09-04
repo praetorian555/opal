@@ -45,10 +45,16 @@ inline constexpr u64 k_default_capacity = 4;
     return (capacity * 7) / 8;
 }
 
-/** @return The part of the hash that picks the group to start probing from. `seed` varies the result per table. */
-[[nodiscard]] inline u64 GetHash1(u64 hash, const void* seed)
+/** @return A table's seed, derived from where its control bytes live so that two tables start probing a key from different groups. */
+[[nodiscard]] inline u64 MakeTableSeed(const void* control_bytes)
 {
-    return (hash >> 7) ^ (reinterpret_cast<u64>(seed) >> 12);
+    return reinterpret_cast<u64>(control_bytes) >> 12;
+}
+
+/** @return The part of the hash that picks the group to start probing from. `seed` is the table's, see MakeTableSeed. */
+[[nodiscard]] inline u64 GetHash1(u64 hash, u64 seed)
+{
+    return (hash >> 7) ^ seed;
 }
 
 /** @return The seven bits of the hash kept in the control byte. Always non-negative, so it never collides with a special value. */
