@@ -59,10 +59,66 @@ benchmarks inside one file can be compared the same way, which is how the `Opal`
 python compare.py filters results.json "/Opal/" "/Std/"
 ```
 
+## Profiling with AMD uProf
+
+A benchmark says how long an operation takes. A profile says what the core was doing meanwhile, which decides whether fewer
+instructions or fewer cache lines would help. AMD uProf reads the hardware counters of a Zen CPU and attributes them to functions
+and source lines, given a binary with debug information.
+
+### A binary uProf can read
+
+Attribution needs a PDB, and the numbers only mean something for optimized code, so build Release with `/Zi` added rather than
+RelWithDebInfo, which also lowers the inlining level. Configure from PowerShell or cmd, since Git Bash rewrites `/O2` into a path.
+
+```powershell
+cmake -S . -B build/bench-prof -DOPAL_BUILD_BENCHMARKS=ON -DOPAL_BUILD_TESTS=OFF -DOPAL_HARDENING=OFF `
+    "-DCMAKE_CXX_FLAGS_RELEASE=/O2 /Ob2 /DNDEBUG /Zi" "-DCMAKE_EXE_LINKER_FLAGS_RELEASE=/DEBUG /OPT:REF /OPT:ICF"
+cmake --build build/bench-prof --config Release --target opal_benchmark
+```
+
+### Collecting and reporting
+
+```powershell
+$cli = "C:/Program Files/AMD/AMDuProf/bin/AMDuProfCLI.exe"
+& $cli collect --config assess -o out build/bench-prof/Release/opal_benchmark.exe `
+    "--benchmark_filter=HashSet/.*/Opal/1024" --benchmark_min_time=1s
+& $cli report -i out/AMDuProf-opal_benchmark-EBP_<timestamp> --detail --cutoff 15
+```
+
+`assess` samples cycles, instructions, branches, L1 data cache misses and misaligned loads together. `report` writes `report.csv`
+into the session directory: a function summary, then a table per function with one row per source line. The `session.uprof` next
+to it opens in the uProf GUI for the assembly view. Profile one size per session. A function that runs at 1K and 4M keys in the
+same session gets one blended row, and the two regimes look nothing alike.
+
+### Reading the counters
+
+- `CYCLES_NOT_IN_HALT` is the core clock cycles spent in the code, which is the time column. `RETIRED_INST` is instructions that
+  completed; speculated and discarded work does not count.
+- **IPC** is instructions per cycle. Zen 3 retires up to 6 per cycle, and 3 to 4 is what tight, well-fed code reaches. Above 3 the
+  core is busy and only fewer instructions make it faster. Below 1 it is waiting, almost always on memory. **CPI** is the inverse.
+- **PTI** is per thousand retired instructions. Raw counts scale with how long the run was, so uProf divides them by instructions.
+  It makes functions of different length comparable, and it converts to cost: at ten instructions per lookup, 66 misses PTI is
+  about two thirds of a miss per lookup.
+- `L1_DC_ACCESSES` and `L1_DC_MISSES` are loads and stores hitting or missing the 32 KB level 1 data cache. A miss goes on to L2,
+  L3, then DRAM, at roughly 4, 12, 45 and 250 or more cycles. The counter does not say where a miss ended, so pair it with IPC:
+  many misses at IPC near 0.4 is DRAM.
+- `MISALIGNED_LOADS` counts loads that cross a 64-byte cache line or a 4 KB page, which the hardware splits in two. A 16-byte
+  group read that starts at an arbitrary hash position crosses a line about one time in four.
+- `RETIRED_BR_INST` and `RETIRED_BR_INST_MISP` are branches executed and branches guessed wrong. A mispredict discards 15 to 20
+  cycles of work. As PTI, 0.3 is noise and 5 to 10 is a real cost.
+
+Reading a row: FindHit at 4M keys shows IPC 0.41, 66 misses PTI, 0.5 mispredicts PTI. No branch trouble, a miss every fifteen
+instructions, the core idle three quarters of the time. That function is bound by DRAM latency, and only touching fewer lines per
+lookup helps. The same row at 1024 keys shows IPC 3.7 and 2 misses PTI. Nothing to wait for, so only instruction count matters.
+
+One trap: a small benchmark repeats the same input thousands of times, and the branch predictor memorizes it. Iteration over the
+same 1024 keys showed 0.25 mispredicts PTI, the same loop over 4M keys 8.8. Branchy code measured only at small sizes looks
+better than it is.
+
 ## Writing a benchmark
 
-- Add the file to `OPAL_BENCHMARK_FILES` in `CMakeLists.txt`. Key sequences and the size sweep live in `benchmark/benchmark-helpers.h`, so a new
-  file sees the same input and sizes as the others.
+- Add the file to `OPAL_BENCHMARK_FILES` in `CMakeLists.txt`. Key sequences and the size sweep live in
+  `benchmark/benchmark-helpers.h`, so a new file sees the same input and sizes as the others.
 - Do setup before the `for (auto _ : state)` loop. Only the loop body is timed.
 - Feed every result into `benchmark::DoNotOptimize`, or the optimizer deletes the work.
 - When comparing against a standard container, write the body once as a template over the container type so both sides do
