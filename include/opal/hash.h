@@ -4,6 +4,12 @@
 #include "opal/type-traits.h"
 #include "opal/casts.h"
 
+OPAL_START_DISABLE_WARNINGS
+OPAL_DISABLE_WARNING("-Wold-style-cast")
+OPAL_DISABLE_WARNING("-Wconversion")
+#include "rapidhash/rapidhash.h"
+OPAL_END_DISABLE_WARNINGS
+
 namespace Opal
 {
 namespace Hash
@@ -15,7 +21,7 @@ namespace Hash
  * @param seed Specific seed to use. Default is 0.
  * @return Returns 64-bit hash value.
  */
-u64 CalcRawArray(const u8* data, u64 size, u64 seed = 0);
+inline u64 CalcRawArray(const u8* data, u64 size, u64 seed = 0);
 
 /**
  * Calculates 64-bit hash from the POD object.
@@ -107,6 +113,11 @@ struct Hasher<T>
 };
 
 }  // namespace Opal
+
+inline Opal::u64 Opal::Hash::CalcRawArray(const Opal::u8* data, Opal::u64 size, Opal::u64 seed)
+{
+    return rapidhash_withSeed(data, size, seed);
+}
 
 template <typename T>
 Opal::u64 Opal::Hash::CalcPOD(const T& value, Opal::u64 seed)
