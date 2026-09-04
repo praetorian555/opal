@@ -757,3 +757,64 @@ TEST_CASE("Create a hash set without throwing", "[hash-set]")
         REQUIRE_THROWS_AS(HashSet<i32>(16, &null_allocator), OutOfMemoryException);
     }
 }
+
+TEST_CASE("HashSet iteration across many groups", "[hash-set]")
+{
+    HashSet<i32> set;
+    for (i32 i = 0; i < 1000; i++)
+    {
+        set.Insert(i * 7);
+    }
+    SECTION("Every key is visited exactly once")
+    {
+        HashSet<i32> seen;
+        u64 count = 0;
+        for (const i32& key : set)
+        {
+            REQUIRE(set.Contains(key));
+            REQUIRE_FALSE(seen.Contains(key));
+            seen.Insert(key);
+            count++;
+        }
+        REQUIRE(count == set.GetSize());
+    }
+    SECTION("Keys erased ahead of the iterator are skipped")
+    {
+        // Erased through the key rather than the iterator, so whatever the iterator has read about the slots ahead of it is stale.
+        HashSet<i32> seen;
+        bool erased = false;
+        for (const i32& key : set)
+        {
+            if (erased)
+            {
+                REQUIRE(key % 14 == 0);
+            }
+            seen.Insert(key);
+            if (!erased)
+            {
+                for (i32 i = 1; i < 1000; i += 2)
+                {
+                    set.Erase(i * 7);
+                }
+                erased = true;
+            }
+        }
+        for (i32 i = 0; i < 1000; i += 2)
+        {
+            REQUIRE(seen.Contains(i * 7));
+        }
+    }
+    SECTION("A cleared set iterates as empty")
+    {
+        set.Clear();
+        REQUIRE(set.begin() == set.end());
+        set.Insert(3);
+        u64 count = 0;
+        for (const i32& key : set)
+        {
+            REQUIRE(key == 3);
+            count++;
+        }
+        REQUIRE(count == 1);
+    }
+}

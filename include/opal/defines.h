@@ -52,6 +52,14 @@
 #define OPAL_ENABLE_OPTIMIZATION _Pragma("clang optimize on")
 #endif
 
+// Inlines a function the compiler would otherwise leave out of line. For a small function on a hot path, a call per use is the
+// whole cost.
+#if defined(OPAL_COMPILER_MSVC)
+#define OPAL_FORCE_INLINE __forceinline
+#else
+#define OPAL_FORCE_INLINE inline __attribute__((always_inline))
+#endif
+
 #if defined(NDEBUG)
 #define OPAL_RELEASE
 #else

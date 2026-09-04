@@ -3,6 +3,7 @@
 #include "opal/container/array-view.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/hash-map.h"
+#include "opal/container/hash-set.h"
 
 #include "opal/clonable-base.h"
 #include "opal/container/string.h"
@@ -682,5 +683,52 @@ TEST_CASE("Create a hash map without throwing", "[HashMap]")
         NullAllocator null_allocator;
         using MapType = HashMap<i32, i32>;
         REQUIRE_THROWS_AS(MapType(16, &null_allocator), OutOfMemoryException);
+    }
+}
+
+TEST_CASE("HashMap iteration across many groups", "[hash-map]")
+{
+    HashMap<i32, i32> map;
+    for (i32 i = 0; i < 1000; i++)
+    {
+        map.Insert(i * 7, i);
+    }
+    SECTION("Every pair is visited exactly once")
+    {
+        HashSet<i32> seen;
+        u64 count = 0;
+        for (const auto& pair : map)
+        {
+            REQUIRE(pair.key == pair.value * 7);
+            REQUIRE_FALSE(seen.Contains(pair.key));
+            seen.Insert(pair.key);
+            count++;
+        }
+        REQUIRE(count == map.GetSize());
+    }
+    SECTION("Pairs erased ahead of the iterator are skipped")
+    {
+        HashSet<i32> seen;
+        bool erased = false;
+        for (const auto& pair : map)
+        {
+            if (erased)
+            {
+                REQUIRE(pair.value % 2 == 0);
+            }
+            seen.Insert(pair.key);
+            if (!erased)
+            {
+                for (i32 i = 1; i < 1000; i += 2)
+                {
+                    map.Erase(i * 7);
+                }
+                erased = true;
+            }
+        }
+        for (i32 i = 0; i < 1000; i += 2)
+        {
+            REQUIRE(seen.Contains(i * 7));
+        }
     }
 }

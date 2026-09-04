@@ -50,6 +50,7 @@ public:
 
     HashMapIterator() = default;
     HashMapIterator(hash_set_type* hash_set, u64 index) : m_hash_map(hash_set), m_index(index) {}
+    HashMapIterator(hash_set_type* hash_set, u64 index, u32 next_mask) : m_hash_map(hash_set), m_index(index), m_next_mask(next_mask) {}
 
     bool operator==(const HashMapIterator& other) const { return m_hash_map == other.m_hash_map && m_index == other.m_index; }
     bool operator>(const HashMapIterator& other) const { return m_hash_map == other.m_hash_map && m_index > other.m_index; }
@@ -59,15 +60,13 @@ public:
 
     HashMapIterator& operator++()
     {
-        auto next_it = m_hash_map->FindNextIterator(*this);
-        m_index = next_it.GetIndex();
+        m_index = m_hash_map->FindNextIndex(m_index, m_next_mask);
         return *this;
     }
     HashMapIterator operator++(int)
     {
-        auto next_it = m_hash_map->FindNextIterator(*this);
         auto rtn_it = *this;
-        m_index = next_it.GetIndex();
+        m_index = m_hash_map->FindNextIndex(m_index, m_next_mask);
         return rtn_it;
     }
 
@@ -83,6 +82,8 @@ public:
 private:
     HashMapClass* m_hash_map = nullptr;
     u64 m_index = 0;
+    // Occupied slots after m_index in its group, one bit per slot of the group, or 0 when the group has not been read yet.
+    u32 m_next_mask = 0;
 };
 
 /**
@@ -104,6 +105,10 @@ public:
 
     HashMapConstIterator() = default;
     HashMapConstIterator(const hash_set_type* hash_set, u64 index) : m_hash_map(hash_set), m_index(index) {}
+    HashMapConstIterator(const hash_set_type* hash_set, u64 index, u32 next_mask)
+        : m_hash_map(hash_set), m_index(index), m_next_mask(next_mask)
+    {
+    }
 
     bool operator==(const HashMapConstIterator& other) const { return m_hash_map == other.m_hash_map && m_index == other.m_index; }
     bool operator>(const HashMapConstIterator& other) const { return m_hash_map == other.m_hash_map && m_index > other.m_index; }
@@ -113,15 +118,13 @@ public:
 
     HashMapConstIterator& operator++()
     {
-        auto next_it = m_hash_map->FindNextIterator(*this);
-        m_index = next_it.GetIndex();
+        m_index = m_hash_map->FindNextIndex(m_index, m_next_mask);
         return *this;
     }
     HashMapConstIterator operator++(int)
     {
-        auto next_it = m_hash_map->FindNextIterator(*this);
         auto rtn_it = *this;
-        m_index = next_it.GetIndex();
+        m_index = m_hash_map->FindNextIndex(m_index, m_next_mask);
         return rtn_it;
     }
 
@@ -135,6 +138,8 @@ public:
 private:
     const HashMapClass* m_hash_map = nullptr;
     u64 m_index = 0;
+    // Occupied slots after m_index in its group, one bit per slot of the group, or 0 when the group has not been read yet.
+    u32 m_next_mask = 0;
 };
 
 /**
@@ -316,8 +321,8 @@ private:
     iterator FindFirstIterator();
     const_iterator FindFirstIterator() const;
 
-    iterator FindNextIterator(iterator pos);
-    const_iterator FindNextIterator(const_iterator pos) const;
+    // Advances an iteration from the slot `index`, carrying `mask` as Impl::FindNextFull describes. Returns ~u64{} at the end.
+    u64 FindNextIndex(u64 index, u32& mask) const;
 
     pair_type& Get(u64 index);
     const pair_type& Get(u64 index) const;
@@ -1009,77 +1014,27 @@ Opal::DynamicArray<ValueType> Opal::HashMap<KeyType, ValueType>::ToArrayOfValues
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::iterator Opal::HashMap<KeyType, ValueType>::FindFirstIterator()
 {
-    if (m_control_bytes == nullptr)
-    {
-        return iterator(this, ~u64{});
-    }
-    u64 index = 0;
-    while (m_control_bytes[index] != Impl::k_control_sentinel)
-    {
-        if (Impl::IsControlFull(m_control_bytes[index]))
-        {
-            return iterator(this, index);
-        }
-        index++;
-    }
-    return iterator(this, ~u64{});
+    u32 mask = 0;
+    const u64 index = Impl::FindNextFull(m_control_bytes, ~u64{}, mask, m_capacity);
+    return iterator(this, index, mask);
 }
 
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::const_iterator Opal::HashMap<KeyType, ValueType>::FindFirstIterator() const
 {
-    if (m_control_bytes == nullptr)
-    {
-        return const_iterator(this, ~u64{});
-    }
-    u64 index = 0;
-    while (m_control_bytes[index] != Impl::k_control_sentinel)
-    {
-        if (Impl::IsControlFull(m_control_bytes[index]))
-        {
-            return const_iterator(this, index);
-        }
-        index++;
-    }
-    return const_iterator(this, ~u64{});
+    u32 mask = 0;
+    const u64 index = Impl::FindNextFull(m_control_bytes, ~u64{}, mask, m_capacity);
+    return const_iterator(this, index, mask);
 }
 
 template <typename KeyType, typename ValueType>
-Opal::HashMap<KeyType, ValueType>::iterator Opal::HashMap<KeyType, ValueType>::FindNextIterator(HashMap::iterator pos)
+Opal::u64 Opal::HashMap<KeyType, ValueType>::FindNextIndex(u64 index, u32& mask) const
 {
-    if (pos == end() || m_control_bytes == nullptr)
+    if (index == ~u64{})
     {
-        return end();
+        return ~u64{};
     }
-    u64 index = pos.GetIndex() + 1;
-    while (m_control_bytes[index] != Impl::k_control_sentinel)
-    {
-        if (Impl::IsControlFull(m_control_bytes[index]))
-        {
-            return iterator(this, index);
-        }
-        ++index;
-    }
-    return iterator(this, ~u64{});
-}
-
-template <typename KeyType, typename ValueType>
-Opal::HashMap<KeyType, ValueType>::const_iterator Opal::HashMap<KeyType, ValueType>::FindNextIterator(HashMap::const_iterator pos) const
-{
-    if (pos == cend() || m_control_bytes == nullptr)
-    {
-        return cend();
-    }
-    u64 index = pos.GetIndex() + 1;
-    while (m_control_bytes[index] != Impl::k_control_sentinel)
-    {
-        if (Impl::IsControlFull(m_control_bytes[index]))
-        {
-            return const_iterator(this, index);
-        }
-        ++index;
-    }
-    return const_iterator(this, ~u64{});
+    return Impl::FindNextFull(m_control_bytes, index, mask, m_capacity);
 }
 
 template <typename KeyType, typename ValueType>

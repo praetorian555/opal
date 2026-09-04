@@ -30,6 +30,7 @@ public:
 
     HashSetIterator() = default;
     HashSetIterator(hash_set_type* hash_set, u64 index) : m_hash_set(hash_set), m_index(index) {}
+    HashSetIterator(hash_set_type* hash_set, u64 index, u32 next_mask) : m_hash_set(hash_set), m_index(index), m_next_mask(next_mask) {}
 
     bool operator==(const HashSetIterator& other) const { return m_hash_set == other.m_hash_set && m_index == other.m_index; }
     bool operator>(const HashSetIterator& other) const { return m_hash_set == other.m_hash_set && m_index > other.m_index; }
@@ -39,15 +40,13 @@ public:
 
     HashSetIterator& operator++()
     {
-        auto next_it = m_hash_set->FindNextIterator(*this);
-        m_index = next_it.GetIndex();
+        m_index = m_hash_set->FindNextIndex(m_index, m_next_mask);
         return *this;
     }
     HashSetIterator operator++(int)
     {
-        auto next_it = m_hash_set->FindNextIterator(*this);
         auto rtn_it = *this;
-        m_index = next_it.GetIndex();
+        m_index = m_hash_set->FindNextIndex(m_index, m_next_mask);
         return rtn_it;
     }
 
@@ -60,6 +59,8 @@ public:
 private:
     HashSetType* m_hash_set = nullptr;
     u64 m_index = 0;
+    // Occupied slots after m_index in its group, one bit per slot of the group, or 0 when the group has not been read yet.
+    u32 m_next_mask = 0;
 };
 
 /**
@@ -79,6 +80,10 @@ public:
 
     HashSetConstIterator() = default;
     HashSetConstIterator(const hash_set_type* hash_set, u64 index) : m_hash_set(hash_set), m_index(index) {}
+    HashSetConstIterator(const hash_set_type* hash_set, u64 index, u32 next_mask)
+        : m_hash_set(hash_set), m_index(index), m_next_mask(next_mask)
+    {
+    }
 
     bool operator==(const HashSetConstIterator& other) const { return m_hash_set == other.m_hash_set && m_index == other.m_index; }
     bool operator>(const HashSetConstIterator& other) const { return m_hash_set == other.m_hash_set && m_index > other.m_index; }
@@ -88,15 +93,13 @@ public:
 
     HashSetConstIterator& operator++()
     {
-        auto next_it = m_hash_set->FindNextIterator(*this);
-        m_index = next_it.GetIndex();
+        m_index = m_hash_set->FindNextIndex(m_index, m_next_mask);
         return *this;
     }
     HashSetConstIterator operator++(int)
     {
-        auto next_it = m_hash_set->FindNextIterator(*this);
         auto rtn_it = *this;
-        m_index = next_it.GetIndex();
+        m_index = m_hash_set->FindNextIndex(m_index, m_next_mask);
         return rtn_it;
     }
 
@@ -109,6 +112,8 @@ public:
 private:
     const HashSetType* m_hash_set = nullptr;
     u64 m_index = 0;
+    // Occupied slots after m_index in its group, one bit per slot of the group, or 0 when the group has not been read yet.
+    u32 m_next_mask = 0;
 };
 
 /**
@@ -257,8 +262,8 @@ private:
     iterator FindFirstIterator();
     const_iterator FindFirstIterator() const;
 
-    iterator FindNextIterator(iterator pos);
-    const_iterator FindNextIterator(const_iterator pos) const;
+    // Advances an iteration from the slot `index`, carrying `mask` as Impl::FindNextFull describes. Returns ~u64{} at the end.
+    u64 FindNextIndex(u64 index, u32& mask) const;
 
     const key_type& GetKey(u64 index) const;
 
@@ -738,78 +743,27 @@ void Opal::HashSet<KeyType>::Clear()
 template <typename KeyType>
 Opal::HashSet<KeyType>::iterator Opal::HashSet<KeyType>::FindFirstIterator()
 {
-    if (m_control_bytes == nullptr)
-    {
-        return iterator(this, ~u64{});
-    }
-    u64 index = 0;
-    while (m_control_bytes[index] != Impl::k_control_sentinel)
-    {
-        if (Impl::IsControlFull(m_control_bytes[index]))
-        {
-            return iterator(this, index);
-        }
-        index++;
-    }
-    return iterator(this, ~u64{});
+    u32 mask = 0;
+    const u64 index = Impl::FindNextFull(m_control_bytes, ~u64{}, mask, m_capacity);
+    return iterator(this, index, mask);
 }
 
 template <typename KeyType>
 Opal::HashSet<KeyType>::const_iterator Opal::HashSet<KeyType>::FindFirstIterator() const
 {
-    if (m_control_bytes == nullptr)
-    {
-        return const_iterator(this, ~u64{});
-    }
-    u64 index = 0;
-    while (m_control_bytes[index] != Impl::k_control_sentinel)
-    {
-        if (Impl::IsControlFull(m_control_bytes[index]))
-        {
-            return const_iterator(this, index);
-        }
-        index++;
-    }
-    return const_iterator(this, ~u64{});
+    u32 mask = 0;
+    const u64 index = Impl::FindNextFull(m_control_bytes, ~u64{}, mask, m_capacity);
+    return const_iterator(this, index, mask);
 }
 
 template <typename KeyType>
-Opal::HashSet<KeyType>::iterator Opal::HashSet<KeyType>::FindNextIterator(iterator pos)
+Opal::u64 Opal::HashSet<KeyType>::FindNextIndex(u64 index, u32& mask) const
 {
-    if (pos == end() || m_control_bytes == nullptr)
+    if (index == ~u64{})
     {
-        return end();
+        return ~u64{};
     }
-    u64 index = pos.GetIndex() + 1;
-    while (m_control_bytes[index] != Impl::k_control_sentinel)
-    {
-        if (Impl::IsControlFull(m_control_bytes[index]))
-        {
-            return iterator(this, index);
-        }
-        ++index;
-    }
-    return iterator(this, ~u64{});
-}
-
-template <typename KeyType>
-Opal::HashSet<KeyType>::const_iterator Opal::HashSet<KeyType>::FindNextIterator(
-    HashSet::const_iterator pos) const
-{
-    if (pos == cend() || m_control_bytes == nullptr)
-    {
-        return cend();
-    }
-    u64 index = pos.GetIndex() + 1;
-    while (m_control_bytes[index] != Impl::k_control_sentinel)
-    {
-        if (Impl::IsControlFull(m_control_bytes[index]))
-        {
-            return const_iterator(this, index);
-        }
-        ++index;
-    }
-    return const_iterator(this, ~u64{});
+    return Impl::FindNextFull(m_control_bytes, index, mask, m_capacity);
 }
 
 template <typename KeyType>
