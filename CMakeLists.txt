@@ -320,7 +320,9 @@ if (OPAL_BUILD_BENCHMARKS)
     FetchContent_MakeAvailable(benchmark)
 
     set(OPAL_BENCHMARK_FILES
-            benchmark/hash-set-benchmark.cpp)
+            benchmark/main-benchmark.cpp
+            benchmark/hash-set-benchmark.cpp
+            benchmark/hash-map-benchmark.cpp)
     add_executable(opal_benchmark ${OPAL_BENCHMARK_FILES})
     target_link_libraries(opal_benchmark opal)
     target_link_libraries(opal_benchmark opal_warnings)

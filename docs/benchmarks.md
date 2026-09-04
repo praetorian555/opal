@@ -61,7 +61,8 @@ python compare.py filters results.json "/Opal/" "/Std/"
 
 ## Writing a benchmark
 
-- Add the file to `OPAL_BENCHMARK_FILES` in `CMakeLists.txt`.
+- Add the file to `OPAL_BENCHMARK_FILES` in `CMakeLists.txt`. Key sequences and the size sweep live in `benchmark/benchmark-helpers.h`, so a new
+  file sees the same input and sizes as the others.
 - Do setup before the `for (auto _ : state)` loop. Only the loop body is timed.
 - Feed every result into `benchmark::DoNotOptimize`, or the optimizer deletes the work.
 - When comparing against a standard container, write the body once as a template over the container type so both sides do

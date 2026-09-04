@@ -15,17 +15,13 @@
 #include <vector>
 
 #include "opal/container/hash-set.h"
-#include "opal/rng.h"
+
+#include "benchmark-helpers.h"
 
 namespace
 {
 
-using Key = Opal::u32;
-
-// Distinct RNG sequences so the "miss" keys do not overlap the inserted keys except by chance.
-constexpr Opal::u64 k_keys_sequence = 1;
-constexpr Opal::u64 k_miss_sequence = 2;
-constexpr Opal::u64 k_shuffle_sequence = 3;
+using namespace Bench;
 
 /**
  * Uniform interface over the two set types so every benchmark body is written once.
@@ -60,37 +56,6 @@ struct SetOps<std::unordered_set<K>>
     static Set Copy(const Set& set) { return Set(set); }
     static size_t Size(const Set& set) { return set.size(); }
 };
-
-/**
- * Random 32-bit keys from a fixed sequence, so every run and both set types see identical input.
- * Keys are not deduplicated. At 16M keys roughly 0.2% are repeats, which is the same for both sides.
- */
-std::vector<Key> MakeKeys(size_t count, Opal::u64 sequence)
-{
-    Opal::RNG rng(sequence);
-    std::vector<Key> keys;
-    keys.reserve(count);
-    for (size_t i = 0; i < count; i++)
-    {
-        keys.push_back(rng.RandomU32());
-    }
-    return keys;
-}
-
-/**
- * Fisher-Yates shuffle with a fixed sequence. Lookups use a different order than insertion, otherwise
- * a node-based set gets a memory-order walk through nodes allocated in insertion order.
- */
-std::vector<Key> Shuffled(std::vector<Key> keys, Opal::u64 sequence)
-{
-    Opal::RNG rng(sequence);
-    for (size_t i = keys.size(); i > 1; i--)
-    {
-        const size_t j = rng.RandomU32(0, static_cast<Opal::u32>(i));
-        std::swap(keys[i - 1], keys[j]);
-    }
-    return keys;
-}
 
 template <typename Set>
 Set BuildSet(const std::vector<Key>& keys)
@@ -263,28 +228,13 @@ void BM_Iterate(benchmark::State& state)
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(count));
 }
 
-// 1K, 8K, 64K, 512K, 4M, 16M keys: L1, L2, L3, and DRAM regimes for both layouts.
-void SizeSweep(benchmark::Benchmark* b)
-{
-    for (const int shift : {10, 13, 16, 19, 22, 24})
-    {
-        b->Arg(int64_t{1} << shift);
-    }
-}
-
-void SizeSweepManualTime(benchmark::Benchmark* b)
-{
-    SizeSweep(b);
-    b->UseManualTime();
-}
-
 }  // namespace
 
-// Names come out as "<operation>/<Opal|Std>/<size>", so Google Benchmark's tools/compare.py can pair them with:
+// Names come out as "HashSet/<operation>/<Opal|Std>/<size>", so the compare.py that ships with Google Benchmark can pair them with:
 //   compare.py filters results.json "/Opal/" "/Std/"
-#define SET_BENCHMARK(fn, name, configure)                                              \
-    BENCHMARK_TEMPLATE(fn, Opal::HashSet<Key>)->Name(name "/Opal")->Apply(configure);  \
-    BENCHMARK_TEMPLATE(fn, std::unordered_set<Key>)->Name(name "/Std")->Apply(configure)
+#define SET_BENCHMARK(fn, name, configure)                                                              \
+    BENCHMARK_TEMPLATE(fn, Opal::HashSet<Key>)->Name("HashSet/" name "/Opal")->Apply(configure);         \
+    BENCHMARK_TEMPLATE(fn, std::unordered_set<Key>)->Name("HashSet/" name "/Std")->Apply(configure)
 
 SET_BENCHMARK(BM_InsertGrow, "InsertGrow", SizeSweep);
 SET_BENCHMARK(BM_InsertReserved, "InsertReserved", SizeSweep);
@@ -293,5 +243,3 @@ SET_BENCHMARK(BM_FindMiss, "FindMiss", SizeSweep);
 SET_BENCHMARK(BM_Erase, "Erase", SizeSweepManualTime);
 SET_BENCHMARK(BM_Copy, "Copy", SizeSweep);
 SET_BENCHMARK(BM_Iterate, "Iterate", SizeSweep);
-
-BENCHMARK_MAIN();
