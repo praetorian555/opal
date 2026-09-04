@@ -7,6 +7,8 @@ option(OPAL_HARDENING "Enable hardening options" ON)
 message(STATUS "OPAL_HARDENING: ${OPAL_HARDENING}")
 option(OPAL_EXCEPTIONS "Allow the library to throw. When off, a failure that cannot be returned ends the program instead" ON)
 message(STATUS "OPAL_EXCEPTIONS: ${OPAL_EXCEPTIONS}")
+option(OPAL_BUILD_BENCHMARKS "Build the benchmarks. Fetches Google Benchmark at configure time" OFF)
+message(STATUS "OPAL_BUILD_BENCHMARKS: ${OPAL_BUILD_BENCHMARKS}")
 
 # Catch2 is built around exceptions, and the suite asserts on thrown types in the places the library still throws. There is
 # nothing to gain from a half-built test binary, so say what happened rather than fail the configure.
@@ -292,4 +294,36 @@ if (OPAL_BUILD_TESTS)
 
     enable_testing()
     add_test(NAME opal_test COMMAND opal_test)
+endif ()
+
+# Google Benchmark is not vendored: it is a full CMake project rather than a file or two, and nothing in the default build needs
+# it. Fetching it only when asked keeps the default configure offline and dependency-free.
+if (OPAL_BUILD_BENCHMARKS)
+    if (OPAL_HARDENING)
+        message(WARNING "OPAL_HARDENING=ON: the benchmarks will run under the sanitizers and measure their overhead rather than the library.")
+    endif ()
+
+    include(FetchContent)
+    set(BENCHMARK_ENABLE_TESTING OFF)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF)
+    set(BENCHMARK_ENABLE_INSTALL OFF)
+    set(BENCHMARK_INSTALL_DOCS OFF)
+    set(BENCHMARK_ENABLE_WERROR OFF)
+    set(BENCHMARK_ENABLE_EXCEPTIONS ${OPAL_EXCEPTIONS})
+    FetchContent_Declare(
+            benchmark
+            GIT_REPOSITORY https://github.com/google/benchmark.git
+            GIT_TAG v1.9.5
+            GIT_SHALLOW TRUE
+            SYSTEM
+            EXCLUDE_FROM_ALL)
+    FetchContent_MakeAvailable(benchmark)
+
+    set(OPAL_BENCHMARK_FILES
+            benchmark/hash-set-benchmark.cpp)
+    add_executable(opal_benchmark ${OPAL_BENCHMARK_FILES})
+    target_link_libraries(opal_benchmark opal)
+    target_link_libraries(opal_benchmark opal_warnings)
+    target_link_libraries(opal_benchmark opal_options)
+    target_link_libraries(opal_benchmark benchmark::benchmark)
 endif ()

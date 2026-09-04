@@ -24,6 +24,7 @@ cmake --build build
 | `OPAL_BUILD_TESTS` | `ON` | Build the test suite |
 | `OPAL_HARDENING` | `ON` | Enable sanitizers (address, undefined behavior) |
 | `OPAL_EXCEPTIONS` | `ON` | Allow the library to throw. When off, a failure that cannot be returned ends the program instead |
+| `OPAL_BUILD_BENCHMARKS` | `OFF` | Build the benchmarks. Fetches Google Benchmark at configure time |
 
 Opal builds as a static library. There is no shared build.
 
@@ -40,6 +41,19 @@ cmake --build build
 cd build
 ctest
 ```
+
+### Running Benchmarks
+
+Off by default, since Google Benchmark is fetched rather than vendored and the fetch needs the network. Build them Release
+with the sanitizers off, or the numbers measure the sanitizers:
+
+```bash
+cmake -B build/bench -DCMAKE_BUILD_TYPE=Release -DOPAL_BUILD_BENCHMARKS=ON -DOPAL_BUILD_TESTS=OFF -DOPAL_HARDENING=OFF
+cmake --build build/bench --config Release
+build/bench/opal_benchmark
+```
+
+See [docs/benchmarks.md](docs/benchmarks.md) for getting numbers that can be compared.
 
 ### Installing
 

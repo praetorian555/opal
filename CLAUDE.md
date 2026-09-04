@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-C++20 utility library for game engines and real-time systems. Pluggable memory allocation throughout. No external dependencies (Catch2 and wyhash vendored in `third-party/`).
+C++20 utility library for game engines and real-time systems. Pluggable memory allocation throughout. No external dependencies in the default build (Catch2 and rapidhash vendored in `third-party/`; Google Benchmark is fetched only when `OPAL_BUILD_BENCHMARKS` is on).
 
 **Namespace:** All public API lives in `Opal`.
 
@@ -16,7 +16,7 @@ cmake --build build
 cd build && ctest
 ```
 
-CMake options: `OPAL_BUILD_TESTS` (ON), `OPAL_HARDENING` (ON), `OPAL_EXCEPTIONS` (ON).
+CMake options: `OPAL_BUILD_TESTS` (ON), `OPAL_HARDENING` (ON), `OPAL_EXCEPTIONS` (ON), `OPAL_BUILD_BENCHMARKS` (OFF).
 
 Opal is a static library. There is no shared build and no export annotations: symbols are whatever the archive holds.
 
@@ -81,6 +81,10 @@ Test framework: Catch2 (amalgamated, vendored). Custom `main` in `test/main-test
 
 When adding a new source/header file, it must be added to `OPAL_FILES` in `CMakeLists.txt`.
 
+Benchmarks: Google Benchmark, fetched with FetchContent when `OPAL_BUILD_BENCHMARKS=ON`. Sources in `benchmark/*-benchmark.cpp`, target
+`opal_benchmark`. When adding a new benchmark file, it must be added to `OPAL_BENCHMARK_FILES` in `CMakeLists.txt`. Build them Release
+with `OPAL_HARDENING=OFF`; see `docs/benchmarks.md` for running and comparing.
+
 ## Directory Layout
 
 ```
@@ -91,8 +95,9 @@ include/opal/threading/    Threading primitives (mutex, channel, thread-pool, et
 include/opal/sort/         Sorting algorithms
 src/                       Source files (only for non-template code)
 test/                      Test files (*-test.cpp)
+benchmark/                 Benchmark files (*-benchmark.cpp)
 cmake/                     CMake helper modules
-third-party/               Vendored libraries (catch2, wyhash)
+third-party/               Vendored libraries (catch2, rapidhash)
 docs/                      Feature documentation
 ```
 

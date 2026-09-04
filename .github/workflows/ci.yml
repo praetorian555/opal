@@ -149,3 +149,42 @@ jobs:
 
     - name: Build the library
       run: cmake --build ${{github.workspace}}/build --target opal
+
+  # Google Benchmark only enters the build behind OPAL_BUILD_BENCHMARKS, which every job above leaves off. This job keeps the
+  # fetch and the benchmark sources compiling and runs the smallest size of every benchmark once, so a crash shows up here
+  # rather than at the start of a measurement session. The timings it prints mean nothing on a shared runner.
+  benchmarks:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: "MSVC benchmarks"
+          os: windows-2022
+          cxx: "cl"
+        - name: "GCC benchmarks"
+          os: ubuntu-latest
+          cxx: "g++"
+        - name: "Clang benchmarks"
+          os: ubuntu-latest
+          cxx: "clang++"
+    name: ${{matrix.config.name}}
+    runs-on: ${{matrix.config.os}}
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Set up MSVC developer environment
+      if: matrix.config.cxx == 'cl'
+      uses: ilammy/msvc-dev-cmd@v1
+      with:
+        toolset: "14.44"
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -G "Ninja" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=${{matrix.config.cxx}} -DOPAL_BUILD_TESTS=OFF -DOPAL_HARDENING=OFF -DOPAL_BUILD_BENCHMARKS=ON
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build
+
+    - name: Smoke run
+      working-directory: ${{github.workspace}}/build
+      shell: bash
+      run: ./opal_benchmark --benchmark_filter=1024 --benchmark_min_time=1x
