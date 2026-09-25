@@ -9,6 +9,7 @@
 #include "Windows.h"
 #elif defined(OPAL_PLATFORM_LINUX)
 #include <pthread.h>
+#include <sched.h>
 #include <sys/syscall.h>
 #include <unistd.h>
 
@@ -336,8 +337,8 @@ void Opal::SetThreadAffinity(ThreadHandle handle, u32 logical_core_id)
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);
         CPU_SET(logical_core_id, &cpu_set);
-        pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
-        pthread_setaffinity_np(native_handle, sizeof(cpu_set), &cpu_set);
+        // By the kernel thread id rather than pthread_setaffinity_np, which Bionic does not have. The id is SYS_gettid's.
+        sched_setaffinity(static_cast<pid_t>(handle.id), sizeof(cpu_set), &cpu_set);
 #else
 #error "Platform not supported"
 #endif

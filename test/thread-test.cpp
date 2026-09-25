@@ -16,6 +16,12 @@
 #include "opal/threading/thread-pool.h"
 #include "opal/threading/thread.h"
 
+#if defined(OPAL_PLATFORM_WINDOWS)
+#include "Windows.h"
+#else
+#include <sched.h>
+#endif
+
 using namespace Opal;
 
 namespace
@@ -51,6 +57,15 @@ struct FailAfterSwitchAllocator final : AllocatorBase
     MallocAllocator m_inner;
     std::atomic<bool> m_fail{false};
 };
+
+u32 GetCurrentLogicalCore()
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    return static_cast<u32>(GetCurrentProcessorNumber());
+#else
+    return static_cast<u32>(sched_getcpu());
+#endif
+}
 }  // namespace
 
 TEST_CASE("Create a thread", "[Thread]")
@@ -91,6 +106,24 @@ TEST_CASE("Create a thread out of memory", "[Thread]")
     const Expected<ThreadHandle, ErrorCode> handle = CreateThread([]() {});
     REQUIRE_FALSE(handle.HasValue());
     CHECK(handle.GetError() == ErrorCode::OutOfMemory);
+}
+
+TEST_CASE("Pin a thread to a logical core", "[Thread]")
+{
+    const Expected<CpuInfo, ErrorCode> cpu_info = GetCpuInfo();
+    REQUIRE(cpu_info.HasValue());
+    // The last core rather than the first, so a thread the call failed to move is unlikely to pass by having started there.
+    const u32 core = cpu_info.GetValue().logical_cores_count - 1;
+    u32 ran_on = ~0u;
+    const ThreadHandle handle = CreateThreadOrFail(
+        [](u32 target, u32& out_core)
+        {
+            SetThreadAffinity(GetCurrentThreadHandle(), target);
+            out_core = GetCurrentLogicalCore();
+        },
+        core, Ref(ran_on));
+    JoinThread(handle);
+    CHECK(ran_on == core);
 }
 
 TEST_CASE("SPSC queue basic Push and Pop", "[Thread]")
