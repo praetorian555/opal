@@ -1,9 +1,15 @@
 #pragma once
 
-#include <emmintrin.h>
-
 #include "opal/bit.h"
 #include "opal/types.h"
+
+#if defined(__SSE2__) || defined(_M_X64) || defined(_M_IX86)
+#define OPAL_HASH_TABLE_SSE2 1
+#include <emmintrin.h>
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define OPAL_HASH_TABLE_NEON 1
+#include <arm_neon.h>
+#endif
 
 // Shared machinery behind HashSet and HashMap. Both store their elements in a flat array of slots paired with an array of one byte
 // control values, one per slot, and probe the control array a group at a time. Nothing here depends on the element type, so it lives
@@ -57,6 +63,16 @@ inline constexpr u64 k_default_capacity = 4;
     return (hash >> 7) ^ seed;
 }
 
+#if defined(OPAL_HASH_TABLE_NEON)
+/** @return The top bit of each of the 16 bytes, byte i in bit i - what _mm_movemask_epi8 returns on x86. */
+[[nodiscard]] inline u32 MoveMask(uint8x16_t bytes)
+{
+    alignas(16) static constexpr i8 k_shifts[16] = {0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7};
+    const uint8x16_t bits = vshlq_u8(vshrq_n_u8(bytes, 7), vld1q_s8(k_shifts));
+    return static_cast<u32>(vaddv_u8(vget_low_u8(bits))) | (static_cast<u32>(vaddv_u8(vget_high_u8(bits))) << 8);
+}
+#endif
+
 /** @return The seven bits of the hash kept in the control byte. Always non-negative, so it never collides with a special value. */
 [[nodiscard]] inline i8 GetHash2(u64 hash)
 {
@@ -71,10 +87,21 @@ inline constexpr u64 k_default_capacity = 4;
  */
 [[nodiscard]] inline BitMask<u32> GetGroupMatch(const i8* group, i8 pattern)
 {
+#if defined(OPAL_HASH_TABLE_SSE2)
     const __m128i ctrl = _mm_loadu_si128(reinterpret_cast<const __m128i*>(group));
     const __m128i match = _mm_set1_epi8(pattern);
     // Compare byte for byte, then collect the top bit of each result byte into the low 16 bits of a word.
     return BitMask<u32>(static_cast<u32>(_mm_movemask_epi8(_mm_cmpeq_epi8(match, ctrl))));
+#elif defined(OPAL_HASH_TABLE_NEON)
+    return BitMask<u32>(MoveMask(vceqq_s8(vld1q_s8(group), vdupq_n_s8(pattern))));
+#else
+    u32 mask = 0;
+    for (u32 i = 0; i < k_group_width; ++i)
+    {
+        mask |= static_cast<u32>(group[i] == pattern) << i;
+    }
+    return BitMask<u32>(mask);
+#endif
 }
 
 /**
@@ -94,10 +121,21 @@ inline constexpr u64 k_default_capacity = 4;
  */
 [[nodiscard]] inline BitMask<u32> GetGroupNotFull(const i8* group)
 {
+    // Empty and deleted both order below the sentinel, every occupied value orders above it.
+#if defined(OPAL_HASH_TABLE_SSE2)
     const __m128i ctrl = _mm_loadu_si128(reinterpret_cast<const __m128i*>(group));
     const __m128i special = _mm_set1_epi8(k_control_sentinel);
-    // Empty and deleted both order below the sentinel, every occupied value orders above it.
     return BitMask<u32>(static_cast<u32>(_mm_movemask_epi8(_mm_cmpgt_epi8(special, ctrl))));
+#elif defined(OPAL_HASH_TABLE_NEON)
+    return BitMask<u32>(MoveMask(vcgtq_s8(vdupq_n_s8(k_control_sentinel), vld1q_s8(group))));
+#else
+    u32 mask = 0;
+    for (u32 i = 0; i < k_group_width; ++i)
+    {
+        mask |= static_cast<u32>(group[i] < k_control_sentinel) << i;
+    }
+    return BitMask<u32>(mask);
+#endif
 }
 
 /**
@@ -107,9 +145,20 @@ inline constexpr u64 k_default_capacity = 4;
  */
 [[nodiscard]] inline u32 GetGroupFullMask(const i8* group)
 {
-    const __m128i ctrl = _mm_loadu_si128(reinterpret_cast<const __m128i*>(group));
     // Every special value has its top bit set and a hash fragment does not, so the occupied slots are the bits movemask leaves clear.
+#if defined(OPAL_HASH_TABLE_SSE2)
+    const __m128i ctrl = _mm_loadu_si128(reinterpret_cast<const __m128i*>(group));
     return static_cast<u32>(_mm_movemask_epi8(ctrl)) ^ 0xFFFFu;
+#elif defined(OPAL_HASH_TABLE_NEON)
+    return MoveMask(vreinterpretq_u8_s8(vld1q_s8(group))) ^ 0xFFFFu;
+#else
+    u32 mask = 0;
+    for (u32 i = 0; i < k_group_width; ++i)
+    {
+        mask |= static_cast<u32>(IsControlFull(group[i])) << i;
+    }
+    return mask;
+#endif
 }
 
 /**
