@@ -114,7 +114,8 @@ private:
  * @tparam Args Constructor argument types.
  * @param allocator Allocator used for the object. If nullptr, the default allocator is used.
  * @param args Arguments forwarded to the constructor of Derived.
- * @return ScopePtr<Base> owning the newly constructed Derived object.
+ * @return ScopePtr<Base> owning the newly constructed Derived object, or an invalid ScopePtr when the allocator could not supply
+ *         storage.
  */
 template <typename Base, typename Derived = Base, typename... Args>
     requires Convertible<Derived*, Base*>

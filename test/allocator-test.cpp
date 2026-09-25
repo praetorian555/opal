@@ -207,6 +207,22 @@ TEST_CASE("New and delete", "[Allocator]")
     delete allocator;
 }
 
+namespace
+{
+struct Tracked
+{
+    virtual ~Tracked() { ++s_destroyed; }
+    static inline Opal::i32 s_destroyed = 0;
+};
+}  // namespace
+
+TEST_CASE("Delete of nullptr does nothing", "[Allocator]")
+{
+    Opal::Delete(Opal::GetDefaultAllocator(), static_cast<Tracked*>(nullptr));
+    Opal::Delete(nullptr, static_cast<Tracked*>(nullptr));
+    REQUIRE(Tracked::s_destroyed == 0);
+}
+
 TEST_CASE("ScratchAsDefault", "[Allocator]")
 {
     Opal::LinearAllocator linear_allocator("Linear Allocator");

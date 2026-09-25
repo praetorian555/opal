@@ -105,13 +105,11 @@ public:
         {
             return ReturnType(ErrorCode::ChannelClosed);
         }
-        Expected<SharedPtr<FunctionTask<Function>>, ErrorCode> task =
-            SharedPtr<FunctionTask<Function>>::Create(m_allocator, std::move(function));
-        if (!task.HasValue())
+        SharedPtr<FunctionTask<Function>> handle(m_allocator, std::move(function));
+        if (!handle.IsValid())
         {
-            return ReturnType(task.GetError());
+            return ReturnType(ErrorCode::OutOfMemory);
         }
-        SharedPtr<FunctionTask<Function>> handle = std::move(task).GetValue();
         m_communicator.transmitter.Send(SharedPtr<Task>{handle.Clone()});
         return ReturnType(SharedPtr<Task>{std::move(handle)});
     }

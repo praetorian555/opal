@@ -613,6 +613,8 @@ Header: `opal/container/scope-ptr.h`
 
 Unique ownership smart pointer. The managed object is destroyed when the `ScopePtr` goes out of scope. Similar to `std::unique_ptr`.
 
+`MakeScoped` returns an invalid pointer when the allocator cannot supply storage; check `IsValid()` on a budgeted allocator.
+
 ```cpp
 // Preferred: use MakeScoped factory
 Opal::ScopePtr<Widget> ptr = Opal::MakeScoped<Widget>(nullptr, arg1, arg2);
@@ -650,6 +652,8 @@ Opal::ScopePtr<Widget> other = std::move(ptr);  // ptr is now invalid
 Header: `opal/container/shared-ptr.h`
 
 Reference-counted smart pointer. The managed object is destroyed when the last `SharedPtr` sharing ownership is destroyed or reset. Copy is deleted; use `.Clone()` to share ownership.
+
+When the object or its reference count cannot be allocated, the constructors and `MakeShared` return an invalid pointer rather than throwing; check `IsValid()` on a budgeted allocator. A `ThreadSafe` pointer given an allocator that is not thread-safe throws `InvalidArgumentException`.
 
 ### Threading Policies
 
@@ -786,7 +790,7 @@ Containers use two error handling approaches depending on the severity:
 
 | Style | Used By | Example |
 |-------|---------|---------|
-| **Exceptions** | `SharedPtr`, and constructors everywhere | `OutOfBoundsException`, `OutOfMemoryException`, `InvalidArgumentException` |
+| **Exceptions** | Constructors everywhere, except the owning pointers | `OutOfBoundsException`, `OutOfMemoryException`, `InvalidArgumentException` |
 | **ErrorCode returns** | `Deque`, `DynamicArray`, `String`, `HashSet`, `HashMap`, `ArrayView` | `ErrorCode::OutOfBounds`, `ErrorCode::OutOfMemory`, `ErrorCode::InvalidArgument` |
 
 `Expected<T, ErrorCode>` is used for operations that need to return both a value and an error status, such as `Deque::At()` or `ArrayView::SubSpan()`.

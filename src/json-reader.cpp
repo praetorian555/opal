@@ -86,12 +86,22 @@ JsonValue JsonValue::MakeString(StringViewUtf8 value)
 
 JsonValue JsonValue::MakeArray(AllocatorBase* allocator)
 {
-    return JsonValue(JsonArray(allocator));
+    JsonArray array(allocator);
+    if (!array.IsValid()) [[unlikely]]
+    {
+        OPAL_RAISE(OutOfMemoryException("JsonValue::MakeArray"));
+    }
+    return JsonValue(std::move(array));
 }
 
 JsonValue JsonValue::MakeObject(AllocatorBase* allocator)
 {
-    return JsonValue(JsonObject(allocator));
+    JsonObject object(allocator);
+    if (!object.IsValid()) [[unlikely]]
+    {
+        OPAL_RAISE(OutOfMemoryException("JsonValue::MakeObject"));
+    }
+    return JsonValue(std::move(object));
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -1200,24 +1210,22 @@ private:
     // The containers are reference counted, so building one is an allocation that a budgeted allocator can refuse.
     JsonArray MakeArray()
     {
-        Expected<JsonArray, ErrorCode> array = JsonArray::Create(m_allocator);
-        if (!array.HasValue()) [[unlikely]]
+        JsonArray array(m_allocator);
+        if (!array.IsValid()) [[unlikely]]
         {
             FailOutOfMemory();
-            return {};
         }
-        return std::move(array).GetValue();
+        return array;
     }
 
     JsonObject MakeObject()
     {
-        Expected<JsonObject, ErrorCode> object = JsonObject::Create(m_allocator);
-        if (!object.HasValue()) [[unlikely]]
+        JsonObject object(m_allocator);
+        if (!object.IsValid()) [[unlikely]]
         {
             FailOutOfMemory();
-            return {};
         }
-        return std::move(object).GetValue();
+        return object;
     }
 
     const char8* m_input = nullptr;

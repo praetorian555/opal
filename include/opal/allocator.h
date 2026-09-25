@@ -281,9 +281,18 @@ T* New(AllocatorBase* allocator, Args&&... args)
 #endif
 }
 
+/**
+ * Destroy a single object and return its storage.
+ * @param allocator Allocator that supplied the object's storage. If nullptr, the default allocator is used.
+ * @param ptr Object to destroy. Deleting nullptr does nothing.
+ */
 template <typename T>
 void Delete(AllocatorBase* allocator, T* ptr)
 {
+    if (ptr == nullptr)
+    {
+        return;
+    }
     if (allocator == nullptr)
     {
         allocator = GetDefaultAllocator();

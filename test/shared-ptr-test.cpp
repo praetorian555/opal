@@ -60,23 +60,49 @@ TEMPLATE_TEST_CASE("SharedPtr reports a failed allocation", "[SharedPtr]",
     {
         NullAllocator allocator;
 
-        SECTION("The constructor throws, having nowhere to put a code")
+        SECTION("The in-place constructor leaves the pointer invalid")
         {
-            REQUIRE_THROWS_AS((SharedPtr<i32, k_policy>(&allocator, 42)), OutOfMemoryException);
+            const SharedPtr<i32, k_policy> pointer(&allocator, 42);
+            REQUIRE_FALSE(pointer.IsValid());
         }
-        SECTION("Create reports it instead")
+        SECTION("MakeShared returns an invalid pointer")
         {
-            Expected<SharedPtr<i32, k_policy>, ErrorCode> pointer = SharedPtr<i32, k_policy>::Create(&allocator, 42);
-            REQUIRE(!pointer.HasValue());
-            REQUIRE(pointer.GetError() == ErrorCode::OutOfMemory);
+            const SharedPtr<i32, k_policy> pointer = MakeShared<i32, i32, k_policy>(&allocator, 42);
+            REQUIRE_FALSE(pointer.IsValid());
         }
     }
-    SECTION("Create succeeds on a working allocator")
+    SECTION("Adopting destroys the object when the reference count cannot be allocated")
     {
-        Expected<SharedPtr<i32, k_policy>, ErrorCode> pointer = SharedPtr<i32, k_policy>::Create(GetDefaultAllocator(), 42);
-        REQUIRE(pointer.HasValue());
-        REQUIRE(pointer.GetValue().IsValid());
-        REQUIRE(*pointer.GetValue().Get() == 42);
+        // Serves the object, then refuses the reference count.
+        struct OneShotAllocator : AllocatorBase
+        {
+            OneShotAllocator() : AllocatorBase("OneShot") {}
+            void* Alloc(u64 size, u64 alignment) override
+            {
+                if (m_served)
+                {
+                    return nullptr;
+                }
+                m_served = true;
+                return GetDefaultAllocator()->Alloc(size, alignment);
+            }
+            void Free(void* ptr) override
+            {
+                ++m_frees;
+                GetDefaultAllocator()->Free(ptr);
+            }
+            [[nodiscard]] bool IsThreadSafe() const override { return true; }
+
+            bool m_served = false;
+            i32 m_frees = 0;
+        };
+
+        OneShotAllocator allocator;
+        i32* raw = New<i32>(&allocator, 7);
+        REQUIRE(raw != nullptr);
+        const SharedPtr<i32, k_policy> pointer(&allocator, raw);
+        REQUIRE_FALSE(pointer.IsValid());
+        REQUIRE(allocator.m_frees == 1);
     }
 }
 

@@ -277,6 +277,8 @@ A failure the caller can act on is returned. A failure that means the caller bro
 2. **`Expected<T, ErrorCode>`** when it does - `TryAt`, `Front`, `Back`, an `Insert` that yields an iterator.
 3. **Exceptions** (inheriting from `Opal::Exception`) for contract violations, and for constructors, which have no way to return anything. `GetValue` on a key that is not in the map throws; so does a constructor that cannot allocate.
 
+Owning pointers are the exception to the last rule: they already have an empty state to report through. `ScopePtr`, `SharedPtr`, `MakeScoped` and `MakeShared` come back invalid when an allocation fails, and the caller checks `IsValid()`. `SharedPtr` still throws for a `ThreadSafe` policy given an allocator that is not thread-safe, since that is a broken contract rather than a shortage.
+
 Allocation failure is recoverable, not exceptional. Allocators are pluggable and often budgeted (`LinearAllocator`, `NullAllocator`), so exhausting one is an ordinary event to branch on: return `ErrorCode::OutOfMemory` instead of throwing. `AllocatorBase::Alloc` returns `nullptr` for the same reason.
 
 `ErrorCode` enum in `error-codes.h`. Exception types in `exceptions.h`.

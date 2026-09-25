@@ -147,7 +147,17 @@ public:
     }
 
     [[nodiscard]] static JsonValue MakeString(StringViewUtf8 value);
+    /**
+     * Make an empty array value.
+     * @param allocator Allocator for the array. If nullptr, the default allocator is used.
+     * @throws OutOfMemoryException If the array cannot be allocated.
+     */
     [[nodiscard]] static JsonValue MakeArray(AllocatorBase* allocator = nullptr);
+    /**
+     * Make an empty object value.
+     * @param allocator Allocator for the object. If nullptr, the default allocator is used.
+     * @throws OutOfMemoryException If the object cannot be allocated.
+     */
     [[nodiscard]] static JsonValue MakeObject(AllocatorBase* allocator = nullptr);
 
     // -- Mutation --

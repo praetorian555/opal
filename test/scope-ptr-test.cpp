@@ -57,6 +57,12 @@ TEST_CASE("MakeScoped", "[ScopePtr]")
         REQUIRE(ptr.IsValid());
         REQUIRE(*ptr == 10);
     }
+    SECTION("Invalid when the allocator cannot supply storage")
+    {
+        NullAllocator allocator;
+        ScopePtr<int> ptr = MakeScoped<int>(&allocator, 10);
+        REQUIRE_FALSE(ptr.IsValid());
+    }
     SECTION("Derived to base conversion")
     {
         struct Base
