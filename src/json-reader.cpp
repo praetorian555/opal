@@ -15,7 +15,7 @@ namespace Opal
 
 namespace
 {
-const char* JsonTypeToString(JsonType type)
+[[maybe_unused]] const char* JsonTypeToString(JsonType type)
 {
     switch (type)
     {
@@ -37,7 +37,7 @@ const char* JsonTypeToString(JsonType type)
 
 // Both parameters go into the exception's message, and a build without exceptions has no message to build: OPAL_RAISE hands the
 // contract violation handler a fixed string instead.
-void ThrowTypeMismatch([[maybe_unused]] const char* expected, [[maybe_unused]] JsonType actual)
+[[noreturn]] void ThrowTypeMismatch([[maybe_unused]] const char* expected, [[maybe_unused]] JsonType actual)
 {
     OPAL_RAISE(JsonTypeMismatchException(expected, JsonTypeToString(actual)));
 }
@@ -447,9 +447,6 @@ u64 JsonValue::GetSize() const
         return m_data.Get<JsonObject>()->GetSize();
     }
     ThrowTypeMismatch("array or object", GetType());
-#ifdef OPAL_DEBUG
-    return 0;
-#endif
 }
 
 // ------------------------------------------------------------------------------------------------
