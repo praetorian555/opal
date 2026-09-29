@@ -72,10 +72,14 @@ const char* Opal::LogLevelToString(LogLevel level)
 
 Opal::ConsoleSink::ConsoleSink() : m_stdout(stdout) {}
 
-void Opal::ConsoleSink::Write(LogLevel /*level*/, StringViewUtf8 /*category*/, StringViewUtf8 formatted_message)
+void Opal::ConsoleSink::Write(LogLevel level, StringViewUtf8 /*category*/, StringViewUtf8 formatted_message)
 {
     auto guard = m_stdout.Lock();
     fwrite(formatted_message.GetData(), 1, formatted_message.GetSize(), *guard.Deref());
+    if (level <= LogLevel::Warning)
+    {
+        fflush(*guard.Deref());
+    }
 }
 
 void Opal::ConsoleSink::Flush()

@@ -140,6 +140,10 @@ Sinks are where log messages go. The logger can have multiple sinks. Each sink r
 
 Writes all output to `stdout`. Thread-safe via an internal `Mutex<FILE*>`.
 
+Warning, Error and Fatal messages are flushed as they are written. Info and Verbose are left to the C runtime's buffering, which
+holds them back when `stdout` is a pipe rather than a terminal - an IDE's run or debug console, for one. Call `Logger::Flush()`
+to push them out.
+
 ```cpp
 auto console_sink = Opal::MakeShared<Opal::LogSink, Opal::ConsoleSink>(nullptr);
 logger.AddSink(console_sink);

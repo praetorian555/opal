@@ -33,6 +33,10 @@ struct LogSink
     virtual void Flush() = 0;
 };
 
+/**
+ * Writes to stdout. Warnings and more severe messages are flushed as they are written, so they appear even when stdout is
+ * buffered, as it is when piped to an IDE's console.
+ */
 class ConsoleSink : public LogSink
 {
 public:
