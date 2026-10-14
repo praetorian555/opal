@@ -387,7 +387,9 @@ private:
     // document lives in the string's inline storage, which moves with the object. Owning it through a pointer keeps
     // the characters at one address no matter how often the reader is moved.
     ScopePtr<StringUtf8> m_owned_input;
-    DynamicArray<StringUtf8> m_escaped_strings;
+    // The strings that held escapes, unescaped. Each is a heap object of its own: a short string's characters live inside
+    // the string object, and an array of the strings themselves would move them every time it grows.
+    DynamicArray<ScopePtr<StringUtf8>> m_escaped_strings;
     AllocatorBase* m_allocator = nullptr;
 };
 

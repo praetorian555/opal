@@ -580,7 +580,7 @@ struct ParseFrame
 class JsonParser
 {
 public:
-    JsonParser(StringViewUtf8 input, AllocatorBase* allocator, DynamicArray<StringUtf8>& escaped_strings)
+    JsonParser(StringViewUtf8 input, AllocatorBase* allocator, DynamicArray<ScopePtr<StringUtf8>>& escaped_strings)
         : m_input(input.GetData()), m_size(input.GetSize()), m_allocator(allocator), m_escaped_strings(escaped_strings)
     {
     }
@@ -1027,9 +1027,19 @@ private:
 
         ++m_pos;  // skip closing quote
 
-        m_escaped_strings->PushBack(std::move(unescaped));
-        const StringUtf8& stored = m_escaped_strings.Get()[m_escaped_strings->GetSize() - 1];
-        return {stored};
+        ScopePtr<StringUtf8> stored = MakeScoped<StringUtf8>(m_allocator, std::move(unescaped));
+        if (!stored.IsValid()) [[unlikely]]
+        {
+            FailOutOfMemory();
+            return {};
+        }
+        const StringViewUtf8 view(*stored.Get());
+        if (m_escaped_strings->PushBack(std::move(stored)) != ErrorCode::Success) [[unlikely]]
+        {
+            FailOutOfMemory();
+            return {};
+        }
+        return view;
     }
 
     void UnescapeUnicode(StringUtf8& out, u64& i)
@@ -1234,7 +1244,7 @@ private:
     u64 m_line = 1;
     u64 m_column = 1;
     AllocatorBase* m_allocator = nullptr;
-    Ref<DynamicArray<StringUtf8>> m_escaped_strings;
+    Ref<DynamicArray<ScopePtr<StringUtf8>>> m_escaped_strings;
     DynamicArray<ParseFrame> m_stack;
     JsonParseError m_error;
     bool m_failed = false;
@@ -1255,7 +1265,7 @@ Expected<JsonReader, JsonParseError> JsonReader::Parse(const StringUtf8& input, 
     }
     JsonReader reader;
     reader.m_allocator = allocator;
-    reader.m_escaped_strings = DynamicArray<StringUtf8>(allocator);
+    reader.m_escaped_strings = DynamicArray<ScopePtr<StringUtf8>>(allocator);
 
     JsonParser parser(input, allocator, reader.m_escaped_strings);
     JsonValue root = parser.Parse();
@@ -1281,7 +1291,7 @@ Expected<JsonReader, JsonParseError> JsonReader::Parse(StringUtf8&& input, Alloc
     {
         return Result(JsonParseError(ErrorCode::OutOfMemory, 0, 0, 0, "Out of memory"));
     }
-    reader.m_escaped_strings = DynamicArray<StringUtf8>(allocator);
+    reader.m_escaped_strings = DynamicArray<ScopePtr<StringUtf8>>(allocator);
 
     const StringViewUtf8 view(*reader.m_owned_input.Get());
     JsonParser parser(view, allocator, reader.m_escaped_strings);

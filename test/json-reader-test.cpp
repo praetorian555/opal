@@ -74,6 +74,27 @@ TEST_CASE("JsonReader parse string with escapes", "[JsonReader]")
     REQUIRE(reader.GetRoot().GetString() == StringViewUtf8("hello\nworld"));
 }
 
+TEST_CASE("JsonReader parse many short strings with escapes", "[JsonReader]")
+{
+    // Short enough to sit inside the string object, and enough of them for the reader's store of unescaped strings to grow.
+    StringUtf8 input("[");
+    for (i32 i = 0; i < 100; ++i)
+    {
+        input.Append(i == 0 ? "" : ",");
+        input.Append("\"a\\/");
+        input.Append(static_cast<char8>('0' + i % 10));
+        input.Append("\"");
+    }
+    input.Append("]");
+    JsonReader reader = ParseOrFail(input);
+    REQUIRE(reader.GetRoot().GetSize() == 100);
+    for (u64 i = 0; i < 100; ++i)
+    {
+        const char8 expected[] = {'a', '/', static_cast<char8>('0' + i % 10)};
+        REQUIRE(reader.GetRoot()[i].GetString() == StringViewUtf8(expected, 3));
+    }
+}
+
 TEST_CASE("JsonReader parse string with unicode escape", "[JsonReader]")
 {
     // \u0041 = 'A'
