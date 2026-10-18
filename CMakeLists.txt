@@ -229,6 +229,7 @@ if (OPAL_BUILD_TESTS)
             test/dynamic-array-test.cpp
             test/deque-test.cpp
             test/array-view-test.cpp
+            test/string-encoding-test.cpp
             test/string-test.cpp
             test/string-view-test.cpp
             test/expected-test.cpp

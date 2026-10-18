@@ -36,17 +36,18 @@ struct EncodingUtf8
      * @param in_code_point Input code point.
      * @param output Output span used to append result to. It will be update to point after the inserted data.
      * @return Returns ErrorCode::Success if encoding was successful, ErrorCode::InsufficientSpace if there is not enough space to
-     * store encoding result in the `output` span, ErrorCode::InvalidArgument if the `in_code_point` is unsupported code point.
+     * store encoding result in the `output` span, ErrorCode::InvalidArgument if the `in_code_point` is a surrogate or above U+10FFFF.
      */
     ErrorCode EncodeOne(CodePointType in_code_point, ArrayView<CodeUnitT>& output);
 
     /**
-     * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`.
-     * @param input Input span. Modified to point after decoded data.
+     * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`. Only
+     * well-formed UTF-8 decodes: the shortest form of a code point up to U+10FFFF that is not a surrogate.
+     * @param input Input span. Modified to point after decoded data; left as it was when decoding fails.
      * @param out_code_point Output code point.
-     * @return Returns ErrorCode::Success if the decoding was successful, ErrorCode::IncompleteSequence if there is not enough input data
-     * to decode current code point, ErrorCode::InvalidArgument if the decoded data does not match rules for the current encoding,
-     * ErrorCode::EndOfString if there is no more data to decode.
+     * @return Returns ErrorCode::Success if the decoding was successful, ErrorCode::IncompleteSequence if the input ends inside a
+     * sequence that is well-formed so far, ErrorCode::InvalidArgument if the data is not well-formed UTF-8, ErrorCode::EndOfString if
+     * there is no more data to decode.
      */
     ErrorCode DecodeOne(ArrayView<const CodeUnitT>& input, CodePointType& out_code_point);
 };
@@ -67,11 +68,12 @@ struct EncodingUtf16LE
     ErrorCode EncodeOne(CodePointType in_code_point, ArrayView<CodeUnitT>& output);
 
     /**
-     * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`.
-     * @param input Input span. Modified to point after decoded data.
+     * Decodes first sequence detected in the input span and stores the resulting code point into the `out_code_point`. The code
+     * units are 16-bit values, so their byte order is the reader's concern.
+     * @param input Input span. Modified to point after decoded data; left as it was when decoding fails.
      * @param out_code_point Output code point.
-     * @return Returns ErrorCode::Success if the decoding was successful, ErrorCode::IncompleteSequence if there is not enough input data
-     * to decode current code point, ErrorCode::InvalidArgument if the decoded data does not match rules for the current encoding,
+     * @return Returns ErrorCode::Success if the decoding was successful, ErrorCode::IncompleteSequence if the input ends after a high
+     * surrogate, ErrorCode::InvalidArgument for a high surrogate not followed by a low one or a low surrogate on its own,
      * ErrorCode::EndOfString if there is no more data to decode.
      */
     ErrorCode DecodeOne(ArrayView<const CodeUnitT>& input, CodePointType& out_code_point);
@@ -166,6 +168,10 @@ Opal::ErrorCode CLASS_HEADER::EncodeOne(typename CLASS_HEADER::CodePointType in_
     }
     if (in_code_point <= 0xFFFF)
     {
+        if (in_code_point >= 0xD800 && in_code_point <= 0xDFFF)
+        {
+            return ErrorCode::InvalidArgument;
+        }
         if (out_size < 3)
         {
             return ErrorCode::InsufficientSpace;
@@ -202,57 +208,59 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
     {
         return ErrorCode::EndOfString;
     }
-    if ((input[0] & 0x80) == 0)
+    const u8 lead = static_cast<u8>(input[0]);
+    if (lead < 0x80)
     {
-        out_code_point = static_cast<CodePointType>(input[0]);
+        out_code_point = static_cast<CodePointType>(lead);
         input = ArrayView<const CodeUnitT>(in_begin + 1, in_end);
         return ErrorCode::Success;
     }
-    if ((input[0] & 0xF0) == 0xF0)
+    i64 length = 0;
+    CodePointType code_point = 0;
+    CodePointType least = 0;
+    if (lead >= 0xC2 && lead <= 0xDF)
     {
-        if (in_size < 4)
-        {
-            return ErrorCode::IncompleteSequence;
-        }
-        if ((input[1] & 0x80) != 0x80 || (input[2] & 0x80) != 0x80 || (input[3] & 0x80) != 0x80)
+        length = 2;
+        code_point = lead & 0x1F;
+        least = 0x80;
+    }
+    else if (lead >= 0xE0 && lead <= 0xEF)
+    {
+        length = 3;
+        code_point = lead & 0x0F;
+        least = 0x800;
+    }
+    else if (lead >= 0xF0 && lead <= 0xF4)
+    {
+        length = 4;
+        code_point = lead & 0x07;
+        least = 0x10000;
+    }
+    else
+    {
+        return ErrorCode::InvalidArgument;
+    }
+    const i64 available = in_size < length ? static_cast<i64>(in_size) : length;
+    for (i64 i = 1; i < available; ++i)
+    {
+        const u8 next = static_cast<u8>(input[static_cast<u64>(i)]);
+        if ((next & 0xC0) != 0x80)
         {
             return ErrorCode::InvalidArgument;
         }
-        out_code_point = Narrow<CodePointType>((input[0] & 0x07) << 18) | Narrow<CodePointType>((input[1] & 0x3F) << 12) |
-                         Narrow<CodePointType>((input[2] & 0x3F) << 6) | Narrow<CodePointType>(input[3] & 0x3F);
-        input = ArrayView<const CodeUnitT>(in_begin + 4, in_end);
-        return ErrorCode::Success;
+        code_point = (code_point << 6) | (next & 0x3F);
     }
-    if ((input[0] & 0xE0) == 0xE0)
+    if (available < length)
     {
-        if (in_size < 3)
-        {
-            return ErrorCode::IncompleteSequence;
-        }
-        if ((input[1] & 0x80) != 0x80 || (input[2] & 0x80) != 0x80)
-        {
-            return ErrorCode::InvalidArgument;
-        }
-        out_code_point = Narrow<CodePointType>((input[0] & 0x0F) << 12) | Narrow<CodePointType>((input[1] & 0x3F) << 6) |
-                         Narrow<CodePointType>(input[2] & 0x3F);
-        input = ArrayView<const CodeUnitT>(in_begin + 3, in_end);
-        return ErrorCode::Success;
+        return ErrorCode::IncompleteSequence;
     }
-    if ((input[0] & 0xC0) == 0xC0)
+    if (code_point < least || code_point > 0x10FFFF || (code_point >= 0xD800 && code_point <= 0xDFFF))
     {
-        if (in_size < 2)
-        {
-            return ErrorCode::IncompleteSequence;
-        }
-        if ((input[1] & 0x80) != 0x80)
-        {
-            return ErrorCode::InvalidArgument;
-        }
-        out_code_point = Narrow<CodePointType>((input[0] & 0x1F) << 6) | Narrow<CodePointType>(input[1] & 0x3F);
-        input = ArrayView<const CodeUnitT>(in_begin + 2, in_end);
-        return ErrorCode::Success;
+        return ErrorCode::InvalidArgument;
     }
-    return ErrorCode::InvalidArgument;
+    out_code_point = code_point;
+    input = ArrayView<const CodeUnitT>(in_begin + length, in_end);
+    return ErrorCode::Success;
 }
 
 #undef TEMPLATE_HEADER
@@ -333,26 +341,26 @@ Opal::ErrorCode CLASS_HEADER::DecodeOne(ArrayView<const CodeUnitT>& input, CodeP
     {
         return ErrorCode::EndOfString;
     }
-    if (input[0] < 0xD800)
+    const CodePointType unit = static_cast<CodePointType>(input[0]) & 0xFFFF;
+    if (unit < 0xD800 || unit > 0xDFFF)
     {
-        out_code_point = static_cast<CodePointType>(input[0]);
+        out_code_point = unit;
         input = ArrayView<const CodeUnitT>(input.begin() + 1, input.end());
         return ErrorCode::Success;
     }
-    if (input[0] >= 0xD800 && input[0] <= 0xDBFF)
+    if (unit <= 0xDBFF)
     {
         if (input.GetSize() < 2)
         {
             return ErrorCode::IncompleteSequence;
         }
-        if (input[1] >= 0xDC00 && input[1] <= 0xDFFF)
+        const CodePointType low = static_cast<CodePointType>(input[1]) & 0xFFFF;
+        if (low >= 0xDC00 && low <= 0xDFFF)
         {
-            out_code_point = static_cast<CodePointType>((input[0] - 0xD800) << 10) | (input[1] - 0xDC00);
-            out_code_point += 0x10000;
+            out_code_point = ((unit - 0xD800) << 10) + (low - 0xDC00) + 0x10000;
             input = ArrayView<const CodeUnitT>(input.begin() + 2, input.end());
             return ErrorCode::Success;
         }
-        return ErrorCode::InvalidArgument;
     }
     return ErrorCode::InvalidArgument;
 }
