@@ -345,6 +345,37 @@ view.RemovePrefix(n);              // Shrink from front
 view.RemoveSuffix(n);              // Shrink from back
 ```
 
+### Encodings and Transcoding
+
+An encoding turns code units into code points and back, one at a time: `DecodeOne` and `EncodeOne` on the encoding types
+in `opal/container/string-encoding.h`. Each string and view carries one as its second template argument.
+
+| Encoding | Code unit | What it reads and writes |
+|----------|-----------|--------------------------|
+| `EncodingUtf8<T>` | 8-bit | Well-formed UTF-8 only: the shortest form of a code point up to U+10FFFF that is not a surrogate. |
+| `EncodingUtf16LE<T>` | 16-bit | UTF-16 code units; a surrogate pair is one code point, a surrogate on its own does not decode. Byte order is the reader's concern. |
+| `EncodingUtf32LE<T>` | 32-bit | One code unit a code point. |
+| `EncodingLocale` | `char8` | The C library's current locale. |
+| `EncodingWindows1250` | `char8` | Windows-1250: Central and Eastern European languages in the Latin script. |
+| `EncodingWindows1251` | `char8` | Windows-1251: languages in the Cyrillic script. |
+| `EncodingWindows1252` | `char8` | Windows-1252: Western European languages. |
+
+A decoder that meets input it cannot read reports `ErrorCode::InvalidArgument`, or `ErrorCode::IncompleteSequence` when the
+input ends inside a sequence that is well formed so far, and leaves the input where it was. A Windows code page refuses the
+few bytes it leaves unassigned, and does not encode a code point it has no byte for.
+
+`Transcode(input, output)` converts a string or a view in one encoding into a string in another, growing the output as it
+goes. It stops at the first sequence that does not decode, or code point that does not encode. With
+`InvalidSequencePolicy::Replace` it writes U+FFFD in their place instead - or `?` where the output encoding has no U+FFFD -
+one for each code unit that starts no valid sequence, and one for a sequence cut short at the end.
+
+```cpp
+// Bytes of a file in Windows-1251, as UTF-8.
+Opal::StringUtf8 text;
+const Opal::ErrorCode error = Opal::Transcode(Opal::StringView<char8, Opal::EncodingWindows1251>(bytes, size), text,
+                                              Opal::InvalidSequencePolicy::Replace);
+```
+
 ### String Comparison
 
 ```cpp

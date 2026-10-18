@@ -211,7 +211,7 @@ See [docs/program-arguments.md](docs/program-arguments.md) for the full guide.
 | `opal/container/in-place-array.h` | Fixed-capacity array with stack storage |
 | `opal/container/string.h` | Full-featured UTF-8 string |
 | `opal/container/string-view.h` | Non-owning UTF-8 string view |
-| `opal/container/string-encoding.h` | UTF-8, UTF-16, and UTF-32 encoding support |
+| `opal/container/string-encoding.h` | UTF-8, UTF-16, UTF-32 and Windows-1250, 1251 and 1252 encoding support |
 | `opal/container/string-hash.h` | String hashing utilities |
 | `opal/container/hash-map.h` | Hash map using Swiss tables algorithm |
 | `opal/container/hash-set.h` | Hash set using Swiss tables algorithm |

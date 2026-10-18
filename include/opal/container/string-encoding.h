@@ -134,6 +134,62 @@ private:
     mbstate_t m_decoding_state;
 };
 
+namespace Impl
+{
+/** The code points a single-byte code page gives bytes 0x80 to 0xFF, 0 where it gives none. */
+using HighHalfTable = uchar32[128];
+
+ErrorCode EncodeSingleByte(const HighHalfTable& table, uchar32 in_code_point, ArrayView<char8>& output);
+ErrorCode DecodeSingleByte(const HighHalfTable& table, ArrayView<const char8>& input, uchar32& out_code_point);
+
+extern const HighHalfTable g_windows_1250_table;
+extern const HighHalfTable g_windows_1251_table;
+extern const HighHalfTable g_windows_1252_table;
+}  // namespace Impl
+
+/**
+ * A Windows code page of one byte a character: ASCII below 0x80, and from 0x80 the characters the code page assigns. The bytes
+ * the code page leaves unassigned do not decode, and a code point it has no byte for does not encode; both report
+ * ErrorCode::InvalidArgument. Decoding never reports ErrorCode::IncompleteSequence.
+ */
+template <const Impl::HighHalfTable& Table>
+struct EncodingSingleByte
+{
+    using CodeUnitType = char8;
+    using CodePointType = uchar32;
+
+    /**
+     * Encodes a code point as its byte.
+     * @param in_code_point Input code point.
+     * @param output Output span. Updated to point after the byte.
+     * @return ErrorCode::Success, ErrorCode::InsufficientSpace when `output` is empty, or ErrorCode::InvalidArgument for a code
+     * point the code page has no byte for.
+     */
+    ErrorCode EncodeOne(CodePointType in_code_point, ArrayView<CodeUnitType>& output)
+    {
+        return Impl::EncodeSingleByte(Table, in_code_point, output);
+    }
+
+    /**
+     * Decodes one byte.
+     * @param input Input span. Updated to point after the byte; left as it was when decoding fails.
+     * @param out_code_point Output code point.
+     * @return ErrorCode::Success, ErrorCode::InvalidArgument for a byte the code page leaves unassigned, or ErrorCode::EndOfString
+     * when `input` is empty.
+     */
+    ErrorCode DecodeOne(ArrayView<const CodeUnitType>& input, CodePointType& out_code_point)
+    {
+        return Impl::DecodeSingleByte(Table, input, out_code_point);
+    }
+};
+
+/** Windows-1250: Central and Eastern European languages in the Latin script - Polish, Czech, Slovak, Hungarian, Croatian, Serbian. */
+using EncodingWindows1250 = EncodingSingleByte<Impl::g_windows_1250_table>;
+/** Windows-1251: languages in the Cyrillic script - Russian, Ukrainian, Bulgarian, Serbian, Macedonian. */
+using EncodingWindows1251 = EncodingSingleByte<Impl::g_windows_1251_table>;
+/** Windows-1252: Western European languages, a superset of ISO 8859-1's printable characters. */
+using EncodingWindows1252 = EncodingSingleByte<Impl::g_windows_1252_table>;
+
 }  // namespace Opal
 
 #define TEMPLATE_HEADER template <typename CodeUnitT>

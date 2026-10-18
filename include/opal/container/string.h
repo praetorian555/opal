@@ -1185,20 +1185,33 @@ template <StringLike StringClass>
 typename StringClass::size_type ReverseFind(const StringClass& haystack, const typename StringClass::value_type& ch,
                                             typename StringClass::size_type start_pos = StringClass::k_npos);
 
+/** What Transcode does with input that does not decode, or a code point the output encoding cannot hold. */
+enum class InvalidSequencePolicy : u8
+{
+    /** Stop and report the encoding's error. */
+    Fail,
+    /**
+     * Write U+FFFD REPLACEMENT CHARACTER in its place - or '?' where the output encoding has no U+FFFD - and carry on: one
+     * replacement for each code unit that does not start a valid sequence, and one for a sequence cut short at the end.
+     */
+    Replace,
+};
+
 /**
  * Transcode a string from one encoding to another.
- * @tparam InputStringClass Type of the input string. Defines code unit type and encoding. Needs to be DecodableEncoding.
+ * @tparam InputStringClass Type of the input string or view. Defines code unit type and encoding. Needs to be DecodableEncoding.
  * @tparam InputStringClass Type of the output string. Defines code unit type and encoding. Needs to be EncodableEncoding.
  * @param input Input string to transcode.
  * @param output Output string to store the transcoded result. Grown as needed and resized to the length of the result, so it does not
  * need to be sized by the caller. Its contents are unspecified if transcoding fails.
+ * @param policy What to do with input that does not decode or a code point the output encoding cannot hold.
  * @return ErrorCode::Success if transcoding was successful. ErrorCode::OutOfMemory when the output string cannot be grown, other error
- * codes depend on the encoding implementation.
+ * codes depend on the encoding implementation and only come with InvalidSequencePolicy::Fail.
  */
 template <typename InputStringClass, typename OutputStringClass>
     requires Opal::DecodableEncoding<typename InputStringClass::encoding_type> &&
              Opal::EncodableEncoding<typename OutputStringClass::encoding_type>
-ErrorCode Transcode(const InputStringClass& input, OutputStringClass& output);
+ErrorCode Transcode(const InputStringClass& input, OutputStringClass& output, InvalidSequencePolicy policy = InvalidSequencePolicy::Fail);
 
 /**
  * @brief Get a substring from a string.
@@ -3041,7 +3054,7 @@ void CLASS_HEADER::Deallocate(value_type* data)
 template <typename InputStringClass, typename OutputStringClass>
     requires Opal::DecodableEncoding<typename InputStringClass::encoding_type> &&
              Opal::EncodableEncoding<typename OutputStringClass::encoding_type>
-Opal::ErrorCode Opal::Transcode(const InputStringClass& input, OutputStringClass& output)
+Opal::ErrorCode Opal::Transcode(const InputStringClass& input, OutputStringClass& output, InvalidSequencePolicy policy)
 {
     using output_value_type = typename OutputStringClass::value_type;
     typename InputStringClass::encoding_type src_decoder;
@@ -3066,19 +3079,33 @@ Opal::ErrorCode Opal::Transcode(const InputStringClass& input, OutputStringClass
         }
         if (error != ErrorCode::Success)
         {
-            return error;
-        }
-        error = dst_encoder.EncodeOne(code_point, output_span);
-        if (error == ErrorCode::InsufficientSpace)
-        {
-            const typename OutputStringClass::size_type written = output.GetSize() - output_span.GetSize();
-            const ErrorCode resize_error = output.Resize(output.GetSize() * 2 + 8);
-            if (resize_error != ErrorCode::Success) [[unlikely]]
+            if (policy == InvalidSequencePolicy::Fail || input_span.GetSize() == 0)
             {
-                return resize_error;
+                return error;
             }
-            output_span = ArrayView<output_value_type>(output.GetData() + written, output.GetData() + output.GetSize());
-            error = dst_encoder.EncodeOne(code_point, output_span);
+            // A sequence cut short at the end is one replacement; anything else skips one code unit.
+            const i64 skipped = error == ErrorCode::IncompleteSequence ? static_cast<i64>(input_span.GetSize()) : 1;
+            input_span = ArrayView<const typename InputStringClass::value_type>(input_span.begin() + skipped, input_span.end());
+            code_point = 0xFFFD;
+        }
+        for (const uchar32 candidate : {code_point, uchar32{0xFFFD}, uchar32{'?'}})
+        {
+            error = dst_encoder.EncodeOne(candidate, output_span);
+            if (error == ErrorCode::InsufficientSpace)
+            {
+                const typename OutputStringClass::size_type written = output.GetSize() - output_span.GetSize();
+                const ErrorCode resize_error = output.Resize(output.GetSize() * 2 + 8);
+                if (resize_error != ErrorCode::Success) [[unlikely]]
+                {
+                    return resize_error;
+                }
+                output_span = ArrayView<output_value_type>(output.GetData() + written, output.GetData() + output.GetSize());
+                error = dst_encoder.EncodeOne(candidate, output_span);
+            }
+            if (error != ErrorCode::InvalidArgument || policy == InvalidSequencePolicy::Fail)
+            {
+                break;
+            }
         }
         if (error != ErrorCode::Success)
         {
