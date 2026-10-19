@@ -74,10 +74,10 @@ public:
 
     // The pair is handed out whole so that values stay writable, which leaves the key writable too. Do not write it, see the note on
     // HashMap. GetKey is the accessor that enforces the rule.
-    pair_type& operator*() const { return m_hash_map->Get(m_index); }
-    pair_type* operator->() const { return &m_hash_map->Get(m_index); }
-    const key_type& GetKey() const { return m_hash_map->GetKey(m_index); }
-    value_type& GetValue() const { return m_hash_map->GetValue(m_index); }
+    pair_type& operator*() const { return m_hash_map->GetAt(m_index); }
+    pair_type* operator->() const { return &m_hash_map->GetAt(m_index); }
+    const key_type& GetKey() const { return m_hash_map->GetKeyAt(m_index); }
+    value_type& GetValue() const { return m_hash_map->GetValueAt(m_index); }
 
     [[nodiscard]] u64 GetIndex() const { return m_index; }
 
@@ -130,10 +130,10 @@ public:
         return rtn_it;
     }
 
-    const pair_type& operator*() const { return m_hash_map->Get(m_index); }
-    const pair_type* operator->() const { return &m_hash_map->Get(m_index); }
-    const key_type& GetKey() const { return m_hash_map->GetKey(m_index); }
-    const value_type& GetValue() const { return m_hash_map->GetValue(m_index); }
+    const pair_type& operator*() const { return m_hash_map->GetAt(m_index); }
+    const pair_type* operator->() const { return &m_hash_map->GetAt(m_index); }
+    const key_type& GetKey() const { return m_hash_map->GetKeyAt(m_index); }
+    const value_type& GetValue() const { return m_hash_map->GetValueAt(m_index); }
 
     [[nodiscard]] u64 GetIndex() const { return m_index; }
 
@@ -326,12 +326,14 @@ private:
     // Advances an iteration from the slot `index`, carrying `mask` as Impl::FindNextFull describes. Returns ~u64{} at the end.
     u64 FindNextIndex(u64 index, u32& mask) const;
 
-    pair_type& Get(u64 index);
-    const pair_type& Get(u64 index) const;
-    key_type& GetKey(u64 index);
-    const key_type& GetKey(u64 index) const;
-    value_type& GetValue(u64 index);
-    const value_type& GetValue(u64 index) const;
+    // By slot index, as the iterators reach a pair. Named apart from the lookups by key so that a key type of u64 does not
+    // make every call ambiguous.
+    pair_type& GetAt(u64 index);
+    const pair_type& GetAt(u64 index) const;
+    key_type& GetKeyAt(u64 index);
+    const key_type& GetKeyAt(u64 index) const;
+    value_type& GetValueAt(u64 index);
+    const value_type& GetValueAt(u64 index) const;
 
     static u64 CalculateHash(const key_type& key)
     {
@@ -1069,42 +1071,42 @@ Opal::u64 Opal::HashMap<KeyType, ValueType>::FindNextIndex(u64 index, u32& mask)
 }
 
 template <typename KeyType, typename ValueType>
-Opal::HashMap<KeyType, ValueType>::pair_type& Opal::HashMap<KeyType, ValueType>::Get(u64 index)
+Opal::HashMap<KeyType, ValueType>::pair_type& Opal::HashMap<KeyType, ValueType>::GetAt(u64 index)
 {
     OPAL_ASSERT(Impl::IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index];
 }
 
 template <typename KeyType, typename ValueType>
-const typename Opal::HashMap<KeyType, ValueType>::pair_type& Opal::HashMap<KeyType, ValueType>::Get(u64 index) const
+const typename Opal::HashMap<KeyType, ValueType>::pair_type& Opal::HashMap<KeyType, ValueType>::GetAt(u64 index) const
 {
     OPAL_ASSERT(Impl::IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index];
 }
 
 template <typename KeyType, typename ValueType>
-typename Opal::HashMap<KeyType, ValueType>::key_type& Opal::HashMap<KeyType, ValueType>::GetKey(u64 index)
+typename Opal::HashMap<KeyType, ValueType>::key_type& Opal::HashMap<KeyType, ValueType>::GetKeyAt(u64 index)
 {
     OPAL_ASSERT(Impl::IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index].key;
 }
 
 template <typename KeyType, typename ValueType>
-const typename Opal::HashMap<KeyType, ValueType>::key_type& Opal::HashMap<KeyType, ValueType>::GetKey(u64 index) const
+const typename Opal::HashMap<KeyType, ValueType>::key_type& Opal::HashMap<KeyType, ValueType>::GetKeyAt(u64 index) const
 {
     OPAL_ASSERT(Impl::IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index].key;
 }
 
 template <typename KeyType, typename ValueType>
-typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(u64 index)
+typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValueAt(u64 index)
 {
     OPAL_ASSERT(Impl::IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index].value;
 }
 
 template <typename KeyType, typename ValueType>
-const typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(u64 index) const
+const typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValueAt(u64 index) const
 {
     OPAL_ASSERT(Impl::IsControlFull(m_control_bytes[index]), "There is no valid key at this index!");
     return m_slots[index].value;

@@ -422,6 +422,36 @@ TEST_CASE("Hash map iterator member access", "[HashMap]")
     }
 }
 
+TEST_CASE("Hash map keyed by u64", "[HashMap]")
+{
+    // The key type matches the type of a slot index, so every lookup by key has to stay distinct from the map's own
+    // lookups by slot.
+    HashMap<u64, u64> map;
+    REQUIRE(map.Insert(u64{7}, u64{70}) == ErrorCode::Success);
+    REQUIRE(map.Insert(u64{9}, u64{90}) == ErrorCode::Success);
+    REQUIRE(map.GetValue(u64{7}) == 70);
+
+    HashMap<u64, u64>::iterator it = map.Find(u64{9});
+    REQUIRE(it != map.end());
+    REQUIRE(it.GetKey() == 9);
+    REQUIRE(it.GetValue() == 90);
+    it.GetValue() = 91;
+
+    const HashMap<u64, u64>& const_map = map;
+    REQUIRE(const_map.GetValue(u64{9}) == 91);
+    HashMap<u64, u64>::const_iterator const_it = const_map.Find(u64{7});
+    REQUIRE(const_it != const_map.end());
+    REQUIRE(const_it.GetKey() == 7);
+    REQUIRE(const_it.GetValue() == 70);
+
+    u64 sum = 0;
+    for (const auto& pair : const_map)
+    {
+        sum += pair.value;
+    }
+    REQUIRE(sum == 161);
+}
+
 TEST_CASE("Hash map clone", "[HashMap]")
 {
     SECTION("Non-POD key and value")
