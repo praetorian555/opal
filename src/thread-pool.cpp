@@ -18,11 +18,6 @@ static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, O
             break;
         }
         Opal::SharedPtr<Opal::Task> task = std::move(result.GetValue());
-        if (!task.IsValid())
-        {
-            // Sentinel received, exit the thread
-            break;
-        }
         task->Execute(transmitter);
         task->SetCompleted();
         completed_count->FetchAdd<Opal::MemoryOrder::Release>(1);
@@ -34,7 +29,7 @@ Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, Alloc
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator()), m_communicator(channel_capacity, m_allocator)
 {
     // Room for every handle before the first thread starts, so that a started thread can never fail to be recorded and then be left
-    // running with no sentinel coming its way.
+    // running unjoined.
     if (m_threads.Reserve(thread_count) != ErrorCode::Success)
     {
         OPAL_RAISE(OutOfMemoryException(__FUNCTION__));
@@ -81,18 +76,27 @@ void Opal::ThreadPool::WaitForAll()
 
 void Opal::ThreadPool::Close()
 {
-    if (m_is_closed.Exchange<MemoryOrder::AcqRel>(true))
+    if (m_is_closed.Exchange(true))
     {
         return;
     }
-    // Send one sentinel per thread to unblock all workers
-    for (size_t i = 0; i < m_threads.GetSize(); ++i)
+    // A submission that saw the pool open is let finish sending, so its task is in the channel before the channel closes.
+    for (u32 submitting = m_submitting.Load(); submitting != 0; submitting = m_submitting.Load())
     {
-        m_communicator.transmitter.Send(SharedPtr<Task>{});
+        m_submitting.Wait(submitting);
     }
+    m_communicator.transmitter.Close();
     for (const ThreadHandle& thread : m_threads)
     {
         JoinThread(thread);
     }
     m_threads.Clear();
+}
+
+void Opal::ThreadPool::EndSubmission()
+{
+    if (m_submitting.FetchSub(1) == 1 && m_is_closed.Load())
+    {
+        m_submitting.NotifyAll();
+    }
 }

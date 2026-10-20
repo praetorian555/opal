@@ -940,6 +940,44 @@ TEST_CASE("Thread pool rejects tasks after it is closed", "[Thread]")
     REQUIRE(task.GetError() == ErrorCode::ChannelClosed);
 }
 
+TEST_CASE("Thread pool runs every task it accepted while closing", "[Thread]")
+{
+    constexpr i32 k_iterations = 500;
+    i32 not_completed = 0;
+    for (i32 iteration = 0; iteration < k_iterations; ++iteration)
+    {
+        ThreadPool pool(2);
+        DynamicArray<SharedPtr<Task>> accepted;
+        std::atomic<bool> started{false};
+        const ThreadHandle submitter = CreateThreadOrFail(
+            [](Ref<ThreadPool> in_pool, Ref<DynamicArray<SharedPtr<Task>>> in_accepted, Ref<std::atomic<bool>> in_started)
+            {
+                in_started->store(true);
+                while (true)
+                {
+                    auto task = in_pool->AddFunctionTask([](Task::TransmitterType&) {});
+                    if (!task.HasValue())
+                    {
+                        break;
+                    }
+                    in_accepted->PushBack(Move(task.GetValue()));
+                }
+            },
+            Ref(pool), Ref(accepted), Ref(started));
+
+        while (!started.load())
+        {
+        }
+        pool.Close();
+        JoinThread(submitter);
+        for (const SharedPtr<Task>& task : accepted)
+        {
+            not_completed += task->IsCompleted() ? 0 : 1;
+        }
+    }
+    REQUIRE(not_completed == 0);
+}
+
 TEST_CASE("Thread pool reports a task it could not allocate", "[Thread]")
 {
     FailAfterSwitchAllocator allocator;
@@ -988,6 +1026,33 @@ TEST_CASE("Thread pool WaitForAll drains tasks submitted by other tasks", "[Thre
 
     pool.WaitForAll();
     REQUIRE(counter.load() == 9);
+}
+
+TEST_CASE("Thread pool Close runs tasks submitted by tasks still running", "[Thread]")
+{
+    ThreadPool pool(2);
+    std::atomic<bool> parent_started{false};
+    std::atomic<i32> counter{0};
+
+    auto parent = pool.AddFunctionTask(
+        [&parent_started, &counter](Task::TransmitterType& transmitter)
+        {
+            parent_started.store(true);
+            std::this_thread::sleep_for(std::chrono::milliseconds(20));
+            auto child_work = [&counter](Task::TransmitterType&) { counter.fetch_add(1); };
+            for (i32 i = 0; i < 8; ++i)
+            {
+                SharedPtr<FunctionTask<decltype(child_work)>> child(GetDefaultAllocator(), child_work);
+                transmitter.Send(SharedPtr<Task>{Move(child)});
+            }
+        });
+    REQUIRE(parent.HasValue());
+
+    while (!parent_started.load())
+    {
+    }
+    pool.Close();
+    REQUIRE(counter.load() == 8);
 }
 
 TEST_CASE("Signal initial state", "[Thread]")

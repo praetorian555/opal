@@ -66,13 +66,20 @@ the producer, then the receiver's check of the flag reported the channel closed 
 push counter that every push and `Close` advance, so `Close` wakes it. A receiver that sees the flag set pops once more before
 reporting closed, which `TryReceive` does too. The counter shares a cache line with the write index, which the producer writes
 on every push anyway; it costs one more atomic add per push in the signaling variants, and nothing in the spinning ones.
-`ThreadPool` still shuts down with sentinels; it could use `Close` now.
+`ThreadPool` still shuts down with sentinels; it could use `Close` now. (It does since finding 5.)
 
 ### 5. A task added while the pool closes is never run
 
 `AddFunctionTask` checks `m_is_closed` and then sends (`thread-pool.h:104`). A `Close` that lands between the two has already
 sent its sentinels and joined the workers, so the task goes into a queue nobody reads. The caller holds a handle whose
 `WaitForCompletion` never returns.
+
+Child tasks had the same problem: a task still running when `Close` sent the sentinels submitted its children behind them.
+
+**Fixed.** Reproduced first: one accepted task in 500 close-while-submitting rounds never ran, and all 8 children of a task
+running across `Close` were lost. `AddFunctionTask` now counts itself in before checking the flag and out after sending, and
+`Close` sets the flag, waits for the count to reach zero, and then closes the channel instead of sending sentinels. Workers
+drain the channel before exiting, so children sent after the close still run: the worker that sent them is alive to pop them.
 
 ### 6. The pool can deadlock on its own queue
 

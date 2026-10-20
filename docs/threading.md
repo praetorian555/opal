@@ -527,7 +527,8 @@ destroyed.
 
 ## Thread Pool
 
-A task-based thread pool that distributes work across a fixed number of worker threads using a signaling MPMC channel internally. Worker threads block when idle and wake on task submission, consuming no CPU while waiting. Shutdown is handled by sending sentinel values through the channel to unblock and terminate each worker.
+A task-based thread pool that distributes work across a fixed number of worker threads using a signaling MPMC channel internally. Worker threads block when idle and wake on task submission, consuming no CPU while waiting. `Close()` rejects new tasks, runs every task already accepted - including one whose `AddFunctionTask` was racing the close, and
+child tasks submitted by tasks still running - and then joins the workers.
 
 ```cpp
 #include "opal/threading/thread-pool.h"
@@ -589,7 +590,7 @@ in the queue by then.
 | `ThreadPool(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)` | Create pool with N workers |
 | `AddFunctionTask(Function)` | Submit a callable, returns `Expected<SharedPtr<Task>, ErrorCode>` |
 | `WaitForAll()` | Block until every submitted task has run, child tasks included. Not safe to call while another thread is closing the pool |
-| `Close()` | Send sentinel tasks to unblock workers, then join all threads. Rejects later tasks. Safe to call multiple times |
+| `Close()` | Reject later tasks, run every accepted one, then join all threads. Safe to call multiple times |
 | `GetThreadCount()` | Number of worker threads |
 | `GetAllocator()` | Allocator used by the pool |
 

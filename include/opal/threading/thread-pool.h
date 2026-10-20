@@ -75,8 +75,8 @@ protected:
 
 /**
  * Thread pool that distributes tasks across a fixed number of worker threads.
- * Workers block when idle using OS signaling (no busy-waiting). Shutdown is handled
- * by sending sentinel values through the channel to unblock and terminate each worker.
+ * Workers block when idle using OS signaling (no busy-waiting). Closing the pool runs every task it has accepted, then stops
+ * the workers.
  */
 class ThreadPool
 {
@@ -95,22 +95,27 @@ public:
      * Submits a callable as a task.
      * @param function Callable that accepts a Task::TransmitterType& parameter.
      * @return Handle that can be used to wait for the task, ErrorCode::ChannelClosed if the pool has been closed, or
-     *         ErrorCode::OutOfMemory if the task could not be allocated.
+     *         ErrorCode::OutOfMemory if the task could not be allocated. A task this accepts runs even when Close is called
+     *         concurrently.
      */
     template <typename Function>
     Expected<SharedPtr<Task>, ErrorCode> AddFunctionTask(Function function)
     {
         using ReturnType = Expected<SharedPtr<Task>, ErrorCode>;
-        if (m_is_closed.Load<MemoryOrder::Acquire>())
+        m_submitting.FetchAdd(1);
+        if (m_is_closed.Load())
         {
+            EndSubmission();
             return ReturnType(ErrorCode::ChannelClosed);
         }
         SharedPtr<FunctionTask<Function>> handle(m_allocator, std::move(function));
         if (!handle.IsValid())
         {
+            EndSubmission();
             return ReturnType(ErrorCode::OutOfMemory);
         }
         m_communicator.transmitter.Send(SharedPtr<Task>{handle.Clone()});
+        EndSubmission();
         return ReturnType(SharedPtr<Task>{std::move(handle)});
     }
 
@@ -122,8 +127,9 @@ public:
     void WaitForAll();
 
     /**
-     * Shuts down the thread pool. Sends sentinel tasks to unblock all workers and joins all threads. Tasks submitted after this
-     * are rejected. Safe to call multiple times. Called automatically by the destructor.
+     * Shuts down the thread pool. Tasks submitted after this are rejected. Every task already accepted runs, including the
+     * ones those tasks submit, and then all worker threads are joined. Safe to call multiple times. Called automatically by
+     * the destructor.
      */
     void Close();
 
@@ -131,6 +137,9 @@ public:
     [[nodiscard]] AllocatorBase* GetAllocator() const { return m_allocator; }
 
 private:
+    /** Ends a submission begun in AddFunctionTask, and wakes a Close waiting for it to finish. */
+    void EndSubmission();
+
     AllocatorBase* m_allocator = nullptr;
     DynamicArray<ThreadHandle> m_threads;
     ChannelMPMC<SharedPtr<Task>, true> m_communicator;
@@ -140,6 +149,7 @@ private:
     // the readers behind an invalidation per completed task.
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<u64> m_completed_count = 0;
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<bool> m_is_closed = false;
+    Atomic<u32> m_submitting = 0;
     OPAL_END_DISABLE_WARNINGS
 };
 
