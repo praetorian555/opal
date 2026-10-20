@@ -1188,19 +1188,17 @@ TEST_CASE("Signal WaitFor returns true when state changes", "[Thread]")
     JoinThread(t);
 }
 
-TEST_CASE("Mutex reports a failed allocation", "[Thread]")
+TEST_CASE("Mutex and condition variable construct without allocating", "[Thread]")
 {
     ThreadSafeNullAllocator null_allocator;
     PushDefault guard(&null_allocator);
 
-    REQUIRE_THROWS_AS(Mutex<bool>(false), OutOfMemoryException);
-}
-
-TEST_CASE("Condition variable reports a failed allocation", "[Thread]")
-{
-    ThreadSafeNullAllocator null_allocator;
-
-    REQUIRE_THROWS_AS(ConditionVariable(&null_allocator), OutOfMemoryException);
+    Mutex<bool> mutex(false);
+    ConditionVariable condition_variable;
+    MutexGuard<bool> locked = mutex.Lock();
+    *locked = true;
+    REQUIRE(!condition_variable.WaitFor(locked, 1));
+    REQUIRE(*locked);
 }
 
 TEST_CASE("Mutex, condition variable and signal are neither copyable nor movable", "[Thread]")

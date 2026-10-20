@@ -1,6 +1,6 @@
 #include "opal/threading/mutex.h"
 
-#include "opal/exceptions.h"
+#include <new>
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
@@ -8,85 +8,64 @@
 #include <pthread.h>
 #endif
 
-Opal::Impl::PureMutex::PureMutex()
+namespace
 {
-    m_allocator = GetDefaultAllocator();
 #if defined(OPAL_PLATFORM_WINDOWS)
-    SRWLOCK* lock = New<SRWLOCK>(m_allocator);
-    if (lock == nullptr)
-    {
-        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), sizeof(SRWLOCK)));
-    }
-    InitializeSRWLock(lock);
-    m_native_handle = reinterpret_cast<void*>(lock);
+using NativeMutex = SRWLOCK;
 #elif defined(OPAL_PLATFORM_LINUX)
-    pthread_mutex_t* mutex = New<pthread_mutex_t>(m_allocator);
-    if (mutex == nullptr)
-    {
-        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), sizeof(pthread_mutex_t)));
-    }
-    pthread_mutex_init(mutex, nullptr);
-    m_native_handle = reinterpret_cast<void*>(mutex);
+using NativeMutex = pthread_mutex_t;
 #else
 #error "Platform not supported"
+#endif
+
+static_assert(sizeof(NativeMutex) <= Opal::Impl::PureMutex::k_storage_size, "Native mutex does not fit its storage");
+static_assert(alignof(NativeMutex) <= Opal::Impl::PureMutex::k_storage_alignment, "Native mutex is underaligned in its storage");
+
+NativeMutex* GetNative(void* storage)
+{
+    return static_cast<NativeMutex*>(storage);
+}
+}  // namespace
+
+Opal::Impl::PureMutex::PureMutex()
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    InitializeSRWLock(new (m_storage) SRWLOCK);
+#elif defined(OPAL_PLATFORM_LINUX)
+    pthread_mutex_init(new (m_storage) pthread_mutex_t, nullptr);
 #endif
 }
 
 Opal::Impl::PureMutex::~PureMutex()
 {
-    if (m_native_handle == nullptr)
-    {
-        return;
-    }
-#if defined(OPAL_PLATFORM_WINDOWS)
-    // An SRWLOCK has no destroy call.
-    SRWLOCK* lock = reinterpret_cast<SRWLOCK*>(m_native_handle);
-    Delete(m_allocator, lock);
-#elif defined(OPAL_PLATFORM_LINUX)
-    pthread_mutex_t* mutex = reinterpret_cast<pthread_mutex_t*>(m_native_handle);
-    pthread_mutex_destroy(mutex);
-    Delete(m_allocator, mutex);
-#else
-#error "Platform not supported"
+#if defined(OPAL_PLATFORM_LINUX)
+    pthread_mutex_destroy(GetNative(m_storage));
 #endif
-    m_native_handle = nullptr;
 }
 
 bool Opal::Impl::PureMutex::TryLock()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    SRWLOCK* lock = reinterpret_cast<SRWLOCK*>(m_native_handle);
-    return TryAcquireSRWLockExclusive(lock) != 0;
+    return TryAcquireSRWLockExclusive(GetNative(m_storage)) != 0;
 #elif defined(OPAL_PLATFORM_LINUX)
-    pthread_mutex_t* mutex = reinterpret_cast<pthread_mutex_t*>(m_native_handle);
-    return pthread_mutex_trylock(mutex) == 0;
-#else
-#error "Platform not supported"
+    return pthread_mutex_trylock(GetNative(m_storage)) == 0;
 #endif
 }
 
 void Opal::Impl::PureMutex::Lock()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    SRWLOCK* lock = reinterpret_cast<SRWLOCK*>(m_native_handle);
-    AcquireSRWLockExclusive(lock);
+    AcquireSRWLockExclusive(GetNative(m_storage));
 #elif defined(OPAL_PLATFORM_LINUX)
-    pthread_mutex_t* mutex = reinterpret_cast<pthread_mutex_t*>(m_native_handle);
-    pthread_mutex_lock(mutex);
-#else
-#error "Platform not supported"
+    pthread_mutex_lock(GetNative(m_storage));
 #endif
 }
 
 void Opal::Impl::PureMutex::Unlock()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    SRWLOCK* lock = reinterpret_cast<SRWLOCK*>(m_native_handle);
-    ReleaseSRWLockExclusive(lock);
+    ReleaseSRWLockExclusive(GetNative(m_storage));
 #elif defined(OPAL_PLATFORM_LINUX)
-    pthread_mutex_t* mutex = reinterpret_cast<pthread_mutex_t*>(m_native_handle);
-    pthread_mutex_unlock(mutex);
-#else
-#error "Platform not supported"
+    pthread_mutex_unlock(GetNative(m_storage));
 #endif
 }

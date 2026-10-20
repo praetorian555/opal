@@ -1,6 +1,6 @@
 #include "opal/threading/condition-variable.h"
 
-#include "opal/exceptions.h"
+#include <new>
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
@@ -9,83 +9,70 @@
 #include <time.h>
 #endif
 
-Opal::ConditionVariable::ConditionVariable(AllocatorBase* allocator)
+namespace
 {
-    m_allocator = allocator;
-    if (m_allocator == nullptr)
-    {
-        m_allocator = GetDefaultAllocator();
-    }
 #if defined(OPAL_PLATFORM_WINDOWS)
-    CONDITION_VARIABLE* condition_variable = New<CONDITION_VARIABLE>(m_allocator);
-    if (condition_variable == nullptr)
-    {
-        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), sizeof(CONDITION_VARIABLE)));
-    }
-    InitializeConditionVariable(condition_variable);
-    m_native_handle = reinterpret_cast<void*>(condition_variable);
+using NativeConditionVariable = CONDITION_VARIABLE;
+using NativeMutex = SRWLOCK;
 #elif defined(OPAL_PLATFORM_LINUX)
-    pthread_cond_t* cond = New<pthread_cond_t>(m_allocator);
-    if (cond == nullptr)
-    {
-        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), sizeof(pthread_cond_t)));
-    }
+using NativeConditionVariable = pthread_cond_t;
+using NativeMutex = pthread_mutex_t;
+#else
+#error "Platform not supported"
+#endif
+
+NativeConditionVariable* GetNative(void* storage)
+{
+    return static_cast<NativeConditionVariable*>(storage);
+}
+}  // namespace
+
+Opal::ConditionVariable::ConditionVariable()
+{
+    static_assert(sizeof(NativeConditionVariable) <= k_storage_size, "Native condition variable does not fit its storage");
+    static_assert(alignof(NativeConditionVariable) <= k_storage_alignment, "Native condition variable is underaligned in its storage");
+#if defined(OPAL_PLATFORM_WINDOWS)
+    InitializeConditionVariable(new (m_storage) CONDITION_VARIABLE);
+#elif defined(OPAL_PLATFORM_LINUX)
     pthread_condattr_t attributes;
     pthread_condattr_init(&attributes);
     pthread_condattr_setclock(&attributes, CLOCK_MONOTONIC);
-    pthread_cond_init(cond, &attributes);
+    pthread_cond_init(new (m_storage) pthread_cond_t, &attributes);
     pthread_condattr_destroy(&attributes);
-    m_native_handle = reinterpret_cast<void*>(cond);
-#else
-#error "Platform not supported"
 #endif
 }
 
 Opal::ConditionVariable::~ConditionVariable()
 {
-#if defined(OPAL_PLATFORM_WINDOWS)
-    CONDITION_VARIABLE* condition_variable = static_cast<CONDITION_VARIABLE*>(m_native_handle);
-    Delete(m_allocator, condition_variable);
-#elif defined(OPAL_PLATFORM_LINUX)
-    pthread_cond_t* cond = static_cast<pthread_cond_t*>(m_native_handle);
-    pthread_cond_destroy(cond);
-    Delete(m_allocator, cond);
-#else
-#error "Platform not supported"
+#if defined(OPAL_PLATFORM_LINUX)
+    pthread_cond_destroy(GetNative(m_storage));
 #endif
-    m_native_handle = nullptr;
 }
 
 void Opal::ConditionVariable::NotifyOne()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    WakeConditionVariable(static_cast<CONDITION_VARIABLE*>(m_native_handle));
+    WakeConditionVariable(GetNative(m_storage));
 #elif defined(OPAL_PLATFORM_LINUX)
-    pthread_cond_signal(static_cast<pthread_cond_t*>(m_native_handle));
-#else
-#error "Platform not supported"
+    pthread_cond_signal(GetNative(m_storage));
 #endif
 }
 
 void Opal::ConditionVariable::NotifyAll()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    WakeAllConditionVariable(static_cast<CONDITION_VARIABLE*>(m_native_handle));
+    WakeAllConditionVariable(GetNative(m_storage));
 #elif defined(OPAL_PLATFORM_LINUX)
-    pthread_cond_broadcast(static_cast<pthread_cond_t*>(m_native_handle));
-#else
-#error "Platform not supported"
+    pthread_cond_broadcast(GetNative(m_storage));
 #endif
 }
 
 void Opal::ConditionVariable::Wait(void* native_mutex_handle)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    SleepConditionVariableSRW(static_cast<CONDITION_VARIABLE*>(m_native_handle), static_cast<SRWLOCK*>(native_mutex_handle), INFINITE, 0);
+    SleepConditionVariableSRW(GetNative(m_storage), static_cast<NativeMutex*>(native_mutex_handle), INFINITE, 0);
 #elif defined(OPAL_PLATFORM_LINUX)
-    pthread_cond_wait(static_cast<pthread_cond_t*>(m_native_handle), static_cast<pthread_mutex_t*>(native_mutex_handle));
-#else
-#error "Platform not supported"
+    pthread_cond_wait(GetNative(m_storage), static_cast<NativeMutex*>(native_mutex_handle));
 #endif
 }
 
@@ -97,8 +84,8 @@ bool Opal::ConditionVariable::WaitFor(void* native_mutex_handle, u64 timeout_ms)
     while (true)
     {
         const u64 wait_ms = remaining_ms < k_longest_wait_ms ? remaining_ms : k_longest_wait_ms;
-        if (SleepConditionVariableSRW(static_cast<CONDITION_VARIABLE*>(m_native_handle), static_cast<SRWLOCK*>(native_mutex_handle),
-                                      static_cast<DWORD>(wait_ms), 0) != 0)
+        if (SleepConditionVariableSRW(GetNative(m_storage), static_cast<NativeMutex*>(native_mutex_handle), static_cast<DWORD>(wait_ms), 0) !=
+            0)
         {
             return true;
         }
@@ -118,10 +105,6 @@ bool Opal::ConditionVariable::WaitFor(void* native_mutex_handle, u64 timeout_ms)
         ts.tv_sec += 1;
         ts.tv_nsec -= 1000000000L;
     }
-    const int result =
-        pthread_cond_timedwait(static_cast<pthread_cond_t*>(m_native_handle), static_cast<pthread_mutex_t*>(native_mutex_handle), &ts);
-    return result == 0;
-#else
-#error "Platform not supported"
+    return pthread_cond_timedwait(GetNative(m_storage), static_cast<NativeMutex*>(native_mutex_handle), &ts) == 0;
 #endif
 }

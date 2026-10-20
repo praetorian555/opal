@@ -3,7 +3,6 @@
 #include <atomic>
 
 #include "opal/container/string.h"
-#include "opal/exceptions.h"
 #include "opal/threading/executor.h"
 #include "opal/threading/task-queue.h"
 #include "opal/threading/thread-pool.h"
@@ -192,7 +191,10 @@ TEST_CASE("TaskQueue rejects an invalid pointer and a non-thread-safe allocator"
     REQUIRE(queue.Post(SharedPtr<Runnable>{}) == ErrorCode::InvalidArgument);
 
     NotThreadSafeAllocator allocator;
-    REQUIRE_THROWS_AS(TaskQueue(&allocator), InvalidArgumentException);
+    TaskQueue unsafe_queue(&allocator);
+    auto rejected = unsafe_queue.Submit([] {});
+    REQUIRE(!rejected.HasValue());
+    REQUIRE(rejected.GetError() == ErrorCode::InvalidArgument);
 }
 
 TEST_CASE("Then on an executor runs on the thread that drains it", "[Executor]")

@@ -1,27 +1,10 @@
 #include "opal/threading/task-queue.h"
 
 #include "opal/common.h"
-#include "opal/exceptions.h"
 #include "opal/time.h"
 
-namespace
-{
-Opal::AllocatorBase* ResolveThreadSafeAllocator(Opal::AllocatorBase* allocator)
-{
-    if (allocator == nullptr)
-    {
-        allocator = Opal::GetDefaultAllocator();
-    }
-    if (!allocator->IsThreadSafe())
-    {
-        OPAL_RAISE(Opal::InvalidArgumentException("TaskQueue", "Allocator should be thread-safe"));
-    }
-    return allocator;
-}
-}  // namespace
-
 Opal::TaskQueue::TaskQueue(AllocatorBase* allocator)
-    : m_allocator(ResolveThreadSafeAllocator(allocator)), m_pending(m_allocator), m_running(m_allocator)
+    : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator()), m_pending(m_allocator), m_running(m_allocator)
 {
 }
 
@@ -42,7 +25,7 @@ Opal::TaskQueue::~TaskQueue()
 
 Opal::ErrorCode Opal::TaskQueue::Post(SharedPtr<Runnable>&& work)
 {
-    if (!work.IsValid())
+    if (!work.IsValid() || !m_allocator->IsThreadSafe())
     {
         return ErrorCode::InvalidArgument;
     }

@@ -80,6 +80,7 @@ private:
 
 namespace Impl
 {
+/** Exclusive lock that holds the OS lock in place, so it neither allocates nor fails to construct. Not recursive. */
 struct PureMutex
 {
     PureMutex();
@@ -95,11 +96,13 @@ struct PureMutex
     bool TryLock();
     void Unlock();
 
-    void* GetNativeHandle() { return m_native_handle; }
+    void* GetNativeHandle() { return m_storage; }
+
+    static constexpr size_t k_storage_size = 64;
+    static constexpr size_t k_storage_alignment = 8;
 
 private:
-    void* m_native_handle = nullptr;
-    AllocatorBase* m_allocator = nullptr;
+    alignas(k_storage_alignment) u8 m_storage[k_storage_size];
 };
 }  // namespace Impl
 

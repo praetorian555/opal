@@ -650,6 +650,10 @@ auto Opal::Executor::Submit(Function function)
     using State = Impl::TaskState<Function, ValueType>;
 
     AllocatorBase* allocator = GetAllocator();
+    if (allocator == nullptr || !allocator->IsThreadSafe())
+    {
+        return ReturnType(ErrorCode::InvalidArgument);
+    }
     SharedPtr<State> state(allocator, allocator, std::move(function));
     if (!state.IsValid())
     {

@@ -9,13 +9,13 @@ namespace Opal
 /**
  * Thread-safe primitive that is used to signal events between threads.
  * Notify API should be called while associated mutex is locked but its not required.
- * Can be neither copied nor moved: a thread already inside Wait is parked on this object, and relocating it would leave that
- * thread unreachable by any later notification.
+ * Holds the OS object in place, so it neither allocates nor fails to construct. Can be neither copied nor moved: a thread already
+ * inside Wait is parked on this object, and relocating it would leave that thread unreachable by any later notification.
  */
 class ConditionVariable
 {
 public:
-    explicit ConditionVariable(AllocatorBase* allocator = nullptr);
+    ConditionVariable();
     ~ConditionVariable();
 
     ConditionVariable(const ConditionVariable&) = delete;
@@ -67,8 +67,10 @@ private:
     void Wait(void* native_mutex_handle);
     bool WaitFor(void* native_mutex_handle, u64 timeout_ms);
 
-    void* m_native_handle = nullptr;
-    AllocatorBase* m_allocator = nullptr;
+    static constexpr size_t k_storage_size = 64;
+    static constexpr size_t k_storage_alignment = 8;
+
+    alignas(k_storage_alignment) u8 m_storage[k_storage_size];
 };
 
 }

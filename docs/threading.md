@@ -222,6 +222,8 @@ locking twice.
 data behind it, and a thread inside `Wait` is parked on the address of the condition variable or signal, so relocating any of
 them would strand a guard or a waiter. Hold them by value in a type that does not move, or behind a pointer.
 
+The lock is held in place, so constructing a `Mutex` never allocates and never fails.
+
 Platform implementation: `SRWLOCK` on Windows, `pthread_mutex_t` on Linux.
 
 ### API Reference
@@ -348,7 +350,7 @@ while (!*guard.Deref())
 
 | Method | Description |
 |--------|-------------|
-| `ConditionVariable(AllocatorBase* allocator = nullptr)` | Construct with optional allocator |
+| `ConditionVariable()` | Construct. Never allocates and never fails |
 | `NotifyOne()` | Wake one waiting thread |
 | `NotifyAll()` | Wake all waiting threads |
 | `Wait(MutexGuard<T>& guard)` | Atomically release mutex and wait, re-acquire on wake. Returns `T*` |
@@ -656,7 +658,7 @@ report `ErrorCode::BrokenPromise`.
 
 | Method | Description |
 |--------|-------------|
-| `TaskQueue(AllocatorBase* allocator = nullptr)` | Create a queue. The allocator must be thread safe |
+| `TaskQueue(AllocatorBase* allocator = nullptr)` | Create a queue. Never fails; with an allocator that is not thread safe, every `Post` and `Submit` reports `ErrorCode::InvalidArgument` |
 | `Submit(Function)` / `Post(SharedPtr<Runnable>)` | Queue work, from any thread |
 | `RunPending()` | Run what was queued when called, on the calling thread. Returns the number run |
 | `WaitFor(timeout_ms)` | Block until work is queued. Returns `false` on timeout |

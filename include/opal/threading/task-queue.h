@@ -25,9 +25,8 @@ class TaskQueue final : public Executor
 {
 public:
     /**
-     * @param allocator Allocator for queued work and for the futures Submit creates. Must be thread safe. If null, uses the default
-     *                  allocator.
-     * @throws InvalidArgumentException if the allocator is not thread safe.
+     * @param allocator Allocator for queued work and for the futures Submit creates. Must be thread safe, or every Post and Submit
+     *                  reports ErrorCode::InvalidArgument. If null, uses the default allocator.
      */
     explicit TaskQueue(AllocatorBase* allocator = nullptr);
     ~TaskQueue() override;
@@ -39,8 +38,8 @@ public:
 
     /**
      * Queue work to run on the next RunPending. Safe to call from any thread, including from work this queue is running.
-     * @return ErrorCode::Success, ErrorCode::ChannelClosed after Close, ErrorCode::InvalidArgument for an invalid pointer, or
-     *         ErrorCode::OutOfMemory if the queue could not grow.
+     * @return ErrorCode::Success, ErrorCode::ChannelClosed after Close, ErrorCode::InvalidArgument for an invalid pointer or an
+     *         allocator that is not thread safe, or ErrorCode::OutOfMemory if the queue could not grow.
      */
     ErrorCode Post(SharedPtr<Runnable>&& work) override;
 

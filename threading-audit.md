@@ -128,6 +128,9 @@ allocation fails. An `SRWLOCK` and a `CONDITION_VARIABLE` are one pointer each; 
 of the right size and alignment would remove both the allocation and the failure path, and a `Mutex<T>` would no longer depend
 on whichever default allocator happened to be pushed when it was built.
 
+**Fixed.** Both hold the OS object in place, as `ReadWriteMutex` does, and cannot fail to construct. `ConditionVariable` no
+longer takes an allocator.
+
 ### 13. `SetThreadAffinity` is single-core and silent
 
 It returns `void` and ignores what the OS reports, takes one logical core rather than a mask, and cannot address cores past 64

@@ -49,7 +49,8 @@ public:
      * Run a callable on this executor and get a future for what it returns.
      * @param function Callable taking no arguments. It may return nothing, giving a Future<void>; a plain value of type R, giving a
      *                 Future<R>; or an Expected<R, ErrorCode>, giving a Future<R> that carries the error too.
-     * @return The future, ErrorCode::OutOfMemory if the task could not be allocated, or what Post reported.
+     * @return The future, ErrorCode::InvalidArgument if GetAllocator is not thread safe, ErrorCode::OutOfMemory if the task could
+     *         not be allocated, or what Post reported.
      */
     template <typename Function>
     auto Submit(Function function);
