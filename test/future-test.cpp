@@ -39,6 +39,22 @@ struct NotThreadSafeAllocator final : AllocatorBase
 
     MallocAllocator m_inner;
 };
+
+struct CountingAllocator final : AllocatorBase
+{
+    CountingAllocator() : AllocatorBase("CountingAllocator") {}
+
+    void* Alloc(u64 size, u64 alignment) override
+    {
+        m_count.fetch_add(1);
+        return m_inner.Alloc(size, alignment);
+    }
+    void Free(void* ptr) override { m_inner.Free(ptr); }
+    [[nodiscard]] bool IsThreadSafe() const override { return true; }
+
+    MallocAllocator m_inner;
+    std::atomic<i32> m_count{0};
+};
 }  // namespace
 
 TEST_CASE("Future receives the value its promise sets", "[Future]")
@@ -312,6 +328,19 @@ TEST_CASE("ThreadPool Submit returns a future", "[Future]")
         sum += future.Get().GetValue();
     }
     REQUIRE(sum == 2646700);
+}
+
+TEST_CASE("ThreadPool Submit allocates the task and its future as one object", "[Future]")
+{
+    CountingAllocator allocator;
+    ThreadPool pool(1, 16, &allocator);
+    allocator.m_count.store(0);
+
+    auto future = pool.Submit([] { return 1; });
+    REQUIRE(future.HasValue());
+    REQUIRE(future.GetValue().Get().GetValue() == 1);
+    // The object and its reference count.
+    REQUIRE(allocator.m_count.load() == 2);
 }
 
 TEST_CASE("ThreadPool Submit on a closed pool", "[Future]")

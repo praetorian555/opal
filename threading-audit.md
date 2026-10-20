@@ -150,6 +150,10 @@ Ordered by how soon a consumer is likely to need it.
 - [x] A task that produces a value: a future or promise pair, or `Task<T>` with `GetResult`. Today a result has to be written
       through a capture. Added: `Future<T>` and `Promise<T>` in `future.h`, `Future::Then`, and `ThreadPool::Submit`. A
       continuation runs on the thread that sets the result; running it on a chosen thread needs the queue below
+- [x] One kind of work item. `Task` and its completion flag duplicated `Future<void>`, and `Submit` cost four allocations: the
+      task, the future's state and a reference count for each. The task is now the state of its own future, so the pool has
+      only `Submit`, at two allocations. `AddFunctionTask`, `Task`, `FunctionTask` and the transmitter handed to tasks are gone; a
+      task submits children through `Submit`, which its own workers may still do while the pool closes
 - [ ] A job system: per-worker deques with stealing, dependencies between jobs, a waiting worker that runs other work instead of
       blocking (which also closes finding 6), and `ParallelFor` over a range
 - [ ] A queue drained by one named thread, for posting work back to a main or UI thread

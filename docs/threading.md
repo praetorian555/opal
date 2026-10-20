@@ -603,78 +603,69 @@ destroyed.
 
 ## Thread Pool
 
-A task-based thread pool that distributes work across a fixed number of worker threads using a signaling MPMC channel internally. Worker threads block when idle and wake on task submission, consuming no CPU while waiting. `Close()` rejects new tasks, runs every task already accepted - including one whose `AddFunctionTask` was racing the close, and
-child tasks submitted by tasks still running - and then joins the workers.
+A thread pool that runs submitted callables on a fixed number of worker threads and hands back a `Future` for each. Workers
+block when idle and wake on submission, consuming no CPU while waiting. Each task and the state of its future are one allocation.
 
 ```cpp
 #include "opal/threading/thread-pool.h"
 
 Opal::ThreadPool pool(8);  // 8 worker threads
 
-// Submit a task
-auto task = pool.AddFunctionTask(
-    [](Opal::Task::TransmitterType&)
-    {
-        // Do work
-    });
-
-if (task.HasValue())
+auto sum = pool.Submit([] { return 2 + 2; });       // Expected<Future<int>, ErrorCode>
+if (sum.HasValue())
 {
-    // Wait for completion
-    task.GetValue()->WaitForCompletion();
+    int value = sum.GetValue().Get().GetValue();    // Blocks until the task has run
 }
+
+auto work = pool.Submit([] { /* work */ });         // Future<void>
 ```
 
-`AddFunctionTask` returns `ErrorCode::ChannelClosed` once the pool has been closed and `ErrorCode::OutOfMemory` when the task
-could not be allocated. `WaitForAll()` waits for the whole pool to drain instead of for one task.
+`Submit` returns `ErrorCode::ChannelClosed` once the pool has been closed and `ErrorCode::OutOfMemory` when the task could not be
+allocated. The callable takes no arguments and may return nothing, a value, or an `Expected<R, ErrorCode>`; see
+[Futures](#futures) for what each gives. A future that is dropped does not cancel its task.
+
+`WaitForAll()` waits for the whole pool to drain instead of for one task.
 
 ```cpp
 for (int i = 0; i < 64; ++i)
 {
-    pool.AddFunctionTask([](Opal::Task::TransmitterType&) { /* work */ });
+    pool.Submit([] { /* work */ });
 }
 pool.WaitForAll();
 ```
 
+`Close()` rejects new tasks, runs every task already accepted - including one whose `Submit` was racing the close - and then
+joins the workers. It is called by the destructor.
+
 ### Submitting Child Tasks
 
-The function passed to `AddFunctionTask` receives a `TransmitterType&` that can be used to submit additional tasks from within a running task.
+A running task may submit more tasks to its own pool with `Submit`. These are accepted even while the pool is closing, and run
+before `Close()` returns, so a task can hand off the rest of its work without racing shutdown.
 
 ```cpp
-Opal::ThreadPool pool(4);
-
-auto parent = pool.AddFunctionTask([&pool](Opal::Task::TransmitterType& tx)
+pool.Submit([&pool]
 {
-    // Submit child task through the transmitter
-    auto child = Opal::MakeShared<Opal::FunctionTask<std::function<void(Opal::Task::TransmitterType&)>>>(
-        pool.GetAllocator(),
-        [](Opal::Task::TransmitterType&) { /* child work */ });
-    tx.Send(Opal::SharedPtr<Opal::Task>{child.Clone()});
-    child->WaitForCompletion();
+    for (int i = 0; i < 8; ++i)
+    {
+        pool.Submit([i] { /* child work */ });
+    }
 });
-
-parent.GetValue()->WaitForCompletion();
 ```
 
 `WaitForAll()` covers child tasks too: a task is counted as finished only after it returns, so anything it submitted is already
-in the queue by then.
+in the queue by then. A task should not block on the future of a task queued behind it: if every worker does that, nothing is left
+to run the queue. Attach the follow-up with `Then` instead.
 
 ### API Reference
 
 | Method | Description |
 |--------|-------------|
 | `ThreadPool(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)` | Create pool with N workers |
-| `AddFunctionTask(Function)` | Submit a callable, returns `Expected<SharedPtr<Task>, ErrorCode>` |
 | `Submit(Function)` | Submit a callable taking no arguments, returns `Expected<Future<R>, ErrorCode>` for what it returns |
 | `WaitForAll()` | Block until every submitted task has run, child tasks included. Not safe to call while another thread is closing the pool |
 | `Close()` | Reject later tasks, run every accepted one, then join all threads. Safe to call multiple times |
 | `GetThreadCount()` | Number of worker threads |
 | `GetAllocator()` | Allocator used by the pool |
-
-| Task Method | Description |
-|-------------|-------------|
-| `WaitForCompletion()` | Block until the task finishes (uses OS signaling, not busy-waiting) |
-| `IsCompleted()` | Check if the task has finished |
 
 ## Futures
 
@@ -781,6 +772,6 @@ objects. `Then` returns an invalid future, and leaves the original one valid, if
 | `Signal` | Yes |
 | `ChannelSPSC` | Yes (one producer, one consumer) |
 | `ChannelMPMC` | Yes (multiple producers, multiple consumers) |
-| `ThreadPool` | `AddFunctionTask` and `Submit` are thread-safe via internal MPMC channel |
+| `ThreadPool` | `Submit` is thread-safe via internal MPMC channel |
 | `Promise<T>` / `Future<T>` | A promise and its future may be used from different threads. Each one alone is not for sharing |
 

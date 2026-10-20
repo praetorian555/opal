@@ -61,6 +61,14 @@ FutureResult<T> MakeFutureError(ErrorCode error)
     }
 }
 
+/** Work an executor can run. */
+class Runnable
+{
+public:
+    virtual ~Runnable() = default;
+    virtual void Run() = 0;
+};
+
 template <typename T>
 struct FutureContinuationBase
 {
@@ -70,16 +78,19 @@ struct FutureContinuationBase
 
 OPAL_START_DISABLE_WARNINGS
 OPAL_DISABLE_MSVC_WARNING(4324)
-/** State shared by a Promise and its Future: the result once there is one, and what to run when it arrives. */
+/**
+ * State shared by a Promise and its Future: the result once there is one, and what to run when it arrives. It is a Runnable so that
+ * a task can be the state of its own future; running a plain promise's state does nothing.
+ */
 template <typename T>
-class FutureState
+class FutureState : public Runnable
 {
 public:
     using ResultType = FutureResult<T>;
 
     explicit FutureState(AllocatorBase* allocator) : m_allocator(allocator) {}
 
-    ~FutureState()
+    ~FutureState() override
     {
         if ((m_flags.Load<MemoryOrder::Acquire>() & k_ready) != 0)
         {
@@ -92,6 +103,8 @@ public:
     FutureState& operator=(const FutureState&) = delete;
     FutureState(FutureState&&) = delete;
     FutureState& operator=(FutureState&&) = delete;
+
+    void Run() override {}
 
     /** Store the result, wake waiters and run the continuation if there is one. Returns false if a result was already set. */
     bool SetResult(ResultType&& result)
@@ -186,32 +199,61 @@ private:
 };
 OPAL_END_DISABLE_WARNINGS
 
-/** Call func with args and store what it returns in promise: nothing for void, the Expected as is, or a plain value. */
+/** Call func with args and turn what it returns into a FutureResult<U>: success for void, the Expected as is, or a plain value. */
 template <typename U, typename Func, typename... Args>
-void FulfillWith(Promise<U>& promise, Func& func, Args&&... args)
+FutureResult<U> InvokeForResult(Func& func, Args&&... args)
 {
     using R = std::invoke_result_t<Func&, Args...>;
     if constexpr (std::is_void_v<R>)
     {
         func(std::forward<Args>(args)...);
-        promise.SetValue();
+        return ErrorCode::Success;
     }
     else if constexpr (IsExpectedOfErrorCode<R>::value)
     {
-        promise.SetResult(func(std::forward<Args>(args)...));
+        return func(std::forward<Args>(args)...);
     }
     else
     {
-        promise.SetValue(func(std::forward<Args>(args)...));
+        return Expected<U, ErrorCode>(func(std::forward<Args>(args)...));
     }
 }
+
+/** A callable and the state of the future for what it returns, in one object. Running it calls the callable and sets the result. */
+template <typename Func, typename T>
+class TaskState final : public FutureState<T>
+{
+public:
+    TaskState(AllocatorBase* allocator, Func&& func) : FutureState<T>(allocator), m_func(std::move(func)) {}
+
+    void Run() override { this->SetResult(InvokeForResult<T>(m_func)); }
+
+private:
+    Func m_func;
+};
+
+/** Reaches the parts of Future and Promise that only the threading code may use. */
+struct FutureAccess
+{
+    template <typename T>
+    static Future<T> MakeFuture(SharedPtr<FutureState<T>>&& state)
+    {
+        return Future<T>(std::move(state));
+    }
+
+    template <typename T>
+    static bool SetResult(Promise<T>& promise, FutureResult<T>&& result)
+    {
+        return promise.Set(std::move(result));
+    }
+};
 
 template <typename T, typename Func, typename U>
 struct ThenContinuation final : FutureContinuationBase<T>
 {
     ThenContinuation(Func&& func, Promise<U>&& promise) : m_func(std::move(func)), m_promise(std::move(promise)) {}
 
-    void Run(FutureResult<T>&& result) override { FulfillWith(m_promise, m_func, std::move(result)); }
+    void Run(FutureResult<T>&& result) override { FutureAccess::SetResult(m_promise, InvokeForResult<U>(m_func, std::move(result))); }
 
     Func m_func;
     Promise<U> m_promise;
@@ -340,6 +382,7 @@ public:
 
 private:
     friend class Promise<T>;
+    friend struct Impl::FutureAccess;
 
     explicit Future(SharedPtr<Impl::FutureState<T>>&& state) : m_state(std::move(state)) {}
 
@@ -468,6 +511,8 @@ public:
     }
 
 private:
+    friend struct Impl::FutureAccess;
+
     explicit Promise(SharedPtr<Impl::FutureState<T>>&& state) : m_state(std::move(state)) {}
 
     bool Set(FutureResult<T>&& result) { return m_state.IsValid() && m_state->SetResult(std::move(result)); }

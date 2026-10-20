@@ -2,28 +2,33 @@
 
 #include "opal/exceptions.h"
 
-using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Task>, true>;
-using TransmitterType = Opal::TransmitterMPMC<Opal::SharedPtr<Opal::Task>, true>;
-static void ThreadFunction(ReceiverType receiver, TransmitterType transmitter, Opal::Ref<Opal::AllocatorBase> default_allocator,
-                           Opal::Atomic<Opal::u64>* completed_count)
+namespace
+{
+using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Impl::Runnable>, true>;
+
+thread_local const Opal::ThreadPool* t_worker_pool = nullptr;
+
+void ThreadFunction(ReceiverType receiver, const Opal::ThreadPool* pool, Opal::Ref<Opal::AllocatorBase> default_allocator,
+                    Opal::Atomic<Opal::u64>* completed_count)
 {
     OPAL_ASSERT(default_allocator->IsThreadSafe(), "Allocator must be thread safe");
     Opal::PushDefaultAllocator(default_allocator.GetPtr());
+    t_worker_pool = pool;
     while (true)
     {
         auto result = receiver.Receive();
         if (!result.HasValue())
         {
-            // Channel closed, exit the thread
             break;
         }
-        Opal::SharedPtr<Opal::Task> task = std::move(result.GetValue());
-        task->Execute(transmitter);
-        task->SetCompleted();
+        Opal::SharedPtr<Opal::Impl::Runnable> task = std::move(result.GetValue());
+        task->Run();
         completed_count->FetchAdd<Opal::MemoryOrder::Release>(1);
         completed_count->NotifyAll();
     }
+    t_worker_pool = nullptr;
 }
+}  // namespace
 
 Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, AllocatorBase* allocator)
     : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator()), m_communicator(channel_capacity, m_allocator)
@@ -37,8 +42,8 @@ Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, Alloc
     for (size_t i = 0; i < thread_count; ++i)
     {
         Expected<ThreadHandle, ErrorCode> thread_handle =
-            CreateThread(ThreadFunction, m_communicator.receiver.Clone(), m_communicator.transmitter.Clone(),
-                         Opal::GetDefaultAllocator(), &m_completed_count);
+            CreateThread(ThreadFunction, m_communicator.receiver.Clone(), static_cast<const ThreadPool*>(this), Opal::GetDefaultAllocator(),
+                         &m_completed_count);
         if (!thread_handle.HasValue())
         {
             // A constructor has nowhere to put a code, so the workers that did start are shut down and the failure is thrown.
@@ -99,4 +104,9 @@ void Opal::ThreadPool::EndSubmission()
     {
         m_submitting.NotifyAll();
     }
+}
+
+bool Opal::ThreadPool::IsCurrentThreadWorker() const
+{
+    return t_worker_pool == this;
 }

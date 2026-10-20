@@ -917,9 +917,9 @@ TEST_CASE("Thread pool", "[Thread]")
 {
     ThreadPool pool(8);
     i32 value = 5;
-    auto task = pool.AddFunctionTask([&value](Task::TransmitterType&) { value = 10; });
+    auto task = pool.Submit([&value] { value = 10; });
     REQUIRE(task.HasValue());
-    task.GetValue()->WaitForCompletion();
+    REQUIRE(task.GetValue().Get() == ErrorCode::Success);
     REQUIRE(value == 10);
 }
 
@@ -927,9 +927,9 @@ TEST_CASE("Thread pool captures string", "[Thread]")
 {
     ThreadPool pool(8);
     StringUtf8 value = "Hello";
-    auto task = pool.AddFunctionTask([moved_value = value.Clone()](Task::TransmitterType&) { REQUIRE(moved_value == "Hello"); });
+    auto task = pool.Submit([moved_value = value.Clone()] { return moved_value == "Hello"; });
     REQUIRE(task.HasValue());
-    task.GetValue()->WaitForCompletion();
+    REQUIRE(task.GetValue().Get().GetValue());
     REQUIRE(value == "Hello");
 }
 
@@ -938,7 +938,7 @@ TEST_CASE("Thread pool rejects tasks after it is closed", "[Thread]")
     ThreadPool pool(2);
     pool.Close();
 
-    auto task = pool.AddFunctionTask([](Task::TransmitterType&) {});
+    auto task = pool.Submit([] {});
     REQUIRE_FALSE(task.HasValue());
     REQUIRE(task.GetError() == ErrorCode::ChannelClosed);
 }
@@ -950,15 +950,15 @@ TEST_CASE("Thread pool runs every task it accepted while closing", "[Thread]")
     for (i32 iteration = 0; iteration < k_iterations; ++iteration)
     {
         ThreadPool pool(2);
-        DynamicArray<SharedPtr<Task>> accepted;
+        DynamicArray<Future<void>> accepted;
         std::atomic<bool> started{false};
         const ThreadHandle submitter = CreateThreadOrFail(
-            [](Ref<ThreadPool> in_pool, Ref<DynamicArray<SharedPtr<Task>>> in_accepted, Ref<std::atomic<bool>> in_started)
+            [](Ref<ThreadPool> in_pool, Ref<DynamicArray<Future<void>>> in_accepted, Ref<std::atomic<bool>> in_started)
             {
                 in_started->store(true);
                 while (true)
                 {
-                    auto task = in_pool->AddFunctionTask([](Task::TransmitterType&) {});
+                    auto task = in_pool->Submit([] {});
                     if (!task.HasValue())
                     {
                         break;
@@ -973,9 +973,9 @@ TEST_CASE("Thread pool runs every task it accepted while closing", "[Thread]")
         }
         pool.Close();
         JoinThread(submitter);
-        for (const SharedPtr<Task>& task : accepted)
+        for (const Future<void>& task : accepted)
         {
-            not_completed += task->IsCompleted() ? 0 : 1;
+            not_completed += task.IsReady() ? 0 : 1;
         }
     }
     REQUIRE(not_completed == 0);
@@ -987,7 +987,7 @@ TEST_CASE("Thread pool reports a task it could not allocate", "[Thread]")
     ThreadPool pool(2, 128, &allocator);
     allocator.m_fail.store(true);
 
-    auto task = pool.AddFunctionTask([](Task::TransmitterType&) {});
+    auto task = pool.Submit([] {});
     REQUIRE_FALSE(task.HasValue());
     REQUIRE(task.GetError() == ErrorCode::OutOfMemory);
 
@@ -1001,7 +1001,7 @@ TEST_CASE("Thread pool WaitForAll drains every task", "[Thread]")
 
     for (i32 i = 0; i < 64; ++i)
     {
-        auto task = pool.AddFunctionTask([&counter](Task::TransmitterType&) { counter.fetch_add(1); });
+        auto task = pool.Submit([&counter] { counter.fetch_add(1); });
         REQUIRE(task.HasValue());
     }
 
@@ -1014,15 +1014,13 @@ TEST_CASE("Thread pool WaitForAll drains tasks submitted by other tasks", "[Thre
     ThreadPool pool(4);
     std::atomic<i32> counter{0};
 
-    auto parent = pool.AddFunctionTask(
-        [&counter](Task::TransmitterType& transmitter)
+    auto parent = pool.Submit(
+        [&pool, &counter]
         {
             counter.fetch_add(1);
-            auto child_work = [&counter](Task::TransmitterType&) { counter.fetch_add(1); };
             for (i32 i = 0; i < 8; ++i)
             {
-                SharedPtr<FunctionTask<decltype(child_work)>> child(GetDefaultAllocator(), child_work);
-                transmitter.Send(SharedPtr<Task>{Move(child)});
+                REQUIRE(pool.Submit([&counter] { counter.fetch_add(1); }).HasValue());
             }
         });
     REQUIRE(parent.HasValue());
@@ -1036,17 +1034,19 @@ TEST_CASE("Thread pool Close runs tasks submitted by tasks still running", "[Thr
     ThreadPool pool(2);
     std::atomic<bool> parent_started{false};
     std::atomic<i32> counter{0};
+    std::atomic<i32> rejected{0};
 
-    auto parent = pool.AddFunctionTask(
-        [&parent_started, &counter](Task::TransmitterType& transmitter)
+    auto parent = pool.Submit(
+        [&pool, &parent_started, &counter, &rejected]
         {
             parent_started.store(true);
             std::this_thread::sleep_for(std::chrono::milliseconds(20));
-            auto child_work = [&counter](Task::TransmitterType&) { counter.fetch_add(1); };
             for (i32 i = 0; i < 8; ++i)
             {
-                SharedPtr<FunctionTask<decltype(child_work)>> child(GetDefaultAllocator(), child_work);
-                transmitter.Send(SharedPtr<Task>{Move(child)});
+                if (!pool.Submit([&counter] { counter.fetch_add(1); }).HasValue())
+                {
+                    rejected.fetch_add(1);
+                }
             }
         });
     REQUIRE(parent.HasValue());
@@ -1055,7 +1055,48 @@ TEST_CASE("Thread pool Close runs tasks submitted by tasks still running", "[Thr
     {
     }
     pool.Close();
+    REQUIRE(rejected.load() == 0);
     REQUIRE(counter.load() == 8);
+}
+
+TEST_CASE("Thread pool rejects a task from another thread while closing but not from its own workers", "[Thread]")
+{
+    ThreadPool pool(1);
+    std::atomic<bool> parent_started{false};
+    std::atomic<bool> release_parent{false};
+
+    auto parent = pool.Submit(
+        [&parent_started, &release_parent]
+        {
+            parent_started.store(true);
+            while (!release_parent.load())
+            {
+                YieldCurrentThread();
+            }
+        });
+    REQUIRE(parent.HasValue());
+    while (!parent_started.load())
+    {
+    }
+
+    std::atomic<bool> closed{false};
+    const ThreadHandle closer = CreateThreadOrFail(
+        [](Ref<ThreadPool> in_pool, Ref<std::atomic<bool>> in_closed)
+        {
+            in_pool->Close();
+            in_closed->store(true);
+        },
+        Ref(pool), Ref(closed));
+    SleepCurrentThread(20);
+    REQUIRE(!closed.load());
+
+    auto outsider = pool.Submit([] {});
+    REQUIRE_FALSE(outsider.HasValue());
+    REQUIRE(outsider.GetError() == ErrorCode::ChannelClosed);
+
+    release_parent.store(true);
+    JoinThread(closer);
+    REQUIRE(parent.GetValue().Get() == ErrorCode::Success);
 }
 
 TEST_CASE("Signal initial state", "[Thread]")
