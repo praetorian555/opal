@@ -786,6 +786,130 @@ TEST_CASE("MPMC channel moves what it is handed", "[Thread]")
     REQUIRE(out.value == 2);
 }
 
+namespace
+{
+constexpr i32 k_received_closed = -1;
+
+// Parks a receiver in Receive on another thread, then either sends to it or closes the channel. Hangs if neither wakes it.
+template <typename ChannelType, typename ReceiverType>
+i32 ReceiveWhileBlocked(ChannelType& channel, ReceiverType receiver, bool close)
+{
+    std::atomic<bool> started{false};
+    std::atomic<i32> outcome{0};
+    const ThreadHandle t = CreateThreadOrFail(
+        [](ReceiverType in_receiver, Ref<std::atomic<bool>> in_started, Ref<std::atomic<i32>> in_outcome)
+        {
+            in_started->store(true);
+            auto result = in_receiver.Receive();
+            if (result.HasValue())
+            {
+                in_outcome->store(result.GetValue());
+            }
+            else
+            {
+                in_outcome->store(result.GetError() == ErrorCode::ChannelClosed ? k_received_closed : 0);
+            }
+        },
+        Move(receiver), Ref(started), Ref(outcome));
+
+    while (!started.load())
+    {
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    if (close)
+    {
+        channel.transmitter.Close();
+    }
+    else
+    {
+        channel.transmitter.Send(9);
+    }
+    JoinThread(t);
+    return outcome.load();
+}
+}  // namespace
+
+TEST_CASE("Close wakes a receiver blocked in Receive", "[Thread]")
+{
+    SECTION("SPSC with signaling")
+    {
+        ChannelSPSC<i32, true> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), true) == k_received_closed);
+    }
+    SECTION("SPSC with spin wait")
+    {
+        ChannelSPSC<i32, false> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), true) == k_received_closed);
+    }
+    SECTION("MPMC with signaling")
+    {
+        ChannelMPMC<i32, true> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), true) == k_received_closed);
+    }
+    SECTION("MPMC with spin wait")
+    {
+        ChannelMPMC<i32, false> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), true) == k_received_closed);
+    }
+}
+
+TEST_CASE("A receiver blocked in Receive gets an item sent later", "[Thread]")
+{
+    SECTION("SPSC with signaling")
+    {
+        ChannelSPSC<i32, true> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), false) == 9);
+    }
+    SECTION("SPSC with spin wait")
+    {
+        ChannelSPSC<i32, false> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), false) == 9);
+    }
+    SECTION("MPMC with signaling")
+    {
+        ChannelMPMC<i32, true> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), false) == 9);
+    }
+    SECTION("MPMC with spin wait")
+    {
+        ChannelMPMC<i32, false> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), false) == 9);
+    }
+}
+
+TEST_CASE("Close wakes every MPMC receiver blocked in Receive", "[Thread]")
+{
+    constexpr i32 k_receiver_count = 4;
+    ChannelMPMC<i32, true> channel(4);
+    std::atomic<i32> started{0};
+    std::atomic<i32> closed_count{0};
+    DynamicArray<ThreadHandle> threads;
+    for (i32 i = 0; i < k_receiver_count; ++i)
+    {
+        threads.PushBack(CreateThreadOrFail(
+            [](ReceiverMPMC<i32, true> receiver, Ref<std::atomic<i32>> in_started, Ref<std::atomic<i32>> in_closed_count)
+            {
+                in_started->fetch_add(1);
+                auto result = receiver.Receive();
+                if (!result.HasValue() && result.GetError() == ErrorCode::ChannelClosed)
+                {
+                    in_closed_count->fetch_add(1);
+                }
+            },
+            channel.receiver.Clone(), Ref(started), Ref(closed_count)));
+    }
+    while (started.load() < k_receiver_count)
+    {
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    channel.transmitter.Close();
+    for (const ThreadHandle& t : threads)
+    {
+        JoinThread(t);
+    }
+    REQUIRE(closed_count.load() == k_receiver_count);
+}
+
 TEST_CASE("Thread pool", "[Thread]")
 {
     ThreadPool pool(8);

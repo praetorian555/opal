@@ -63,10 +63,7 @@ public:
         m_data[bound_write_idx] = item;  // Do copy
 
         m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
-        if constexpr (UseSignaling)
-        {
-            m_write_idx.NotifyOne();
-        }
+        SignalPushed();
     }
 
     bool TryPush(const T& item)
@@ -83,10 +80,7 @@ public:
         m_data[bound_write_idx] = item;  // Do copy
 
         m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
-        if constexpr (UseSignaling)
-        {
-            m_write_idx.NotifyOne();
-        }
+        SignalPushed();
         return true;
     }
 
@@ -114,10 +108,7 @@ public:
         m_data[bound_write_idx] = std::move(item);  // Do move
 
         m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
-        if constexpr (UseSignaling)
-        {
-            m_write_idx.NotifyOne();
-        }
+        SignalPushed();
     }
 
     template <typename... Args>
@@ -145,10 +136,7 @@ public:
         EmplaceAt(m_data[bound_write_idx], args...);
 
         m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
-        if constexpr (UseSignaling)
-        {
-            m_write_idx.NotifyOne();
-        }
+        SignalPushed();
     }
 
     template <typename... Args>
@@ -166,39 +154,45 @@ public:
         EmplaceAt(m_data[bound_write_idx], args...);
 
         m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
-        if constexpr (UseSignaling)
-        {
-            m_write_idx.NotifyOne();
-        }
+        SignalPushed();
         return true;
     }
 
     T Pop()
     {
-        size_t read_idx = m_read_idx.Load<MemoryOrder::Relaxed>();
-        size_t write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
-
-        while (write_idx - read_idx == 0)
+        T result;
+        while (true)
         {
-            if constexpr (UseSignaling)
+            const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
+            if (TryPop(result))
             {
-                m_write_idx.Wait<MemoryOrder::Acquire>(write_idx);
+                return result;
             }
-            else
-            {
-                CpuPause();
-            }
-            write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
+            WaitForPush(push_count);
         }
+    }
 
-        size_t bound_read_idx = read_idx & (m_capacity - 1);
-        T result = std::move(m_data[bound_read_idx]);
-        m_read_idx.Store<MemoryOrder::Release>(read_idx + 1);
-        if constexpr (UseSignaling)
+    /**
+     * Pop an item, blocking while the queue is empty and open.
+     * @param result Receives the item.
+     * @return True if an item was popped, false if the queue is empty and closed. Items pushed before Close are always popped
+     *         before this reports the queue closed.
+     */
+    bool PopUnlessClosed(T& result)
+    {
+        while (true)
         {
-            m_read_idx.NotifyOne();
+            const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
+            if (TryPop(result))
+            {
+                return true;
+            }
+            if (IsClosed())
+            {
+                return TryPop(result);
+            }
+            WaitForPush(push_count);
         }
-        return result;
     }
 
     bool TryPop(T& result)
@@ -219,13 +213,44 @@ public:
         return true;
     }
 
-    /** Mark the queue closed. Items already in it can still be popped. */
-    void Close() { m_is_closed.Store<MemoryOrder::Release>(true); }
+    /** Mark the queue closed and wake a consumer blocked in PopUnlessClosed. Items already in it can still be popped. */
+    void Close()
+    {
+        m_is_closed.Store<MemoryOrder::Release>(true);
+        if constexpr (UseSignaling)
+        {
+            m_push_count.FetchAdd<MemoryOrder::Release>(1);
+            m_push_count.NotifyAll();
+        }
+    }
 
     /** @return True once Close has been called. */
     [[nodiscard]] bool IsClosed() const { return m_is_closed.Load<MemoryOrder::Acquire>(); }
 
 private:
+    /** Wake a consumer waiting for an item. */
+    void SignalPushed()
+    {
+        if constexpr (UseSignaling)
+        {
+            m_push_count.FetchAdd<MemoryOrder::Release>(1);
+            m_push_count.NotifyOne();
+        }
+    }
+
+    /** Block until something has been pushed or the queue has been closed since push_count was read. */
+    void WaitForPush(u32 push_count) const
+    {
+        if constexpr (UseSignaling)
+        {
+            m_push_count.Wait<MemoryOrder::Acquire>(push_count);
+        }
+        else
+        {
+            CpuPause();
+        }
+    }
+
     /** Replace the value in a slot with one constructed from args. */
     template <typename... Args>
     static void EmplaceAt(T& slot, const Args&... args)
@@ -244,6 +269,7 @@ private:
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_write_idx;
+    Atomic<u32> m_push_count = 0;
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_read_idx;
     OPAL_END_DISABLE_WARNINGS
 
@@ -290,8 +316,8 @@ struct TransmitterSPSC
     bool TrySend(const T& item) { return m_queue->TryPush(item); }
 
     /**
-     * Marks the channel as closed. After this, Receive() and TryReceive() on the
-     * corresponding receiver will return ErrorCode::ChannelClosed without blocking.
+     * Marks the channel as closed and wakes any receiver blocked in Receive(). Items sent before this are still received;
+     * once they are drained, Receive() and TryReceive() return ErrorCode::ChannelClosed without blocking.
      */
     void Close() { m_queue->Close(); }
 
@@ -327,22 +353,18 @@ struct ReceiverSPSC
     }
 
     /**
-     * Blocks until an item is available and returns it.
+     * Blocks until an item is available or the channel is closed.
      * Items already in the queue are drained first. Only after the queue is empty
      * and the channel has been closed does this return ErrorCode::ChannelClosed.
      */
     Expected<T, ErrorCode> Receive()
     {
         T result;
-        if (m_queue->TryPop(result))
+        if (m_queue->PopUnlessClosed(result))
         {
             return Expected<T, ErrorCode>(std::move(result));
         }
-        if (m_queue->IsClosed())
-        {
-            return Expected<T, ErrorCode>(ErrorCode::ChannelClosed);
-        }
-        return Expected<T, ErrorCode>(m_queue->Pop());
+        return Expected<T, ErrorCode>(ErrorCode::ChannelClosed);
     }
 
     /**
@@ -358,7 +380,7 @@ struct ReceiverSPSC
         }
         if (m_queue->IsClosed())
         {
-            return ErrorCode::ChannelClosed;
+            return m_queue->TryPop(result) ? ErrorCode::Success : ErrorCode::ChannelClosed;
         }
         return ErrorCode::ChannelEmpty;
     }

@@ -423,7 +423,9 @@ result = channel.receiver.Receive();
 // result.GetError() == ErrorCode::ChannelClosed
 ```
 
-`Receive()` attempts a non-blocking pop first, then checks the closed flag, and only blocks if neither succeeds. This means items already in the queue are always returned before the closed status, but if `Receive()` is already blocked waiting for data, `Close()` alone will not unblock it — use `TryReceive()` in a polling loop for clean shutdown patterns where the receiver may be waiting.
+Items sent before `Close()` are always returned before the closed status. `Close()` also wakes a receiver already blocked in
+`Receive()`, which then drains what is left and returns `ErrorCode::ChannelClosed`, so a consumer thread can be shut down by
+closing its channel; no sentinel value is needed.
 
 ### MPMC Channel
 
@@ -486,7 +488,8 @@ result = channel.receiver.Receive();
 // result.GetError() == ErrorCode::ChannelClosed
 ```
 
-`Receive()` and `TryReceive()` behave identically to the SPSC channel: a non-blocking pop is attempted first, then the closed flag is checked. `TryReceive()` returns `ErrorCode::Success`, `ErrorCode::ChannelEmpty`, or `ErrorCode::ChannelClosed`.
+`Receive()` and `TryReceive()` behave identically to the SPSC channel. `Close()` wakes every receiver blocked in `Receive()`.
+`TryReceive()` returns `ErrorCode::Success`, `ErrorCode::ChannelEmpty`, or `ErrorCode::ChannelClosed`.
 
 ### Channel API Reference
 
@@ -496,9 +499,9 @@ result = channel.receiver.Receive();
 |------|--------|-------------|
 | `TransmitterSPSC` | `Send(const T&)` / `Send(T&&)` | Blocking send |
 | `TransmitterSPSC` | `TrySend(const T&)` | Non-blocking send, returns `false` if full |
-| `TransmitterSPSC` | `Close()` | Mark channel as closed |
+| `TransmitterSPSC` | `Close()` | Mark channel as closed and wake a blocked receiver |
 | `TransmitterSPSC` | `IsValid()` | Returns `true` if transmitter holds a queue |
-| `ReceiverSPSC` | `Receive()` | Blocking receive, returns `Expected<T, ErrorCode>`. Returns `ChannelClosed` if closed |
+| `ReceiverSPSC` | `Receive()` | Blocking receive, returns `Expected<T, ErrorCode>`. Returns `ChannelClosed` once closed and drained |
 | `ReceiverSPSC` | `TryReceive(T&)` | Non-blocking receive, returns `ErrorCode` (`Success`, `ChannelEmpty`, or `ChannelClosed`) |
 | `ReceiverSPSC` | `IsValid()` | Returns `true` if receiver holds a queue |
 
@@ -511,10 +514,10 @@ valid after the `ChannelSPSC` they came from is destroyed.
 |------|--------|-------------|
 | `TransmitterMPMC` | `Send(const T&)` / `Send(T&&)` | Blocking send |
 | `TransmitterMPMC` | `TrySend(const T&)` / `TrySend(T&&)` | Non-blocking send, returns `false` if full. A rejected rvalue is left untouched |
-| `TransmitterMPMC` | `Close()` | Mark channel as closed |
+| `TransmitterMPMC` | `Close()` | Mark channel as closed and wake every blocked receiver |
 | `TransmitterMPMC` | `Clone()` | Create a shared copy for another producer |
 | `TransmitterMPMC` | `IsValid()` | Returns `true` if transmitter holds a queue |
-| `ReceiverMPMC` | `Receive()` | Blocking receive, returns `Expected<T, ErrorCode>`. Returns `ChannelClosed` if closed |
+| `ReceiverMPMC` | `Receive()` | Blocking receive, returns `Expected<T, ErrorCode>`. Returns `ChannelClosed` once closed and drained |
 | `ReceiverMPMC` | `TryReceive(T&)` | Non-blocking receive, returns `ErrorCode` (`Success`, `ChannelEmpty`, or `ChannelClosed`) |
 | `ReceiverMPMC` | `Clone()` | Create a shared copy for another consumer |
 | `ReceiverMPMC` | `IsValid()` | Returns `true` if receiver holds a queue |

@@ -59,6 +59,15 @@ Documented rather than hidden, but still a hole: `Receive` checks the flag once 
 slot's turn and never looks at the flag again. A consumer thread parked in `Receive` stays parked after `Close`. Shutting one
 down cleanly needs a sentinel value or a `TryReceive` polling loop, which is what `ThreadPool` does with its null tasks.
 
+`Receive` and `TryReceive` also raced a send followed by `Close`: a pop that found the queue empty, then a send and a close from
+the producer, then the receiver's check of the flag reported the channel closed with an item still in it.
+
+**Fixed.** `Receive` no longer calls the blocking `Pop`. It loops over `TryPop` and the closed flag, waiting in between on a
+push counter that every push and `Close` advance, so `Close` wakes it. A receiver that sees the flag set pops once more before
+reporting closed, which `TryReceive` does too. The counter shares a cache line with the write index, which the producer writes
+on every push anyway; it costs one more atomic add per push in the signaling variants, and nothing in the spinning ones.
+`ThreadPool` still shuts down with sentinels; it could use `Close` now.
+
 ### 5. A task added while the pool closes is never run
 
 `AddFunctionTask` checks `m_is_closed` and then sends (`thread-pool.h:104`). A `Close` that lands between the two has already
