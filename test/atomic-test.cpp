@@ -95,6 +95,17 @@ TEST_CASE("Atomic fetch add and sub", "[Atomic]")
     REQUIRE(value.Load<MemoryOrder::Relaxed>() == 12);
 }
 
+TEST_CASE("Atomic fetch and, or and xor", "[Atomic]")
+{
+    Atomic<u32> value{0b1100};
+    REQUIRE(value.FetchOr<MemoryOrder::AcqRel>(0b0011) == 0b1100);
+    REQUIRE(value.Load() == 0b1111);
+    REQUIRE(value.FetchAnd(0b0110) == 0b1111);
+    REQUIRE(value.Load() == 0b0110);
+    REQUIRE(value.FetchXor<MemoryOrder::Relaxed>(0b0101) == 0b0110);
+    REQUIRE(value.Load() == 0b0011);
+}
+
 TEST_CASE("Atomic reports whether it is lock free", "[Atomic]")
 {
     STATIC_REQUIRE(Atomic<bool>::k_is_always_lock_free);

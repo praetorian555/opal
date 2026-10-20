@@ -147,8 +147,9 @@ Ordered by how soon a consumer is likely to need it.
 
 ### Tasks and scheduling
 
-- [ ] A task that produces a value: a future or promise pair, or `Task<T>` with `GetResult`. Today a result has to be written
-      through a capture
+- [x] A task that produces a value: a future or promise pair, or `Task<T>` with `GetResult`. Today a result has to be written
+      through a capture. Added: `Future<T>` and `Promise<T>` in `future.h`, `Future::Then`, and `ThreadPool::Submit`. A
+      continuation runs on the thread that sets the result; running it on a chosen thread needs the queue below
 - [ ] A job system: per-worker deques with stealing, dependencies between jobs, a waiting worker that runs other work instead of
       blocking (which also closes finding 6), and `ParallelFor` over a range
 - [ ] A queue drained by one named thread, for posting work back to a main or UI thread
@@ -180,7 +181,7 @@ Ordered by how soon a consumer is likely to need it.
 
 ### Atomics
 
-- [ ] `FetchAnd`, `FetchOr`, `FetchXor`
+- [x] `FetchAnd`, `FetchOr`, `FetchXor`
 - [ ] `FetchAdd` and `FetchSub` on pointers
 - [ ] `AtomicThreadFence` and `AtomicSignalFence`
 - [ ] `Wait` with a timeout

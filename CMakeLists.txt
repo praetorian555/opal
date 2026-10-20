@@ -144,6 +144,7 @@ set(OPAL_FILES
         include/opal/threading/channel-spsc.h
         include/opal/threading/channel-mpmc.h
         include/opal/threading/thread-pool.h
+        include/opal/threading/future.h
         include/opal/clonable-base.h
         include/opal/variant.h
         include/opal/container/string-format.h
@@ -269,6 +270,7 @@ if (OPAL_BUILD_TESTS)
             test/shared-ptr-test.cpp
             test/atomic-test.cpp
             test/thread-test.cpp
+            test/future-test.cpp
             test/delegate-test.cpp
             test/function-test.cpp
             test/logging-test.cpp

@@ -165,6 +165,42 @@ public:
     }
 
     /**
+     * Bitwise-and the value with operand and read what was there before, in one step.
+     * @param operand The bits to keep.
+     * @return The value that was there before.
+     */
+    template <MemoryOrder k_order = MemoryOrder::SeqCst>
+    T FetchAnd(T operand)
+        requires Integral<T>
+    {
+        return m_value.fetch_and(operand, Impl::ToStdMemoryOrder(k_order));
+    }
+
+    /**
+     * Bitwise-or the value with operand and read what was there before, in one step.
+     * @param operand The bits to set.
+     * @return The value that was there before.
+     */
+    template <MemoryOrder k_order = MemoryOrder::SeqCst>
+    T FetchOr(T operand)
+        requires Integral<T>
+    {
+        return m_value.fetch_or(operand, Impl::ToStdMemoryOrder(k_order));
+    }
+
+    /**
+     * Bitwise-xor the value with operand and read what was there before, in one step.
+     * @param operand The bits to flip.
+     * @return The value that was there before.
+     */
+    template <MemoryOrder k_order = MemoryOrder::SeqCst>
+    T FetchXor(T operand)
+        requires Integral<T>
+    {
+        return m_value.fetch_xor(operand, Impl::ToStdMemoryOrder(k_order));
+    }
+
+    /**
      * Block until the value differs from old_value, then return. May also return without the value having changed, so
      * callers must re-check the condition in a loop.
      * @tparam k_order Order to read with. Release and AcqRel do not apply to a read.

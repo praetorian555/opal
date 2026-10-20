@@ -1,6 +1,6 @@
 # Threading
 
-Headers: `opal/threading/thread.h`, `opal/threading/mutex.h`, `opal/threading/read-write-mutex.h`, `opal/threading/condition-variable.h`, `opal/threading/signal.h`, `opal/threading/channel-spsc.h`, `opal/threading/channel-mpmc.h`, `opal/threading/thread-pool.h`
+Headers: `opal/threading/thread.h`, `opal/threading/mutex.h`, `opal/threading/read-write-mutex.h`, `opal/threading/condition-variable.h`, `opal/threading/signal.h`, `opal/threading/channel-spsc.h`, `opal/threading/channel-mpmc.h`, `opal/threading/thread-pool.h`, `opal/threading/future.h`
 
 Cross-platform threading primitives for Windows and Linux. Includes threads, mutexes, condition variables, lock-free channels, and a task-based thread pool.
 
@@ -665,6 +665,7 @@ in the queue by then.
 |--------|-------------|
 | `ThreadPool(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)` | Create pool with N workers |
 | `AddFunctionTask(Function)` | Submit a callable, returns `Expected<SharedPtr<Task>, ErrorCode>` |
+| `Submit(Function)` | Submit a callable taking no arguments, returns `Expected<Future<R>, ErrorCode>` for what it returns |
 | `WaitForAll()` | Block until every submitted task has run, child tasks included. Not safe to call while another thread is closing the pool |
 | `Close()` | Reject later tasks, run every accepted one, then join all threads. Safe to call multiple times |
 | `GetThreadCount()` | Number of worker threads |
@@ -674,6 +675,99 @@ in the queue by then.
 |-------------|-------------|
 | `WaitForCompletion()` | Block until the task finishes (uses OS signaling, not busy-waiting) |
 | `IsCompleted()` | Check if the task has finished |
+
+## Futures
+
+A `Future<T>` is a value that arrives later, possibly from another thread. The matching `Promise<T>` sets it, once, with a
+value or an `ErrorCode`. The two share reference-counted state, so either side may be destroyed first.
+
+```cpp
+#include "opal/threading/future.h"
+
+auto promise = Opal::Promise<int>::Create();     // Expected<Promise<int>, ErrorCode>
+Opal::Future<int> future = promise.GetValue().GetFuture();
+
+// On any thread
+promise.GetValue().SetValue(42);
+
+// Blocks until the value arrives
+Opal::Expected<int, Opal::ErrorCode> result = future.Get();
+```
+
+What a future yields is `FutureResult<T>`: an `Expected<T, ErrorCode>`, or for `Future<void>` a plain `ErrorCode` that is
+`ErrorCode::Success` when the work finished. A promise destroyed without a value or an error sets `ErrorCode::BrokenPromise`, so a
+future never waits for a promise that is gone.
+
+A future has one consumer. It can be moved but not copied, and `Get()`, a successful `TryGet()` and `Then()` each take the result
+and leave the future invalid.
+
+### Polling
+
+`IsReady()` and `TryGet()` never block, which suits a loop that checks once per frame. `TryGet()` returns
+`ErrorCode::WouldBlock` while the result has not arrived and leaves the future as it was.
+
+```cpp
+auto result = future.TryGet();
+if (result.HasValue())
+{
+    Use(result.GetValue());
+}
+else if (result.GetError() != Opal::ErrorCode::WouldBlock)
+{
+    ReportFailure(result.GetError());
+}
+```
+
+`Wait()` blocks without taking the result, and `WaitFor(timeout_ms)` returns `false` if the timeout runs out first.
+
+### From a Thread Pool
+
+`ThreadPool::Submit` runs a callable that takes no arguments and returns a future for what it returns. A callable that returns
+nothing gives a `Future<void>`, one that returns `Expected<R, ErrorCode>` gives a `Future<R>` that carries the error.
+
+```cpp
+Opal::ThreadPool pool(4);
+auto image = pool.Submit([path = path.Clone()] { return DecodeImage(path); });   // Future<Image>
+auto saved = pool.Submit([] { return SaveSettings(); });                         // Future<void>, or Future<R> from an Expected
+```
+
+### Continuations
+
+`Then(func)` runs `func` on the result once it arrives and returns a future for what `func` returns. `func` takes the
+`FutureResult<T>` by rvalue, errors included, so it decides what an error turns into. Its return type maps the same way as
+`Submit`'s: a plain value, `void`, or an `Expected<U, ErrorCode>` that is flattened into a `Future<U>`.
+
+```cpp
+Opal::Future<Opal::u64> size = pool.Submit([] { return LoadText(); })
+    .GetValue()
+    .Then([](Opal::Expected<Opal::StringUtf8, Opal::ErrorCode>&& text) -> Opal::Expected<Opal::u64, Opal::ErrorCode>
+          {
+              if (!text.HasValue())
+              {
+                  return Opal::Expected<Opal::u64, Opal::ErrorCode>(text.GetError());
+              }
+              return Opal::Expected<Opal::u64, Opal::ErrorCode>(text.GetValue().GetSize());
+          });
+```
+
+`func` runs on the thread that sets the result - a pool worker, for a submitted task - or on the calling thread if the result has
+already arrived. A continuation therefore must not block for long, and must not touch state that belongs to one thread, such as UI
+objects. `Then` returns an invalid future, and leaves the original one valid, if the continuation could not be allocated.
+
+### API Reference
+
+| Type | Method | Description |
+|------|--------|-------------|
+| `Promise<T>` | `Create(AllocatorBase* = nullptr)` | Create with shared state, returns `Expected<Promise<T>, ErrorCode>`. The allocator must be thread safe |
+| `Promise<T>` | `GetFuture()` | The future this promise fills. Only once |
+| `Promise<T>` | `SetValue(T)` / `SetValue()` | Set the value, or finish a `Promise<void>`. Returns `false` if a result was already set |
+| `Promise<T>` | `SetResult(Expected<T, ErrorCode>)` | Set the value or error held by an `Expected` |
+| `Promise<T>` | `SetError(ErrorCode)` | Set an error |
+| `Future<T>` | `IsValid()` / `IsReady()` | Attached and not consumed / result has arrived |
+| `Future<T>` | `Wait()` / `WaitFor(timeout_ms)` | Block until the result arrives |
+| `Future<T>` | `Get()` | Block, then take the result |
+| `Future<T>` | `TryGet()` | Take the result if it has arrived, else `ErrorCode::WouldBlock` |
+| `Future<T>` | `Then(func)` | Run `func` on the result, returns a future for what it returns |
 
 ## Thread Safety Summary
 
@@ -687,5 +781,6 @@ in the queue by then.
 | `Signal` | Yes |
 | `ChannelSPSC` | Yes (one producer, one consumer) |
 | `ChannelMPMC` | Yes (multiple producers, multiple consumers) |
-| `ThreadPool` | `AddFunctionTask` is thread-safe via internal MPMC channel |
+| `ThreadPool` | `AddFunctionTask` and `Submit` are thread-safe via internal MPMC channel |
+| `Promise<T>` / `Future<T>` | A promise and its future may be used from different threads. Each one alone is not for sharing |
 

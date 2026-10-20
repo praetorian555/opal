@@ -273,6 +273,7 @@ Cross-platform threading primitives and concurrency utilities.
 | `opal/threading/channel-spsc.h` | Single-producer, single-consumer channel |
 | `opal/threading/channel-mpmc.h` | Multi-producer, multi-consumer channel |
 | `opal/threading/thread-pool.h` | Task-based thread pool |
+| `opal/threading/future.h` | Future and promise for a value produced on another thread |
 | `opal/threading/cpu-pause.h` | CPU pause/yield hint for spin-wait loops |
 
 Channels split into a `Transmitter` (producer) and `Receiver` (consumer) that can be moved to separate threads. Both SPSC and MPMC channels accept a `bool UseSignaling` template parameter that controls how blocking operations wait:

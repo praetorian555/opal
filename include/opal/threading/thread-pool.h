@@ -5,6 +5,7 @@
 #include "opal/defines.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/threading/channel-mpmc.h"
+#include "opal/threading/future.h"
 #include "opal/threading/thread.h"
 #include "opal/type-traits.h"
 
@@ -117,6 +118,34 @@ public:
         m_communicator.transmitter.Send(SharedPtr<Task>{handle.Clone()});
         EndSubmission();
         return ReturnType(SharedPtr<Task>{std::move(handle)});
+    }
+
+    /**
+     * Submits a callable as a task and returns a future for what it returns.
+     * @param function Callable taking no arguments. It may return nothing, giving a Future<void>; a plain value of type R, giving a
+     *                 Future<R>; or an Expected<R, ErrorCode>, giving a Future<R> that carries the error too.
+     * @return The future, ErrorCode::ChannelClosed if the pool has been closed, or ErrorCode::OutOfMemory if the task could not be
+     *         allocated. Continuations attached with Future::Then run on the worker that finishes the task.
+     */
+    template <typename Function>
+    auto Submit(Function function)
+    {
+        using ValueType = Impl::FutureValueOf<std::invoke_result_t<Function&>>;
+        using ReturnType = Expected<Future<ValueType>, ErrorCode>;
+        Expected<Promise<ValueType>, ErrorCode> promise = Promise<ValueType>::Create(m_allocator);
+        if (!promise.HasValue())
+        {
+            return ReturnType(promise.GetError());
+        }
+        Future<ValueType> future = promise.GetValue().GetFuture();
+        auto task = AddFunctionTask(
+            [function = std::move(function), promise = std::move(promise.GetValue())](Task::TransmitterType&) mutable
+            { Impl::FulfillWith(promise, function); });
+        if (!task.HasValue())
+        {
+            return ReturnType(task.GetError());
+        }
+        return ReturnType(std::move(future));
     }
 
     /**

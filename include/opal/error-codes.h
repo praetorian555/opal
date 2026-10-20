@@ -40,6 +40,8 @@ enum class ErrorCode : u8
     AddressInUse = 23,
     /** The operation ran out of the time it was given. */
     TimedOut = 24,
+    /** The promise behind a future was destroyed without a value or an error being set. */
+    BrokenPromise = 25,
 };
 
 }
