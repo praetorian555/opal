@@ -5,6 +5,7 @@
 #include "opal/container/string.h"
 #include "opal/threading/executor.h"
 #include "opal/threading/task-queue.h"
+#include "opal/container/scope-ptr.h"
 #include "opal/threading/thread-pool.h"
 #include "opal/threading/thread.h"
 
@@ -18,6 +19,13 @@ ThreadHandle CreateThreadOrFail(Function&& function, Args&&... args)
     Expected<ThreadHandle, ErrorCode> handle = CreateThread(std::forward<Function>(function), std::forward<Args>(args)...);
     REQUIRE(handle.HasValue());
     return handle.GetValue();
+}
+
+ScopePtr<ThreadPool> CreatePoolOrFail(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)
+{
+    Expected<ScopePtr<ThreadPool>, ErrorCode> pool = ThreadPool::Create(thread_count, channel_capacity, allocator);
+    REQUIRE(pool.HasValue());
+    return std::move(pool.GetValue());
 }
 
 // Runs work at once on the posting thread, to show the interface is enough to build an executor on.
@@ -199,7 +207,8 @@ TEST_CASE("TaskQueue rejects an invalid pointer and a non-thread-safe allocator"
 
 TEST_CASE("Then on an executor runs on the thread that drains it", "[Executor]")
 {
-    ThreadPool pool(2);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(2);
+    ThreadPool& pool = *pool_owner;
     TaskQueue main_queue;
     const ThreadId main_thread = GetCurrentThreadHandle().id;
 
@@ -261,7 +270,8 @@ TEST_CASE("Then on an executor drops the input with the queue", "[Executor]")
 
 TEST_CASE("Executors work through the interface", "[Executor]")
 {
-    ThreadPool pool(2);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(2);
+    ThreadPool& pool = *pool_owner;
     TaskQueue queue;
     InlineExecutor inline_executor;
     Executor* executors[] = {&pool, &queue, &inline_executor};

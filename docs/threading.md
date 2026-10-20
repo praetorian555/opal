@@ -614,10 +614,10 @@ returns an `Expected<Future<R>, ErrorCode>` for what the callable returns - see 
 `Future::Then(executor, func)` runs a continuation on a chosen executor, which is how work finishes on the UI thread:
 
 ```cpp
-Opal::ThreadPool pool(4);
+auto pool = Opal::ThreadPool::Create(4).GetValue();   // Check HasValue in real code
 Opal::TaskQueue ui_queue;
 
-auto image = pool.Submit([path = path.Clone()] { return DecodeImage(path); });
+auto image = pool->Submit([path = path.Clone()] { return DecodeImage(path); });
 Opal::Future<void> shown = image.GetValue().Then(ui_queue, [](Opal::Expected<Image, Opal::ErrorCode>&& decoded)
 {
     ShowImage(decoded);   // Runs on the UI thread
@@ -673,7 +673,12 @@ block when idle and wake on submission, consuming no CPU while waiting. Each tas
 ```cpp
 #include "opal/threading/thread-pool.h"
 
-Opal::ThreadPool pool(8);  // 8 worker threads
+auto created = Opal::ThreadPool::Create(8);           // Expected<ScopePtr<ThreadPool>, ErrorCode>, 8 worker threads
+if (!created.HasValue())
+{
+    return created.GetError();
+}
+Opal::ThreadPool& pool = *created.GetValue();
 
 auto sum = pool.Submit([] { return 2 + 2; });       // Expected<Future<int>, ErrorCode>
 if (sum.HasValue())
@@ -683,6 +688,10 @@ if (sum.HasValue())
 
 auto work = pool.Submit([] { /* work */ });         // Future<void>
 ```
+
+`Create` returns `ErrorCode::InvalidArgument` for an allocator that is not thread safe, `ErrorCode::OutOfMemory` when the pool or
+its channel could not be allocated, and what `CreateThread` reported when a worker did not start; workers that did start are
+shut down first. A pool can be neither copied nor moved, so it lives behind the `ScopePtr`.
 
 `Submit` returns `ErrorCode::ChannelClosed` once the pool has been closed and `ErrorCode::OutOfMemory` when the task could not be
 allocated. The callable takes no arguments and may return nothing, a value, or an `Expected<R, ErrorCode>`; see
@@ -724,7 +733,7 @@ to run the queue. Attach the follow-up with `Then` instead.
 
 | Method | Description |
 |--------|-------------|
-| `ThreadPool(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)` | Create pool with N workers |
+| `Create(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)` | Create a pool with N workers, returns `Expected<ScopePtr<ThreadPool>, ErrorCode>` |
 | `Submit(Function)` | Submit a callable taking no arguments, returns `Expected<Future<R>, ErrorCode>` for what it returns |
 | `WaitForAll()` | Block until every submitted task has run, child tasks included. Not safe to call while another thread is closing the pool |
 | `Close()` | Reject later tasks, run every accepted one, then join all threads. Safe to call multiple times |
@@ -781,7 +790,7 @@ else if (result.GetError() != Opal::ErrorCode::WouldBlock)
 nothing gives a `Future<void>`, one that returns `Expected<R, ErrorCode>` gives a `Future<R>` that carries the error.
 
 ```cpp
-Opal::ThreadPool pool(4);
+Opal::ThreadPool& pool = *created.GetValue();
 auto image = pool.Submit([path = path.Clone()] { return DecodeImage(path); });   // Future<Image>
 auto saved = pool.Submit([] { return SaveSettings(); });                         // Future<void>, or Future<R> from an Expected
 ```

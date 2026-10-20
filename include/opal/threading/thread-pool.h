@@ -2,6 +2,8 @@
 
 #include "opal/allocator.h"
 #include "opal/container/dynamic-array.h"
+#include "opal/container/expected.h"
+#include "opal/container/scope-ptr.h"
 #include "opal/defines.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/threading/channel-mpmc.h"
@@ -23,15 +25,28 @@ namespace Opal
  */
 class ThreadPool final : public Executor
 {
+    struct CreateKey
+    {
+        explicit CreateKey() = default;
+    };
+
 public:
     /**
-     * Creates a thread pool with the given number of worker threads.
-     * @param thread_count Number of worker threads to spawn.
-     * @param channel_capacity Capacity of the internal task channel. Defaults to 128.
-     * @param allocator Allocator for internal storage. If null, uses the default allocator.
-     * @throws OutOfMemoryException or Exception when a worker thread could not be started. Workers that did start are shut down first.
+     * Create a thread pool and start its workers.
+     * @param thread_count Number of worker threads to start.
+     * @param channel_capacity Capacity of the internal task channel, rounded up to a power of two. Defaults to 128.
+     * @param allocator Allocator for the pool, its channel and the tasks it is given. Must be thread safe. If null, uses the
+     *                  default allocator.
+     * @return The pool, ErrorCode::InvalidArgument if the allocator is not thread safe, ErrorCode::OutOfMemory if the pool or its
+     *         channel could not be allocated, or what CreateThread reported for a worker that did not start. Workers that did
+     *         start are shut down before an error is returned.
+     * @note Each worker takes the calling thread's default allocator as its own, which must be thread safe.
      */
-    explicit ThreadPool(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr);
+    [[nodiscard]] static Expected<ScopePtr<ThreadPool>, ErrorCode> Create(size_t thread_count, size_t channel_capacity = 128,
+                                                                          AllocatorBase* allocator = nullptr);
+
+    /** Used by Create; call Create instead. */
+    ThreadPool(CreateKey key, size_t channel_capacity, AllocatorBase* allocator);
     ~ThreadPool() override;
 
     ThreadPool(const ThreadPool&) = delete;
@@ -66,6 +81,9 @@ public:
 private:
     /** Ends a submission begun in Post, and wakes a Close waiting for it to finish. */
     void EndSubmission();
+
+    /** Start thread_count workers. On failure the ones that started keep running until Close. */
+    ErrorCode StartWorkers(size_t thread_count);
 
     /** @return True if the calling thread is one of this pool's workers. */
     [[nodiscard]] bool IsCurrentThreadWorker() const;

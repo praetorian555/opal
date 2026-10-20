@@ -1,5 +1,7 @@
 #pragma once
 
+#include <new>
+
 #include "opal/threading/atomic.h"
 
 #include "opal/allocator.h"
@@ -38,7 +40,41 @@ template <typename T, bool UseSignaling = false>
 class QueueMPMC
 {
 public:
-    QueueMPMC(size_t capacity, AllocatorBase* allocator = nullptr) : m_data(capacity, allocator), m_capacity(capacity) {}
+    /** Creates a queue for capacity items, a power of two. If the storage cannot be allocated, GetCapacity reports zero. */
+    QueueMPMC(size_t capacity, AllocatorBase* allocator = nullptr) : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
+    {
+        void* memory = m_allocator->Alloc(capacity * sizeof(QueueMPMCSlot<T>), alignof(QueueMPMCSlot<T>));
+        if (memory == nullptr)
+        {
+            return;
+        }
+        m_data = static_cast<QueueMPMCSlot<T>*>(memory);
+        for (size_t i = 0; i < capacity; ++i)
+        {
+            new (&m_data[i]) QueueMPMCSlot<T>();
+        }
+        m_capacity = capacity;
+    }
+
+    ~QueueMPMC()
+    {
+        for (size_t i = 0; i < m_capacity; ++i)
+        {
+            m_data[i].~QueueMPMCSlot<T>();
+        }
+        if (m_data != nullptr)
+        {
+            m_allocator->Free(m_data);
+        }
+    }
+
+    QueueMPMC(const QueueMPMC&) = delete;
+    QueueMPMC& operator=(const QueueMPMC&) = delete;
+    QueueMPMC(QueueMPMC&&) = delete;
+    QueueMPMC& operator=(QueueMPMC&&) = delete;
+
+    /** @return Number of items the queue holds, or zero if its storage could not be allocated. */
+    [[nodiscard]] size_t GetCapacity() const { return m_capacity; }
 
     /** Push a copy of data, or a clone when T cannot be copy-assigned. Blocks while the queue is full. */
     void Push(const T& data)
@@ -278,7 +314,8 @@ private:
     Atomic<u32> m_push_count = 0;
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_read_idx = 0;
     OPAL_END_DISABLE_WARNINGS
-    DynamicArray<QueueMPMCSlot<T>> m_data;
+    AllocatorBase* m_allocator = nullptr;
+    QueueMPMCSlot<T>* m_data = nullptr;
     size_t m_capacity = 0;
     Atomic<bool> m_is_closed = false;
 };
@@ -413,7 +450,8 @@ private:
 
 /**
  * One-way, thread-safe communication channel with multiple producers and multiple consumers.
- * Use the transmitter field to send data and the receiver field to receive it.
+ * Use the transmitter field to send data and the receiver field to receive it. If the channel's storage cannot be allocated,
+ * both ends are left invalid; check IsValid before using them.
  * @tparam T Type of data to be sent over the channel.
  * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
  */
@@ -427,6 +465,10 @@ struct ChannelMPMC
     {
         capacity = GetNextPowerOf2(capacity);
         SharedPtr<Impl::QueueMPMC<T, UseSignaling>> q(allocator, capacity, allocator);
+        if (!q.IsValid() || q->GetCapacity() == 0)
+        {
+            return;
+        }
         transmitter = TransmitterMPMC<T, UseSignaling>(q.Clone());
         receiver = ReceiverMPMC<T, UseSignaling>(std::move(q));
     }

@@ -6,6 +6,7 @@
 
 #include "opal/container/string.h"
 #include "opal/threading/future.h"
+#include "opal/container/scope-ptr.h"
 #include "opal/threading/thread-pool.h"
 #include "opal/threading/thread.h"
 
@@ -27,6 +28,13 @@ ThreadHandle CreateThreadOrFail(Function&& function, Args&&... args)
     Expected<ThreadHandle, ErrorCode> handle = CreateThread(std::forward<Function>(function), std::forward<Args>(args)...);
     REQUIRE(handle.HasValue());
     return handle.GetValue();
+}
+
+ScopePtr<ThreadPool> CreatePoolOrFail(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)
+{
+    Expected<ScopePtr<ThreadPool>, ErrorCode> pool = ThreadPool::Create(thread_count, channel_capacity, allocator);
+    REQUIRE(pool.HasValue());
+    return std::move(pool.GetValue());
 }
 
 struct NotThreadSafeAllocator final : AllocatorBase
@@ -293,7 +301,8 @@ TEST_CASE("Future Then races SetValue without losing or doubling the continuatio
 
 TEST_CASE("ThreadPool Submit returns a future", "[Future]")
 {
-    ThreadPool pool(4);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(4);
+    ThreadPool& pool = *pool_owner;
 
     auto value = pool.Submit([] { return 6 * 7; });
     REQUIRE(value.HasValue());
@@ -333,7 +342,8 @@ TEST_CASE("ThreadPool Submit returns a future", "[Future]")
 TEST_CASE("ThreadPool Submit allocates the task and its future as one object", "[Future]")
 {
     CountingAllocator allocator;
-    ThreadPool pool(1, 16, &allocator);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(1, 16, &allocator);
+    ThreadPool& pool = *pool_owner;
     allocator.m_count.store(0);
 
     auto future = pool.Submit([] { return 1; });
@@ -345,7 +355,8 @@ TEST_CASE("ThreadPool Submit allocates the task and its future as one object", "
 
 TEST_CASE("ThreadPool Submit on a closed pool", "[Future]")
 {
-    ThreadPool pool(1);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(1);
+    ThreadPool& pool = *pool_owner;
     pool.Close();
     auto future = pool.Submit([] { return 1; });
     REQUIRE(!future.HasValue());

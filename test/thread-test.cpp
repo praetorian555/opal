@@ -38,6 +38,13 @@ ThreadHandle CreateThreadOrFail(Function&& function, Args&&... args)
     return handle.GetValue();
 }
 
+ScopePtr<ThreadPool> CreatePoolOrFail(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)
+{
+    Expected<ScopePtr<ThreadPool>, ErrorCode> pool = ThreadPool::Create(thread_count, channel_capacity, allocator);
+    REQUIRE(pool.HasValue());
+    return std::move(pool.GetValue());
+}
+
 // Thread-safe, so it gets past CreateThread's assert, and hands back nothing, so the thread state cannot be allocated.
 struct ThreadSafeNullAllocator final : AllocatorBase
 {
@@ -59,6 +66,30 @@ struct FailAfterSwitchAllocator final : AllocatorBase
 
     MallocAllocator m_inner;
     std::atomic<bool> m_fail{false};
+};
+
+// Hands out memory for the first allocations and refuses every one after, so each allocation a type makes can be made to fail.
+struct FailFromNthAllocator final : AllocatorBase
+{
+    explicit FailFromNthAllocator(i32 succeed_count) : AllocatorBase("FailFromNthAllocator"), m_remaining(succeed_count) {}
+
+    void* Alloc(u64 size, u64 alignment) override { return m_remaining.fetch_sub(1) > 0 ? m_inner.Alloc(size, alignment) : nullptr; }
+    void Free(void* ptr) override { m_inner.Free(ptr); }
+    [[nodiscard]] bool IsThreadSafe() const override { return true; }
+
+    MallocAllocator m_inner;
+    std::atomic<i32> m_remaining;
+};
+
+struct NotThreadSafeAllocator final : AllocatorBase
+{
+    NotThreadSafeAllocator() : AllocatorBase("NotThreadSafeAllocator") {}
+
+    void* Alloc(u64 size, u64 alignment) override { return m_inner.Alloc(size, alignment); }
+    void Free(void* ptr) override { m_inner.Free(ptr); }
+    [[nodiscard]] bool IsThreadSafe() const override { return false; }
+
+    MallocAllocator m_inner;
 };
 
 // Counts the instances alive, so a slot overwritten without being destroyed shows up as one left over.
@@ -915,7 +946,8 @@ TEST_CASE("Close wakes every MPMC receiver blocked in Receive", "[Thread]")
 
 TEST_CASE("Thread pool", "[Thread]")
 {
-    ThreadPool pool(8);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(8);
+    ThreadPool& pool = *pool_owner;
     i32 value = 5;
     auto task = pool.Submit([&value] { value = 10; });
     REQUIRE(task.HasValue());
@@ -925,7 +957,8 @@ TEST_CASE("Thread pool", "[Thread]")
 
 TEST_CASE("Thread pool captures string", "[Thread]")
 {
-    ThreadPool pool(8);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(8);
+    ThreadPool& pool = *pool_owner;
     StringUtf8 value = "Hello";
     auto task = pool.Submit([moved_value = value.Clone()] { return moved_value == "Hello"; });
     REQUIRE(task.HasValue());
@@ -935,7 +968,8 @@ TEST_CASE("Thread pool captures string", "[Thread]")
 
 TEST_CASE("Thread pool rejects tasks after it is closed", "[Thread]")
 {
-    ThreadPool pool(2);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(2);
+    ThreadPool& pool = *pool_owner;
     pool.Close();
 
     auto task = pool.Submit([] {});
@@ -949,7 +983,8 @@ TEST_CASE("Thread pool runs every task it accepted while closing", "[Thread]")
     i32 not_completed = 0;
     for (i32 iteration = 0; iteration < k_iterations; ++iteration)
     {
-        ThreadPool pool(2);
+        ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(2);
+        ThreadPool& pool = *pool_owner;
         DynamicArray<Future<void>> accepted;
         std::atomic<bool> started{false};
         const ThreadHandle submitter = CreateThreadOrFail(
@@ -984,7 +1019,8 @@ TEST_CASE("Thread pool runs every task it accepted while closing", "[Thread]")
 TEST_CASE("Thread pool reports a task it could not allocate", "[Thread]")
 {
     FailAfterSwitchAllocator allocator;
-    ThreadPool pool(2, 128, &allocator);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(2, 128, &allocator);
+    ThreadPool& pool = *pool_owner;
     allocator.m_fail.store(true);
 
     auto task = pool.Submit([] {});
@@ -994,9 +1030,52 @@ TEST_CASE("Thread pool reports a task it could not allocate", "[Thread]")
     allocator.m_fail.store(false);
 }
 
+TEST_CASE("Thread pool Create rejects an allocator that is not thread safe", "[Thread]")
+{
+    NotThreadSafeAllocator allocator;
+    auto pool = ThreadPool::Create(2, 128, &allocator);
+    REQUIRE(!pool.HasValue());
+    REQUIRE(pool.GetError() == ErrorCode::InvalidArgument);
+}
+
+TEST_CASE("Thread pool Create reports each allocation it could not make", "[Thread]")
+{
+    bool created = false;
+    for (i32 succeed_count = 0; succeed_count < 32 && !created; ++succeed_count)
+    {
+        FailFromNthAllocator allocator(succeed_count);
+        auto pool = ThreadPool::Create(2, 16, &allocator);
+        if (pool.HasValue())
+        {
+            created = true;
+            auto task = pool.GetValue()->Submit([] { return 1; });
+            const bool submitted = task.HasValue();
+            REQUIRE((!submitted || task.GetValue().Get().GetValue() == 1));
+        }
+        else
+        {
+            REQUIRE(pool.GetError() == ErrorCode::OutOfMemory);
+        }
+    }
+    REQUIRE(created);
+}
+
+TEST_CASE("MPMC channel leaves both ends invalid when out of memory", "[Thread]")
+{
+    ThreadSafeNullAllocator allocator;
+    ChannelMPMC<i32> channel(8, &allocator);
+    REQUIRE(!channel.transmitter.IsValid());
+    REQUIRE(!channel.receiver.IsValid());
+
+    FailFromNthAllocator queue_but_not_slots(2);
+    ChannelMPMC<i32> half(8, &queue_but_not_slots);
+    REQUIRE(!half.transmitter.IsValid());
+}
+
 TEST_CASE("Thread pool WaitForAll drains every task", "[Thread]")
 {
-    ThreadPool pool(4);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(4);
+    ThreadPool& pool = *pool_owner;
     std::atomic<i32> counter{0};
 
     for (i32 i = 0; i < 64; ++i)
@@ -1011,7 +1090,8 @@ TEST_CASE("Thread pool WaitForAll drains every task", "[Thread]")
 
 TEST_CASE("Thread pool WaitForAll drains tasks submitted by other tasks", "[Thread]")
 {
-    ThreadPool pool(4);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(4);
+    ThreadPool& pool = *pool_owner;
     std::atomic<i32> counter{0};
 
     auto parent = pool.Submit(
@@ -1031,7 +1111,8 @@ TEST_CASE("Thread pool WaitForAll drains tasks submitted by other tasks", "[Thre
 
 TEST_CASE("Thread pool Close runs tasks submitted by tasks still running", "[Thread]")
 {
-    ThreadPool pool(2);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(2);
+    ThreadPool& pool = *pool_owner;
     std::atomic<bool> parent_started{false};
     std::atomic<i32> counter{0};
     std::atomic<i32> rejected{0};
@@ -1061,7 +1142,8 @@ TEST_CASE("Thread pool Close runs tasks submitted by tasks still running", "[Thr
 
 TEST_CASE("Thread pool rejects a task from another thread while closing but not from its own workers", "[Thread]")
 {
-    ThreadPool pool(1);
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(1);
+    ThreadPool& pool = *pool_owner;
     std::atomic<bool> parent_started{false};
     std::atomic<bool> release_parent{false};
 

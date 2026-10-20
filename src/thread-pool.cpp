@@ -1,6 +1,5 @@
 #include "opal/threading/thread-pool.h"
 
-#include "opal/exceptions.h"
 
 namespace
 {
@@ -30,14 +29,45 @@ void ThreadFunction(ReceiverType receiver, const Opal::ThreadPool* pool, Opal::R
 }
 }  // namespace
 
-Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, AllocatorBase* allocator)
-    : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator()), m_communicator(channel_capacity, m_allocator)
+Opal::Expected<Opal::ScopePtr<Opal::ThreadPool>, Opal::ErrorCode> Opal::ThreadPool::Create(size_t thread_count, size_t channel_capacity,
+                                                                                         AllocatorBase* allocator)
+{
+    using Result = Expected<ScopePtr<ThreadPool>, ErrorCode>;
+    if (allocator == nullptr)
+    {
+        allocator = GetDefaultAllocator();
+    }
+    if (!allocator->IsThreadSafe())
+    {
+        return Result(ErrorCode::InvalidArgument);
+    }
+    ScopePtr<ThreadPool> pool = MakeScoped<ThreadPool>(allocator, CreateKey{}, channel_capacity, allocator);
+    if (!pool.IsValid() || !pool->m_communicator.transmitter.IsValid())
+    {
+        return Result(ErrorCode::OutOfMemory);
+    }
+    const ErrorCode started = pool->StartWorkers(thread_count);
+    if (started != ErrorCode::Success)
+    {
+        pool->Close();
+        return Result(started);
+    }
+    return Result(std::move(pool));
+}
+
+Opal::ThreadPool::ThreadPool(CreateKey, size_t channel_capacity, AllocatorBase* allocator)
+    : m_allocator(allocator), m_threads(allocator), m_communicator(channel_capacity, allocator)
+{
+}
+
+Opal::ErrorCode Opal::ThreadPool::StartWorkers(size_t thread_count)
 {
     // Room for every handle before the first thread starts, so that a started thread can never fail to be recorded and then be left
     // running unjoined.
-    if (m_threads.Reserve(thread_count) != ErrorCode::Success)
+    const ErrorCode reserved = m_threads.Reserve(thread_count);
+    if (reserved != ErrorCode::Success)
     {
-        OPAL_RAISE(OutOfMemoryException(__FUNCTION__));
+        return reserved;
     }
     for (size_t i = 0; i < thread_count; ++i)
     {
@@ -46,16 +76,11 @@ Opal::ThreadPool::ThreadPool(size_t thread_count, size_t channel_capacity, Alloc
                          &m_completed_count);
         if (!thread_handle.HasValue())
         {
-            // A constructor has nowhere to put a code, so the workers that did start are shut down and the failure is thrown.
-            Close();
-            if (thread_handle.GetError() == ErrorCode::OutOfMemory)
-            {
-                OPAL_RAISE(OutOfMemoryException(__FUNCTION__));
-            }
-            OPAL_RAISE(Exception("Failed to create thread!"));
+            return thread_handle.GetError();
         }
         m_threads.PushBack(std::move(thread_handle).GetValue());
     }
+    return ErrorCode::Success;
 }
 
 Opal::ThreadPool::~ThreadPool()
@@ -90,7 +115,10 @@ void Opal::ThreadPool::Close()
     {
         m_submitting.Wait(submitting);
     }
-    m_communicator.transmitter.Close();
+    if (m_communicator.transmitter.IsValid())
+    {
+        m_communicator.transmitter.Close();
+    }
     for (const ThreadHandle& thread : m_threads)
     {
         JoinThread(thread);

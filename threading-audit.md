@@ -92,6 +92,10 @@ behind it, since a waiting worker does not run anything else.
 The constructor raises when a worker does not start (`thread-pool.cpp:38`). Under `OPAL_NO_EXCEPTIONS` that is termination, and
 there is no `Create` factory returning `Expected` the way the containers grew one.
 
+**Fixed.** `ThreadPool::Create` returns `Expected<ScopePtr<ThreadPool>, ErrorCode>`, and nothing in threading raises any more.
+`ChannelMPMC` also used to keep an unusable queue when its storage could not be allocated, crashing on the first send; it now
+leaves both ends invalid, and the pool reports that as `ErrorCode::OutOfMemory`.
+
 ### 8. `ConditionVariable::WaitFor` measures against the wall clock on Linux
 
 The deadline is built from `CLOCK_REALTIME` (`condition-variable.cpp`), so an NTP step or a manual clock change lengthens or
@@ -162,7 +166,8 @@ Ordered by how soon a consumer is likely to need it.
 - [x] A queue drained by one named thread, for posting work back to a main or UI thread. Added as `TaskQueue`, behind an
       `Executor` interface that `ThreadPool` implements too, with `Future::Then(executor, func)` to run a continuation there
 - [ ] Cancellation tokens, so stale work can be dropped before it runs
-- [ ] `ThreadPool::Create` returning `Expected`, per-worker names and affinity
+- [x] `ThreadPool::Create` returning `Expected`
+- [ ] Per-worker names and affinity for `ThreadPool`
 
 ### Threads
 
