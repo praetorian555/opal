@@ -11,6 +11,7 @@
 #include "opal/defines.h"
 #include "opal/error-codes.h"
 #include "opal/threading/atomic.h"
+#include "opal/threading/executor.h"
 #include "opal/threading/signal.h"
 #include "opal/time.h"
 
@@ -61,14 +62,6 @@ FutureResult<T> MakeFutureError(ErrorCode error)
     }
 }
 
-/** Work an executor can run. */
-class Runnable
-{
-public:
-    virtual ~Runnable() = default;
-    virtual void Run() = 0;
-};
-
 template <typename T>
 struct FutureContinuationBase
 {
@@ -105,6 +98,14 @@ public:
     FutureState& operator=(FutureState&&) = delete;
 
     void Run() override {}
+
+    void Abandon() override
+    {
+        if (!IsSet())
+        {
+            SetResult(MakeFutureError<T>(ErrorCode::BrokenPromise));
+        }
+    }
 
     /** Store the result, wake waiters and run the continuation if there is one. Returns false if a result was already set. */
     bool SetResult(ResultType&& result)
@@ -259,6 +260,69 @@ struct ThenContinuation final : FutureContinuationBase<T>
     Promise<U> m_promise;
 };
 
+/** A continuation's callable, its promise and, once it arrives, its input, waiting to be run on an executor. */
+template <typename T, typename Func, typename U>
+class PostedContinuation final : public Runnable
+{
+public:
+    using InputType = FutureResult<T>;
+
+    PostedContinuation(Func&& func, Promise<U>&& promise) : m_func(std::move(func)), m_promise(std::move(promise)) {}
+
+    ~PostedContinuation() override
+    {
+        if (m_has_input)
+        {
+            GetInput().~InputType();
+        }
+    }
+
+    PostedContinuation(const PostedContinuation&) = delete;
+    PostedContinuation& operator=(const PostedContinuation&) = delete;
+    PostedContinuation(PostedContinuation&&) = delete;
+    PostedContinuation& operator=(PostedContinuation&&) = delete;
+
+    void SetInput(InputType&& input)
+    {
+        new (m_input) InputType(std::move(input));
+        m_has_input = true;
+    }
+
+    void Run() override { FutureAccess::SetResult(m_promise, InvokeForResult<U>(m_func, std::move(GetInput()))); }
+
+    void Abandon() override { m_promise.SetError(ErrorCode::BrokenPromise); }
+
+    void Fail(ErrorCode error) { m_promise.SetError(error); }
+
+private:
+    InputType& GetInput() { return *std::launder(reinterpret_cast<InputType*>(m_input)); }
+
+    Func m_func;
+    Promise<U> m_promise;
+    alignas(InputType) u8 m_input[sizeof(InputType)];
+    bool m_has_input = false;
+};
+
+/** Hands the result to a PostedContinuation and posts it, so the callable runs on the executor rather than here. */
+template <typename T, typename Func, typename U>
+struct PostContinuation final : FutureContinuationBase<T>
+{
+    PostContinuation(Executor& executor, SharedPtr<PostedContinuation<T, Func, U>>&& job) : m_executor(&executor), m_job(std::move(job)) {}
+
+    void Run(FutureResult<T>&& result) override
+    {
+        m_job->SetInput(std::move(result));
+        const ErrorCode posted = m_executor->Post(SharedPtr<Runnable>(m_job.Clone()));
+        if (posted != ErrorCode::Success)
+        {
+            m_job->Fail(posted);
+        }
+    }
+
+    Executor* m_executor;
+    SharedPtr<PostedContinuation<T, Func, U>> m_job;
+};
+
 }  // namespace Impl
 
 /**
@@ -371,6 +435,52 @@ public:
         }
         Future<U> next = promise.GetValue().GetFuture();
         Continuation* continuation = New<Continuation>(allocator, FuncType(std::forward<Func>(func)), std::move(promise.GetValue()));
+        if (continuation == nullptr)
+        {
+            return Future<U>{};
+        }
+        SharedPtr<Impl::FutureState<T>> state = std::move(m_state);
+        state->SetContinuation(continuation);
+        return next;
+    }
+
+    /**
+     * Run func on the result once it arrives, on the given executor, and get a future for what func returns.
+     *
+     * Like Then(func), except that func never runs on the thread that sets the result: it is posted to executor, even when the
+     * result has already arrived. Use it to finish work on a TaskQueue drained by a UI thread.
+     * @param executor Where func runs. Must outlive the result's arrival.
+     * @param func Callable to run on the result, as for Then(func).
+     * @return Future for what func returns, and this future is invalid afterwards. It reports what Post reported if the executor
+     *         did not accept the work. An invalid future, with this one left as it was, if this future is invalid or the
+     *         continuation could not be allocated.
+     */
+    template <typename Func>
+    auto Then(Executor& executor, Func&& func)
+    {
+        using FuncType = std::decay_t<Func>;
+        using R = std::invoke_result_t<FuncType&, ResultType&&>;
+        using U = Impl::FutureValueOf<R>;
+        using Job = Impl::PostedContinuation<T, FuncType, U>;
+        using Continuation = Impl::PostContinuation<T, FuncType, U>;
+
+        if (!m_state.IsValid())
+        {
+            return Future<U>{};
+        }
+        AllocatorBase* allocator = m_state->GetAllocator();
+        Expected<Promise<U>, ErrorCode> promise = Promise<U>::Create(allocator);
+        if (!promise.HasValue())
+        {
+            return Future<U>{};
+        }
+        Future<U> next = promise.GetValue().GetFuture();
+        SharedPtr<Job> job(allocator, FuncType(std::forward<Func>(func)), std::move(promise.GetValue()));
+        if (!job.IsValid())
+        {
+            return Future<U>{};
+        }
+        Continuation* continuation = New<Continuation>(allocator, executor, std::move(job));
         if (continuation == nullptr)
         {
             return Future<U>{};
@@ -531,3 +641,25 @@ private:
 };
 
 }  // namespace Opal
+
+template <typename Function>
+auto Opal::Executor::Submit(Function function)
+{
+    using ValueType = Impl::FutureValueOf<std::invoke_result_t<Function&>>;
+    using ReturnType = Expected<Future<ValueType>, ErrorCode>;
+    using State = Impl::TaskState<Function, ValueType>;
+
+    AllocatorBase* allocator = GetAllocator();
+    SharedPtr<State> state(allocator, allocator, std::move(function));
+    if (!state.IsValid())
+    {
+        return ReturnType(ErrorCode::OutOfMemory);
+    }
+    Future<ValueType> future = Impl::FutureAccess::MakeFuture(SharedPtr<Impl::FutureState<ValueType>>(state.Clone()));
+    const ErrorCode posted = Post(SharedPtr<Runnable>(std::move(state)));
+    if (posted != ErrorCode::Success)
+    {
+        return ReturnType(posted);
+    }
+    return ReturnType(std::move(future));
+}

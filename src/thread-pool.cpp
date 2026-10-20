@@ -4,7 +4,7 @@
 
 namespace
 {
-using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Impl::Runnable>, true>;
+using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Runnable>, true>;
 
 thread_local const Opal::ThreadPool* t_worker_pool = nullptr;
 
@@ -21,7 +21,7 @@ void ThreadFunction(ReceiverType receiver, const Opal::ThreadPool* pool, Opal::R
         {
             break;
         }
-        Opal::SharedPtr<Opal::Impl::Runnable> task = std::move(result.GetValue());
+        Opal::SharedPtr<Opal::Runnable> task = std::move(result.GetValue());
         task->Run();
         completed_count->FetchAdd<Opal::MemoryOrder::Release>(1);
         completed_count->NotifyAll();
@@ -109,4 +109,28 @@ void Opal::ThreadPool::EndSubmission()
 bool Opal::ThreadPool::IsCurrentThreadWorker() const
 {
     return t_worker_pool == this;
+}
+
+Opal::ErrorCode Opal::ThreadPool::Post(SharedPtr<Runnable>&& work)
+{
+    if (!work.IsValid())
+    {
+        return ErrorCode::InvalidArgument;
+    }
+    const bool is_from_worker = IsCurrentThreadWorker();
+    if (!is_from_worker)
+    {
+        m_submitting.FetchAdd(1);
+        if (m_is_closed.Load())
+        {
+            EndSubmission();
+            return ErrorCode::ChannelClosed;
+        }
+    }
+    m_communicator.transmitter.Send(std::move(work));
+    if (!is_from_worker)
+    {
+        EndSubmission();
+    }
+    return ErrorCode::Success;
 }

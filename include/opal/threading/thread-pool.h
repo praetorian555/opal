@@ -5,7 +5,7 @@
 #include "opal/defines.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/threading/channel-mpmc.h"
-#include "opal/threading/future.h"
+#include "opal/threading/executor.h"
 #include "opal/threading/thread.h"
 #include "opal/type-traits.h"
 
@@ -13,11 +13,15 @@ namespace Opal
 {
 
 /**
- * Thread pool that runs submitted callables on a fixed number of worker threads and hands back a Future for each.
+ * Executor that runs submitted callables on a fixed number of worker threads and hands back a Future for each.
  * Workers block when idle using OS signaling (no busy-waiting). Closing the pool runs every task it has accepted, then stops
  * the workers.
+ *
+ * A running task may submit more tasks to its own pool. Those are accepted even while the pool is closing, and run before it
+ * finishes closing. A task this accepts runs even when Close is called concurrently. Continuations attached with Future::Then
+ * run on the worker that finishes the task.
  */
-class ThreadPool
+class ThreadPool final : public Executor
 {
 public:
     /**
@@ -28,53 +32,19 @@ public:
      * @throws OutOfMemoryException or Exception when a worker thread could not be started. Workers that did start are shut down first.
      */
     explicit ThreadPool(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr);
-    ~ThreadPool();
+    ~ThreadPool() override;
+
+    ThreadPool(const ThreadPool&) = delete;
+    ThreadPool& operator=(const ThreadPool&) = delete;
+    ThreadPool(ThreadPool&&) = delete;
+    ThreadPool& operator=(ThreadPool&&) = delete;
 
     /**
-     * Submits a callable as a task and returns a future for what it returns.
-     *
-     * A running task may submit more tasks to its own pool. Those are accepted even while the pool is closing, and run before
-     * it finishes closing.
-     * @param function Callable taking no arguments. It may return nothing, giving a Future<void>; a plain value of type R, giving a
-     *                 Future<R>; or an Expected<R, ErrorCode>, giving a Future<R> that carries the error too.
-     * @return The future, ErrorCode::ChannelClosed if the pool has been closed, or ErrorCode::OutOfMemory if the task could not be
-     *         allocated. A task this accepts runs even when Close is called concurrently. Continuations attached with Future::Then
-     *         run on the worker that finishes the task.
+     * Queue work for the workers.
+     * @return ErrorCode::Success, ErrorCode::ChannelClosed if the pool has been closed and the caller is not one of its workers, or
+     *         ErrorCode::InvalidArgument for an invalid pointer.
      */
-    template <typename Function>
-    auto Submit(Function function)
-    {
-        using ValueType = Impl::FutureValueOf<std::invoke_result_t<Function&>>;
-        using ReturnType = Expected<Future<ValueType>, ErrorCode>;
-        using State = Impl::TaskState<Function, ValueType>;
-
-        const bool is_from_worker = IsCurrentThreadWorker();
-        if (!is_from_worker)
-        {
-            m_submitting.FetchAdd(1);
-            if (m_is_closed.Load())
-            {
-                EndSubmission();
-                return ReturnType(ErrorCode::ChannelClosed);
-            }
-        }
-        SharedPtr<State> state(m_allocator, m_allocator, std::move(function));
-        if (!state.IsValid())
-        {
-            if (!is_from_worker)
-            {
-                EndSubmission();
-            }
-            return ReturnType(ErrorCode::OutOfMemory);
-        }
-        Future<ValueType> future = Impl::FutureAccess::MakeFuture(SharedPtr<Impl::FutureState<ValueType>>(state.Clone()));
-        m_communicator.transmitter.Send(SharedPtr<Impl::Runnable>(std::move(state)));
-        if (!is_from_worker)
-        {
-            EndSubmission();
-        }
-        return ReturnType(std::move(future));
-    }
+    ErrorCode Post(SharedPtr<Runnable>&& work) override;
 
     /**
      * Blocks until every task submitted to the pool has run, including the ones submitted by tasks that were already running.
@@ -91,10 +61,10 @@ public:
     void Close();
 
     [[nodiscard]] size_t GetThreadCount() const { return m_threads.GetSize(); }
-    [[nodiscard]] AllocatorBase* GetAllocator() const { return m_allocator; }
+    [[nodiscard]] AllocatorBase* GetAllocator() const override { return m_allocator; }
 
 private:
-    /** Ends a submission begun in Submit, and wakes a Close waiting for it to finish. */
+    /** Ends a submission begun in Post, and wakes a Close waiting for it to finish. */
     void EndSubmission();
 
     /** @return True if the calling thread is one of this pool's workers. */
@@ -102,7 +72,7 @@ private:
 
     AllocatorBase* m_allocator = nullptr;
     DynamicArray<ThreadHandle> m_threads;
-    ChannelMPMC<SharedPtr<Impl::Runnable>, true> m_communicator;
+    ChannelMPMC<SharedPtr<Runnable>, true> m_communicator;
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
     // Every worker writes the count on every task it finishes, and every submission reads the flag. Sharing a line would put

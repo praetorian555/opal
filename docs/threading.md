@@ -1,6 +1,6 @@
 # Threading
 
-Headers: `opal/threading/thread.h`, `opal/threading/mutex.h`, `opal/threading/read-write-mutex.h`, `opal/threading/condition-variable.h`, `opal/threading/signal.h`, `opal/threading/channel-spsc.h`, `opal/threading/channel-mpmc.h`, `opal/threading/thread-pool.h`, `opal/threading/future.h`
+Headers: `opal/threading/thread.h`, `opal/threading/mutex.h`, `opal/threading/read-write-mutex.h`, `opal/threading/condition-variable.h`, `opal/threading/signal.h`, `opal/threading/channel-spsc.h`, `opal/threading/channel-mpmc.h`, `opal/threading/thread-pool.h`, `opal/threading/future.h`, `opal/threading/executor.h`, `opal/threading/task-queue.h`
 
 Cross-platform threading primitives for Windows and Linux. Includes threads, mutexes, condition variables, lock-free channels, and a task-based thread pool.
 
@@ -601,6 +601,68 @@ valid after the `ChannelSPSC` they came from is destroyed.
 MPMC transmitters and receivers support `Clone()`. Like the SPSC ends, they stay valid after the `ChannelMPMC` they came from is
 destroyed.
 
+## Executors
+
+An `Executor` is something that runs work handed to it. `Submit(function)` hands it a callable that takes no arguments and
+returns an `Expected<Future<R>, ErrorCode>` for what the callable returns - see [Futures](#futures). Opal has two:
+
+- `ThreadPool` runs work on its own worker threads.
+- `TaskQueue` runs work on whichever thread drains it, such as a UI thread once a frame.
+
+`Future::Then(executor, func)` runs a continuation on a chosen executor, which is how work finishes on the UI thread:
+
+```cpp
+Opal::ThreadPool pool(4);
+Opal::TaskQueue ui_queue;
+
+auto image = pool.Submit([path = path.Clone()] { return DecodeImage(path); });
+Opal::Future<void> shown = image.GetValue().Then(ui_queue, [](Opal::Expected<Image, Opal::ErrorCode>&& decoded)
+{
+    ShowImage(decoded);   // Runs on the UI thread
+});
+
+// UI thread, once a frame
+ui_queue.RunPending();
+```
+
+To write another executor, derive from `Executor` and implement `Post`, which takes a `SharedPtr<Runnable>` and runs it later,
+and `GetAllocator`, which must return a thread-safe allocator. `Submit` comes with the interface. An executor that drops work
+without running it calls `Runnable::Abandon` on it, so that a future waiting on that work reports `ErrorCode::BrokenPromise`
+instead of waiting forever.
+
+### Task Queue
+
+`TaskQueue` is unbounded, so posting to it never blocks, however long its owner takes to drain it. Any thread may post or
+submit; `RunPending()` runs, on the calling thread, the work that was queued when it was called, and returns how many tasks it
+ran. Work posted while it runs waits for the next call, so a task that posts itself again cannot keep `RunPending()` from
+returning. Call it from one thread at a time.
+
+```cpp
+Opal::TaskQueue io_queue;
+
+// A thread that owns a resource and waits for work
+while (running)
+{
+    if (io_queue.WaitFor(100))
+    {
+        io_queue.RunPending();
+    }
+}
+```
+
+`WaitFor(timeout_ms)` blocks until work is queued. `Close()` stops the queue accepting work, with `ErrorCode::ChannelClosed`, and
+leaves what is queued to the next `RunPending()`. Work still queued when the queue is destroyed is abandoned, and its futures
+report `ErrorCode::BrokenPromise`.
+
+| Method | Description |
+|--------|-------------|
+| `TaskQueue(AllocatorBase* allocator = nullptr)` | Create a queue. The allocator must be thread safe |
+| `Submit(Function)` / `Post(SharedPtr<Runnable>)` | Queue work, from any thread |
+| `RunPending()` | Run what was queued when called, on the calling thread. Returns the number run |
+| `WaitFor(timeout_ms)` | Block until work is queued. Returns `false` on timeout |
+| `Close()` | Stop accepting work |
+| `GetPendingCount()` | Number of tasks queued and not yet run |
+
 ## Thread Pool
 
 A thread pool that runs submitted callables on a fixed number of worker threads and hands back a `Future` for each. Workers
@@ -745,6 +807,11 @@ Opal::Future<Opal::u64> size = pool.Submit([] { return LoadText(); })
 already arrived. A continuation therefore must not block for long, and must not touch state that belongs to one thread, such as UI
 objects. `Then` returns an invalid future, and leaves the original one valid, if the continuation could not be allocated.
 
+`Then(executor, func)` posts `func` to an executor instead, even when the result has already arrived, so it runs wherever that
+executor runs work - on the UI thread, for a `TaskQueue` that the UI thread drains. Everything it needs is allocated when `Then`
+is called, so a result that arrives later only has to be queued. If the executor refuses the work, the next future reports what
+`Post` returned, such as `ErrorCode::ChannelClosed`. The executor must outlive the result's arrival.
+
 ### API Reference
 
 | Type | Method | Description |
@@ -759,6 +826,7 @@ objects. `Then` returns an invalid future, and leaves the original one valid, if
 | `Future<T>` | `Get()` | Block, then take the result |
 | `Future<T>` | `TryGet()` | Take the result if it has arrived, else `ErrorCode::WouldBlock` |
 | `Future<T>` | `Then(func)` | Run `func` on the result, returns a future for what it returns |
+| `Future<T>` | `Then(executor, func)` | The same, with `func` posted to `executor` |
 
 ## Thread Safety Summary
 
@@ -773,5 +841,6 @@ objects. `Then` returns an invalid future, and leaves the original one valid, if
 | `ChannelSPSC` | Yes (one producer, one consumer) |
 | `ChannelMPMC` | Yes (multiple producers, multiple consumers) |
 | `ThreadPool` | `Submit` is thread-safe via internal MPMC channel |
+| `TaskQueue` | `Submit`, `Post`, `WaitFor`, `Close` from any thread. `RunPending` from one thread at a time |
 | `Promise<T>` / `Future<T>` | A promise and its future may be used from different threads. Each one alone is not for sharing |
 

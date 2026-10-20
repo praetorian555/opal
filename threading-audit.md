@@ -156,7 +156,8 @@ Ordered by how soon a consumer is likely to need it.
       task submits children through `Submit`, which its own workers may still do while the pool closes
 - [ ] A job system: per-worker deques with stealing, dependencies between jobs, a waiting worker that runs other work instead of
       blocking (which also closes finding 6), and `ParallelFor` over a range
-- [ ] A queue drained by one named thread, for posting work back to a main or UI thread
+- [x] A queue drained by one named thread, for posting work back to a main or UI thread. Added as `TaskQueue`, behind an
+      `Executor` interface that `ThreadPool` implements too, with `Future::Then(executor, func)` to run a continuation there
 - [ ] Cancellation tokens, so stale work can be dropped before it runs
 - [ ] `ThreadPool::Create` returning `Expected`, per-worker names and affinity
 

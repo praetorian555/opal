@@ -70,6 +70,7 @@ set(OPAL_FILES
         src/signal.cpp
         src/logging.cpp
         src/thread-pool.cpp
+        src/task-queue.cpp
         src/json-reader.cpp
         src/json-writer.cpp
         src/optional.cpp
@@ -145,6 +146,8 @@ set(OPAL_FILES
         include/opal/threading/channel-mpmc.h
         include/opal/threading/thread-pool.h
         include/opal/threading/future.h
+        include/opal/threading/executor.h
+        include/opal/threading/task-queue.h
         include/opal/clonable-base.h
         include/opal/variant.h
         include/opal/container/string-format.h
@@ -271,6 +274,7 @@ if (OPAL_BUILD_TESTS)
             test/atomic-test.cpp
             test/thread-test.cpp
             test/future-test.cpp
+            test/executor-test.cpp
             test/delegate-test.cpp
             test/function-test.cpp
             test/logging-test.cpp
