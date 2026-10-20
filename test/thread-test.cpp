@@ -8,17 +8,20 @@
 #include "opal/container/shared-ptr.h"
 #include "opal/container/string.h"
 #include "opal/rng.h"
+#include "opal/time.h"
 #include "opal/threading/channel-mpmc.h"
 #include "opal/threading/channel-spsc.h"
 #include "opal/threading/condition-variable.h"
 #include "opal/threading/signal.h"
 #include "opal/threading/mutex.h"
+#include "opal/threading/read-write-mutex.h"
 #include "opal/threading/thread-pool.h"
 #include "opal/threading/thread.h"
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
 #else
+#include <pthread.h>
 #include <sched.h>
 #endif
 
@@ -1286,6 +1289,209 @@ TEST_CASE("Mutex guard move assignment releases the lock it held", "[Thread]")
     auto reacquired = first.TryLock();
     REQUIRE(reacquired.HasValue());
     REQUIRE(*reacquired.GetValue().Deref() == 1);
+}
+
+TEST_CASE("ReadWriteMutex reads what was written", "[Thread]")
+{
+    ReadWriteMutex<DynamicArray<i32>> mutex;
+    {
+        WriteGuard<DynamicArray<i32>> writer = mutex.LockWrite();
+        writer->PushBack(1);
+        writer->PushBack(2);
+    }
+    ReadGuard<DynamicArray<i32>> reader = mutex.LockRead();
+    REQUIRE(reader->GetSize() == 2);
+    REQUIRE((*reader)[1] == 2);
+}
+
+TEST_CASE("ReadWriteMutex lets readers in together and keeps a writer out", "[Thread]")
+{
+    ReadWriteMutex<i32> mutex(5);
+
+    // Each attempt runs on a thread that holds nothing, since locking twice from one thread is not supported.
+    const auto try_from_other_thread = [&mutex](bool write)
+    {
+        std::atomic<bool> acquired{false};
+        const ThreadHandle t = CreateThreadOrFail(
+            [](Ref<ReadWriteMutex<i32>> in_mutex, bool in_write, Ref<std::atomic<bool>> in_acquired)
+            {
+                if (in_write)
+                {
+                    in_acquired->store(in_mutex->TryLockWrite().HasValue());
+                }
+                else
+                {
+                    in_acquired->store(in_mutex->TryLockRead().HasValue());
+                }
+            },
+            Ref(mutex), write, Ref(acquired));
+        JoinThread(t);
+        return acquired.load();
+    };
+
+    {
+        ReadGuard<i32> reader = mutex.LockRead();
+        REQUIRE(*reader == 5);
+        REQUIRE(try_from_other_thread(false));
+        REQUIRE(!try_from_other_thread(true));
+    }
+    {
+        WriteGuard<i32> writer = mutex.LockWrite();
+        *writer = 6;
+        REQUIRE(!try_from_other_thread(false));
+        REQUIRE(!try_from_other_thread(true));
+    }
+    REQUIRE(try_from_other_thread(true));
+    REQUIRE(*mutex.LockRead() == 6);
+}
+
+TEST_CASE("ReadWriteMutex readers never see a write half done", "[Thread]")
+{
+    struct Pair
+    {
+        i64 first = 0;
+        i64 second = 0;
+    };
+    constexpr i32 k_writer_count = 4;
+    constexpr i32 k_reader_count = 4;
+    constexpr i64 k_writes_per_writer = 5000;
+
+    ReadWriteMutex<Pair> mutex;
+    std::atomic<bool> writers_done{false};
+    std::atomic<i32> torn_reads{0};
+    DynamicArray<ThreadHandle> writers;
+    DynamicArray<ThreadHandle> readers;
+    for (i32 i = 0; i < k_reader_count; ++i)
+    {
+        readers.PushBack(CreateThreadOrFail(
+            [](Ref<ReadWriteMutex<Pair>> in_mutex, Ref<std::atomic<bool>> in_done, Ref<std::atomic<i32>> in_torn)
+            {
+                while (!in_done->load())
+                {
+                    ReadGuard<Pair> reader = in_mutex->LockRead();
+                    if (reader->first != reader->second)
+                    {
+                        in_torn->fetch_add(1);
+                    }
+                }
+            },
+            Ref(mutex), Ref(writers_done), Ref(torn_reads)));
+    }
+    for (i32 i = 0; i < k_writer_count; ++i)
+    {
+        writers.PushBack(CreateThreadOrFail(
+            [](Ref<ReadWriteMutex<Pair>> in_mutex)
+            {
+                for (i64 n = 0; n < k_writes_per_writer; ++n)
+                {
+                    WriteGuard<Pair> writer = in_mutex->LockWrite();
+                    writer->first++;
+                    writer->second++;
+                }
+            },
+            Ref(mutex)));
+    }
+    for (const ThreadHandle& t : writers)
+    {
+        JoinThread(t);
+    }
+    writers_done.store(true);
+    for (const ThreadHandle& t : readers)
+    {
+        JoinThread(t);
+    }
+    REQUIRE(torn_reads.load() == 0);
+    REQUIRE(mutex.LockRead()->first == k_writer_count * k_writes_per_writer);
+}
+
+TEST_CASE("ReadWriteMutex guard move assignment releases the lock it held", "[Thread]")
+{
+    ReadWriteMutex<i32> first(1);
+    ReadWriteMutex<i32> second(2);
+
+    {
+        WriteGuard<i32> writer = first.LockWrite();
+        writer = second.LockWrite();
+        REQUIRE(first.TryLockWrite().HasValue());
+    }
+    {
+        ReadGuard<i32> reader = first.LockRead();
+        reader = second.LockRead();
+        REQUIRE(first.TryLockWrite().HasValue());
+        REQUIRE(*reader == 2);
+    }
+}
+
+TEST_CASE("ReadWriteMutex is neither copyable nor movable", "[Thread]")
+{
+    STATIC_REQUIRE(!std::is_copy_constructible_v<ReadWriteMutex<i32>>);
+    STATIC_REQUIRE(!std::is_move_constructible_v<ReadWriteMutex<i32>>);
+    STATIC_REQUIRE(!std::is_copy_assignable_v<ReadWriteMutex<i32>>);
+    STATIC_REQUIRE(!std::is_move_assignable_v<ReadWriteMutex<i32>>);
+    STATIC_REQUIRE(!std::is_copy_constructible_v<ReadGuard<i32>>);
+    STATIC_REQUIRE(!std::is_copy_constructible_v<WriteGuard<i32>>);
+}
+
+TEST_CASE("SleepCurrentThread sleeps at least as long as asked", "[Thread]")
+{
+    const f64 start_ms = GetMilliSeconds();
+    SleepCurrentThread(20);
+    REQUIRE(GetMilliSeconds() - start_ms >= 19.0);
+
+    SleepCurrentThread(0);
+    YieldCurrentThread();
+}
+
+namespace
+{
+// Names a new thread and reads the name back through the OS.
+StringUtf8 NameThreadAndReadBack(const char8* name)
+{
+    StringUtf8 read_back;
+    ErrorCode set_result = ErrorCode::OSFailure;
+    const ThreadHandle t = CreateThreadOrFail(
+        [](const char8* in_name, Ref<StringUtf8> in_read_back, Ref<ErrorCode> in_set_result)
+        {
+            *in_set_result = SetThreadName(GetCurrentThreadHandle(), StringViewUtf8(in_name));
+#if defined(OPAL_PLATFORM_WINDOWS)
+            PWSTR description = nullptr;
+            if (SUCCEEDED(GetThreadDescription(GetCurrentThread(), &description)))
+            {
+                StringWide wide(description);
+                REQUIRE(Transcode(wide, *in_read_back) == ErrorCode::Success);
+                LocalFree(description);
+            }
+#else
+            char buffer[16] = {};
+            if (pthread_getname_np(pthread_self(), buffer, sizeof(buffer)) == 0)
+            {
+                *in_read_back = buffer;
+            }
+#endif
+        },
+        name, Ref(read_back), Ref(set_result));
+    JoinThread(t);
+    REQUIRE(set_result == ErrorCode::Success);
+    return read_back;
+}
+}  // namespace
+
+TEST_CASE("SetThreadName names a thread", "[Thread]")
+{
+    REQUIRE(NameThreadAndReadBack("opal-worker") == "opal-worker");
+
+    // Eight ASCII bytes and four two-byte code points: sixteen bytes, one over Linux's limit.
+    const char8* long_name = "worker1-\xC5\xBD\xC5\xBD\xC5\xBD\xC5\xBD";
+#if defined(OPAL_PLATFORM_WINDOWS)
+    REQUIRE(NameThreadAndReadBack(long_name) == long_name);
+#else
+    REQUIRE(NameThreadAndReadBack(long_name) == "worker1-\xC5\xBD\xC5\xBD\xC5\xBD");
+#endif
+}
+
+TEST_CASE("SetThreadName rejects an empty handle", "[Thread]")
+{
+    REQUIRE(SetThreadName(ThreadHandle{}, "name") == ErrorCode::OSFailure);
 }
 
 TEST_CASE("Signal multiple notify calls", "[Thread]")

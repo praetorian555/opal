@@ -267,6 +267,7 @@ Cross-platform threading primitives and concurrency utilities.
 |--------|-------------|
 | `opal/threading/thread.h` | Thread wrapper |
 | `opal/threading/mutex.h` | Mutex with value-based RAII locking |
+| `opal/threading/read-write-mutex.h` | Reader-writer lock with value-based RAII locking |
 | `opal/threading/condition-variable.h` | Condition variable |
 | `opal/threading/signal.h` | Lightweight signaling primitive (WaitOnAddress/futex) |
 | `opal/threading/channel-spsc.h` | Single-producer, single-consumer channel |

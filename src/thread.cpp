@@ -1,6 +1,7 @@
 #include "opal/threading/thread.h"
 
 #include "opal/container/scope-ptr.h"
+#include "opal/container/string.h"
 #include "opal/logging.h"
 #include "opal/threading/cpu-pause.h"
 
@@ -15,6 +16,8 @@
 #include <unistd.h>
 
 #include <dirent.h>
+#include <errno.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -137,6 +140,80 @@ Opal::ThreadHandle Opal::GetCurrentThreadHandle()
     pthread_t thread_handle = pthread_self();
     const u64 tid = static_cast<u64>(syscall(SYS_gettid));
     return {.native_handle = reinterpret_cast<void*>(thread_handle), .id = tid};
+#else
+#error "Platform not supported"
+#endif
+}
+
+void Opal::SleepCurrentThread(u64 milliseconds)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    constexpr u64 k_longest_sleep_ms = INFINITE - 1;
+    do
+    {
+        const u64 sleep_ms = milliseconds < k_longest_sleep_ms ? milliseconds : k_longest_sleep_ms;
+        ::Sleep(static_cast<DWORD>(sleep_ms));
+        milliseconds -= sleep_ms;
+    } while (milliseconds > 0);
+#elif defined(OPAL_PLATFORM_LINUX)
+    if (milliseconds == 0)
+    {
+        sched_yield();
+        return;
+    }
+    struct timespec remaining;
+    remaining.tv_sec = static_cast<time_t>(milliseconds / 1000);
+    remaining.tv_nsec = static_cast<long>((milliseconds % 1000) * 1000000);
+    while (nanosleep(&remaining, &remaining) != 0 && errno == EINTR)
+    {
+    }
+#else
+#error "Platform not supported"
+#endif
+}
+
+void Opal::YieldCurrentThread()
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    ::SwitchToThread();
+#elif defined(OPAL_PLATFORM_LINUX)
+    sched_yield();
+#else
+#error "Platform not supported"
+#endif
+}
+
+Opal::ErrorCode Opal::SetThreadName(ThreadHandle handle, StringViewUtf8 name)
+{
+    if (handle.native_handle == nullptr)
+    {
+        return ErrorCode::OSFailure;
+    }
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringWide wide_name;
+    const ErrorCode transcode_result = Transcode(name, wide_name, InvalidSequencePolicy::Replace);
+    if (transcode_result != ErrorCode::Success)
+    {
+        return transcode_result;
+    }
+    return SUCCEEDED(::SetThreadDescription(handle.native_handle, wide_name.GetData())) ? ErrorCode::Success : ErrorCode::OSFailure;
+#elif defined(OPAL_PLATFORM_LINUX)
+    StringUtf8 valid_name;
+    const ErrorCode transcode_result = Transcode(name, valid_name, InvalidSequencePolicy::Replace);
+    if (transcode_result != ErrorCode::Success)
+    {
+        return transcode_result;
+    }
+    constexpr size_t k_longest_name = 15;
+    size_t size = valid_name.GetSize() < k_longest_name ? valid_name.GetSize() : k_longest_name;
+    while (size > 0 && size < valid_name.GetSize() && (static_cast<u8>(valid_name[size]) & 0xC0) == 0x80)
+    {
+        --size;
+    }
+    char buffer[k_longest_name + 1] = {};
+    memcpy(buffer, valid_name.GetData(), size);
+    pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
+    return pthread_setname_np(native_handle, buffer) == 0 ? ErrorCode::Success : ErrorCode::OSFailure;
 #else
 #error "Platform not supported"
 #endif

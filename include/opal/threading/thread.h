@@ -9,6 +9,7 @@
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/expected.h"
+#include "opal/container/string-view.h"
 #include "opal/error-codes.h"
 
 namespace Opal
@@ -111,6 +112,27 @@ void DetachThread(ThreadHandle handle);
  * @return Thread handle.
  */
 ThreadHandle GetCurrentThreadHandle();
+
+/**
+ * Suspend the calling thread for at least the given time.
+ * @param milliseconds How long to sleep. Zero gives up the rest of the time slice, as YieldCurrentThread does.
+ * @note The OS may oversleep by up to a scheduler tick. On Windows that is about 15.6 ms unless the process has raised the
+ *       timer resolution.
+ */
+void SleepCurrentThread(u64 milliseconds);
+
+/** Give up the rest of the calling thread's time slice to another thread that is ready to run, if there is one. */
+void YieldCurrentThread();
+
+/**
+ * Name a thread, for debuggers, profilers and crash dumps.
+ * @param handle Thread to name. GetCurrentThreadHandle names the calling thread.
+ * @param name Name to give it. Code units that are not valid UTF-8 are replaced. On Linux and Android the OS keeps only the
+ *             first 15 bytes, so a longer name is cut to the last whole code point that fits.
+ * @return ErrorCode::Success, ErrorCode::OutOfMemory when the name could not be converted for the OS, or ErrorCode::OSFailure
+ *         when the OS refused it.
+ */
+ErrorCode SetThreadName(ThreadHandle handle, StringViewUtf8 name);
 
 struct PhysicalCoreInfo
 {

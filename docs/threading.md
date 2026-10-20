@@ -1,6 +1,6 @@
 # Threading
 
-Headers: `opal/threading/thread.h`, `opal/threading/mutex.h`, `opal/threading/condition-variable.h`, `opal/threading/signal.h`, `opal/threading/channel-spsc.h`, `opal/threading/channel-mpmc.h`, `opal/threading/thread-pool.h`
+Headers: `opal/threading/thread.h`, `opal/threading/mutex.h`, `opal/threading/read-write-mutex.h`, `opal/threading/condition-variable.h`, `opal/threading/signal.h`, `opal/threading/channel-spsc.h`, `opal/threading/channel-mpmc.h`, `opal/threading/thread-pool.h`
 
 Cross-platform threading primitives for Windows and Linux. Includes threads, mutexes, condition variables, lock-free channels, and a task-based thread pool.
 
@@ -95,6 +95,33 @@ Opal::JoinThread(handle.GetValue());
 // Also accessible directly from the handle
 Opal::ThreadId id = handle.GetValue().id;
 ```
+
+### Sleeping and Yielding
+
+`SleepCurrentThread` suspends the calling thread for at least the given number of milliseconds. The OS may oversleep by up to a
+scheduler tick, which on Windows is about 15.6 ms unless the process has raised the timer resolution. A sleep of zero gives up
+the rest of the time slice. `YieldCurrentThread` does the same without asking for any sleep.
+
+```cpp
+Opal::SleepCurrentThread(10);   // At least 10 ms
+Opal::YieldCurrentThread();     // Let another ready thread run
+```
+
+### Thread Names
+
+`SetThreadName` names a thread for debuggers, profilers and crash dumps. It returns `ErrorCode::Success`,
+`ErrorCode::OutOfMemory` when the name could not be converted for the OS, or `ErrorCode::OSFailure` when the OS refused it.
+
+```cpp
+auto t = Opal::CreateThread([]() { /* work */ });
+Opal::SetThreadName(t.GetValue(), "asset-loader");
+Opal::SetThreadName(Opal::GetCurrentThreadHandle(), "main");
+```
+
+Code units that are not valid UTF-8 are replaced. Linux and Android keep only the first 15 bytes of a name, so a longer one is
+cut to the last whole code point that fits; Windows keeps it whole.
+
+Platform implementation: `SetThreadDescription` on Windows, `pthread_setname_np` on Linux.
 
 ### Thread Affinity
 
@@ -208,6 +235,55 @@ Platform implementation: `SRWLOCK` on Windows, `pthread_mutex_t` on Linux.
 | `MutexGuard<T>` | `Deref()` | Returns `T*` to the protected data |
 | `MutexGuard<T>` | `operator*` | Returns `T&` to the protected data |
 | `MutexGuard<T>` | `operator->` | Returns `T*` to the protected data |
+
+## Read-Write Mutex
+
+`ReadWriteMutex<T>` wraps a value that many threads may read at once while only one may write it. `LockRead()` returns a
+`ReadGuard<T>` that hands out `const T` access, `LockWrite()` a `WriteGuard<T>` that hands out mutable access. The lock is released
+when the guard is destroyed.
+
+```cpp
+#include "opal/threading/read-write-mutex.h"
+
+Opal::ReadWriteMutex<Opal::DynamicArray<int>> values;
+
+// Any number of threads at once
+{
+    Opal::ReadGuard<Opal::DynamicArray<int>> reader = values.LockRead();
+    size_t count = reader->GetSize();
+}
+
+// One thread, with no readers
+{
+    Opal::WriteGuard<Opal::DynamicArray<int>> writer = values.LockWrite();
+    writer->PushBack(42);
+}
+```
+
+`TryLockRead()` and `TryLockWrite()` return `Expected<ReadGuard<T>, bool>` and `Expected<WriteGuard<T>, bool>`, with `false` when
+the lock is not available.
+
+On Linux and Android a thread waiting to write holds off readers that arrive after it, so a steady stream of readers cannot starve
+it. Windows makes no fairness promise either way. Neither lock is recursive: a thread that already holds the lock in either mode
+and locks it again can deadlock - reads included, since a writer may have queued in between.
+
+The lock is held in place, so constructing a `ReadWriteMutex` never allocates and never fails. Like `Mutex`, it can be neither
+copied nor moved.
+
+Platform implementation: `SRWLOCK` on Windows, `pthread_rwlock_t` on Linux.
+
+### API Reference
+
+| Type | Method | Description |
+|------|--------|-------------|
+| `ReadWriteMutex<T>` | `ReadWriteMutex(T&& object)` | Construct with a moved value |
+| `ReadWriteMutex<T>` | `ReadWriteMutex(Args&&... args)` | Construct T in place |
+| `ReadWriteMutex<T>` | `LockRead()` | Wait until no writer holds the lock, returns `ReadGuard<T>` |
+| `ReadWriteMutex<T>` | `LockWrite()` | Wait until no one holds the lock, returns `WriteGuard<T>` |
+| `ReadWriteMutex<T>` | `TryLockRead()` | Non-blocking, returns `Expected<ReadGuard<T>, bool>` |
+| `ReadWriteMutex<T>` | `TryLockWrite()` | Non-blocking, returns `Expected<WriteGuard<T>, bool>` |
+| `ReadGuard<T>` | `Deref()` / `operator*` / `operator->` | `const T` access to the protected data |
+| `WriteGuard<T>` | `Deref()` / `operator*` / `operator->` | `T` access to the protected data |
 
 ## Condition Variable
 
@@ -605,6 +681,8 @@ in the queue by then.
 |------|-------------|
 | `CreateThread` / `JoinThread` | Yes |
 | `Mutex<T>` | Yes (that's its purpose) |
+| `ReadWriteMutex<T>` | Yes |
+| `SleepCurrentThread` / `YieldCurrentThread` / `SetThreadName` | Yes |
 | `ConditionVariable` | Yes (when used with Mutex) |
 | `Signal` | Yes |
 | `ChannelSPSC` | Yes (one producer, one consumer) |

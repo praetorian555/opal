@@ -157,16 +157,19 @@ Ordered by how soon a consumer is likely to need it.
 
 ### Threads
 
-- [ ] `Sleep` and `Yield`. Neither exists, `time.h` included
-- [ ] Thread names (`SetThreadDescription`, `pthread_setname_np`), so debuggers and profilers can tell workers apart
+- [x] `Sleep` and `Yield`. Neither exists, `time.h` included. Added as `SleepCurrentThread` and `YieldCurrentThread`;
+      `Yield` is a macro in `winbase.h`
+- [x] Thread names (`SetThreadDescription`, `pthread_setname_np`), so debuggers and profilers can tell workers apart.
+      Added as `SetThreadName`
 - [ ] Stack size and priority at creation. Priority matters on Android, where it decides big or little cores
 - [ ] A cheap logical core count, without the sysfs walk `GetCpuInfo` does
 - [ ] `GetCurrentThreadId()` without building a handle
 
 ### Synchronization
 
-- [ ] A reader-writer lock. `SRWLOCK` already supports shared mode, and the `Mutex<T>` guard pattern carries over as a read
-      guard handing out `const T*`
+- [x] A reader-writer lock. `SRWLOCK` already supports shared mode, and the `Mutex<T>` guard pattern carries over as a read
+      guard handing out `const T*`. Added as `ReadWriteMutex<T>` with `ReadGuard` and `WriteGuard`. It holds the OS lock in
+      place rather than allocating it, which is the shape finding 12 asks of `Mutex`; writers are preferred on Linux
 - [ ] A counting semaphore
 - [ ] A latch and a barrier
 - [ ] `CallOnce`

@@ -65,6 +65,7 @@ set(OPAL_FILES
         src/string.cpp
         src/thread.cpp
         src/mutex.cpp
+        src/read-write-mutex.cpp
         src/condition-variable.cpp
         src/signal.cpp
         src/logging.cpp
@@ -137,6 +138,7 @@ set(OPAL_FILES
         include/opal/threading/atomic.h
         include/opal/threading/thread.h
         include/opal/threading/mutex.h
+        include/opal/threading/read-write-mutex.h
         include/opal/threading/condition-variable.h
         include/opal/threading/signal.h
         include/opal/threading/channel-spsc.h
