@@ -30,7 +30,11 @@ Opal::ConditionVariable::ConditionVariable(AllocatorBase* allocator)
     {
         OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), sizeof(pthread_cond_t)));
     }
-    pthread_cond_init(cond, nullptr);
+    pthread_condattr_t attributes;
+    pthread_condattr_init(&attributes);
+    pthread_condattr_setclock(&attributes, CLOCK_MONOTONIC);
+    pthread_cond_init(cond, &attributes);
+    pthread_condattr_destroy(&attributes);
     m_native_handle = reinterpret_cast<void*>(cond);
 #else
 #error "Platform not supported"
@@ -88,12 +92,25 @@ void Opal::ConditionVariable::Wait(void* native_mutex_handle)
 bool Opal::ConditionVariable::WaitFor(void* native_mutex_handle, u64 timeout_ms)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
-    const BOOL result = SleepConditionVariableSRW(static_cast<CONDITION_VARIABLE*>(m_native_handle),
-                                                  static_cast<SRWLOCK*>(native_mutex_handle), static_cast<DWORD>(timeout_ms), 0);
-    return result != 0;
+    constexpr u64 k_longest_wait_ms = INFINITE - 1;
+    u64 remaining_ms = timeout_ms;
+    while (true)
+    {
+        const u64 wait_ms = remaining_ms < k_longest_wait_ms ? remaining_ms : k_longest_wait_ms;
+        if (SleepConditionVariableSRW(static_cast<CONDITION_VARIABLE*>(m_native_handle), static_cast<SRWLOCK*>(native_mutex_handle),
+                                      static_cast<DWORD>(wait_ms), 0) != 0)
+        {
+            return true;
+        }
+        remaining_ms -= wait_ms;
+        if (remaining_ms == 0)
+        {
+            return false;
+        }
+    }
 #elif defined(OPAL_PLATFORM_LINUX)
     struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
+    clock_gettime(CLOCK_MONOTONIC, &ts);
     ts.tv_sec += static_cast<time_t>(timeout_ms / 1000);
     ts.tv_nsec += static_cast<long>((timeout_ms % 1000) * 1000000);
     if (ts.tv_nsec >= 1000000000L)

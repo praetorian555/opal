@@ -2,6 +2,7 @@
 
 #include "opal/container/scope-ptr.h"
 #include "opal/logging.h"
+#include "opal/threading/cpu-pause.h"
 
 #include <stdio.h>
 
@@ -78,6 +79,7 @@ Opal::Expected<Opal::ThreadHandle, Opal::ErrorCode> Opal::Impl::CreateThread(Thr
     u64 thread_id = 0;
     while ((thread_id = launch.thread_id.Load<MemoryOrder::Acquire>()) == 0)
     {
+        CpuPause();
     }
     return Result(ThreadHandle{.native_handle = reinterpret_cast<void*>(native_handle), .id = thread_id});
 #else

@@ -97,9 +97,13 @@ there is no `Create` factory returning `Expected` the way the containers grew on
 The deadline is built from `CLOCK_REALTIME` (`condition-variable.cpp`), so an NTP step or a manual clock change lengthens or
 cuts short every timed wait in flight. It wants a condition variable created with `pthread_condattr_setclock(CLOCK_MONOTONIC)`.
 
+**Fixed.** The condition variable is created on `CLOCK_MONOTONIC` and the deadline is read from the same clock.
+
 ### 9. `ConditionVariable::WaitFor` truncates its timeout on Windows
 
 The `u64` milliseconds are cast to `DWORD`. Anything over about 49 days wraps, and exactly `0xFFFFFFFF` becomes `INFINITE`.
+
+**Fixed.** A longer wait goes in pieces of `INFINITE - 1` milliseconds, each returning at once on a wake.
 
 ### 10. `Signal::WaitFor` spins through its last millisecond
 
@@ -107,10 +111,15 @@ The remaining time is a `f64` converted to whole milliseconds for the OS call. U
 zero, the wait returns at once, and the loop goes round again until the deadline passes - a busy spin of up to a millisecond on
 every timed wait that runs out.
 
+**Fixed.** Windows rounds the wait up to the next millisecond and clamps it short of `INFINITE`; Linux hands the futex the
+remaining time to the nanosecond.
+
 ### 11. Linux `CreateThread` spins without a pause
 
 The launcher waits for the new thread to publish its kernel id in an empty loop (`thread.cpp:79`). It is short, but it is the
 one spin in the library without `CpuPause`.
+
+**Fixed.**
 
 ### 12. Every mutex and condition variable is a heap allocation
 
