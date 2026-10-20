@@ -27,12 +27,19 @@ before the threads are joined, so none of them notice.
 
 The flag belongs in the shared queue, where its lifetime is already handled.
 
+**Fixed.** The flag lives in the queue and both ends reach it through their `SharedPtr`. The `ChannelX` structs no longer have
+an `m_is_closed` member, and the end constructors take only the queue.
+
 ### 2. `PushWithEmplace` constructs over a live object
 
 The SPSC queue's storage is a `DynamicArray<T>` sized to the capacity, so every slot holds a default-constructed `T` from the
 start. `PushWithEmplace` and `TryPushWithEmplace` (`channel-spsc.h:145,166`) placement-new into the slot without destroying what
 is there. For a `T` that owns anything - a string, a `SharedPtr` - each push leaks what the slot held. The two emplace tests use
 a struct of an `i32` and an `f32`, where nothing is lost.
+
+**Fixed.** A `T` that is nothrow-constructible from the arguments is destroyed and rebuilt in place; any other is built as a
+temporary and move-assigned, so a throwing constructor cannot leave a destroyed slot behind. Reproduced first: a counting type
+leaked 12 instances over three laps of a four-slot queue.
 
 ### 3. `TransmitterMPMC::Send(T&&)` copies
 
@@ -42,6 +49,9 @@ because the queue's own constraint asks for copy-assignment or `Clone`. `ThreadP
 rvalue and pays an atomic increment and decrement per submission for the clone it did not ask for.
 
 There is no `TryPush(T&&)` either, so `TrySend` always copies.
+
+**Fixed.** `QueueMPMC` has `Push(T&&)` and `TryPush(T&&)`, and the transmitter `TrySend(T&&)`; a rejected `TrySend` leaves its
+argument untouched. The queue now asks only for move-assignment, and the lvalue overloads alone ask for copy or `Clone`.
 
 ### 4. `Close` does not wake a receiver that is already blocked
 

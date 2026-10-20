@@ -58,6 +58,40 @@ struct FailAfterSwitchAllocator final : AllocatorBase
     std::atomic<bool> m_fail{false};
 };
 
+// Counts the instances alive, so a slot overwritten without being destroyed shows up as one left over.
+struct LiveCounted
+{
+    static inline i32 s_live = 0;
+
+    i32 value = 0;
+
+    LiveCounted() { ++s_live; }
+    explicit LiveCounted(i32 v) noexcept : value(v) { ++s_live; }
+    LiveCounted(i32 a, i32 b) : value(a + b) { ++s_live; }
+    LiveCounted(const LiveCounted& other) : value(other.value) { ++s_live; }
+    LiveCounted(LiveCounted&& other) noexcept : value(other.value) { ++s_live; }
+    LiveCounted& operator=(const LiveCounted&) = default;
+    LiveCounted& operator=(LiveCounted&&) noexcept = default;
+    ~LiveCounted() { --s_live; }
+};
+
+struct MoveOnly
+{
+    i32 value = 0;
+
+    MoveOnly() = default;
+    explicit MoveOnly(i32 v) : value(v) {}
+    MoveOnly(const MoveOnly&) = delete;
+    MoveOnly& operator=(const MoveOnly&) = delete;
+    MoveOnly(MoveOnly&& other) noexcept : value(other.value) { other.value = 0; }
+    MoveOnly& operator=(MoveOnly&& other) noexcept
+    {
+        value = other.value;
+        other.value = 0;
+        return *this;
+    }
+};
+
 u32 GetCurrentLogicalCore()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -287,6 +321,26 @@ TEST_CASE("SPSC queue Try Push with Emplace", "[Thread]")
     REQUIRE(data.b == 5.0f);
 }
 
+TEST_CASE("SPSC queue emplace destroys what the slot held", "[Thread]")
+{
+    LiveCounted::s_live = 0;
+    {
+        Impl::QueueSPSC<LiveCounted> queue(4);
+        for (i32 lap = 0; lap < 3; ++lap)
+        {
+            queue.PushWithEmplace(1);
+            REQUIRE(queue.TryPushWithEmplace(2));
+            queue.PushWithEmplace(3, 4);
+            REQUIRE(queue.TryPushWithEmplace(5, 6));
+            REQUIRE(queue.Pop().value == 1);
+            REQUIRE(queue.Pop().value == 2);
+            REQUIRE(queue.Pop().value == 7);
+            REQUIRE(queue.Pop().value == 11);
+        }
+    }
+    REQUIRE(LiveCounted::s_live == 0);
+}
+
 TEST_CASE("Shared pointer", "[Thread]")
 {
     SECTION("Creation and cloning")
@@ -490,6 +544,24 @@ TEST_CASE("SPSC channel Close", "[Thread]")
     }
 }
 
+TEST_CASE("SPSC channel ends outlive the channel", "[Thread]")
+{
+    TransmitterSPSC<i32> transmitter;
+    ReceiverSPSC<i32> receiver;
+    {
+        ChannelSPSC<i32> channel(4);
+        transmitter = Move(channel.transmitter);
+        receiver = Move(channel.receiver);
+    }
+    transmitter.Send(7);
+    transmitter.Close();
+    auto result = receiver.Receive();
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == 7);
+    i32 value = 0;
+    REQUIRE(receiver.TryReceive(value) == ErrorCode::ChannelClosed);
+}
+
 TEST_CASE("Mutex", "[Thread]")
 {
     Mutex<i32> mutex(5);
@@ -670,6 +742,48 @@ TEST_CASE("MPMC channel Close", "[Thread]")
         channel.transmitter.Close();
         JoinThread(t);
     }
+}
+
+TEST_CASE("MPMC channel ends outlive the channel", "[Thread]")
+{
+    TransmitterMPMC<i32> transmitter;
+    ReceiverMPMC<i32> receiver;
+    {
+        ChannelMPMC<i32> channel(4);
+        transmitter = channel.transmitter.Clone();
+        receiver = Move(channel.receiver);
+    }
+    transmitter.Send(7);
+    transmitter.Close();
+    auto result = receiver.Receive();
+    REQUIRE(result.HasValue());
+    REQUIRE(result.GetValue() == 7);
+    i32 value = 0;
+    REQUIRE(receiver.TryReceive(value) == ErrorCode::ChannelClosed);
+}
+
+TEST_CASE("MPMC channel moves what it is handed", "[Thread]")
+{
+    ChannelMPMC<MoveOnly> channel(2);
+
+    MoveOnly first(1);
+    channel.transmitter.Send(Move(first));
+    REQUIRE(first.value == 0);
+
+    MoveOnly second(2);
+    REQUIRE(channel.transmitter.TrySend(Move(second)));
+    REQUIRE(second.value == 0);
+
+    MoveOnly third(3);
+    REQUIRE(!channel.transmitter.TrySend(Move(third)));
+    REQUIRE(third.value == 3);
+
+    auto received = channel.receiver.Receive();
+    REQUIRE(received.HasValue());
+    REQUIRE(received.GetValue().value == 1);
+    MoveOnly out;
+    REQUIRE(channel.receiver.TryReceive(out) == ErrorCode::Success);
+    REQUIRE(out.value == 2);
 }
 
 TEST_CASE("Thread pool", "[Thread]")

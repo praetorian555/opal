@@ -34,90 +34,37 @@ struct QueueMPMCSlot
  *         If false, busy-waits using a CPU pause instruction. Defaults to false.
  */
 template <typename T, bool UseSignaling = false>
-    requires Opal::DefaultConstructable<T> && (Opal::CopyAssignable<T> || Opal::Clonable<T>)
+    requires Opal::DefaultConstructable<T> && Opal::MoveAssignable<T>
 class QueueMPMC
 {
 public:
     QueueMPMC(size_t capacity, AllocatorBase* allocator = nullptr) : m_data(capacity, allocator), m_capacity(capacity) {}
 
+    /** Push a copy of data, or a clone when T cannot be copy-assigned. Blocks while the queue is full. */
     void Push(const T& data)
+        requires(Opal::CopyAssignable<T> || Opal::Clonable<T>)
     {
-        size_t write_idx = m_write_idx.FetchAdd<MemoryOrder::Relaxed>(1);
-        size_t slot_idx = write_idx & (m_capacity - 1);
-        auto& slot = m_data[slot_idx];
-        size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
-        size_t current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
-        while (2 * turn != current_turn)
-        {
-            if constexpr (UseSignaling)
-            {
-                slot.turn.template Wait<MemoryOrder::Relaxed>(current_turn);
-            }
-            else
-            {
-                CpuPause();
-            }
-            current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
-        }
-        if constexpr (Opal::CopyAssignable<T>)
-        {
-            slot.data = data;
-        }
-        else
-        {
-            slot.data = data.Clone();
-        }
-        slot.turn.template Store<MemoryOrder::Release>(2 * turn + 1);
-        if constexpr (UseSignaling)
-        {
-            slot.turn.NotifyAll();
-        }
+        PushValue(data);
     }
 
+    /** Push data by moving it. Blocks while the queue is full. */
+    void Push(T&& data) { PushValue(Move(data)); }
+
+    /**
+     * Push a copy of data, or a clone when T cannot be copy-assigned, unless the queue is full.
+     * @return True if data was pushed.
+     */
     bool TryPush(const T& data)
+        requires(Opal::CopyAssignable<T> || Opal::Clonable<T>)
     {
-        size_t write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
-        while (true)
-        {
-            size_t slot_idx = write_idx & (m_capacity - 1);
-            auto& slot = m_data[slot_idx];
-            size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
-            if (2 * turn != slot.turn.template Load<MemoryOrder::Acquire>())
-            {
-                // Slot is not empty, we are most likely full
-                const size_t prev_write_idx = write_idx;
-                write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
-                if (write_idx == prev_write_idx)
-                {
-                    // Nothing changed since the time we loaded the write_idx
-                    // report that we are full
-                    return false;
-                }
-            }
-            else
-            {
-                if (m_write_idx.CompareExchangeStrong(write_idx, write_idx + 1))
-                {
-                    // If write_idx didn't change since last check, consume it and increment the
-                    // atomic
-                    if constexpr (Opal::CopyAssignable<T>)
-                    {
-                        slot.data = data;
-                    }
-                    else
-                    {
-                        slot.data = data.Clone();
-                    }
-                    slot.turn.template Store<MemoryOrder::Release>(2 * turn + 1);
-                    if constexpr (UseSignaling)
-                    {
-                        slot.turn.NotifyAll();
-                    }
-                    return true;
-                }
-            }
-        }
+        return TryPushValue(data);
     }
+
+    /**
+     * Push data by moving it, unless the queue is full.
+     * @return True if data was pushed. When false, data is left as it was.
+     */
+    bool TryPush(T&& data) { return TryPushValue(Move(data)); }
 
     T Pop()
     {
@@ -183,7 +130,98 @@ public:
     /** @return How many items have ever been pushed. Only grows, so a caller can compare two readings of it. */
     [[nodiscard]] size_t GetPushCount() const { return m_write_idx.Load<MemoryOrder::Acquire>(); }
 
+    /** Mark the queue closed. Items already in it can still be popped. */
+    void Close() { m_is_closed.Store<MemoryOrder::Release>(true); }
+
+    /** @return True once Close has been called. */
+    [[nodiscard]] bool IsClosed() const { return m_is_closed.Load<MemoryOrder::Acquire>(); }
+
 private:
+    /** Copy, clone or move data into a slot, by what the caller passed. */
+    template <typename U>
+    static void StoreInto(T& slot_data, U&& data)
+    {
+        if constexpr (!std::is_lvalue_reference_v<U>)
+        {
+            slot_data = Move(data);
+        }
+        else if constexpr (Opal::CopyAssignable<T>)
+        {
+            slot_data = data;
+        }
+        else
+        {
+            slot_data = data.Clone();
+        }
+    }
+
+    template <typename U>
+    void PushValue(U&& data)
+    {
+        size_t write_idx = m_write_idx.FetchAdd<MemoryOrder::Relaxed>(1);
+        size_t slot_idx = write_idx & (m_capacity - 1);
+        auto& slot = m_data[slot_idx];
+        size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
+        size_t current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
+        while (2 * turn != current_turn)
+        {
+            if constexpr (UseSignaling)
+            {
+                slot.turn.template Wait<MemoryOrder::Relaxed>(current_turn);
+            }
+            else
+            {
+                CpuPause();
+            }
+            current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
+        }
+        StoreInto(slot.data, std::forward<U>(data));
+        slot.turn.template Store<MemoryOrder::Release>(2 * turn + 1);
+        if constexpr (UseSignaling)
+        {
+            slot.turn.NotifyAll();
+        }
+    }
+
+    template <typename U>
+    bool TryPushValue(U&& data)
+    {
+        size_t write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
+        while (true)
+        {
+            size_t slot_idx = write_idx & (m_capacity - 1);
+            auto& slot = m_data[slot_idx];
+            size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
+            if (2 * turn != slot.turn.template Load<MemoryOrder::Acquire>())
+            {
+                // Slot is not empty, we are most likely full
+                const size_t prev_write_idx = write_idx;
+                write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
+                if (write_idx == prev_write_idx)
+                {
+                    // Nothing changed since the time we loaded the write_idx
+                    // report that we are full
+                    return false;
+                }
+            }
+            else
+            {
+                if (m_write_idx.CompareExchangeStrong(write_idx, write_idx + 1))
+                {
+                    // If write_idx didn't change since last check, consume it and increment the
+                    // atomic
+                    StoreInto(slot.data, std::forward<U>(data));
+                    slot.turn.template Store<MemoryOrder::Release>(2 * turn + 1);
+                    if constexpr (UseSignaling)
+                    {
+                        slot.turn.NotifyAll();
+                    }
+                    return true;
+                }
+            }
+        }
+    }
+
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_write_idx = 0;
@@ -191,6 +229,7 @@ private:
     OPAL_END_DISABLE_WARNINGS
     DynamicArray<QueueMPMCSlot<T>> m_data;
     size_t m_capacity = 0;
+    Atomic<bool> m_is_closed = false;
 };
 
 }  // namespace Impl
@@ -205,19 +244,13 @@ template <typename T, bool UseSignaling = false>
 struct TransmitterMPMC
 {
     TransmitterMPMC() = default;
-    TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q, Ref<Atomic<bool>> is_closed)
-        : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
-    {
-    }
+    explicit TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
     ~TransmitterMPMC() = default;
 
     TransmitterMPMC(const TransmitterMPMC& q) = delete;
     TransmitterMPMC& operator=(const TransmitterMPMC& q) = delete;
 
-    TransmitterMPMC(TransmitterMPMC&& other) noexcept
-        : m_queue(std::move(other.m_queue)), m_is_closed(std::move(other.m_is_closed))
-    {
-    }
+    TransmitterMPMC(TransmitterMPMC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
     TransmitterMPMC& operator=(TransmitterMPMC&& other) noexcept
     {
         if (*this == other)
@@ -225,11 +258,10 @@ struct TransmitterMPMC
             return *this;
         }
         m_queue = std::move(other.m_queue);
-        m_is_closed = std::move(other.m_is_closed);
         return *this;
     }
 
-    TransmitterMPMC Clone() const { return TransmitterMPMC{m_queue.Clone(), m_is_closed.Clone()}; }
+    TransmitterMPMC Clone() const { return TransmitterMPMC{m_queue.Clone()}; }
 
     bool operator==(const TransmitterMPMC& other) const { return m_queue == other.m_queue; }
 
@@ -239,6 +271,12 @@ struct TransmitterMPMC
     void Send(T&& item) { m_queue->Push(std::move(item)); }
     bool TrySend(const T& item) { return m_queue->TryPush(item); }
 
+    /**
+     * Send item by moving it, unless the channel is full.
+     * @return True if item was sent. When false, item is left as it was.
+     */
+    bool TrySend(T&& item) { return m_queue->TryPush(std::move(item)); }
+
     /** @return How many items have ever been sent through this channel, by any transmitter sharing it. */
     [[nodiscard]] size_t GetSendCount() const { return m_queue->GetPushCount(); }
 
@@ -246,11 +284,10 @@ struct TransmitterMPMC
      * Marks the channel as closed. After this, Receive() and TryReceive() on the
      * corresponding receiver will return ErrorCode::ChannelClosed without blocking.
      */
-    void Close() const { m_is_closed->Store<MemoryOrder::Release>(true); }
+    void Close() { m_queue->Close(); }
 
 private:
     SharedPtr<Impl::QueueMPMC<T, UseSignaling>> m_queue;
-    Ref<Atomic<bool>> m_is_closed;
 };
 
 /**
@@ -263,19 +300,13 @@ template <typename T, bool UseSignaling = false>
 struct ReceiverMPMC
 {
     ReceiverMPMC() = default;
-    ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q, Ref<Atomic<bool>> is_closed)
-        : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
-    {
-    }
+    explicit ReceiverMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
     ~ReceiverMPMC() = default;
 
     ReceiverMPMC(const ReceiverMPMC& q) = delete;
     ReceiverMPMC& operator=(const ReceiverMPMC& q) = delete;
 
-    ReceiverMPMC(ReceiverMPMC&& other) noexcept
-        : m_queue(std::move(other.m_queue)), m_is_closed(std::move(other.m_is_closed))
-    {
-    }
+    ReceiverMPMC(ReceiverMPMC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
     ReceiverMPMC& operator=(ReceiverMPMC&& other) noexcept
     {
         if (*this == other)
@@ -283,11 +314,10 @@ struct ReceiverMPMC
             return *this;
         }
         m_queue = std::move(other.m_queue);
-        m_is_closed = std::move(other.m_is_closed);
         return *this;
     }
 
-    ReceiverMPMC Clone() const { return ReceiverMPMC{m_queue.Clone(), m_is_closed.Clone()}; }
+    ReceiverMPMC Clone() const { return ReceiverMPMC{m_queue.Clone()}; }
 
     /**
      * Blocks until an item is available and returns it.
@@ -301,7 +331,7 @@ struct ReceiverMPMC
         {
             return Expected<T, ErrorCode>(std::move(result));
         }
-        if (m_is_closed->Load<MemoryOrder::Acquire>())
+        if (m_queue->IsClosed())
         {
             return Expected<T, ErrorCode>(ErrorCode::ChannelClosed);
         }
@@ -319,7 +349,7 @@ struct ReceiverMPMC
         {
             return ErrorCode::Success;
         }
-        if (m_is_closed->Load<MemoryOrder::Acquire>())
+        if (m_queue->IsClosed())
         {
             return ErrorCode::ChannelClosed;
         }
@@ -332,7 +362,6 @@ struct ReceiverMPMC
 
 private:
     SharedPtr<Impl::QueueMPMC<T, UseSignaling>> m_queue;
-    Ref<Atomic<bool>> m_is_closed;
 };
 
 /**
@@ -346,14 +375,13 @@ struct ChannelMPMC
 {
     TransmitterMPMC<T, UseSignaling> transmitter;
     ReceiverMPMC<T, UseSignaling> receiver;
-    Atomic<bool> m_is_closed = false;
 
     explicit ChannelMPMC(size_t capacity, AllocatorBase* allocator = nullptr)
     {
         capacity = GetNextPowerOf2(capacity);
         SharedPtr<Impl::QueueMPMC<T, UseSignaling>> q(allocator, capacity, allocator);
-        transmitter = TransmitterMPMC<T, UseSignaling>(q.Clone(), m_is_closed);
-        receiver = ReceiverMPMC<T, UseSignaling>(std::move(q), m_is_closed);
+        transmitter = TransmitterMPMC<T, UseSignaling>(q.Clone());
+        receiver = ReceiverMPMC<T, UseSignaling>(std::move(q));
     }
 };
 

@@ -142,7 +142,7 @@ public:
         }
 
         size_t bound_write_idx = write_idx & (m_capacity - 1);
-        new (&m_data[bound_write_idx]) T(args...);
+        EmplaceAt(m_data[bound_write_idx], args...);
 
         m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
         if constexpr (UseSignaling)
@@ -163,7 +163,7 @@ public:
         }
 
         size_t bound_write_idx = write_idx & (m_capacity - 1);
-        new (&m_data[bound_write_idx]) T(args...);
+        EmplaceAt(m_data[bound_write_idx], args...);
 
         m_write_idx.Store<MemoryOrder::Release>(write_idx + 1);
         if constexpr (UseSignaling)
@@ -219,7 +219,28 @@ public:
         return true;
     }
 
+    /** Mark the queue closed. Items already in it can still be popped. */
+    void Close() { m_is_closed.Store<MemoryOrder::Release>(true); }
+
+    /** @return True once Close has been called. */
+    [[nodiscard]] bool IsClosed() const { return m_is_closed.Load<MemoryOrder::Acquire>(); }
+
 private:
+    /** Replace the value in a slot with one constructed from args. */
+    template <typename... Args>
+    static void EmplaceAt(T& slot, const Args&... args)
+    {
+        if constexpr (std::is_nothrow_constructible_v<T, const Args&...>)
+        {
+            slot.~T();
+            new (&slot) T(args...);
+        }
+        else
+        {
+            slot = T(args...);
+        }
+    }
+
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_write_idx;
@@ -228,6 +249,7 @@ private:
 
     size_t m_capacity = 0;
     DynamicArray<T> m_data = nullptr;
+    Atomic<bool> m_is_closed = false;
 };
 }  // namespace Impl
 
@@ -241,19 +263,13 @@ template <typename T, bool UseSignaling = true>
 struct TransmitterSPSC
 {
     TransmitterSPSC() = default;
-    TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q, Ref<Atomic<bool>> is_closed)
-        : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
-    {
-    }
+    explicit TransmitterSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
     ~TransmitterSPSC() = default;
 
     TransmitterSPSC(const TransmitterSPSC& q) = delete;
     TransmitterSPSC& operator=(const TransmitterSPSC& q) = delete;
 
-    TransmitterSPSC(TransmitterSPSC&& other) noexcept
-        : m_queue(std::move(other.m_queue)), m_is_closed(std::move(other.m_is_closed))
-    {
-    }
+    TransmitterSPSC(TransmitterSPSC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
 
     TransmitterSPSC& operator=(TransmitterSPSC&& other) noexcept
     {
@@ -262,7 +278,6 @@ struct TransmitterSPSC
             return *this;
         }
         m_queue = std::move(other.m_queue);
-        m_is_closed = std::move(other.m_is_closed);
         return *this;
     }
 
@@ -278,11 +293,10 @@ struct TransmitterSPSC
      * Marks the channel as closed. After this, Receive() and TryReceive() on the
      * corresponding receiver will return ErrorCode::ChannelClosed without blocking.
      */
-    void Close() const { m_is_closed->Store<MemoryOrder::Release>(true); }
+    void Close() { m_queue->Close(); }
 
 private:
     SharedPtr<Impl::QueueSPSC<T, UseSignaling>> m_queue;
-    Ref<Atomic<bool>> m_is_closed;
 };
 
 /**
@@ -295,19 +309,13 @@ template <typename T, bool UseSignaling = true>
 struct ReceiverSPSC
 {
     ReceiverSPSC() = default;
-    ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q, Ref<Atomic<bool>> is_closed)
-        : m_queue(std::move(q)), m_is_closed(std::move(is_closed))
-    {
-    }
+    explicit ReceiverSPSC(SharedPtr<Impl::QueueSPSC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
     ~ReceiverSPSC() = default;
 
     ReceiverSPSC(const ReceiverSPSC& q) = delete;
     ReceiverSPSC& operator=(const ReceiverSPSC& q) = delete;
 
-    ReceiverSPSC(ReceiverSPSC&& other) noexcept
-        : m_queue(std::move(other.m_queue)), m_is_closed(std::move(other.m_is_closed))
-    {
-    }
+    ReceiverSPSC(ReceiverSPSC&& other) noexcept : m_queue(std::move(other.m_queue)) {}
     ReceiverSPSC& operator=(ReceiverSPSC&& other) noexcept
     {
         if (*this == other)
@@ -315,7 +323,6 @@ struct ReceiverSPSC
             return *this;
         }
         m_queue = std::move(other.m_queue);
-        m_is_closed = std::move(other.m_is_closed);
         return *this;
     }
 
@@ -331,7 +338,7 @@ struct ReceiverSPSC
         {
             return Expected<T, ErrorCode>(std::move(result));
         }
-        if (m_is_closed->Load<MemoryOrder::Acquire>())
+        if (m_queue->IsClosed())
         {
             return Expected<T, ErrorCode>(ErrorCode::ChannelClosed);
         }
@@ -349,7 +356,7 @@ struct ReceiverSPSC
         {
             return ErrorCode::Success;
         }
-        if (m_is_closed->Load<MemoryOrder::Acquire>())
+        if (m_queue->IsClosed())
         {
             return ErrorCode::ChannelClosed;
         }
@@ -362,7 +369,6 @@ struct ReceiverSPSC
 
 private:
     SharedPtr<Impl::QueueSPSC<T, UseSignaling>> m_queue;
-    Ref<Atomic<bool>> m_is_closed;
 };
 
 /**
@@ -377,13 +383,12 @@ struct ChannelSPSC
 {
     TransmitterSPSC<T, UseSignaling> transmitter;
     ReceiverSPSC<T, UseSignaling> receiver;
-    Atomic<bool> m_is_closed = false;
 
     ChannelSPSC(size_t capacity, AllocatorBase* allocator = nullptr)
     {
         SharedPtr<Impl::QueueSPSC<T, UseSignaling>> q(allocator, capacity, allocator);
-        transmitter = TransmitterSPSC<T, UseSignaling>(q.Clone(), m_is_closed);
-        receiver = ReceiverSPSC<T, UseSignaling>(std::move(q), m_is_closed);
+        transmitter = TransmitterSPSC<T, UseSignaling>(q.Clone());
+        receiver = ReceiverSPSC<T, UseSignaling>(std::move(q));
     }
 };
 

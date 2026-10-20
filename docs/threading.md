@@ -429,7 +429,8 @@ result = channel.receiver.Receive();
 
 Multi-producer, multi-consumer. Transmitters and receivers can be cloned to share across multiple threads. Uses Dmitry Vyukov's bounded MPMC queue algorithm.
 
-The item type must be default constructable, and either copy assignable or clonable. A type that is neither fails to compile.
+The item type must be default constructable and move assignable. Sending an rvalue moves it in, so a move-only type works. Sending
+an lvalue copies it, or clones it when the type is not copy assignable; a type that is neither can only be sent as an rvalue.
 
 ```cpp
 #include "opal/threading/channel-mpmc.h"
@@ -501,14 +502,15 @@ result = channel.receiver.Receive();
 | `ReceiverSPSC` | `TryReceive(T&)` | Non-blocking receive, returns `ErrorCode` (`Success`, `ChannelEmpty`, or `ChannelClosed`) |
 | `ReceiverSPSC` | `IsValid()` | Returns `true` if receiver holds a queue |
 
-SPSC transmitters and receivers are move-only.
+SPSC transmitters and receivers are move-only. Both ends share ownership of the channel state, closed flag included, so they stay
+valid after the `ChannelSPSC` they came from is destroyed.
 
 **MPMC**
 
 | Type | Method | Description |
 |------|--------|-------------|
 | `TransmitterMPMC` | `Send(const T&)` / `Send(T&&)` | Blocking send |
-| `TransmitterMPMC` | `TrySend(const T&)` | Non-blocking send, returns `false` if full |
+| `TransmitterMPMC` | `TrySend(const T&)` / `TrySend(T&&)` | Non-blocking send, returns `false` if full. A rejected rvalue is left untouched |
 | `TransmitterMPMC` | `Close()` | Mark channel as closed |
 | `TransmitterMPMC` | `Clone()` | Create a shared copy for another producer |
 | `TransmitterMPMC` | `IsValid()` | Returns `true` if transmitter holds a queue |
@@ -517,7 +519,8 @@ SPSC transmitters and receivers are move-only.
 | `ReceiverMPMC` | `Clone()` | Create a shared copy for another consumer |
 | `ReceiverMPMC` | `IsValid()` | Returns `true` if receiver holds a queue |
 
-MPMC transmitters and receivers support `Clone()`.
+MPMC transmitters and receivers support `Clone()`. Like the SPSC ends, they stay valid after the `ChannelMPMC` they came from is
+destroyed.
 
 ## Thread Pool
 
