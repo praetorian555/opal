@@ -1,11 +1,22 @@
 #include "opal/threading/thread-pool.h"
 
+#include "opal/threading/cpu-pause.h"
+
 
 namespace
 {
 using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Runnable>, true>;
 
 thread_local const Opal::ThreadPool* t_worker_pool = nullptr;
+
+// Runs a task and counts it as completed, which is what WaitForAll waits on.
+void RunTask(Opal::SharedPtr<Opal::Runnable>& task, Opal::Atomic<Opal::u64>* completed_count)
+{
+    task->Run();
+    task.Reset();
+    completed_count->FetchAdd<Opal::MemoryOrder::Release>(1);
+    completed_count->NotifyAll();
+}
 
 void ThreadFunction(ReceiverType receiver, const Opal::ThreadPool* pool, Opal::Ref<Opal::AllocatorBase> default_allocator,
                     Opal::Atomic<Opal::u64>* completed_count)
@@ -20,10 +31,7 @@ void ThreadFunction(ReceiverType receiver, const Opal::ThreadPool* pool, Opal::R
         {
             break;
         }
-        Opal::SharedPtr<Opal::Runnable> task = std::move(result.GetValue());
-        task->Run();
-        completed_count->FetchAdd<Opal::MemoryOrder::Release>(1);
-        completed_count->NotifyAll();
+        RunTask(result.GetValue(), completed_count);
     }
     t_worker_pool = nullptr;
 }
@@ -155,10 +163,25 @@ Opal::ErrorCode Opal::ThreadPool::Post(SharedPtr<Runnable>&& work)
             return ErrorCode::ChannelClosed;
         }
     }
-    m_communicator.transmitter.Send(std::move(work));
     if (!is_from_worker)
     {
+        m_communicator.transmitter.Send(std::move(work));
         EndSubmission();
+        return ErrorCode::Success;
+    }
+    // A worker that waited for room could wait forever: when every worker is sending into a full channel, none is left to empty
+    // it. Running a queued task instead makes the room.
+    while (!m_communicator.transmitter.TrySend(std::move(work)))
+    {
+        SharedPtr<Runnable> queued;
+        if (m_communicator.receiver.TryReceive(queued) == ErrorCode::Success)
+        {
+            RunTask(queued, &m_completed_count);
+        }
+        else
+        {
+            CpuPause();
+        }
     }
     return ErrorCode::Success;
 }

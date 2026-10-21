@@ -1109,6 +1109,75 @@ TEST_CASE("Thread pool WaitForAll drains tasks submitted by other tasks", "[Thre
     REQUIRE(counter.load() == 9);
 }
 
+TEST_CASE("Thread pool worker submits more tasks than the channel holds", "[Thread]")
+{
+    // One worker and a channel of four: the worker fills the channel itself, and no other worker is left to empty it.
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(1, 4);
+    ThreadPool& pool = *pool_owner;
+    std::atomic<i32> counter{0};
+    std::atomic<i32> rejected{0};
+
+    auto parent = pool.Submit(
+        [&pool, &counter, &rejected]
+        {
+            for (i32 i = 0; i < 64; ++i)
+            {
+                if (!pool.Submit([&counter] { counter.fetch_add(1); }).HasValue())
+                {
+                    rejected.fetch_add(1);
+                }
+            }
+        });
+    REQUIRE(parent.HasValue());
+    if (!parent.GetValue().WaitFor(30000))
+    {
+        // The pool cannot be closed while its worker is stuck, so end the run rather than hang it.
+        fprintf(stderr, "Thread pool deadlocked on a worker submitting into a full channel\n");
+        std::abort();
+    }
+
+    pool.WaitForAll();
+    REQUIRE(rejected.load() == 0);
+    REQUIRE(counter.load() == 64);
+}
+
+TEST_CASE("Thread pool workers all submitting into a full channel", "[Thread]")
+{
+    constexpr i32 k_parent_count = 8;
+    constexpr i32 k_children_per_parent = 200;
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(4, 4);
+    ThreadPool& pool = *pool_owner;
+    std::atomic<i32> counter{0};
+
+    DynamicArray<Future<void>> parents;
+    for (i32 p = 0; p < k_parent_count; ++p)
+    {
+        auto parent = pool.Submit(
+            [&pool, &counter]
+            {
+                for (i32 i = 0; i < k_children_per_parent; ++i)
+                {
+                    while (!pool.Submit([&counter] { counter.fetch_add(1); }).HasValue())
+                    {
+                    }
+                }
+            });
+        REQUIRE(parent.HasValue());
+        REQUIRE(parents.PushBack(Move(parent.GetValue())) == ErrorCode::Success);
+    }
+    for (Future<void>& parent : parents)
+    {
+        if (!parent.WaitFor(30000))
+        {
+            fprintf(stderr, "Thread pool deadlocked on workers submitting into a full channel\n");
+            std::abort();
+        }
+    }
+
+    pool.WaitForAll();
+    REQUIRE(counter.load() == k_parent_count * k_children_per_parent);
+}
+
 TEST_CASE("Thread pool Close runs tasks submitted by tasks still running", "[Thread]")
 {
     ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(2);

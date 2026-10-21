@@ -715,6 +715,9 @@ joins the workers. It is called by the destructor.
 A running task may submit more tasks to its own pool with `Submit`. These are accepted even while the pool is closing, and run
 before `Close()` returns, so a task can hand off the rest of its work without racing shutdown.
 
+A task may submit more than the channel holds. When a worker finds the channel full it runs queued tasks until there is room,
+rather than waiting for another worker to make some, since every other worker could be doing the same.
+
 ```cpp
 pool.Submit([&pool]
 {
