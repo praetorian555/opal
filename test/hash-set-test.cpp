@@ -758,6 +758,36 @@ TEST_CASE("Create a hash set without throwing", "[hash-set]")
     }
 }
 
+TEST_CASE("HashSet TryClone", "[hash-set]")
+{
+    HashSet<StringUtf8> source;
+    REQUIRE(source.Insert(StringUtf8("one")) == ErrorCode::Success);
+    REQUIRE(source.Insert(StringUtf8("two")) == ErrorCode::Success);
+
+    SECTION("Copies the keys")
+    {
+        auto clone = source.TryClone();
+        REQUIRE(clone.HasValue());
+        REQUIRE(clone.GetValue().GetSize() == 2);
+        REQUIRE(clone.GetValue().Contains(StringUtf8("two")));
+
+        REQUIRE(source.Erase(StringUtf8("two")) == ErrorCode::Success);
+        REQUIRE(clone.GetValue().Contains(StringUtf8("two")));
+    }
+    SECTION("Reports a failed allocation instead of throwing")
+    {
+        NullAllocator null_allocator;
+        auto clone = source.TryClone(&null_allocator);
+        REQUIRE_FALSE(clone.HasValue());
+        REQUIRE(clone.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Clone still throws for the same input")
+    {
+        NullAllocator null_allocator;
+        REQUIRE_THROWS_AS(source.Clone(&null_allocator), OutOfMemoryException);
+    }
+}
+
 TEST_CASE("HashSet default constructor does not allocate", "[hash-set]")
 {
     static_assert(std::is_nothrow_default_constructible_v<HashSet<StringUtf8>>);

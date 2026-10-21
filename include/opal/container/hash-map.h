@@ -218,9 +218,17 @@ public:
      * @param allocator Allocator the copy should use, or nullptr to use the same one as this map. Copied keys and values are given the
      * same allocator.
      * @return The new map.
-     * @throw OutOfMemoryException when the allocator runs out of memory.
+     * @throw OutOfMemoryException when the copy could not be allocated. Use TryClone to get a code instead.
      */
     HashMap Clone(AllocatorBase* allocator = nullptr) const;
+
+    /**
+     * Creates a map holding a copy of every pair in this one, reporting a failed allocation instead of throwing it.
+     * @param allocator Allocator the copy should use, or nullptr to use the same one as this map. Copied keys and values are given the
+     * same allocator.
+     * @return The copy, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] Expected<HashMap, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const;
 
     /**
      * Makes room for at least `capacity` pairs. Never makes the map smaller than what it already holds, and does nothing useful when the
@@ -552,12 +560,30 @@ void Opal::HashMap<KeyType, ValueType>::DestroyAllPairs()
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType> Opal::HashMap<KeyType, ValueType>::Clone(AllocatorBase* allocator) const
 {
+    // Clone hands back the copy itself, so it has nowhere to put a code and reports a failed allocation the way the constructors do.
+    Expected<HashMap, ErrorCode> clone = TryClone(allocator);
+    if (!clone.HasValue()) [[unlikely]]
+    {
+        OPAL_RAISE(OutOfMemoryException(allocator == nullptr ? m_allocator->GetName() : allocator->GetName(), m_capacity * sizeof(pair_type)));
+    }
+    return Move(clone).GetValue();
+}
+
+template <typename KeyType, typename ValueType>
+Opal::Expected<Opal::HashMap<KeyType, ValueType>, Opal::ErrorCode> Opal::HashMap<KeyType, ValueType>::TryClone(AllocatorBase* allocator) const
+{
+    using Result = Expected<HashMap, ErrorCode>;
     allocator = allocator == nullptr ? m_allocator : allocator;
+    HashMap clone(allocator);
     if (m_control_bytes == nullptr)
     {
-        return HashMap(allocator);
+        return Result(Move(clone));
     }
-    HashMap clone(m_capacity, allocator);
+    const ErrorCode error = clone.Reserve(m_capacity);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
     clone.m_seed = m_seed;
     // Same capacity and seed, so every pair keeps its slot and none is hashed again. The control bytes come over as they are,
     // erased markers included, since a probe that passed over an erased slot on the way in has to pass over it on the way back.
@@ -579,7 +605,7 @@ Opal::HashMap<KeyType, ValueType> Opal::HashMap<KeyType, ValueType>::Clone(Alloc
     memcpy(clone.m_control_bytes, m_control_bytes, m_capacity + Impl::k_group_width);
     clone.m_size = m_size;
     clone.m_growth_left = m_growth_left;
-    return clone;
+    return Result(Move(clone));
 }
 
 template <typename KeyType, typename ValueType>

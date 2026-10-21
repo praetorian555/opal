@@ -241,6 +241,36 @@ TEST_CASE("Hash map reports failures through error codes", "[HashMap]")
     }
 }
 
+TEST_CASE("TryClone a hash map", "[HashMap]")
+{
+    HashMap<StringUtf8, i32> source;
+    REQUIRE(source.Insert(StringUtf8("one"), 1) == ErrorCode::Success);
+    REQUIRE(source.Insert(StringUtf8("two"), 2) == ErrorCode::Success);
+
+    SECTION("Copies the pairs")
+    {
+        auto clone = source.TryClone();
+        REQUIRE(clone.HasValue());
+        REQUIRE(clone.GetValue().GetSize() == 2);
+        REQUIRE(clone.GetValue().GetValue(StringUtf8("two")) == 2);
+
+        source.GetValue(StringUtf8("two")) = 99;
+        REQUIRE(clone.GetValue().GetValue(StringUtf8("two")) == 2);
+    }
+    SECTION("Reports a failed allocation instead of throwing")
+    {
+        NullAllocator null_allocator;
+        auto clone = source.TryClone(&null_allocator);
+        REQUIRE_FALSE(clone.HasValue());
+        REQUIRE(clone.GetError() == ErrorCode::OutOfMemory);
+    }
+    SECTION("Clone still throws for the same input")
+    {
+        NullAllocator null_allocator;
+        REQUIRE_THROWS_AS(source.Clone(&null_allocator), OutOfMemoryException);
+    }
+}
+
 TEST_CASE("Hash map default constructor does not allocate", "[HashMap]")
 {
     static_assert(std::is_nothrow_default_constructible_v<HashMap<StringUtf8, StringUtf8>>);

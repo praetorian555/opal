@@ -287,6 +287,19 @@ Allocation failure is recoverable, not exceptional. Allocators are pluggable and
 
 `Deque`, `DynamicArray`, `String`, `HashSet` and `HashMap` all follow this. What still throws is what has nowhere to put a code: constructors, `Clone`, `operator=` from an initializer list, and `String::operator+=`.
 
+### Construction
+
+Making an empty object never fails. Only filling it can.
+
+- A default constructor does not allocate and is `noexcept`. A struct of containers then default constructs for free and
+  `= {}` member initializers are safe. A moved-from object is left in this same empty state.
+- A constructor that allocates (a capacity, an initializer list, a copy of data) treats a failed allocation as fatal: it raises
+  `OutOfMemoryException`, which with `OPAL_EXCEPTIONS=OFF` ends the program. Calling one asserts the allocation cannot fail.
+- Each such constructor has a fallible twin returning `Expected<T, ErrorCode>`: a static `Create` taking the same arguments,
+  and `TryClone` beside `Clone`. A new container provides both.
+- A type whose invariants need a resource to exist at all (`ThreadPool`) is built only through `Create`, using a passkey
+  constructor. No separate `Init` method: it allows an object that exists but is not ready.
+
 ### Move Utility
 
 `Opal::Move()` in `type-traits.h` is the project's own `std::move` equivalent. Used throughout instead of `std::move()` (though `std::move()` also appears in some places).

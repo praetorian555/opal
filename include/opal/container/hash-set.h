@@ -184,9 +184,16 @@ public:
      * Creates a set holding a copy of every key in this one.
      * @param allocator Allocator the copy should use, or nullptr to use the same one as this set. Copied keys are given the same allocator.
      * @return The new set.
-     * @throw OutOfMemoryException when the allocator runs out of memory.
+     * @throw OutOfMemoryException when the copy could not be allocated. Use TryClone to get a code instead.
      */
     HashSet Clone(AllocatorBase* allocator = nullptr) const;
+
+    /**
+     * Creates a set holding a copy of every key in this one, reporting a failed allocation instead of throwing it.
+     * @param allocator Allocator the copy should use, or nullptr to use the same one as this set. Copied keys are given the same allocator.
+     * @return The copy, or ErrorCode::OutOfMemory.
+     */
+    [[nodiscard]] Expected<HashSet, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const;
 
     /** @return Number of keys in the set. */
     [[nodiscard]] u64 GetSize() const { return m_size; }
@@ -484,12 +491,30 @@ Opal::ErrorCode Opal::HashSet<KeyType>::Grow()
 template <typename KeyType>
 Opal::HashSet<KeyType> Opal::HashSet<KeyType>::Clone(AllocatorBase* allocator) const
 {
+    // Clone hands back the copy itself, so it has nowhere to put a code and reports a failed allocation the way the constructors do.
+    Expected<HashSet, ErrorCode> clone = TryClone(allocator);
+    if (!clone.HasValue()) [[unlikely]]
+    {
+        OPAL_RAISE(OutOfMemoryException(allocator == nullptr ? m_allocator->GetName() : allocator->GetName(), m_capacity * sizeof(key_type)));
+    }
+    return Move(clone).GetValue();
+}
+
+template <typename KeyType>
+Opal::Expected<Opal::HashSet<KeyType>, Opal::ErrorCode> Opal::HashSet<KeyType>::TryClone(AllocatorBase* allocator) const
+{
+    using Result = Expected<HashSet, ErrorCode>;
     allocator = allocator == nullptr ? m_allocator : allocator;
+    HashSet clone(allocator);
     if (m_control_bytes == nullptr)
     {
-        return HashSet(allocator);
+        return Result(Move(clone));
     }
-    HashSet clone(m_capacity, allocator);
+    const ErrorCode error = clone.Reserve(m_capacity);
+    if (error != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(error);
+    }
     clone.m_seed = m_seed;
     // Same capacity and seed, so every key keeps its slot and none is hashed again. The control bytes come over as they are,
     // erased markers included, since a probe that passed over an erased slot on the way in has to pass over it on the way back.
@@ -511,7 +536,7 @@ Opal::HashSet<KeyType> Opal::HashSet<KeyType>::Clone(AllocatorBase* allocator) c
     memcpy(clone.m_control_bytes, m_control_bytes, m_capacity + Impl::k_group_width);
     clone.m_size = m_size;
     clone.m_growth_left = m_growth_left;
-    return clone;
+    return Result(Move(clone));
 }
 
 template <typename KeyType>
