@@ -25,7 +25,7 @@ struct QueueMPMCSlot
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> turn = 0;
-    alignas(OPAL_CACHE_LINE_SIZE) T data;
+    T data;
     OPAL_END_DISABLE_WARNINGS
 };
 
@@ -176,7 +176,11 @@ public:
     {
         while (true)
         {
-            const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
+            u32 push_count = 0;
+            if constexpr (UseSignaling)
+            {
+                push_count = m_push_count.Load<MemoryOrder::Acquire>();
+            }
             if (TryPop(result))
             {
                 return true;
