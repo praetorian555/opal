@@ -1561,6 +1561,47 @@ TEST_CASE("Thread pool WaitForAll drains tasks submitted by other tasks", "[Thre
     REQUIRE(counter.load() == 9);
 }
 
+TEST_CASE("Thread pool WaitForAll waits for a task that is still submitting", "[Thread]")
+{
+    // Other workers finish the children while the parent is still submitting them, so as many tasks can have completed as had
+    // been sent at any earlier moment. WaitForAll must not take that for the pool being idle.
+    constexpr i32 k_round_count = 300;
+    constexpr i32 k_children_per_round = 1000;
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(4);
+    ThreadPool& pool = *pool_owner;
+    i32 early_returns = 0;
+
+    for (i32 round = 0; round < k_round_count; ++round)
+    {
+        std::atomic<i32> counter{0};
+        std::atomic<bool> parent_done{false};
+        auto parent = pool.Submit(
+            [&pool, &counter, &parent_done]
+            {
+                for (i32 i = 0; i < k_children_per_round; ++i)
+                {
+                    (void)pool.Submit([&counter] { counter.fetch_add(1); });
+                }
+                parent_done.store(true);
+            });
+        REQUIRE(parent.HasValue());
+
+        pool.WaitForAll();
+        if (!parent_done.load() || counter.load() != k_children_per_round)
+        {
+            ++early_returns;
+        }
+        // Let the round finish before its counters go out of scope, whatever WaitForAll did.
+        parent.GetValue().Wait();
+        while (counter.load() != k_children_per_round)
+        {
+            YieldCurrentThread();
+        }
+    }
+
+    REQUIRE(early_returns == 0);
+}
+
 TEST_CASE("Thread pool worker submits more tasks than the channel holds", "[Thread]")
 {
     // One worker and a channel of four: the worker fills the channel itself, and no other worker is left to empty it.

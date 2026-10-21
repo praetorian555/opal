@@ -108,10 +108,12 @@ void Opal::ThreadPool::WaitForAccepted()
 {
     while (true)
     {
-        // Read the send count first. Anything counted here has either completed already or is still to come, and a task that
-        // submits a follow-up does so before it is counted as completed, so the follow-up is in the next reading.
-        const size_t sent = m_communicator.transmitter.GetSendCount();
+        // Read the completed count first. A task only completes after it was sent, so if as many tasks have been sent by the later
+        // reading as had completed by the earlier one, every task sent by then had finished and none was running to send more.
+        // The other order is not enough: children a running task sends after the send count is read can complete in time to
+        // make up the difference while their parent is still sending.
         const u64 completed = m_completed_count.Load<MemoryOrder::Acquire>();
+        const size_t sent = m_communicator.transmitter.GetSendCount();
         if (completed >= sent)
         {
             return;
