@@ -140,28 +140,32 @@ u32 GetCurrentLogicalCore()
 TEST_CASE("Create a thread", "[Thread]")
 {
     int n = 5;
+    int seen_by_copy = 0;
     ThreadHandle handle = CreateThreadOrFail(
-        [](int nn)
+        [](int nn, int& out_seen)
         {
-            REQUIRE(nn == 5);
+            out_seen = nn;
             nn++;
         },
-        n);
+        n, Ref(seen_by_copy));
 
     JoinThread(handle);
+    REQUIRE(seen_by_copy == 5);
     REQUIRE(n == 5);
 
     ThreadHandle out_handle;
+    int seen_by_reference = 0;
     handle = CreateThreadOrFail(
-        [](int& nn, ThreadHandle& inner_handle)
+        [](int& nn, ThreadHandle& inner_handle, int& out_seen)
         {
-            REQUIRE(nn == 5);
+            out_seen = nn;
             nn++;
             inner_handle = GetCurrentThreadHandle();
         },
-        Ref(n), Ref(out_handle));
+        Ref(n), Ref(out_handle), Ref(seen_by_reference));
 
     JoinThread(handle);
+    REQUIRE(seen_by_reference == 5);
     REQUIRE(n == 6);
     REQUIRE(out_handle == handle);
     REQUIRE(GetCurrentThreadHandle() != out_handle);
@@ -207,25 +211,27 @@ TEST_CASE("SPSC queue basic Push and Pop", "[Thread]")
     }
     Impl::QueueSPSC<i64> queue(32);
 
+    size_t mismatches = 0;
     const ThreadHandle handle = CreateThreadOrFail(
-        [](Impl::QueueSPSC<i64>& in_queue, Opal::DynamicArray<i64>& in_data)
+        [](Impl::QueueSPSC<i64>& in_queue, Opal::DynamicArray<i64>& in_data, size_t& out_mismatches)
         {
             size_t count = 0;
             while (count < k_capacity)
             {
                 const i64 value = in_data[count];
                 const i64 queued_value = in_queue.Pop();
-                REQUIRE(queued_value == value);
+                out_mismatches += queued_value == value ? 0 : 1;
                 count++;
             }
         },
-        Ref(queue), Ref(data));
+        Ref(queue), Ref(data), Ref(mismatches));
 
     for (const i64& value : data)
     {
         queue.Push(value);
     }
     JoinThread(handle);
+    REQUIRE(mismatches == 0);
 }
 
 TEST_CASE("SPSC queue TryPush", "[Thread]")
@@ -240,8 +246,9 @@ TEST_CASE("SPSC queue TryPush", "[Thread]")
     }
     Impl::QueueSPSC<i64> queue(32);
 
+    size_t mismatches = 0;
     const ThreadHandle handle = CreateThreadOrFail(
-        [](Impl::QueueSPSC<i64>& in_queue, Opal::DynamicArray<i64>& in_data)
+        [](Impl::QueueSPSC<i64>& in_queue, Opal::DynamicArray<i64>& in_data, size_t& out_mismatches)
         {
             size_t count = 0;
             while (count < k_capacity)
@@ -251,11 +258,11 @@ TEST_CASE("SPSC queue TryPush", "[Thread]")
                 while (!in_queue.TryPop(queued_value))
                 {
                 }
-                REQUIRE(queued_value == value);
+                out_mismatches += queued_value == value ? 0 : 1;
                 count++;
             }
         },
-        Ref(queue), Ref(data));
+        Ref(queue), Ref(data), Ref(mismatches));
 
     for (const i64& value : data)
     {
@@ -263,6 +270,7 @@ TEST_CASE("SPSC queue TryPush", "[Thread]")
             ;
     }
     JoinThread(handle);
+    REQUIRE(mismatches == 0);
 }
 
 TEST_CASE("SPSC queue Push with move", "[Thread]")
@@ -299,19 +307,20 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
     }
     Impl::QueueSPSC<Data> queue(32);
 
+    size_t mismatches = 0;
     const ThreadHandle handle = CreateThreadOrFail(
-        [](Impl::QueueSPSC<Data>& in_queue, Opal::DynamicArray<Data>& in_data)
+        [](Impl::QueueSPSC<Data>& in_queue, Opal::DynamicArray<Data>& in_data, size_t& out_mismatches)
         {
             size_t count = 0;
             while (count < k_capacity)
             {
                 const Data& value = in_data[count];
                 const Data queued_value = in_queue.Pop();
-                REQUIRE(queued_value.value == value.value);
+                out_mismatches += queued_value.value == value.value ? 0 : 1;
                 count++;
             }
         },
-        Ref(queue), Ref(data));
+        Ref(queue), Ref(data), Ref(mismatches));
 
     DynamicArray<Data> data_for_init = data.Clone();
     for (Data& value : data_for_init)
@@ -320,6 +329,7 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
         REQUIRE(value.value == 0);
     }
     JoinThread(handle);
+    REQUIRE(mismatches == 0);
 }
 
 TEST_CASE("SPSC queue Push with Emplace", "[Thread]")
@@ -429,20 +439,25 @@ TEST_CASE("SPSC channel", "[Thread]")
     {
         ChannelSPSC<i32> channel(128);
 
+        i32 received = 0;
         const ThreadHandle t = CreateThreadOrFail(
-            [](ReceiverSPSC<i32> receiver)
+            [](ReceiverSPSC<i32> receiver, i32& out_received)
             {
-                REQUIRE(receiver.IsValid());
+                if (!receiver.IsValid())
+                {
+                    out_received = -1;
+                    return;
+                }
                 auto result = receiver.Receive();
-                REQUIRE(result.HasValue());
-                REQUIRE(result.GetValue() == 5);
+                out_received = result.HasValue() ? result.GetValue() : -2;
             },
-            Move(channel.receiver));
+            Move(channel.receiver), Ref(received));
 
         REQUIRE(!channel.receiver.IsValid());
         channel.transmitter.Send(5);
 
         JoinThread(t);
+        REQUIRE(received == 5);
     }
 }
 
@@ -458,25 +473,27 @@ TEST_CASE("SPSC queue basic Push and Pop with spin wait", "[Thread]")
     }
     Impl::QueueSPSC<i64, false> queue(32);
 
+    size_t mismatches = 0;
     const ThreadHandle handle = CreateThreadOrFail(
-        [](Impl::QueueSPSC<i64, false>& in_queue, Opal::DynamicArray<i64>& in_data)
+        [](Impl::QueueSPSC<i64, false>& in_queue, Opal::DynamicArray<i64>& in_data, size_t& out_mismatches)
         {
             size_t count = 0;
             while (count < k_capacity)
             {
                 const i64 value = in_data[count];
                 const i64 queued_value = in_queue.Pop();
-                REQUIRE(queued_value == value);
+                out_mismatches += queued_value == value ? 0 : 1;
                 count++;
             }
         },
-        Ref(queue), Ref(data));
+        Ref(queue), Ref(data), Ref(mismatches));
 
     for (const i64& value : data)
     {
         queue.Push(value);
     }
     JoinThread(handle);
+    REQUIRE(mismatches == 0);
 }
 
 TEST_CASE("SPSC channel with spin wait", "[Thread]")
@@ -497,20 +514,25 @@ TEST_CASE("SPSC channel with spin wait", "[Thread]")
     {
         ChannelSPSC<i32, false> channel(128);
 
+        i32 received = 0;
         const ThreadHandle t = CreateThreadOrFail(
-            [](ReceiverSPSC<i32, false> receiver)
+            [](ReceiverSPSC<i32, false> receiver, i32& out_received)
             {
-                REQUIRE(receiver.IsValid());
+                if (!receiver.IsValid())
+                {
+                    out_received = -1;
+                    return;
+                }
                 auto result = receiver.Receive();
-                REQUIRE(result.HasValue());
-                REQUIRE(result.GetValue() == 5);
+                out_received = result.HasValue() ? result.GetValue() : -2;
             },
-            Move(channel.receiver));
+            Move(channel.receiver), Ref(received));
 
         REQUIRE(!channel.receiver.IsValid());
         channel.transmitter.Send(5);
 
         JoinThread(t);
+        REQUIRE(received == 5);
     }
 }
 
@@ -555,8 +577,9 @@ TEST_CASE("SPSC channel Close", "[Thread]")
         ChannelSPSC<i32> channel(128);
 
         std::atomic<bool> thread_started{false};
+        ErrorCode final_err = ErrorCode::Success;
         const ThreadHandle t = CreateThreadOrFail(
-            [](ReceiverSPSC<i32> receiver, std::atomic<bool>& started)
+            [](ReceiverSPSC<i32> receiver, std::atomic<bool>& started, ErrorCode& out_err)
             {
                 started.store(true);
                 // Spin-check until closed (receiver won't block since we don't call blocking Receive)
@@ -566,9 +589,9 @@ TEST_CASE("SPSC channel Close", "[Thread]")
                 {
                     err = receiver.TryReceive(val);
                 } while (err == ErrorCode::ChannelEmpty);
-                REQUIRE(err == ErrorCode::ChannelClosed);
+                out_err = err;
             },
-            Move(channel.receiver), Ref(thread_started));
+            Move(channel.receiver), Ref(thread_started), Ref(final_err));
 
         // Wait for thread to start
         while (!thread_started.load())
@@ -576,6 +599,7 @@ TEST_CASE("SPSC channel Close", "[Thread]")
         }
         channel.transmitter.Close();
         JoinThread(t);
+        REQUIRE(final_err == ErrorCode::ChannelClosed);
     }
 }
 
@@ -690,6 +714,7 @@ TEST_CASE("Condition Variable", "[Thread]")
 {
     Mutex<bool> mutex(false);
     ConditionVariable cond;
+    bool woke_to_true = false;
 
     const ThreadHandle t = CreateThreadOrFail(
         [&]()
@@ -698,7 +723,7 @@ TEST_CASE("Condition Variable", "[Thread]")
             while (!*cond.Wait(guard))
             {
             }
-            REQUIRE(*guard.Deref() == true);
+            woke_to_true = *guard.Deref();
         });
 
     using namespace std::chrono_literals;
@@ -710,6 +735,7 @@ TEST_CASE("Condition Variable", "[Thread]")
     }
 
     JoinThread(t);
+    REQUIRE(woke_to_true);
     REQUIRE(*mutex.Lock().Deref() == true);
 }
 
@@ -810,8 +836,9 @@ TEST_CASE("MPMC channel Close", "[Thread]")
         ChannelMPMC<i32> channel(128);
 
         std::atomic<bool> thread_started{false};
+        ErrorCode final_err = ErrorCode::Success;
         const ThreadHandle t = CreateThreadOrFail(
-            [](ReceiverMPMC<i32> receiver, Ref<std::atomic<bool>> started)
+            [](ReceiverMPMC<i32> receiver, Ref<std::atomic<bool>> started, ErrorCode& out_err)
             {
                 started->store(true);
                 i32 val;
@@ -820,9 +847,9 @@ TEST_CASE("MPMC channel Close", "[Thread]")
                 {
                     err = receiver.TryReceive(val);
                 } while (err == ErrorCode::ChannelEmpty);
-                REQUIRE(err == ErrorCode::ChannelClosed);
+                out_err = err;
             },
-            channel.receiver.Clone(), Ref(thread_started));
+            channel.receiver.Clone(), Ref(thread_started), Ref(final_err));
 
         // Wait for thread to start
         while (!thread_started.load())
@@ -830,6 +857,7 @@ TEST_CASE("MPMC channel Close", "[Thread]")
         }
         channel.transmitter.Close();
         JoinThread(t);
+        REQUIRE(final_err == ErrorCode::ChannelClosed);
     }
 }
 
@@ -1512,19 +1540,24 @@ TEST_CASE("Thread pool WaitForAll drains tasks submitted by other tasks", "[Thre
     ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(4);
     ThreadPool& pool = *pool_owner;
     std::atomic<i32> counter{0};
+    std::atomic<i32> rejected{0};
 
     auto parent = pool.Submit(
-        [&pool, &counter]
+        [&pool, &counter, &rejected]
         {
             counter.fetch_add(1);
             for (i32 i = 0; i < 8; ++i)
             {
-                REQUIRE(pool.Submit([&counter] { counter.fetch_add(1); }).HasValue());
+                if (!pool.Submit([&counter] { counter.fetch_add(1); }).HasValue())
+                {
+                    rejected.fetch_add(1);
+                }
             }
         });
     REQUIRE(parent.HasValue());
 
     pool.WaitForAll();
+    REQUIRE(rejected.load() == 0);
     REQUIRE(counter.load() == 9);
 }
 
@@ -1846,14 +1879,15 @@ TEST_CASE("Condition variable predicate wait blocks until the predicate holds", 
     Mutex<int> counter(0);
     ConditionVariable cond;
 
+    int woke_to = 0;
     const ThreadHandle waiter = CreateThreadOrFail(
-        [](Mutex<int>& in_counter, ConditionVariable& in_cond)
+        [](Mutex<int>& in_counter, ConditionVariable& in_cond, int& out_woke_to)
         {
             auto guard = in_counter.Lock();
             in_cond.Wait(guard, [](int& value) { return value >= 3; });
-            REQUIRE(*guard.Deref() >= 3);
+            out_woke_to = *guard.Deref();
         },
-        Ref(counter), Ref(cond));
+        Ref(counter), Ref(cond), Ref(woke_to));
 
     for (int i = 0; i < 3; ++i)
     {
@@ -1865,6 +1899,7 @@ TEST_CASE("Condition variable predicate wait blocks until the predicate holds", 
     }
 
     JoinThread(waiter);
+    REQUIRE(woke_to >= 3);
 }
 
 TEST_CASE("Mutex guard dereference operators", "[Thread]")
@@ -2067,7 +2102,10 @@ StringUtf8 NameThreadAndReadBack(const char8* name)
             if (SUCCEEDED(GetThreadDescription(GetCurrentThread(), &description)))
             {
                 StringWide wide(description);
-                REQUIRE(Transcode(wide, *in_read_back) == ErrorCode::Success);
+                if (Transcode(wide, *in_read_back) != ErrorCode::Success)
+                {
+                    *in_read_back = StringUtf8();
+                }
                 LocalFree(description);
             }
 #else
