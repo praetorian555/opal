@@ -48,14 +48,7 @@ public:
 
         while (write_idx - read_idx == m_capacity)
         {
-            if constexpr (UseSignaling)
-            {
-                m_read_idx.Wait<MemoryOrder::Acquire>(read_idx);
-            }
-            else
-            {
-                CpuPause();
-            }
+            WaitForPop(read_idx);
             read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         }
 
@@ -93,14 +86,7 @@ public:
 
         while (write_idx - read_idx == m_capacity)
         {
-            if constexpr (UseSignaling)
-            {
-                m_read_idx.Wait<MemoryOrder::Acquire>(read_idx);
-            }
-            else
-            {
-                CpuPause();
-            }
+            WaitForPop(read_idx);
             read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         }
 
@@ -121,14 +107,7 @@ public:
 
         while (write_idx - read_idx == m_capacity)
         {
-            if constexpr (UseSignaling)
-            {
-                m_read_idx.Wait<MemoryOrder::Acquire>(read_idx);
-            }
-            else
-            {
-                CpuPause();
-            }
+            WaitForPop(read_idx);
             read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         }
 
@@ -161,15 +140,11 @@ public:
     T Pop()
     {
         T result;
-        while (true)
+        for (u32 round = 0; !TryPop(result); round++)
         {
-            const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
-            if (TryPop(result))
-            {
-                return result;
-            }
-            WaitForPush(push_count);
+            WaitForPush(round);
         }
+        return result;
     }
 
     /**
@@ -180,9 +155,8 @@ public:
      */
     bool PopUnlessClosed(T& result)
     {
-        while (true)
+        for (u32 round = 0;; round++)
         {
-            const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
             if (TryPop(result))
             {
                 return true;
@@ -191,7 +165,7 @@ public:
             {
                 return TryPop(result);
             }
-            WaitForPush(push_count);
+            WaitForPush(round);
         }
     }
 
@@ -206,10 +180,7 @@ public:
         size_t bound_read_idx = read_idx & (m_capacity - 1);
         result = std::move(m_data[bound_read_idx]);
         m_read_idx.Store<MemoryOrder::Release>(read_idx + 1);
-        if constexpr (UseSignaling)
-        {
-            m_read_idx.NotifyOne();
-        }
+        SignalPopped();
         return true;
     }
 
@@ -228,22 +199,83 @@ public:
     [[nodiscard]] bool IsClosed() const { return m_is_closed.Load<MemoryOrder::Acquire>(); }
 
 private:
-    /** Wake a consumer waiting for an item. */
+    // With signaling, how many times a waiter polls, pausing twice as long each time, before it goes to sleep.
+    static constexpr u32 k_spin_rounds_before_sleep = 8;
+
+    // A waiter registers in its flag, fences, then re-checks before it sleeps; the other side publishes, fences, then reads the
+    // flag. The two fences make sure one of them sees the other, so a wakeup is only paid for when someone sleeps and never lost.
+    // The fence is asymmetric: the side about to sleep pays for it, and every push and pop gets away with the light half.
+
+    /** Wake the consumer if it is asleep waiting for an item. Called right after an item was published. */
     void SignalPushed()
     {
         if constexpr (UseSignaling)
         {
-            m_push_count.FetchAdd<MemoryOrder::Release>(1);
-            m_push_count.NotifyOne();
+            AsymmetricThreadFenceLight();
+            if (m_consumer_waiting.Load<MemoryOrder::Relaxed>() != 0)
+            {
+                m_push_count.FetchAdd<MemoryOrder::Release>(1);
+                m_push_count.NotifyOne();
+            }
         }
     }
 
-    /** Block until something has been pushed or the queue has been closed since push_count was read. */
-    void WaitForPush(u32 push_count) const
+    /** Wake the producer if it is asleep waiting for room. Called right after an item was popped. */
+    void SignalPopped()
     {
         if constexpr (UseSignaling)
         {
-            m_push_count.Wait<MemoryOrder::Acquire>(push_count);
+            AsymmetricThreadFenceLight();
+            if (m_producer_waiting.Load<MemoryOrder::Relaxed>() != 0)
+            {
+                m_read_idx.NotifyOne();
+            }
+        }
+    }
+
+    /**
+     * Block until something may have been pushed or the queue closed. Returns at once if the queue is no longer empty.
+     * @param round How many times the caller has already waited for this item. With signaling, the first few rounds spin.
+     */
+    void WaitForPush(u32 round)
+    {
+        if constexpr (UseSignaling)
+        {
+            if (round < k_spin_rounds_before_sleep)
+            {
+                for (u32 i = 0; i < (1u << round); i++)
+                {
+                    CpuPause();
+                }
+                return;
+            }
+            m_consumer_waiting.Store<MemoryOrder::Relaxed>(1);
+            AsymmetricThreadFenceHeavy();
+            const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
+            if (m_write_idx.Load<MemoryOrder::Acquire>() == m_read_idx.Load<MemoryOrder::Relaxed>() && !IsClosed())
+            {
+                m_push_count.Wait<MemoryOrder::Acquire>(push_count);
+            }
+            m_consumer_waiting.Store<MemoryOrder::Relaxed>(0);
+        }
+        else
+        {
+            CpuPause();
+        }
+    }
+
+    /** Block until the consumer may have popped since read_idx was read. */
+    void WaitForPop(size_t read_idx)
+    {
+        if constexpr (UseSignaling)
+        {
+            m_producer_waiting.Store<MemoryOrder::Relaxed>(1);
+            AsymmetricThreadFenceHeavy();
+            if (m_read_idx.Load<MemoryOrder::Relaxed>() == read_idx)
+            {
+                m_read_idx.Wait<MemoryOrder::Acquire>(read_idx);
+            }
+            m_producer_waiting.Store<MemoryOrder::Relaxed>(0);
         }
         else
         {
@@ -270,7 +302,9 @@ private:
     OPAL_DISABLE_MSVC_WARNING(4324)
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_write_idx;
     Atomic<u32> m_push_count = 0;
+    Atomic<u32> m_consumer_waiting = 0;
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_read_idx;
+    Atomic<u32> m_producer_waiting = 0;
     OPAL_END_DISABLE_WARNINGS
 
     size_t m_capacity = 0;

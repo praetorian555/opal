@@ -578,6 +578,60 @@ TEST_CASE("SPSC channel Close", "[Thread]")
     }
 }
 
+namespace
+{
+// Sends every item through a four-slot channel, then closes it. Each side pauses now and then, so the other keeps finding the
+// channel full or empty and has to wait, or with signaling sleep, for it. The receiver must get every item, in order.
+template <bool UseSignaling>
+void TransferThroughSPSC()
+{
+    constexpr i32 k_item_count = 50000;
+    constexpr i32 k_pause_every = 5000;
+    ChannelSPSC<i32, UseSignaling> channel(4);
+    const ThreadHandle producer = CreateThreadOrFail(
+        [](TransmitterSPSC<i32, UseSignaling> transmitter)
+        {
+            for (i32 i = 0; i < k_item_count; ++i)
+            {
+                if (i % k_pause_every == 0)
+                {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
+                transmitter.Send(i);
+            }
+            transmitter.Close();
+        },
+        Move(channel.transmitter));
+
+    i32 expected = 0;
+    i32 out_of_order = 0;
+    for (auto result = channel.receiver.Receive(); result.HasValue(); result = channel.receiver.Receive())
+    {
+        out_of_order += result.GetValue() == expected ? 0 : 1;
+        expected++;
+        if (expected % k_pause_every == k_pause_every / 2)
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+    JoinThread(producer);
+    REQUIRE(out_of_order == 0);
+    REQUIRE(expected == k_item_count);
+}
+}  // namespace
+
+TEST_CASE("SPSC channel delivers every item in order while both ends wait on each other", "[Thread]")
+{
+    SECTION("With signaling")
+    {
+        TransferThroughSPSC<true>();
+    }
+    SECTION("With spin wait")
+    {
+        TransferThroughSPSC<false>();
+    }
+}
+
 TEST_CASE("SPSC channel ends outlive the channel", "[Thread]")
 {
     TransmitterSPSC<i32> transmitter;

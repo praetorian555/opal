@@ -444,6 +444,11 @@ Both SPSC and MPMC channels accept a `bool UseSignaling` template parameter:
 
 SPSC defaults to `true` (signaling). MPMC defaults to `false` (spin).
 
+With signaling, a send or receive only pays for a wakeup when the other side is asleep. A thread about to sleep issues a
+process-wide memory barrier first (`FlushProcessWriteBuffers` on Windows, `membarrier` on Linux), which takes microseconds and
+briefly interrupts the process's other running threads. That keeps every send and receive free of a hardware fence, and is
+paid only when a thread blocks, which costs more anyway.
+
 ```cpp
 #include "opal/threading/channel-spsc.h"
 
