@@ -36,11 +36,11 @@ struct QueueMPMCSlot
  * Lock-free multiple-producer multiple-consumer bounded queue.
  * @tparam T Type of data stored in the queue. Must be default constructable, and either copy assignable or clonable.
  * @tparam UseSignaling If true, uses Atomic::Wait/Notify to block when waiting for a slot's turn.
- *         If false, busy-waits using a CPU pause instruction. Defaults to false.
+ *         If false, busy-waits using a CPU pause instruction. Defaults to true.
  * @tparam SingleConsumer If true, the caller guarantees that only one thread ever pops, which makes popping cheaper and lets
  *         items pushed after Close still be popped. Defaults to false.
  */
-template <typename T, bool UseSignaling = false, bool SingleConsumer = false>
+template <typename T, bool UseSignaling = true, bool SingleConsumer = false>
     requires Opal::DefaultConstructable<T> && Opal::MoveAssignable<T>
 class QueueMPMC
 {
@@ -517,10 +517,10 @@ private:
  * Producer end of a multiple-producer multiple-consumer communication channel.
  * It can be both copied and moved. Use Clone for copying.
  * @tparam T Type of data that is being sent.
- * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
  * @tparam SingleConsumer True for the producer end of a ChannelMPSC, which TransmitterMPSC names. Defaults to false.
  */
-template <typename T, bool UseSignaling = false, bool SingleConsumer = false>
+template <typename T, bool UseSignaling = true, bool SingleConsumer = false>
 struct TransmitterMPMC
 {
     TransmitterMPMC() = default;
@@ -575,9 +575,9 @@ private:
  * Consumer end of a multiple-producer multiple-consumer communication channel.
  * It can be both copied and moved. Use Clone for copying.
  * @tparam T Type of data that is being received.
- * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
  */
-template <typename T, bool UseSignaling = false>
+template <typename T, bool UseSignaling = true>
 struct ReceiverMPMC
 {
     ReceiverMPMC() = default;
@@ -646,9 +646,9 @@ private:
  * Use the transmitter field to send data and the receiver field to receive it. If the channel's storage cannot be allocated,
  * both ends are left invalid; check IsValid before using them.
  * @tparam T Type of data to be sent over the channel.
- * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
  */
-template <typename T, bool UseSignaling = false>
+template <typename T, bool UseSignaling = true>
 struct ChannelMPMC
 {
     TransmitterMPMC<T, UseSignaling> transmitter;

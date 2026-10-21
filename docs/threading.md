@@ -442,7 +442,8 @@ Both SPSC and MPMC channels accept a `bool UseSignaling` template parameter:
 - **`true`** — blocking operations use `std::atomic::wait/notify` (WaitOnAddress/futex), freeing the CPU while waiting.
 - **`false`** — blocking operations busy-wait using a CPU pause instruction, lowest latency but consumes CPU.
 
-SPSC defaults to `true` (signaling). MPMC defaults to `false` (spin).
+All three channels default to `true` (signaling), so a receiver that has nothing to do does not hold a core. Choose spin
+wait where consumers have cores of their own and the wakeup latency of a few microseconds matters more.
 
 With signaling, a send or receive only pays for a wakeup when the other side is asleep. A thread about to sleep issues a
 process-wide memory barrier first (`FlushProcessWriteBuffers` on Windows, `membarrier` on Linux), which takes microseconds and
@@ -583,7 +584,7 @@ for good. Debug builds assert on it. When producers may still be sending, wait f
 
 Multi-producer, single-consumer: the fan-in shape of worker threads reporting to one thread. Transmitters are cloned for each
 producer as with MPMC; the receiver can only be moved, so a second consumer does not compile. Knowing there is one consumer
-makes receiving cheaper than through a `ChannelMPMC`. Defaults to spin wait, like MPMC.
+makes receiving cheaper than through a `ChannelMPMC`. Defaults to signaling, like the other channels.
 
 ```cpp
 #include "opal/threading/channel-mpsc.h"

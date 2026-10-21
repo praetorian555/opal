@@ -9,18 +9,18 @@ namespace Opal
  * Producer end of a multiple-producer single-consumer communication channel.
  * It can be both copied and moved. Use Clone for copying.
  * @tparam T Type of data that is being sent.
- * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
  */
-template <typename T, bool UseSignaling = false>
+template <typename T, bool UseSignaling = true>
 using TransmitterMPSC = TransmitterMPMC<T, UseSignaling, true>;
 
 /**
  * Consumer end of a multiple-producer single-consumer communication channel.
  * It can only be moved: there is one consumer, which is what makes receiving cheaper than through a ChannelMPMC.
  * @tparam T Type of data that is being received.
- * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
  */
-template <typename T, bool UseSignaling = false>
+template <typename T, bool UseSignaling = true>
 struct ReceiverMPSC
 {
     ReceiverMPSC() = default;
@@ -88,9 +88,9 @@ private:
  * receiver can only be moved. If the channel's storage cannot be allocated, both ends are left invalid; check IsValid before
  * using them.
  * @tparam T Type of data to be sent over the channel.
- * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
+ * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
  */
-template <typename T, bool UseSignaling = false>
+template <typename T, bool UseSignaling = true>
 struct ChannelMPSC
 {
     TransmitterMPSC<T, UseSignaling> transmitter;
