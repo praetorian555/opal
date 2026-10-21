@@ -465,9 +465,9 @@ TEST_CASE("Assign", "[String]")
             SECTION("Same string")
             {
                 StringUtf8 str("Hello there");
-                str.Assign(str, 5, 6);
-                const ErrorCode err = str.Assign(str, 5, 6);
-                REQUIRE(err == ErrorCode::SelfNotAllowed);
+                const ErrorCode err = str.Assign(str, 6, 5);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str == "there");
             }
             SECTION("Bad position")
             {
@@ -783,9 +783,9 @@ TEST_CASE("Assign", "[String]")
             SECTION("Same string")
             {
                 StringUtf8 str("Hello there and then some more");
-                str.Assign(str, 5, 6);
-                const ErrorCode err = str.Assign(str, 5, 6);
-                REQUIRE(err == ErrorCode::SelfNotAllowed);
+                const ErrorCode err = str.Assign(str, 6, 9);
+                REQUIRE(err == ErrorCode::Success);
+                REQUIRE(str == "there and");
             }
             SECTION("Bad position")
             {
@@ -6330,5 +6330,66 @@ TEST_CASE("TryClone a string", "[String]")
     {
         NullAllocator null_allocator;
         REQUIRE_THROWS_AS(source.Clone(&null_allocator), OutOfMemoryException);
+    }
+}
+
+TEST_CASE("String members take views", "[String]")
+{
+    // Longer than the small string buffer, so the string lives on the heap and growing it moves it.
+    const char* const k_text = "the quick brown fox jumps over the lazy dog";
+
+    SECTION("Append a view of another buffer")
+    {
+        StringUtf8 str("say: ");
+        const StringViewUtf8 source(k_text);
+        REQUIRE(str.Append(StringViewUtf8(source.GetData() + 4, 5)) == ErrorCode::Success);
+        REQUIRE(str == "say: quick");
+    }
+    SECTION("Append a view of itself while growing")
+    {
+        StringUtf8 str(k_text);
+        const StringViewUtf8 self(str);
+        REQUIRE(str.Append(self) == ErrorCode::Success);
+        REQUIRE(str.GetSize() == 2 * StringViewUtf8(k_text).GetSize());
+        REQUIRE(Find(str, StringUtf8(k_text), 1) == StringViewUtf8(k_text).GetSize());
+    }
+    SECTION("Assign a view of part of itself")
+    {
+        StringUtf8 str(k_text);
+        const StringViewUtf8 tail(str.GetData() + 4, 11);
+        REQUIRE(str.Assign(tail) == ErrorCode::Success);
+        REQUIRE(str == "quick brown");
+    }
+    SECTION("Insert a view of itself")
+    {
+        StringUtf8 str(k_text);
+        const auto result = str.Insert(0, StringViewUtf8(str.GetData() + 4, 6));
+        REQUIRE(result.HasValue());
+        REQUIRE(Find(str, StringUtf8("quick the quick")) == 0);
+    }
+    SECTION("Replace with a view of itself")
+    {
+        StringUtf8 str("abc");
+        const auto replaced = str.ReplaceAll(StringViewUtf8(str.GetData(), 1), StringViewUtf8(str));
+        REQUIRE(replaced.HasValue());
+        REQUIRE(replaced.GetValue() == 1);
+        REQUIRE(str == "abcbc");
+    }
+    SECTION("Contains and operator+= take views")
+    {
+        StringUtf8 str(k_text);
+        REQUIRE(str.Contains(StringViewUtf8("lazy dog and more", 8)));
+        REQUIRE_FALSE(str.Contains(StringViewUtf8("lazy cat")));
+        str += StringViewUtf8("!!!", 1);
+        REQUIRE(str.Back().GetValue() == '!');
+    }
+    SECTION("An empty view is an empty string")
+    {
+        StringUtf8 str("abc");
+        REQUIRE(str.Append(StringViewUtf8()) == ErrorCode::Success);
+        REQUIRE(str.Replace(0, 1, StringViewUtf8()).HasValue());
+        REQUIRE(str == "bc");
+        REQUIRE(str.Assign(StringViewUtf8()) == ErrorCode::Success);
+        REQUIRE(str.IsEmpty());
     }
 }

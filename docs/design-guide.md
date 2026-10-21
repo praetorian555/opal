@@ -134,7 +134,9 @@ check for that state.
 
 A function that only reads a string should take `StringViewUtf8`, not `const StringUtf8&`. A literal then converts to a view
 without allocating, and a string is only built where one is actually stored. Opal's file, path, time, socket and JSON functions
-take their strings this way.
+take their strings this way, and so do `String`'s own `Append`, `Assign`, `Insert`, `Replace`, `ReplaceAll`, `ReplaceFirst`,
+`Contains` and `operator+=`. Those accept a view of the string they are called on, so `str.Append(str)` and
+`str.Assign(StringViewUtf8(str.GetData() + 4, 5))` both work.
 
 A view is not null-terminated. Code that hands one to a C API needing a terminator has to copy it first; Opal's file functions copy
 a path into a stack buffer on Linux, so they still do not allocate.

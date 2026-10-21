@@ -169,6 +169,9 @@ StringReverseIteratorBase<StringClass, BaseIterator> operator+(
  * @tparam EncodingType Type of the encoding used in the string.
  */
 template <typename CodeUnitType, typename EncodingType>
+class StringView;
+
+template <typename CodeUnitType, typename EncodingType>
 class String
 {
 public:
@@ -181,6 +184,7 @@ public:
     using pointer = CodeUnitType*;
     using const_pointer = const CodeUnitType*;
     using encoding_type = EncodingType;
+    using view_type = StringView<CodeUnitType, EncodingType>;
     using iterator = StringIterator<String>;
     using const_iterator = StringConstIterator<String>;
     using reverse_iterator = StringReverseIteratorBase<String, iterator>;
@@ -348,11 +352,11 @@ public:
     ErrorCode Assign(size_type count, CodeUnitType value);
 
     /**
-     * Override a string with another string. Assigning a string to itself is allowed and does nothing.
+     * Override a string with another string or a view. Assigning a string to itself, or a view of part of it, is allowed.
      * @param other String to assign.
      * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    ErrorCode Assign(const String& other);
+    ErrorCode Assign(view_type other);
 
     /**
      * @brief Override a string with a substring of another string.
@@ -362,10 +366,10 @@ public:
      * @param count Number of code units to assign. If count is equal to k_npos, the entire string starting from pos will be assigned.
      * Default is k_npos.
      * @return ErrorCode::Success in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the other string or count is
-     * larger than the amount of code units in the other string starting from pos. ErrorCode::SelfNotAllowed if the other is the same as
-     * this. ErrorCode::OutOfMemory if the string could not be grown.
+     * larger than the amount of code units in the other string starting from pos. ErrorCode::OutOfMemory if the string could not be
+     * grown. Assigning part of this string to itself is allowed.
      */
-    ErrorCode Assign(const String& other, size_type pos, size_type count = k_npos);
+    ErrorCode Assign(view_type other, size_type pos, size_type count = k_npos);
 
     /**
      * Override a string by moving other string into it.
@@ -512,7 +516,7 @@ public:
      * @return Iterator pointing to the first code unit of the replacement in case of a success. ErrorCode::OutOfBounds if start_pos is
      * greater than the size of the string. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    Expected<iterator, ErrorCode> Replace(size_type start_pos, size_type count, const String& other);
+    Expected<iterator, ErrorCode> Replace(size_type start_pos, size_type count, view_type other);
 
     /**
      * Replace a range of the string with a null-terminated string.
@@ -536,7 +540,7 @@ public:
      * out of bounds of the string. ErrorCode::InvalidArgument if first is greater than last. ErrorCode::OutOfMemory if the string could not
      * be grown.
      */
-    Expected<iterator, ErrorCode> Replace(const_iterator first, const_iterator last, const String& other);
+    Expected<iterator, ErrorCode> Replace(const_iterator first, const_iterator last, view_type other);
 
     /**
      * Replace every occurrence of a sub-string. Scanning continues after the replacement, so a replacement that contains the needle does
@@ -546,7 +550,7 @@ public:
      * @return How many occurrences were replaced. ErrorCode::OutOfMemory if the string could not be grown, in which case the replacements
      * made up to that point stand.
      */
-    Expected<size_type, ErrorCode> ReplaceAll(const String& needle, const String& replacement);
+    Expected<size_type, ErrorCode> ReplaceAll(view_type needle, view_type replacement);
 
     /**
      * Replace the first occurrence of a sub-string.
@@ -554,7 +558,7 @@ public:
      * @param replacement String to put in place of the occurrence.
      * @return True when an occurrence was found and replaced. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    Expected<bool, ErrorCode> ReplaceFirst(const String& needle, const String& replacement);
+    Expected<bool, ErrorCode> ReplaceFirst(view_type needle, view_type replacement);
 
     /**
      * Get a sub-string of this string.
@@ -572,7 +576,7 @@ public:
      * @param needle Sub-string to look for.
      * @return True when the needle occurs in the string.
      */
-    [[nodiscard]] bool Contains(const String& needle) const;
+    [[nodiscard]] bool Contains(view_type needle) const;
 
     /**
      * Check whether the string contains a sub-string.
@@ -613,11 +617,11 @@ public:
     ErrorCode Append(size_type count, CodeUnitType value);
 
     /**
-     * Append a string to the end of the string.
+     * Append a string or a view to the end of the string. Appending a string to itself, or a view of part of it, is allowed.
      * @param other String to append.
      * @return ErrorCode::Success in case of a success. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    ErrorCode Append(const String& other);
+    ErrorCode Append(view_type other);
 
     /**
      * Append a substring of another string to the end of the string.
@@ -628,7 +632,7 @@ public:
      * @return ErrorCode::Success in case of a success. ErrorCode::OutOfBounds if pos is out of bounds of the other
      * string. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    ErrorCode Append(const String& other, size_type pos, size_type count = k_npos);
+    ErrorCode Append(view_type other, size_type pos, size_type count = k_npos);
 
     /**
      * Append a range specified using random access iterators to the end of the string.
@@ -673,7 +677,7 @@ public:
      * of the string, if other_start_pos is out of bounds of the other string, or if count exceeds what is left in the other string after
      * other_start_pos. Inserting a string into itself is allowed. ErrorCode::OutOfMemory if the string could not be grown.
      */
-    Expected<iterator, ErrorCode> Insert(size_type start_pos, const String& other, size_type other_start_pos = 0, size_type count = k_npos);
+    Expected<iterator, ErrorCode> Insert(size_type start_pos, view_type other, size_type other_start_pos = 0, size_type count = k_npos);
 
     /**
      * @brief Insert a code unit at a specific position in the string.
@@ -739,7 +743,7 @@ public:
      * @brief Append to the end of the string. An operator has nothing to return a code through, so use Append when the failure matters.
      * @throw OutOfMemoryException when there is no more memory.
      */
-    String& operator+=(const String& other);
+    String& operator+=(view_type other);
     String& operator+=(value_type ch);
     String& operator+=(const value_type* str);
 
@@ -936,6 +940,13 @@ private:
         m_storage.large.size = 0;
         m_storage.large.capacity = new_size + 1;
         return ErrorCode::Success;
+    }
+
+    // A view's code units, or an empty string for a view that has none, for the overloads taking a pointer that reject null.
+    static const value_type* GetViewData(view_type view)
+    {
+        static constexpr value_type k_empty[1] = {};
+        return view.GetData() != nullptr ? view.GetData() : k_empty;
     }
 
     // Returns the offset of str into this string's own buffer, or k_npos when str points somewhere
@@ -1771,13 +1782,11 @@ Opal::ErrorCode CLASS_HEADER::Assign(size_type count, CodeUnitType value)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
+Opal::ErrorCode CLASS_HEADER::Assign(view_type other)
 {
-    if (this == &other)
-    {
-        return ErrorCode::Success;
-    }
     const size_type other_size = other.GetSize();
+    // A view into this string fits the buffer it views, so the buffer is not replaced and the offset stays valid.
+    const size_type alias_offset = GetInternalOffset(other.GetData());
     const ErrorCode error = PrepareForOverwrite(other_size);
     if (error != ErrorCode::Success) [[unlikely]]
     {
@@ -1786,7 +1795,8 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
     value_type* data = GetData();
     if (other_size > 0)
     {
-        memcpy(data, other.GetData(), other_size * sizeof(CodeUnitType));
+        const value_type* source = alias_offset == k_npos ? other.GetData() : data + alias_offset;
+        memmove(data, source, other_size * sizeof(CodeUnitType));
     }
     SetSize(other_size);
     data[other_size] = 0;
@@ -1794,12 +1804,8 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Assign(const String& other, size_type pos, size_type count)
+Opal::ErrorCode CLASS_HEADER::Assign(view_type other, size_type pos, size_type count)
 {
-    if (this == &other)
-    {
-        return ErrorCode::SelfNotAllowed;
-    }
     const size_type other_size = other.GetSize();
     if (pos > other_size)
     {
@@ -1813,19 +1819,7 @@ Opal::ErrorCode CLASS_HEADER::Assign(const String& other, size_type pos, size_ty
     {
         return ErrorCode::OutOfBounds;
     }
-    const ErrorCode error = PrepareForOverwrite(count);
-    if (error != ErrorCode::Success) [[unlikely]]
-    {
-        return error;
-    }
-    value_type* data = GetData();
-    if (count > 0)
-    {
-        memcpy(data, other.GetData() + pos, count * sizeof(CodeUnitType));
-    }
-    SetSize(count);
-    data[count] = 0;
-    return ErrorCode::Success;
+    return Assign(view_type(other.GetData() + pos, count));
 }
 
 TEMPLATE_HEADER
@@ -2217,14 +2211,14 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::R
 
 TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Replace(size_type start_pos, size_type count,
-                                                                                       const String& other)
+                                                                                       view_type other)
 {
-    return Replace(start_pos, count, other.GetData(), other.GetSize());
+    return Replace(start_pos, count, GetViewData(other), other.GetSize());
 }
 
 TEMPLATE_HEADER
 Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Replace(const_iterator first, const_iterator last,
-                                                                                       const String& other)
+                                                                                       view_type other)
 {
     using ReturnType = Expected<iterator, ErrorCode>;
     if (first < ConstBegin() || first > ConstEnd() || last < ConstBegin() || last > ConstEnd())
@@ -2241,14 +2235,14 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::R
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::size_type, Opal::ErrorCode> CLASS_HEADER::ReplaceAll(const String& needle, const String& replacement)
+Opal::Expected<typename CLASS_HEADER::size_type, Opal::ErrorCode> CLASS_HEADER::ReplaceAll(view_type needle, view_type replacement)
 {
     using ReturnType = Expected<size_type, ErrorCode>;
     if (needle.IsEmpty())
     {
         return ReturnType(size_type(0));
     }
-    if (&needle == this || &replacement == this)
+    if (GetInternalOffset(needle.GetData()) != k_npos || GetInternalOffset(replacement.GetData()) != k_npos)
     {
         String needle_copy(GetAllocatorPtr());
         String replacement_copy(GetAllocatorPtr());
@@ -2264,7 +2258,7 @@ Opal::Expected<typename CLASS_HEADER::size_type, Opal::ErrorCode> CLASS_HEADER::
     size_type start_pos = 0;
     while (true)
     {
-        const size_type pos = Find(*this, needle, start_pos);
+        const size_type pos = Find(view_type(*this), needle, start_pos);
         if (pos == k_npos)
         {
             return ReturnType(replaced);
@@ -2280,14 +2274,14 @@ Opal::Expected<typename CLASS_HEADER::size_type, Opal::ErrorCode> CLASS_HEADER::
 }
 
 TEMPLATE_HEADER
-Opal::Expected<bool, Opal::ErrorCode> CLASS_HEADER::ReplaceFirst(const String& needle, const String& replacement)
+Opal::Expected<bool, Opal::ErrorCode> CLASS_HEADER::ReplaceFirst(view_type needle, view_type replacement)
 {
     using ReturnType = Expected<bool, ErrorCode>;
     if (needle.IsEmpty())
     {
         return ReturnType(false);
     }
-    if (&needle == this || &replacement == this)
+    if (GetInternalOffset(needle.GetData()) != k_npos || GetInternalOffset(replacement.GetData()) != k_npos)
     {
         String needle_copy(GetAllocatorPtr());
         String replacement_copy(GetAllocatorPtr());
@@ -2297,7 +2291,7 @@ Opal::Expected<bool, Opal::ErrorCode> CLASS_HEADER::ReplaceFirst(const String& n
         }
         return ReplaceFirst(needle_copy, replacement_copy);
     }
-    const size_type pos = Find(*this, needle);
+    const size_type pos = Find(view_type(*this), needle);
     if (pos == k_npos)
     {
         return ReturnType(false);
@@ -2318,9 +2312,9 @@ Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::GetSubString(size_ty
 }
 
 TEMPLATE_HEADER
-bool CLASS_HEADER::Contains(const String& needle) const
+bool CLASS_HEADER::Contains(view_type needle) const
 {
-    return Find(*this, needle) != k_npos;
+    return Find(view_type(*this), needle) != k_npos;
 }
 
 TEMPLATE_HEADER
@@ -2447,28 +2441,13 @@ Opal::ErrorCode CLASS_HEADER::Append(size_type count, CodeUnitType value)
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Append(const String& other)
+Opal::ErrorCode CLASS_HEADER::Append(view_type other)
 {
-    size_type sz = GetSize();
-    const size_type other_size = other.GetSize();
-    const ErrorCode grow_error = GrowForAppend(sz, other_size);
-    if (grow_error != ErrorCode::Success) [[unlikely]]
-    {
-        return grow_error;
-    }
-    value_type* data = GetData();
-    if (other_size > 0)
-    {
-        memcpy(data + sz, other.GetData(), other_size * sizeof(CodeUnitType));
-    }
-    sz += other_size;
-    data[sz] = 0;
-    SetSize(sz);
-    return ErrorCode::Success;
+    return Append(GetViewData(other), other.GetSize());
 }
 
 TEMPLATE_HEADER
-Opal::ErrorCode CLASS_HEADER::Append(const String& other, size_type pos, size_type count)
+Opal::ErrorCode CLASS_HEADER::Append(view_type other, size_type pos, size_type count)
 {
     const size_type other_size = other.GetSize();
     if (pos >= other_size)
@@ -2483,21 +2462,7 @@ Opal::ErrorCode CLASS_HEADER::Append(const String& other, size_type pos, size_ty
     {
         return ErrorCode::OutOfBounds;
     }
-    size_type sz = GetSize();
-    const ErrorCode grow_error = GrowForAppend(sz, count);
-    if (grow_error != ErrorCode::Success) [[unlikely]]
-    {
-        return grow_error;
-    }
-    value_type* data = GetData();
-    if (count > 0)
-    {
-        memcpy(data + sz, other.GetData() + pos, count * sizeof(CodeUnitType));
-    }
-    sz += count;
-    data[sz] = 0;
-    SetSize(sz);
-    return ErrorCode::Success;
+    return Append(other.GetData() + pos, count);
 }
 
 TEMPLATE_HEADER
@@ -2625,7 +2590,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
 }
 
 TEMPLATE_HEADER
-Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(size_type start_pos, const String& other,
+Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::Insert(size_type start_pos, view_type other,
                                                                                       size_type other_start_pos, size_type count)
 {
     using ReturnType = Expected<iterator, ErrorCode>;
@@ -2651,28 +2616,7 @@ Opal::Expected<typename CLASS_HEADER::iterator, Opal::ErrorCode> CLASS_HEADER::I
     {
         return ReturnType(iterator(GetData() + start_pos));
     }
-    if (&other == this)
-    {
-        return Insert(start_pos, other.GetData() + other_start_pos, count);
-    }
-    const ErrorCode grow_error = GrowForAppend(sz, count);
-    if (grow_error != ErrorCode::Success) [[unlikely]]
-    {
-        return ReturnType(grow_error);
-    }
-    value_type* data = GetData();
-    for (size_type i = sz - 1; i >= start_pos && i != k_npos; --i)
-    {
-        data[i + count] = data[i];
-    }
-    for (size_type i = start_pos; i < start_pos + count; ++i)
-    {
-        data[i] = other.At(other_start_pos + i - start_pos);
-    }
-    sz += count;
-    data[sz] = 0;
-    SetSize(sz);
-    return ReturnType(iterator(data + start_pos));
+    return Insert(start_pos, other.GetData() + other_start_pos, count);
 }
 
 TEMPLATE_HEADER
@@ -2998,7 +2942,7 @@ void Opal::String<CodeUnitType, EncodingType>::Reverse(iterator start_it, iterat
 }
 
 TEMPLATE_HEADER
-CLASS_HEADER& CLASS_HEADER::operator+=(const String& other)
+CLASS_HEADER& CLASS_HEADER::operator+=(view_type other)
 {
     // These operators have no way to hand back a code, so allocation failure stays an exception here.
     if (Append(other) != ErrorCode::Success) [[unlikely]]
@@ -4118,7 +4062,9 @@ Opal::StringUtf8 GetFormat(Opal::NumberSystemBase number_system_base, bool add_l
         const i32 width = number_system_base == NumberSystemBase::Hexadecimal ? static_cast<i32>(k_type_size * 2)
                                                                              : static_cast<i32>((k_type_size * 8 + 2) / 3);
         out_str += "0";
-        out_str += NumberToString(width);
+        // Appended by pointer: StringView, which appending a string goes through, is not defined yet at this point of the header.
+        const StringUtf8 digits = NumberToString(width);
+        out_str += *digits;
     }
     if constexpr (k_type_size == 8)
     {
@@ -4269,7 +4215,13 @@ Opal::StringUtf8 Opal::NumberToString(T value, i32 decimal_points)
 {
     StringUtf8 str(256, 0);
     StringUtf8 format("%");
-    format += decimal_points == -1 ? "" : "." + NumberToString(decimal_points);
+    if (decimal_points != -1)
+    {
+        // Appended by pointer: StringView, which appending a string goes through, is not defined yet at this point of the header.
+        const StringUtf8 digits = NumberToString(decimal_points);
+        format += ".";
+        format += *digits;
+    }
     if constexpr (sizeof(T) == 8)
     {
         format += "lf";
@@ -4337,3 +4289,7 @@ T Opal::StringToNumber(const char8* str, i32 base)
         return Narrow<T>(strtoull(str, &end, base));
     }
 }
+
+// String's members take StringView, so a caller needs it complete. string-view.h includes this header first, so whichever of the two
+// is included first, both are defined by the end of it.
+#include "opal/container/string-view.h"
