@@ -203,6 +203,14 @@ public:
      */
     InPlaceArray Clone(AllocatorBase* allocator = nullptr) const;
 
+    /**
+     * Create a deep copy of this array the way Clone does, reporting a failed allocation instead of throwing it. Elements are copied
+     * with Opal::TryClone, and the first one that fails stops the copy.
+     * @param allocator Optional allocator to pass to the TryClone() call of each non-POD element.
+     * @return The copy, or the error the failing element reported.
+     */
+    [[nodiscard]] Expected<InPlaceArray, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const;
+
     ~InPlaceArray() = default;
 
     [[nodiscard]] size_type GetSize() const { return N; }
@@ -431,6 +439,23 @@ Opal::InPlaceArray<T, N> Opal::InPlaceArray<T, N>::Clone(AllocatorBase* allocato
         result.m_data[i] = Opal::Clone(m_data[i], allocator);
     }
     return result;
+}
+
+template <typename T, Opal::u64 N>
+Opal::Expected<Opal::InPlaceArray<T, N>, Opal::ErrorCode> Opal::InPlaceArray<T, N>::TryClone(AllocatorBase* allocator) const
+{
+    using Result = Expected<InPlaceArray, ErrorCode>;
+    InPlaceArray result;
+    for (u64 i = 0; i < N; ++i)
+    {
+        Expected<T, ErrorCode> element = Opal::TryClone(m_data[i], allocator);
+        if (!element.HasValue()) [[unlikely]]
+        {
+            return Result(element.GetError());
+        }
+        result.m_data[i] = Move(element).GetValue();
+    }
+    return Result(Move(result));
 }
 
 template <typename T, Opal::u64 N>

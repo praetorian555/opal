@@ -82,6 +82,13 @@ public:
 
     [[nodiscard]] Optional Clone(struct AllocatorBase* allocator = nullptr) const;
 
+    /**
+     * Copies the Optional the way Clone does, reporting a failed allocation instead of throwing it. The value is copied with
+     * Opal::TryClone.
+     * @return The copy, or the error copying the value reported.
+     */
+    [[nodiscard]] Expected<Optional, ErrorCode> TryClone(struct AllocatorBase* allocator = nullptr) const;
+
     bool operator==(const Optional& other) const;
     bool operator!=(const Optional& other) const;
     bool operator==(NullOptTag) const;
@@ -130,6 +137,12 @@ public:
     void Reset();
 
     [[nodiscard]] Optional Clone(struct AllocatorBase* allocator = nullptr) const;
+
+    /** Copies the reference. Never fails; exists so Opal::TryClone treats every Optional alike. */
+    [[nodiscard]] Expected<Optional, ErrorCode> TryClone(struct AllocatorBase* allocator = nullptr) const
+    {
+        return Expected<Optional, ErrorCode>(Clone(allocator));
+    }
 
     bool operator==(const Optional& other) const;
     bool operator!=(const Optional& other) const;
@@ -337,6 +350,22 @@ Opal::Optional<T> Opal::Optional<T>::Clone(AllocatorBase* allocator) const
         return Optional();
     }
     return Optional(k_in_place, Opal::Clone(m_value, allocator));
+}
+
+template <typename T>
+Opal::Expected<Opal::Optional<T>, Opal::ErrorCode> Opal::Optional<T>::TryClone(AllocatorBase* allocator) const
+{
+    using Result = Expected<Optional, ErrorCode>;
+    if (!m_has_value)
+    {
+        return Result(Optional());
+    }
+    Expected<T, ErrorCode> value = Opal::TryClone(m_value, allocator);
+    if (!value.HasValue()) [[unlikely]]
+    {
+        return Result(value.GetError());
+    }
+    return Result(Optional(k_in_place, Move(value).GetValue()));
 }
 
 template <typename T>

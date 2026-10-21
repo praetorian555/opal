@@ -176,6 +176,10 @@ public:
 
     // -- Clone --
 
+    /**
+     * Copies the value. Arrays and objects are shared with this value rather than copied, and strings are views into the parsed
+     * input, so it does not allocate and cannot fail.
+     */
     [[nodiscard]] JsonValue Clone(AllocatorBase* allocator = nullptr) const;
 
     // -- Type queries --

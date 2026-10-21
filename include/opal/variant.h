@@ -252,8 +252,6 @@ public:
      * non-POD alternatives are cloned via their own Clone() method.
      * @param allocator Optional allocator to pass to the Clone() call of non-POD alternatives.
      * @return A new Variant holding a clone of the currently active alternative.
-     */
-    /**
      * @note Ends the program through the contract violation handler when the variant is in a moved-from state.
      */
     Variant Clone(AllocatorBase* allocator = nullptr) const
@@ -263,6 +261,27 @@ public:
         result.Destroy();
         result.CloneFrom(*this, allocator);
         return result;
+    }
+
+    /**
+     * Creates a deep clone of this variant the way Clone does, reporting a failed allocation instead of throwing it. The active
+     * alternative is copied with Opal::TryClone.
+     * @param allocator Optional allocator to pass to the TryClone() call of a non-POD alternative.
+     * @return The clone, or the error copying the active alternative reported.
+     * @note Ends the program through the contract violation handler when the variant is in a moved-from state.
+     */
+    [[nodiscard]] Expected<Variant, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const
+    {
+        VerifyNotEmpty();
+        Variant result;
+        result.Destroy();
+        const ErrorCode error = Tables::k_try_clone[m_index](result.m_storage, m_storage, allocator);
+        if (error != ErrorCode::Success) [[unlikely]]
+        {
+            return Expected<Variant, ErrorCode>(error);
+        }
+        result.m_index = m_index;
+        return Expected<Variant, ErrorCode>(Move(result));
     }
 
     /**
@@ -352,11 +371,27 @@ private:
         new (&dst_slot) Type(Opal::Clone(src_slot, allocator));
     }
 
+    template <size_t I>
+    static ErrorCode TryCloneAt(Storage& dst, const Storage& src, AllocatorBase* allocator)
+    {
+        const auto& src_slot = Impl::VariantAccessor<I, Ts...>::Get(src);
+        auto& dst_slot = Impl::VariantAccessor<I, Ts...>::Get(dst);
+        using Type = Decay<decltype(dst_slot)>::Type;
+        Expected<Type, ErrorCode> copy = Opal::TryClone(src_slot, allocator);
+        if (!copy.HasValue()) [[unlikely]]
+        {
+            return copy.GetError();
+        }
+        new (&dst_slot) Type(Move(copy).GetValue());
+        return ErrorCode::Success;
+    }
+
     // Function pointer tables, built at compile time via index_sequence pack expansion.
 
     using DestroyFn = void (*)(Storage&);
     using MoveFn = void (*)(Storage&, Storage&);
     using CloneFn = void (*)(Storage&, const Storage&, AllocatorBase*);
+    using TryCloneFn = ErrorCode (*)(Storage&, const Storage&, AllocatorBase*);
 
     template <typename>
     struct FnTables;
@@ -367,6 +402,7 @@ private:
         static constexpr DestroyFn k_destroy[] = {&DestroyAt<Is>...};
         static constexpr MoveFn k_move[] = {&MoveAt<Is>...};
         static constexpr CloneFn k_clone[] = {&CloneAt<Is>...};
+        static constexpr TryCloneFn k_try_clone[] = {&TryCloneAt<Is>...};
     };
 
     using Tables = FnTables<std::make_index_sequence<sizeof...(Ts)>>;

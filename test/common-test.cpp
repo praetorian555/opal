@@ -6,7 +6,10 @@
 #include "opal/container/dynamic-array.h"
 #include "opal/container/hash-map.h"
 #include "opal/container/hash-set.h"
+#include "opal/container/in-place-array.h"
+#include "opal/container/optional.h"
 #include "opal/container/string.h"
+#include "opal/variant.h"
 
 using namespace Opal;
 
@@ -224,6 +227,64 @@ TEST_CASE("TryClone reports an element that fails to copy", "[common]")
         auto clone = source.TryClone(&enough);
         REQUIRE(clone.HasValue());
         REQUIRE(clone.GetValue().Contains(StringUtf8(k_long_strings[2])));
+    }
+    SECTION("Optional")
+    {
+        Optional<StringUtf8> source(k_in_place, k_long_strings[0]);
+
+        CountedAllocator starved(0);
+        auto failed = source.TryClone(&starved);
+        REQUIRE_FALSE(failed.HasValue());
+        REQUIRE(failed.GetError() == ErrorCode::OutOfMemory);
+
+        CountedAllocator enough(1);
+        auto clone = source.TryClone(&enough);
+        REQUIRE(clone.HasValue());
+        REQUIRE(clone.GetValue().GetValue() == source.GetValue());
+
+        Optional<StringUtf8> empty;
+        auto empty_clone = empty.TryClone(&starved);
+        REQUIRE(empty_clone.HasValue());
+        REQUIRE_FALSE(empty_clone.GetValue().HasValue());
+    }
+    SECTION("InPlaceArray")
+    {
+        InPlaceArray<StringUtf8, 3> source;
+        for (u64 i = 0; i < 3; i++)
+        {
+            source[i] = StringUtf8(k_long_strings[i]);
+        }
+
+        // An InPlaceArray holds its elements itself, so only the elements allocate.
+        CountedAllocator starved(1);
+        auto failed = source.TryClone(&starved);
+        REQUIRE_FALSE(failed.HasValue());
+        REQUIRE(failed.GetError() == ErrorCode::OutOfMemory);
+
+        CountedAllocator enough(3);
+        auto clone = source.TryClone(&enough);
+        REQUIRE(clone.HasValue());
+        REQUIRE(clone.GetValue()[2] == source[2]);
+    }
+    SECTION("Variant")
+    {
+        StringUtf8 text(k_long_strings[0]);
+        Variant<i32, StringUtf8> source(Move(text));
+
+        CountedAllocator starved(0);
+        auto failed = source.TryClone(&starved);
+        REQUIRE_FALSE(failed.HasValue());
+        REQUIRE(failed.GetError() == ErrorCode::OutOfMemory);
+
+        CountedAllocator enough(1);
+        auto clone = source.TryClone(&enough);
+        REQUIRE(clone.HasValue());
+        REQUIRE(clone.GetValue().Get<StringUtf8>() == source.Get<StringUtf8>());
+
+        Variant<i32, StringUtf8> number(7);
+        auto number_clone = number.TryClone(&starved);
+        REQUIRE(number_clone.HasValue());
+        REQUIRE(number_clone.GetValue().Get<i32>() == 7);
     }
     SECTION("ClonableBase")
     {

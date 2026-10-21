@@ -172,7 +172,9 @@ if (!snapshot.HasValue())
 }
 ```
 
-`Deque`, `DynamicArray`, `String`, `HashMap`, `HashSet`, `Pair` and every `ClonableBase` type have both.
+`Deque`, `DynamicArray`, `String`, `HashMap`, `HashSet`, `InPlaceArray`, `Optional`, `Variant`, `Pair` and every `ClonableBase`
+type have both. `SharedPtr` and `JsonValue` have only `Clone`, which shares what they point to instead of copying it, so it cannot
+fail.
 
 ### Opal::Clone and Opal::TryClone
 
