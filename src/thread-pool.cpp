@@ -12,6 +12,12 @@ using ReceiverType = Opal::ReceiverMPMC<Opal::SharedPtr<Opal::Runnable>, true>;
 
 thread_local const Opal::ThreadPool* t_worker_pool = nullptr;
 
+// Set while a worker runs a queued task inside Post to make room in a full channel.
+thread_local bool t_is_making_room = false;
+
+// Tasks submitted into a full channel by a task that a worker ran to make room. The Post that ran it sends them before returning.
+thread_local Opal::DynamicArray<Opal::SharedPtr<Opal::Runnable>> t_deferred;
+
 // Runs a task and counts it as completed, which is what WaitForAll waits on.
 void RunTask(Opal::SharedPtr<Opal::Runnable>& task, Opal::Atomic<Opal::u64>* completed_count)
 {
@@ -222,6 +228,28 @@ Opal::ErrorCode Opal::ThreadPool::Post(SharedPtr<Runnable>&& work)
         EndSubmission();
         return ErrorCode::Success;
     }
+    // A task run to make room that finds the channel full leaves its work to the Post that ran it, instead of running yet another
+    // task: every task that submits more would otherwise nest one level deeper, without limit.
+    if (t_is_making_room)
+    {
+        if (m_communicator.transmitter.TrySend(std::move(work)))
+        {
+            return ErrorCode::Success;
+        }
+        return t_deferred.PushBack(std::move(work));
+    }
+    SendMakingRoom(std::move(work));
+    while (!t_deferred.IsEmpty())
+    {
+        SharedPtr<Runnable> deferred = std::move(t_deferred[t_deferred.GetSize() - 1]);
+        t_deferred.PopBack();
+        SendMakingRoom(std::move(deferred));
+    }
+    return ErrorCode::Success;
+}
+
+void Opal::ThreadPool::SendMakingRoom(SharedPtr<Runnable>&& work)
+{
     // A worker that waited for room could wait forever: when every worker is sending into a full channel, none is left to empty
     // it. Running a queued task instead makes the room.
     while (!m_communicator.transmitter.TrySend(std::move(work)))
@@ -229,12 +257,13 @@ Opal::ErrorCode Opal::ThreadPool::Post(SharedPtr<Runnable>&& work)
         SharedPtr<Runnable> queued;
         if (m_communicator.receiver.TryReceive(queued) == ErrorCode::Success)
         {
+            t_is_making_room = true;
             RunTask(queued, &m_completed_count);
+            t_is_making_room = false;
         }
         else
         {
             CpuPause();
         }
     }
-    return ErrorCode::Success;
 }

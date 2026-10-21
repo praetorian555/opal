@@ -1677,6 +1677,61 @@ TEST_CASE("Thread pool worker submits more tasks than the channel holds", "[Thre
     REQUIRE(counter.load() == 64);
 }
 
+namespace
+{
+// A task that submits two children one level down, until the bottom level. Counts itself, and records how deeply runs of these
+// tasks were nested on one thread.
+class TreeTask final : public Runnable
+{
+public:
+    TreeTask(ThreadPool& pool, std::atomic<i32>& count, std::atomic<i32>& max_nesting, u32 depth)
+        : m_pool(&pool), m_count(&count), m_max_nesting(&max_nesting), m_depth(depth)
+    {
+    }
+
+    void Run() override
+    {
+        static thread_local i32 t_nesting = 0;
+        ++t_nesting;
+        i32 seen = m_max_nesting->load();
+        while (seen < t_nesting && !m_max_nesting->compare_exchange_weak(seen, t_nesting))
+        {
+        }
+        m_count->fetch_add(1);
+        for (u32 child = 0; m_depth != 0 && child < 2; ++child)
+        {
+            m_pool->Post(SharedPtr<Runnable>(SharedPtr<TreeTask>(m_pool->GetAllocator(), *m_pool, *m_count, *m_max_nesting, m_depth - 1)));
+        }
+        --t_nesting;
+    }
+
+private:
+    ThreadPool* m_pool;
+    std::atomic<i32>* m_count;
+    std::atomic<i32>* m_max_nesting;
+    u32 m_depth;
+};
+}  // namespace
+
+TEST_CASE("Thread pool runs a tree of tasks that each submit more on one worker", "[Thread]")
+{
+    // One worker: once the channel is full it makes room by running queued tasks itself, and every one of those submits two
+    // more. Doing that by recursion nested a level deeper for every such task, about 900 levels for this tree, which overflowed
+    // the stack of a Release build.
+    constexpr u32 k_depth = 14;
+    ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(1);
+    ThreadPool& pool = *pool_owner;
+    std::atomic<i32> count{0};
+    std::atomic<i32> max_nesting{0};
+
+    REQUIRE(pool.Post(SharedPtr<Runnable>(SharedPtr<TreeTask>(pool.GetAllocator(), pool, count, max_nesting, k_depth))) ==
+            ErrorCode::Success);
+    pool.WaitForAll();
+    REQUIRE(count.load() == (1 << (k_depth + 1)) - 1);
+    // The task the worker took from the channel, and one it ran inside that task's Post to make room.
+    REQUIRE(max_nesting.load() <= 2);
+}
+
 TEST_CASE("Thread pool workers all submitting into a full channel", "[Thread]")
 {
     constexpr i32 k_parent_count = 8;

@@ -89,8 +89,9 @@ public:
 
     /**
      * Queue work for the workers.
-     * @return ErrorCode::Success, ErrorCode::ChannelClosed if the pool has been closed and the caller is not one of its workers, or
-     *         ErrorCode::InvalidArgument for an invalid pointer.
+     * @return ErrorCode::Success, ErrorCode::ChannelClosed if the pool has been closed and the caller is not one of its workers,
+     *         ErrorCode::InvalidArgument for an invalid pointer, or ErrorCode::OutOfMemory if a worker found the channel full and
+     *         could not hold the work until there was room.
      */
     ErrorCode Post(SharedPtr<Runnable>&& work) override;
 
@@ -112,6 +113,9 @@ public:
     [[nodiscard]] AllocatorBase* GetAllocator() const override { return m_allocator; }
 
 private:
+    /** Send work from a worker, running queued tasks on this thread while the channel is full. */
+    void SendMakingRoom(SharedPtr<Runnable>&& work);
+
     /** Ends a submission begun in Post, and wakes a Close waiting for it to finish. */
     void EndSubmission();
 

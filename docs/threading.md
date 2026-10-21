@@ -806,7 +806,9 @@ A running task may submit more tasks to its own pool with `Submit`. These are ac
 before `Close()` returns, so a task can hand off the rest of its work without racing shutdown.
 
 A task may submit more than the channel holds. When a worker finds the channel full it runs queued tasks until there is room,
-rather than waiting for another worker to make some, since every other worker could be doing the same.
+rather than waiting for another worker to make some, since every other worker could be doing the same. A task it runs that way
+and that also finds the channel full does not run another: it hands its submissions back to be sent once there is room, so a tree
+of tasks that each submit more never nests deeper than one task inside another.
 
 ```cpp
 pool.Submit([&pool]

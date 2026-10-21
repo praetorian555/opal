@@ -3,13 +3,14 @@
 // Opal runs twice: on the default allocator, and on an Opal::SmallBlockAllocator, which is what its tasks and futures are
 // allocated from.
 //
-// Five operations, each swept over the number of workers:
+// Six operations, each swept over the number of workers:
 //   Post        - the benchmark thread posts tasks that return nothing, then waits for the pool to drain. The cost of handing a
 //                 task to a worker, with no future involved.
 //   Submit      - the same, through Submit, then takes every task's result from its future. Adds the future's shared state.
 //   RoundTrip   - submit one task and wait for its result before submitting the next. The latency of waking an idle worker and
 //                 hearing back from it.
 //   Spawn       - one task submits the rest from a worker. The path a task takes to fan out work of its own.
+//   Tree        - every task submits two children, down to k_tree_depth levels: fork-join, with every worker submitting at once.
 //   ParallelFor - a loop spread over the workers, with the calling thread taking part, swept over the loop length.
 //
 // Tasks do almost nothing, so the numbers are the pool's own overhead. A task that takes longer hides it in proportion.
@@ -51,6 +52,10 @@ using Item = Opal::u64;
 
 // Tasks per iteration of Post, Submit and Spawn.
 constexpr size_t k_task_count = size_t{1} << 14;
+
+// Levels below the root of the Tree benchmark, so an iteration runs 2^(k_tree_depth + 1) - 1 tasks.
+constexpr Opal::u32 k_tree_depth = 14;
+constexpr size_t k_tree_task_count = (size_t{1} << (k_tree_depth + 1)) - 1;
 
 // Indices ParallelFor hands a thread at a time.
 constexpr Opal::u64 k_grain_size = 1024;
@@ -254,6 +259,30 @@ private:
     Opal::ThreadPool* m_pool;
 };
 
+/** A task that submits two children one level down, until the bottom level. */
+class TreeTask final : public Opal::Runnable
+{
+public:
+    TreeTask(Opal::ThreadPool& pool, Opal::u32 depth) : m_pool(&pool), m_depth(depth) {}
+
+    void Run() override
+    {
+        if (m_depth == 0)
+        {
+            benchmark::ClobberMemory();
+            return;
+        }
+        for (int child = 0; child < 2; child++)
+        {
+            m_pool->Post(Opal::SharedPtr<Opal::Runnable>(Opal::SharedPtr<TreeTask>(m_pool->GetAllocator(), *m_pool, m_depth - 1)));
+        }
+    }
+
+private:
+    Opal::ThreadPool* m_pool;
+    Opal::u32 m_depth;
+};
+
 /**
  * Uniform interface over the two pools so every benchmark body is written once. A failure to post or submit is reported as false or
  * as an empty result, and the benchmark stops with an error.
@@ -289,6 +318,12 @@ struct PoolOps<Opal::ThreadPool>
     static bool PostSpawn(Opal::ThreadPool& pool)
     {
         Opal::SharedPtr<SpawnTask> task(pool.GetAllocator(), pool);
+        return task.IsValid() && pool.Post(Opal::SharedPtr<Opal::Runnable>(std::move(task))) == Opal::ErrorCode::Success;
+    }
+
+    static bool PostTree(Opal::ThreadPool& pool)
+    {
+        Opal::SharedPtr<TreeTask> task(pool.GetAllocator(), pool, k_tree_depth);
         return task.IsValid() && pool.Post(Opal::SharedPtr<Opal::Runnable>(std::move(task))) == Opal::ErrorCode::Success;
     }
 
@@ -385,6 +420,25 @@ struct PoolOps<Std>
                     pool.Post([] { benchmark::ClobberMemory(); });
                 }
             });
+        return true;
+    }
+
+    static void PostTreeLevel(Std& pool, Opal::u32 depth)
+    {
+        if (depth == 0)
+        {
+            benchmark::ClobberMemory();
+            return;
+        }
+        for (int child = 0; child < 2; child++)
+        {
+            pool.Post([&pool, depth] { PostTreeLevel(pool, depth - 1); });
+        }
+    }
+
+    static bool PostTree(Std& pool)
+    {
+        pool.Post([&pool] { PostTreeLevel(pool, k_tree_depth); });
         return true;
     }
 
@@ -616,6 +670,30 @@ void BM_Spawn(benchmark::State& state)
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(k_task_count));
 }
 
+// Post the root of a tree of tasks, each submitting two children, then wait for the pool to drain.
+template <typename Pool, Placement ThreadPlacement>
+void BM_Tree(benchmark::State& state)
+{
+    using Ops = PoolOps<Pool>;
+    PinnedPool<Pool> pool(ThreadPlacement, static_cast<size_t>(state.range(0)));
+    if (!pool.IsReady(state))
+    {
+        return;
+    }
+
+    for (auto _ : state)
+    {
+        if (!Ops::PostTree(*pool))
+        {
+            state.SkipWithError("the pool did not accept a task");
+            break;
+        }
+        Ops::WaitForAll(*pool);
+    }
+
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(k_tree_task_count));
+}
+
 // Square every element of an array into another, spread over the workers and the benchmark thread.
 template <typename Pool, Placement ThreadPlacement>
 void BM_ParallelFor(benchmark::State& state)
@@ -697,5 +775,7 @@ POOL_BENCHMARK(BM_RoundTrip, "RoundTrip", SameL3, ThreadSweep);
 POOL_BENCHMARK(BM_RoundTrip, "RoundTrip", CrossL3, ThreadSweep);
 POOL_BENCHMARK(BM_Spawn, "Spawn", SameL3, ThreadSweep);
 POOL_BENCHMARK(BM_Spawn, "Spawn", CrossL3, ThreadSweep);
+POOL_BENCHMARK(BM_Tree, "Tree", SameL3, ThreadSweep);
+POOL_BENCHMARK(BM_Tree, "Tree", CrossL3, ThreadSweep);
 POOL_BENCHMARK(BM_ParallelFor, "ParallelFor", SameL3, ParallelForSweep);
 POOL_BENCHMARK(BM_ParallelFor, "ParallelFor", CrossL3, ParallelForSweep);
