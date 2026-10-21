@@ -334,7 +334,8 @@ if (OPAL_BUILD_BENCHMARKS)
             benchmark/main-benchmark.cpp
             benchmark/hash-set-benchmark.cpp
             benchmark/hash-map-benchmark.cpp
-            benchmark/channel-benchmark.cpp)
+            benchmark/channel-benchmark.cpp
+            benchmark/thread-pool-benchmark.cpp)
     add_executable(opal_benchmark ${OPAL_BENCHMARK_FILES})
     target_link_libraries(opal_benchmark opal)
     target_link_libraries(opal_benchmark opal_warnings)

@@ -47,6 +47,10 @@ the OS topology, and the console header and JSON context print them as `l3_domai
 Under WSL the topology is the virtual machine's: the guest sees one L3, and its virtual CPUs are not fixed to physical cores, so
 pinning there does not control placement. Take threaded numbers from a native build.
 
+The `ThreadPool` benchmarks cannot pin: neither `ThreadPool` nor the `std::thread` pool they compare it against lets a caller choose
+a worker's core, so the scheduler places the workers and the spread between runs is wider. Read them with
+`--benchmark_repetitions` and the U-test below rather than from a single run.
+
 ## Comparing two runs
 
 Google Benchmark ships a comparison script in the fetched source, at `build/bench/_deps/benchmark-src/tools/compare.py`. It
