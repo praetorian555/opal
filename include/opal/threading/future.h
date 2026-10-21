@@ -6,6 +6,7 @@
 
 #include "opal/allocator.h"
 #include "opal/assert.h"
+#include "opal/container/dynamic-array.h"
 #include "opal/container/expected.h"
 #include "opal/container/shared-ptr.h"
 #include "opal/defines.h"
@@ -639,6 +640,109 @@ private:
     SharedPtr<Impl::FutureState<T>> m_state;
     bool m_is_future_taken = false;
 };
+
+namespace Impl
+{
+
+/** The results WhenAll gathers, and the promise it sets once the last of them arrives. */
+template <typename T>
+class WhenAllState
+{
+public:
+    using ResultsType = DynamicArray<FutureResult<T>>;
+
+    WhenAllState(Promise<ResultsType>&& promise, ResultsType&& results)
+        : m_promise(std::move(promise)), m_results(std::move(results)), m_remaining(m_results.GetSize())
+    {
+    }
+
+    /** Store the result for the future at index. The last one to arrive hands every result to the promise. */
+    void Complete(u64 index, FutureResult<T>&& result)
+    {
+        m_results[index] = std::move(result);
+        if (m_remaining.template FetchSub<MemoryOrder::AcqRel>(1) == 1)
+        {
+            m_promise.SetValue(std::move(m_results));
+        }
+    }
+
+private:
+    Promise<ResultsType> m_promise;
+    ResultsType m_results;
+    Atomic<u64> m_remaining;
+};
+
+}  // namespace Impl
+
+/**
+ * Get a future that is ready once every given future is, holding all of their results.
+ *
+ * Each result is kept as its future reported it, so one future failing does not hide what the others produced.
+ * @param futures Futures to wait for. Each valid one is consumed. An invalid one contributes ErrorCode::InvalidArgument, and one
+ *                whose continuation could not be allocated contributes ErrorCode::OutOfMemory.
+ * @param allocator Allocator for the shared state. Must be thread safe. If null, uses the default allocator.
+ * @return Future for the results, in the same order as futures. Ready at once when futures is empty. An invalid future, with the
+ *         futures left as they were, if the shared state could not be allocated or the allocator is not thread safe.
+ */
+template <typename T>
+Future<DynamicArray<FutureResult<T>>> WhenAll(DynamicArray<Future<T>>&& futures, AllocatorBase* allocator = nullptr)
+{
+    using ResultsType = DynamicArray<FutureResult<T>>;
+    using State = Impl::WhenAllState<T>;
+
+    if (allocator == nullptr)
+    {
+        allocator = GetDefaultAllocator();
+    }
+    Expected<Promise<ResultsType>, ErrorCode> promise = Promise<ResultsType>::Create(allocator);
+    if (!promise.HasValue())
+    {
+        return Future<ResultsType>{};
+    }
+    Future<ResultsType> all = promise.GetValue().GetFuture();
+
+    const u64 count = futures.GetSize();
+    ResultsType results(allocator);
+    if (results.Reserve(count) != ErrorCode::Success)
+    {
+        return Future<ResultsType>{};
+    }
+    for (u64 i = 0; i < count; ++i)
+    {
+        // A placeholder until the future at i reports. Every one is replaced before the promise is set.
+        if (results.PushBack(Impl::MakeFutureError<T>(ErrorCode::BrokenPromise)) != ErrorCode::Success)
+        {
+            return Future<ResultsType>{};
+        }
+    }
+    if (count == 0)
+    {
+        promise.GetValue().SetValue(std::move(results));
+        return all;
+    }
+
+    SharedPtr<State> state(allocator, std::move(promise.GetValue()), std::move(results));
+    if (!state.IsValid())
+    {
+        return Future<ResultsType>{};
+    }
+    for (u64 i = 0; i < count; ++i)
+    {
+        Future<T>& future = futures[i];
+        if (!future.IsValid())
+        {
+            state->Complete(i, Impl::MakeFutureError<T>(ErrorCode::InvalidArgument));
+            continue;
+        }
+        Future<void> attached =
+            future.Then([state = state.Clone(), i](FutureResult<T>&& result) mutable { state->Complete(i, std::move(result)); });
+        if (!attached.IsValid())
+        {
+            state->Complete(i, Impl::MakeFutureError<T>(ErrorCode::OutOfMemory));
+        }
+    }
+    return all;
+}
 
 }  // namespace Opal
 

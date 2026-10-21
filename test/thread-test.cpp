@@ -1701,3 +1701,107 @@ TEST_CASE("Signal wait returns immediately when state already changed", "[Thread
     signal.Wait(0);
     REQUIRE(signal.GetState() == 1);
 }
+
+namespace
+{
+
+// Runs ParallelFor over [begin, end) and checks every index was visited exactly once.
+void CheckParallelForVisitsEachIndexOnce(ThreadPool& pool, u64 begin, u64 end, u64 grain_size)
+{
+    const u64 count = end > begin ? end - begin : 0;
+    DynamicArray<std::atomic<i32>> visits(count);
+    ParallelFor(pool, begin, end, grain_size, [&visits, begin](u64 index) { visits[index - begin].fetch_add(1); });
+    for (u64 i = 0; i < count; ++i)
+    {
+        REQUIRE(visits[i].load() == 1);
+    }
+}
+
+}  // namespace
+
+TEST_CASE("ParallelFor visits each index once", "[Thread]")
+{
+    ScopePtr<ThreadPool> pool = CreatePoolOrFail(4);
+
+    SECTION("One index at a time")
+    {
+        CheckParallelForVisitsEachIndexOnce(*pool, 0, 1000, 1);
+    }
+    SECTION("A grain that does not divide the range")
+    {
+        CheckParallelForVisitsEachIndexOnce(*pool, 3, 1000, 7);
+    }
+    SECTION("A grain larger than the range")
+    {
+        CheckParallelForVisitsEachIndexOnce(*pool, 0, 10, 100);
+    }
+    SECTION("A grain of zero")
+    {
+        CheckParallelForVisitsEachIndexOnce(*pool, 0, 50, 0);
+    }
+    SECTION("An empty or reversed range calls nothing")
+    {
+        std::atomic<i32> calls{0};
+        ParallelFor(*pool, 5, 5, 1, [&calls](u64) { calls.fetch_add(1); });
+        ParallelFor(*pool, 9, 2, 1, [&calls](u64) { calls.fetch_add(1); });
+        REQUIRE(calls.load() == 0);
+    }
+    SECTION("A range ending at the largest index")
+    {
+        constexpr u64 k_max = ~u64{};
+        std::atomic<i32> calls{0};
+        ParallelFor(*pool, k_max - 10, k_max, 3, [&calls](u64) { calls.fetch_add(1); });
+        REQUIRE(calls.load() == 10);
+    }
+}
+
+TEST_CASE("ParallelFor spreads work over the workers", "[Thread]")
+{
+    ScopePtr<ThreadPool> pool = CreatePoolOrFail(4);
+    std::atomic<i32> running{0};
+    std::atomic<i32> most_running{0};
+    ParallelFor(*pool, 0, 64, 1,
+                [&running, &most_running](u64)
+                {
+                    const i32 now = running.fetch_add(1) + 1;
+                    i32 most = most_running.load();
+                    while (now > most && !most_running.compare_exchange_weak(most, now))
+                    {
+                    }
+                    SleepCurrentThread(1);
+                    running.fetch_sub(1);
+                });
+    REQUIRE(most_running.load() > 1);
+}
+
+TEST_CASE("ParallelFor finishes without help from the pool", "[Thread]")
+{
+    SECTION("From the only worker of its own pool")
+    {
+        ScopePtr<ThreadPool> pool_owner = CreatePoolOrFail(1, 4);
+        ThreadPool& pool = *pool_owner;
+        std::atomic<i32> calls{0};
+        auto outer = pool.Submit([&pool, &calls] { ParallelFor(pool, 0, 100, 1, [&calls](u64) { calls.fetch_add(1); }); });
+        REQUIRE(outer.HasValue());
+        if (!outer.GetValue().WaitFor(30000))
+        {
+            fprintf(stderr, "ParallelFor deadlocked on the only worker of its pool\n");
+            std::abort();
+        }
+        REQUIRE(calls.load() == 100);
+    }
+    SECTION("Nested in itself")
+    {
+        ScopePtr<ThreadPool> pool = CreatePoolOrFail(2);
+        std::atomic<i32> calls{0};
+        ParallelFor(*pool, 0, 8, 1,
+                    [&pool, &calls](u64) { ParallelFor(*pool, 0, 8, 1, [&calls](u64) { calls.fetch_add(1); }); });
+        REQUIRE(calls.load() == 64);
+    }
+    SECTION("On a closed pool")
+    {
+        ScopePtr<ThreadPool> pool = CreatePoolOrFail(2);
+        pool->Close();
+        CheckParallelForVisitsEachIndexOnce(*pool, 0, 100, 4);
+    }
+}

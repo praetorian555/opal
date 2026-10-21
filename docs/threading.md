@@ -732,6 +732,26 @@ pool.Submit([&pool]
 in the queue by then. A task should not block on the future of a task queued behind it: if every worker does that, nothing is left
 to run the queue. Attach the follow-up with `Then` instead.
 
+### Parallel For
+
+`ParallelFor` calls a function for every index in a range, spread over the pool's workers, and returns once every call has
+returned.
+
+```cpp
+Opal::ParallelFor(pool, 0, particles.GetSize(), 256, [&particles, dt](Opal::u64 i)
+{
+    particles[i].Integrate(dt);
+});
+```
+
+The range is cut into chunks of `grain_size` indices, which threads claim one at a time, so a slow chunk does not hold up the rest.
+Raise the grain until one chunk is worth handing to another thread.
+
+The calling thread takes chunks too, and waits only for chunks already running on other threads, never for work still queued. A
+task running on the pool can therefore call `ParallelFor` on the same pool, nested calls included, and it finishes even on a busy,
+closed or out of memory pool - the calling thread then does all of the work. Calls happen in no particular order and on any thread,
+so the function must be safe to call concurrently with itself, and it must not throw.
+
 ### API Reference
 
 | Method | Description |
@@ -742,6 +762,7 @@ to run the queue. Attach the follow-up with `Then` instead.
 | `Close()` | Reject later tasks, run every accepted one, then join all threads. Safe to call multiple times |
 | `GetThreadCount()` | Number of worker threads |
 | `GetAllocator()` | Allocator used by the pool |
+| `ParallelFor(pool, begin, end, grain_size, func)` | Free function. Call `func(index)` for every index in `[begin, end)` across the workers, and wait |
 
 ## Futures
 
@@ -826,6 +847,31 @@ executor runs work - on the UI thread, for a `TaskQueue` that the UI thread drai
 is called, so a result that arrives later only has to be queued. If the executor refuses the work, the next future reports what
 `Post` returned, such as `ErrorCode::ChannelClosed`. The executor must outlive the result's arrival.
 
+### Waiting for Several Futures
+
+`WhenAll` turns an array of futures into one future that is ready once all of them are, holding every result in the same order.
+Each result is kept as its future reported it, so one failure does not hide what the others produced.
+
+```cpp
+Opal::DynamicArray<Opal::Future<Mesh>> loads;
+for (const Opal::StringUtf8& path : paths)
+{
+    auto load = pool.Submit([&path] { return LoadMesh(path); });
+    if (load.HasValue())
+    {
+        loads.PushBack(Opal::Move(load.GetValue()));
+    }
+}
+
+// Future<DynamicArray<Expected<Mesh, ErrorCode>>>
+auto all = Opal::WhenAll(Opal::Move(loads));
+all.Then([](auto&& meshes) { /* every load has finished, successfully or not */ });
+```
+
+For `Future<void>` the results are `ErrorCode`s, `ErrorCode::Success` for each one that finished. An invalid future in the array
+contributes `ErrorCode::InvalidArgument`. `WhenAll` returns an invalid future, and leaves the array as it was, only when its own
+state could not be allocated or the allocator is not thread safe.
+
 ### API Reference
 
 | Type | Method | Description |
@@ -841,6 +887,7 @@ is called, so a result that arrives later only has to be queued. If the executor
 | `Future<T>` | `TryGet()` | Take the result if it has arrived, else `ErrorCode::WouldBlock` |
 | `Future<T>` | `Then(func)` | Run `func` on the result, returns a future for what it returns |
 | `Future<T>` | `Then(executor, func)` | The same, with `func` posted to `executor` |
+| | `WhenAll(DynamicArray<Future<T>>&&, AllocatorBase* = nullptr)` | Future of every result, in order, ready once all have arrived |
 
 ## Thread Safety Summary
 

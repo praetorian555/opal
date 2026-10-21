@@ -362,3 +362,100 @@ TEST_CASE("ThreadPool Submit on a closed pool", "[Future]")
     REQUIRE(!future.HasValue());
     REQUIRE(future.GetError() == ErrorCode::ChannelClosed);
 }
+
+TEST_CASE("WhenAll gathers results in order", "[Future]")
+{
+    Promise<i32> first = CreatePromise<i32>();
+    Promise<i32> second = CreatePromise<i32>();
+    Promise<i32> third = CreatePromise<i32>();
+    DynamicArray<Future<i32>> futures;
+    REQUIRE(futures.PushBack(first.GetFuture()) == ErrorCode::Success);
+    REQUIRE(futures.PushBack(second.GetFuture()) == ErrorCode::Success);
+    REQUIRE(futures.PushBack(third.GetFuture()) == ErrorCode::Success);
+
+    Future<DynamicArray<Expected<i32, ErrorCode>>> all = WhenAll(Move(futures));
+    REQUIRE(all.IsValid());
+
+    third.SetValue(3);
+    first.SetValue(1);
+    REQUIRE_FALSE(all.IsReady());
+    second.SetError(ErrorCode::OutOfBounds);
+
+    auto results = all.Get();
+    REQUIRE(results.HasValue());
+    REQUIRE(results.GetValue().GetSize() == 3);
+    REQUIRE(results.GetValue()[0].GetValue() == 1);
+    REQUIRE(results.GetValue()[1].GetError() == ErrorCode::OutOfBounds);
+    REQUIRE(results.GetValue()[2].GetValue() == 3);
+}
+
+TEST_CASE("WhenAll of void futures, an empty list and an invalid future", "[Future]")
+{
+    SECTION("Void")
+    {
+        Promise<void> done = CreatePromise<void>();
+        Promise<void> broken = CreatePromise<void>();
+        DynamicArray<Future<void>> futures;
+        REQUIRE(futures.PushBack(done.GetFuture()) == ErrorCode::Success);
+        REQUIRE(futures.PushBack(broken.GetFuture()) == ErrorCode::Success);
+        Future<DynamicArray<ErrorCode>> all = WhenAll(Move(futures));
+
+        done.SetValue();
+        broken = Promise<void>();
+        auto results = all.Get();
+        REQUIRE(results.HasValue());
+        REQUIRE(results.GetValue()[0] == ErrorCode::Success);
+        REQUIRE(results.GetValue()[1] == ErrorCode::BrokenPromise);
+    }
+    SECTION("Empty")
+    {
+        Future<DynamicArray<ErrorCode>> all = WhenAll(DynamicArray<Future<void>>());
+        REQUIRE(all.IsReady());
+        REQUIRE(all.Get().GetValue().IsEmpty());
+    }
+    SECTION("Invalid future")
+    {
+        Promise<i32> promise = CreatePromise<i32>();
+        DynamicArray<Future<i32>> futures;
+        REQUIRE(futures.PushBack(Future<i32>()) == ErrorCode::Success);
+        REQUIRE(futures.PushBack(promise.GetFuture()) == ErrorCode::Success);
+        auto all = WhenAll(Move(futures));
+        promise.SetValue(5);
+        auto results = all.Get();
+        REQUIRE(results.GetValue()[0].GetError() == ErrorCode::InvalidArgument);
+        REQUIRE(results.GetValue()[1].GetValue() == 5);
+    }
+    SECTION("Not thread safe allocator")
+    {
+        NotThreadSafeAllocator allocator;
+        Promise<i32> promise = CreatePromise<i32>();
+        DynamicArray<Future<i32>> futures;
+        REQUIRE(futures.PushBack(promise.GetFuture()) == ErrorCode::Success);
+        REQUIRE_FALSE(WhenAll(Move(futures), &allocator).IsValid());
+    }
+}
+
+TEST_CASE("WhenAll over pool tasks", "[Future]")
+{
+    constexpr i32 k_task_count = 100;
+    ScopePtr<ThreadPool> pool = CreatePoolOrFail(4);
+    DynamicArray<Future<i32>> futures;
+    for (i32 i = 0; i < k_task_count; ++i)
+    {
+        auto future = pool->Submit([i] { return i * 2; });
+        REQUIRE(future.HasValue());
+        REQUIRE(futures.PushBack(Move(future.GetValue())) == ErrorCode::Success);
+    }
+
+    auto sum = WhenAll(Move(futures)).Then(
+        [](Expected<DynamicArray<Expected<i32, ErrorCode>>, ErrorCode>&& results)
+        {
+            i32 total = 0;
+            for (const Expected<i32, ErrorCode>& result : results.GetValue())
+            {
+                total += result.GetValue();
+            }
+            return total;
+        });
+    REQUIRE(sum.Get().GetValue() == k_task_count * (k_task_count - 1));
+}
