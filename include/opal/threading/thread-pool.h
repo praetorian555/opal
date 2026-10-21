@@ -84,6 +84,9 @@ private:
     /** Ends a submission begun in Post, and wakes a Close waiting for it to finish. */
     void EndSubmission();
 
+    /** Blocks until every task the pool has accepted has run, including the ones those tasks submitted. */
+    void WaitForAccepted();
+
     /** Start thread_count workers. On failure the ones that started keep running until Close. */
     ErrorCode StartWorkers(size_t thread_count);
 

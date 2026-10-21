@@ -574,10 +574,10 @@ result = channel.receiver.Receive();
 `Receive()` and `TryReceive()` behave identically to the SPSC channel. `Close()` wakes every receiver blocked in `Receive()`.
 `TryReceive()` returns `ErrorCode::Success`, `ErrorCode::ChannelEmpty`, or `ErrorCode::ChannelClosed`.
 
-With spin wait (`UseSignaling = false`), nothing may be sent once `Close()` has been called. A receiver blocked in `Receive()`
-holds its place in the queue, and gives it up when the channel closes with nothing sent for it, so an item sent after that may
-never be received and a later send may block for good. Debug builds assert on it. The signaling channel accepts sends after
-`Close()` and still delivers them.
+Nothing may be sent once `Close()` has been called. A receiver blocked in `Receive()` holds its place in the queue, and gives it
+up when the channel closes with nothing sent for it, so an item sent after that may never be received and a later send may block
+for good. Debug builds assert on it. When producers may still be sending, wait for them to finish before closing, as
+`ThreadPool::Close` does for tasks submitted by running tasks; or, with a single consumer, use an MPSC channel.
 
 ### MPSC Channel
 
@@ -600,7 +600,7 @@ while (channel.receiver.TryReceive(value) == Opal::ErrorCode::Success)
 ```
 
 `Close()` works as for the other channels: items sent before it are received first, then `Receive()` and `TryReceive()` report
-`ErrorCode::ChannelClosed`. Unlike a spinning MPMC channel, an item sent after `Close()` is still received by a later call, with
+`ErrorCode::ChannelClosed`. Unlike an MPMC channel, an item sent after `Close()` is still received by a later call, with
 either wait mode.
 
 ### Channel API Reference

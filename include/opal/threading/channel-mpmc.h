@@ -27,6 +27,7 @@ struct QueueMPMCSlot
     OPAL_DISABLE_MSVC_WARNING(4324)
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> turn = 0;
     Atomic<u32> waiters = 0;
+    Atomic<u32> wake = 0;
     T data;
     OPAL_END_DISABLE_WARNINGS
 };
@@ -157,13 +158,9 @@ public:
         {
             return PopSingleConsumerUnlessClosed(result);
         }
-        else if constexpr (!UseSignaling)
-        {
-            return PopTicketUnlessClosed(result);
-        }
         else
         {
-            return PopSharedUnlessClosed(result);
+            return PopTicketUnlessClosed(result);
         }
     }
 
@@ -197,37 +194,6 @@ private:
                     AdvanceTurn(slot, 2 * turn + 2);
                     return true;
                 }
-            }
-        }
-    }
-
-    /** PopUnlessClosed with signaling when several consumers may race for the same slot. */
-    bool PopSharedUnlessClosed(T& result)
-    {
-        while (true)
-        {
-            if (TryPopShared(result))
-            {
-                return true;
-            }
-            if (IsClosed())
-            {
-                return TryPopShared(result);
-            }
-            // Registering first means a producer that publishes after the fence sees this consumer and wakes it, and one that
-            // published before it is seen by the TryPopShared below.
-            m_waiting_consumers.FetchAdd<MemoryOrder::Relaxed>(1);
-            AsymmetricThreadFenceHeavy();
-            const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
-            const bool popped = TryPopShared(result);
-            if (!popped && !IsClosed())
-            {
-                m_push_count.Wait<MemoryOrder::Acquire>(push_count);
-            }
-            m_waiting_consumers.FetchSub<MemoryOrder::Relaxed>(1);
-            if (popped)
-            {
-                return true;
             }
         }
     }
@@ -314,8 +280,8 @@ private:
 public:
     /**
      * Mark the queue closed and wake every consumer blocked in PopUnlessClosed. Items already in it can still be popped. With
-     * more than one consumer and no signaling, nothing may be pushed once Close has been called: such an item may never be
-     * popped, and a later push may block for good. A single-consumer queue pops items pushed after Close too.
+     * more than one consumer, nothing may be pushed once Close has been called: such an item may never be popped, and a later
+     * push may block for good. A single-consumer queue pops items pushed after Close too.
      */
     void Close()
     {
@@ -324,6 +290,16 @@ public:
         {
             m_push_count.FetchAdd<MemoryOrder::Release>(1);
             m_push_count.NotifyAll();
+            if constexpr (!SingleConsumer)
+            {
+                // Pairs with the heavy fence a consumer takes before it sleeps on its slot: either it sees the queue closed, or
+                // this sees it waiting.
+                AtomicThreadFence();
+                for (size_t i = 0; i < m_capacity; ++i)
+                {
+                    WakeSlot(m_data[i]);
+                }
+            }
         }
     }
 
@@ -342,9 +318,9 @@ private:
     }
 
     /**
-     * PopUnlessClosed without signaling. Claims the next read index outright, so consumers never race for the same slot, then
-     * waits for that slot to be filled. Gives up once the queue is closed and no producer has claimed the index, which no push
-     * will then do.
+     * PopUnlessClosed with more than one consumer. Claims the next read index outright, so consumers never race for the same
+     * slot, then waits for that slot to be filled. Gives up once the queue is closed and no producer has claimed the index, which
+     * no push will then do.
      */
     bool PopTicketUnlessClosed(T& result)
     {
@@ -358,23 +334,59 @@ private:
             {
                 return false;
             }
-            CpuPause();
+            if constexpr (UseSignaling)
+            {
+                // Sleeping at once, unlike the single consumer: with several consumers polling first cost more than it saved.
+                SleepUntilFilled(slot, filled_turn);
+            }
+            else
+            {
+                CpuPause();
+            }
         }
         result = Move(slot.data);
         AdvanceTurn(slot, filled_turn + 1);
         return true;
     }
 
-    /** Block until slot's turn moves off observed_turn, registered as a waiter so whoever moves it wakes this thread. */
+    // A thread waiting on a slot registers in its waiters count, takes the heavy half of an asymmetric fence, then re-checks
+    // before it sleeps on the slot's wake count. Whoever changes what it waits for, a new turn or Close, does so, fences, and
+    // bumps the wake count only when the slot has waiters. The fences make sure one of them sees the other.
+
+    /** Block until slot's turn moves off observed_turn. */
     static void WaitForTurn(QueueMPMCSlot<T>& slot, size_t observed_turn)
     {
         slot.waiters.template FetchAdd<MemoryOrder::Relaxed>(1);
         AsymmetricThreadFenceHeavy();
+        const u32 wake = slot.wake.template Load<MemoryOrder::Acquire>();
         if (slot.turn.template Load<MemoryOrder::Relaxed>() == observed_turn)
         {
-            slot.turn.template Wait<MemoryOrder::Relaxed>(observed_turn);
+            slot.wake.template Wait<MemoryOrder::Acquire>(wake);
         }
         slot.waiters.template FetchSub<MemoryOrder::Relaxed>(1);
+    }
+
+    /** Block until slot reaches filled_turn or the queue is closed. */
+    void SleepUntilFilled(QueueMPMCSlot<T>& slot, size_t filled_turn)
+    {
+        slot.waiters.template FetchAdd<MemoryOrder::Relaxed>(1);
+        AsymmetricThreadFenceHeavy();
+        const u32 wake = slot.wake.template Load<MemoryOrder::Acquire>();
+        if (slot.turn.template Load<MemoryOrder::Acquire>() != filled_turn && !IsClosed())
+        {
+            slot.wake.template Wait<MemoryOrder::Acquire>(wake);
+        }
+        slot.waiters.template FetchSub<MemoryOrder::Relaxed>(1);
+    }
+
+    /** Wake every thread waiting on slot, if there is one. */
+    static void WakeSlot(QueueMPMCSlot<T>& slot)
+    {
+        if (slot.waiters.template Load<MemoryOrder::Relaxed>() != 0)
+        {
+            slot.wake.template FetchAdd<MemoryOrder::Release>(1);
+            slot.wake.NotifyAll();
+        }
     }
 
     /**
@@ -387,14 +399,11 @@ private:
         if constexpr (UseSignaling)
         {
             AsymmetricThreadFenceLight();
-            if (slot.waiters.template Load<MemoryOrder::Relaxed>() != 0)
-            {
-                slot.turn.NotifyAll();
-            }
+            WakeSlot(slot);
         }
     }
 
-    /** Wake a consumer waiting in PopUnlessClosed, if there is one. Called right after AdvanceTurn published the item. */
+    /** Wake the single consumer if it sleeps in PopUnlessClosed. Called right after AdvanceTurn published the item. */
     void SignalPushed()
     {
         if constexpr (UseSignaling)
@@ -428,7 +437,7 @@ private:
     template <typename U>
     void PushValue(U&& data)
     {
-        OPAL_ASSERT(UseSignaling || SingleConsumer || !IsClosed(), "Pushed into a closed QueueMPMC with spinning consumers");
+        OPAL_ASSERT(SingleConsumer || !IsClosed(), "Pushed into a closed QueueMPMC with several consumers");
         size_t write_idx = m_write_idx.FetchAdd<MemoryOrder::Relaxed>(1);
         size_t slot_idx = write_idx & (m_capacity - 1);
         auto& slot = m_data[slot_idx];
@@ -455,7 +464,7 @@ private:
     template <typename U>
     bool TryPushValue(U&& data)
     {
-        OPAL_ASSERT(UseSignaling || SingleConsumer || !IsClosed(), "Pushed into a closed QueueMPMC with spinning consumers");
+        OPAL_ASSERT(SingleConsumer || !IsClosed(), "Pushed into a closed QueueMPMC with several consumers");
         size_t write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
         while (true)
         {
@@ -553,7 +562,8 @@ struct TransmitterMPMC
 
     /**
      * Marks the channel as closed and wakes any receiver blocked in Receive(). Items sent before this are still received;
-     * once they are drained, Receive() and TryReceive() return ErrorCode::ChannelClosed without blocking.
+     * once they are drained, Receive() and TryReceive() return ErrorCode::ChannelClosed without blocking. Through a
+     * ChannelMPMC, nothing may be sent after this; through a ChannelMPSC, a later send is still received.
      */
     void Close() { m_queue->Close(); }
 

@@ -98,7 +98,15 @@ Opal::ThreadPool::~ThreadPool()
 
 void Opal::ThreadPool::WaitForAll()
 {
-    while (!m_is_closed.Load<MemoryOrder::Acquire>())
+    if (!m_is_closed.Load<MemoryOrder::Acquire>())
+    {
+        WaitForAccepted();
+    }
+}
+
+void Opal::ThreadPool::WaitForAccepted()
+{
+    while (true)
     {
         // Read the send count first. Anything counted here has either completed already or is still to come, and a task that
         // submits a follow-up does so before it is counted as completed, so the follow-up is in the next reading.
@@ -125,6 +133,12 @@ void Opal::ThreadPool::Close()
     }
     if (m_communicator.transmitter.IsValid())
     {
+        // Tasks still running may submit more, and nothing may be sent into the channel once it is closed. With every accepted
+        // task finished, none is left to submit, so the channel can close.
+        if (!m_threads.IsEmpty())
+        {
+            WaitForAccepted();
+        }
         m_communicator.transmitter.Close();
     }
     for (const ThreadHandle& thread : m_threads)
