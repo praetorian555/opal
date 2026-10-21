@@ -26,6 +26,7 @@ struct QueueMPMCSlot
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_MSVC_WARNING(4324)
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> turn = 0;
+    Atomic<u32> waiters = 0;
     T data;
     OPAL_END_DISABLE_WARNINGS
 };
@@ -114,7 +115,7 @@ public:
         {
             if constexpr (UseSignaling)
             {
-                slot.turn.template Wait<MemoryOrder::Relaxed>(current_turn);
+                WaitForTurn(slot, current_turn);
             }
             else
             {
@@ -123,11 +124,7 @@ public:
             current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
         }
         T result = std::move(slot.data);
-        slot.turn.template Store<MemoryOrder::Release>(2 * turn + 2);
-        if constexpr (UseSignaling)
-        {
-            slot.turn.NotifyAll();
-        }
+        AdvanceTurn(slot, 2 * turn + 2);
         return result;
     }
 
@@ -153,11 +150,7 @@ public:
                 if (m_read_idx.CompareExchangeStrong(read_idx, read_idx + 1))
                 {
                     result = std::move(slot.data);
-                    slot.turn.template Store<MemoryOrder::Release>(2 * turn + 2);
-                    if constexpr (UseSignaling)
-                    {
-                        slot.turn.NotifyAll();
-                    }
+                    AdvanceTurn(slot, 2 * turn + 2);
                     return true;
                 }
             }
@@ -183,7 +176,6 @@ public:
         {
             while (true)
             {
-                const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
                 if (TryPop(result))
                 {
                     return true;
@@ -192,7 +184,21 @@ public:
                 {
                     return TryPop(result);
                 }
-                m_push_count.Wait<MemoryOrder::Acquire>(push_count);
+                // Registering first means a producer that publishes after the fence sees this consumer and wakes it, and one
+                // that published before it is seen by the TryPop below.
+                m_waiting_consumers.FetchAdd<MemoryOrder::Relaxed>(1);
+                AtomicThreadFence();
+                const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
+                const bool popped = TryPop(result);
+                if (!popped && !IsClosed())
+                {
+                    m_push_count.Wait<MemoryOrder::Acquire>(push_count);
+                }
+                m_waiting_consumers.FetchSub<MemoryOrder::Relaxed>(1);
+                if (popped)
+                {
+                    return true;
+                }
             }
         }
     }
@@ -246,17 +252,49 @@ private:
             CpuPause();
         }
         result = Move(slot.data);
-        slot.turn.template Store<MemoryOrder::Release>(filled_turn + 1);
+        AdvanceTurn(slot, filled_turn + 1);
         return true;
     }
 
-    /** Wake a consumer waiting in PopUnlessClosed. */
+    /** Block until slot's turn moves off observed_turn, registered as a waiter so whoever moves it wakes this thread. */
+    static void WaitForTurn(QueueMPMCSlot<T>& slot, size_t observed_turn)
+    {
+        slot.waiters.template FetchAdd<MemoryOrder::Relaxed>(1);
+        AtomicThreadFence();
+        if (slot.turn.template Load<MemoryOrder::Relaxed>() == observed_turn)
+        {
+            slot.turn.template Wait<MemoryOrder::Relaxed>(observed_turn);
+        }
+        slot.waiters.template FetchSub<MemoryOrder::Relaxed>(1);
+    }
+
+    /**
+     * Publish a slot's next turn and, with signaling, wake the threads waiting for it. Ends with a SeqCst fence when signaling,
+     * which SignalPushed relies on.
+     */
+    static void AdvanceTurn(QueueMPMCSlot<T>& slot, size_t next_turn)
+    {
+        slot.turn.template Store<MemoryOrder::Release>(next_turn);
+        if constexpr (UseSignaling)
+        {
+            AtomicThreadFence();
+            if (slot.waiters.template Load<MemoryOrder::Relaxed>() != 0)
+            {
+                slot.turn.NotifyAll();
+            }
+        }
+    }
+
+    /** Wake a consumer waiting in PopUnlessClosed, if there is one. Called right after AdvanceTurn published the item. */
     void SignalPushed()
     {
         if constexpr (UseSignaling)
         {
-            m_push_count.FetchAdd<MemoryOrder::Release>(1);
-            m_push_count.NotifyOne();
+            if (m_waiting_consumers.Load<MemoryOrder::Relaxed>() != 0)
+            {
+                m_push_count.FetchAdd<MemoryOrder::Release>(1);
+                m_push_count.NotifyOne();
+            }
         }
     }
 
@@ -292,7 +330,7 @@ private:
         {
             if constexpr (UseSignaling)
             {
-                slot.turn.template Wait<MemoryOrder::Relaxed>(current_turn);
+                WaitForTurn(slot, current_turn);
             }
             else
             {
@@ -301,11 +339,7 @@ private:
             current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
         }
         StoreInto(slot.data, std::forward<U>(data));
-        slot.turn.template Store<MemoryOrder::Release>(2 * turn + 1);
-        if constexpr (UseSignaling)
-        {
-            slot.turn.NotifyAll();
-        }
+        AdvanceTurn(slot, 2 * turn + 1);
         SignalPushed();
     }
 
@@ -338,11 +372,7 @@ private:
                     // If write_idx didn't change since last check, consume it and increment the
                     // atomic
                     StoreInto(slot.data, std::forward<U>(data));
-                    slot.turn.template Store<MemoryOrder::Release>(2 * turn + 1);
-                    if constexpr (UseSignaling)
-                    {
-                        slot.turn.NotifyAll();
-                    }
+                    AdvanceTurn(slot, 2 * turn + 1);
                     SignalPushed();
                     return true;
                 }
@@ -354,6 +384,7 @@ private:
     OPAL_DISABLE_MSVC_WARNING(4324)
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_write_idx = 0;
     Atomic<u32> m_push_count = 0;
+    Atomic<u32> m_waiting_consumers = 0;
     alignas(OPAL_CACHE_LINE_SIZE) Atomic<size_t> m_read_idx = 0;
     OPAL_END_DISABLE_WARNINGS
     AllocatorBase* m_allocator = nullptr;

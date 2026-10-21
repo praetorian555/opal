@@ -236,4 +236,15 @@ private:
     std::atomic<T> m_value;
 };
 
+/**
+ * Order the memory accesses on either side of this point without tying them to one atomic value. A SeqCst fence on each of two
+ * threads that each write one value and then read the other guarantees that at least one of them sees the other's write.
+ * @tparam k_order How strongly to order. Relaxed orders nothing.
+ */
+template <MemoryOrder k_order = MemoryOrder::SeqCst>
+void AtomicThreadFence()
+{
+    std::atomic_thread_fence(Impl::ToStdMemoryOrder(k_order));
+}
+
 }  // namespace Opal
