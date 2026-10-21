@@ -12,8 +12,9 @@
 //
 // Tasks do almost nothing, so the numbers are the pool's own overhead. A task that takes longer hides it in proportion.
 //
-// Workers are not pinned: neither pool lets a caller choose the core a worker runs on, so the scheduler places them, and on a CPU
-// with more than one L3 the spread between runs is wider than for the pinned channel benchmarks.
+// Every thread is pinned to a physical core of its own, as for the channel Transfer benchmarks, and each operation runs under two
+// placements: SameL3, the benchmark thread and the workers on one CCD, and CrossL3, the benchmark thread on one and the workers on
+// the other.
 //
 // See docs/benchmarks.md for how to build, run and compare the results.
 
@@ -28,6 +29,7 @@
 #include <future>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <thread>
 #include <type_traits>
 #include <utility>
@@ -35,8 +37,12 @@
 
 #include "opal/threading/thread-pool.h"
 
+#include "thread-placement.h"
+
 namespace
 {
+
+using namespace Bench;
 
 using Item = Opal::u64;
 
@@ -292,6 +298,12 @@ struct PoolOps<Opal::ThreadPool>
         return result.HasValue() ? result.GetValue() : ~Item{0};
     }
 
+    template <typename Func>
+    static bool PostCallable(Opal::ThreadPool& pool, Func func)
+    {
+        return pool.Submit(std::move(func)).HasValue();
+    }
+
     static void WaitForAll(Opal::ThreadPool& pool) { pool.WaitForAll(); }
 
     template <typename Func>
@@ -338,21 +350,113 @@ struct PoolOps<Std>
     static void WaitForAll(Std& pool) { pool.WaitForAll(); }
 
     template <typename Func>
+    static bool PostCallable(Std& pool, Func func)
+    {
+        pool.Post(std::move(func));
+        return true;
+    }
+
+    template <typename Func>
     static void ParallelFor(Std& pool, Opal::u64 end, Func&& func)
     {
         StdParallelFor(pool, 0, end, k_grain_size, std::forward<Func>(func));
     }
 };
 
-// Post k_task_count empty tasks from the benchmark thread, then wait for the pool to drain.
+/**
+ * The pool under test, with every thread pinned to a core of its own as placement says: the benchmark thread, which submits, as
+ * the producer, and the workers as the consumers. Neither pool exposes its workers, so each is pinned from inside by a task that
+ * takes the next core and then holds its worker until every worker holds such a task. With as many tasks as workers, that makes
+ * every worker run exactly one. The benchmark thread gets its own cores back when this is destroyed, after the pool.
+ */
 template <typename Pool>
+class PinnedPool
+{
+public:
+    PinnedPool(Placement placement, size_t thread_count)
+    {
+        using Ops = PoolOps<Pool>;
+        const std::vector<Opal::u32> cores = AssignCores(placement, 1, thread_count);
+        if (cores.empty())
+        {
+            m_status = Status::NoPlacement;
+            return;
+        }
+        m_benchmark_thread_pin.emplace(cores[0]);
+        m_pool = Ops::Make(thread_count);
+        if (!Ops::IsValid(m_pool))
+        {
+            m_status = Status::NoPool;
+            return;
+        }
+
+        std::atomic<size_t> next_core{1};
+        std::atomic<size_t> pinned_count{0};
+        std::atomic<bool> is_abandoned{false};
+        auto pin_worker = [&]
+        {
+            PinCurrentThread(cores[next_core.fetch_add(1, std::memory_order_relaxed)]);
+            pinned_count.fetch_add(1, std::memory_order_acq_rel);
+            while (pinned_count.load(std::memory_order_acquire) != thread_count && !is_abandoned.load(std::memory_order_acquire))
+            {
+                std::this_thread::yield();
+            }
+        };
+        for (size_t i = 0; i < thread_count; i++)
+        {
+            if (!Ops::PostCallable(*m_pool, pin_worker))
+            {
+                is_abandoned.store(true, std::memory_order_release);
+                m_status = Status::NoPool;
+                break;
+            }
+        }
+        Ops::WaitForAll(*m_pool);
+    }
+
+    PinnedPool(const PinnedPool&) = delete;
+    PinnedPool& operator=(const PinnedPool&) = delete;
+
+    /** @return True if the pool is running and pinned. Otherwise skips the benchmark, saying why, and returns false. */
+    bool IsReady(benchmark::State& state) const
+    {
+        switch (m_status)
+        {
+            case Status::Ready:
+                return true;
+            case Status::NoPlacement:
+                state.SkipWithMessage("this machine does not have the physical cores or L3 caches for this placement");
+                return false;
+            case Status::NoPool:
+                state.SkipWithError("could not create and pin the pool");
+                return false;
+        }
+        return false;
+    }
+
+    Pool& operator*() const { return *m_pool; }
+
+private:
+    enum class Status
+    {
+        Ready,
+        NoPlacement,
+        NoPool,
+    };
+
+    std::optional<ScopedThreadPin> m_benchmark_thread_pin;
+    typename PoolOps<Pool>::Handle m_pool;
+    Status m_status = Status::Ready;
+};
+
+// Post k_task_count empty tasks from the benchmark thread, then wait for the pool to drain.
+template <typename Pool, Placement ThreadPlacement>
 void BM_Post(benchmark::State& state)
 {
     using Ops = PoolOps<Pool>;
-    auto pool = Ops::Make(static_cast<size_t>(state.range(0)));
-    if (!Ops::IsValid(pool))
+    PinnedPool<Pool> pool(ThreadPlacement, static_cast<size_t>(state.range(0)));
+    if (!pool.IsReady(state))
     {
-        state.SkipWithError("could not create the pool");
         return;
     }
 
@@ -375,14 +479,13 @@ void BM_Post(benchmark::State& state)
 }
 
 // Submit k_task_count tasks that each return their index, then take every result from its future.
-template <typename Pool>
+template <typename Pool, Placement ThreadPlacement>
 void BM_Submit(benchmark::State& state)
 {
     using Ops = PoolOps<Pool>;
-    auto pool = Ops::Make(static_cast<size_t>(state.range(0)));
-    if (!Ops::IsValid(pool))
+    PinnedPool<Pool> pool(ThreadPlacement, static_cast<size_t>(state.range(0)));
+    if (!pool.IsReady(state))
     {
-        state.SkipWithError("could not create the pool");
         return;
     }
     std::vector<typename Ops::Future> futures;
@@ -412,14 +515,13 @@ void BM_Submit(benchmark::State& state)
 }
 
 // Submit one task and wait for its result. Workers are idle in between, so each iteration wakes one.
-template <typename Pool>
+template <typename Pool, Placement ThreadPlacement>
 void BM_RoundTrip(benchmark::State& state)
 {
     using Ops = PoolOps<Pool>;
-    auto pool = Ops::Make(static_cast<size_t>(state.range(0)));
-    if (!Ops::IsValid(pool))
+    PinnedPool<Pool> pool(ThreadPlacement, static_cast<size_t>(state.range(0)));
+    if (!pool.IsReady(state))
     {
-        state.SkipWithError("could not create the pool");
         return;
     }
 
@@ -439,14 +541,13 @@ void BM_RoundTrip(benchmark::State& state)
 }
 
 // Post one task that posts k_task_count - 1 empty tasks from its worker, then wait for the pool to drain.
-template <typename Pool>
+template <typename Pool, Placement ThreadPlacement>
 void BM_Spawn(benchmark::State& state)
 {
     using Ops = PoolOps<Pool>;
-    auto pool = Ops::Make(static_cast<size_t>(state.range(0)));
-    if (!Ops::IsValid(pool))
+    PinnedPool<Pool> pool(ThreadPlacement, static_cast<size_t>(state.range(0)));
+    if (!pool.IsReady(state))
     {
-        state.SkipWithError("could not create the pool");
         return;
     }
 
@@ -464,14 +565,13 @@ void BM_Spawn(benchmark::State& state)
 }
 
 // Square every element of an array into another, spread over the workers and the benchmark thread.
-template <typename Pool>
+template <typename Pool, Placement ThreadPlacement>
 void BM_ParallelFor(benchmark::State& state)
 {
     using Ops = PoolOps<Pool>;
-    auto pool = Ops::Make(static_cast<size_t>(state.range(0)));
-    if (!Ops::IsValid(pool))
+    PinnedPool<Pool> pool(ThreadPlacement, static_cast<size_t>(state.range(0)));
+    if (!pool.IsReady(state))
     {
-        state.SkipWithError("could not create the pool");
         return;
     }
     const size_t size = static_cast<size_t>(state.range(1));
@@ -497,7 +597,8 @@ void BM_ParallelFor(benchmark::State& state)
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(size));
 }
 
-constexpr int64_t k_thread_counts[] = {1, 2, 4, 8};
+// Workers. Seven fills a CCD of eight cores with the benchmark thread.
+constexpr int64_t k_thread_counts[] = {1, 2, 4, 7};
 
 // The benchmark thread blocks while the workers run, so its CPU time says nothing. Every benchmark reports wall time.
 void ThreadSweep(benchmark::Benchmark* b)
@@ -526,14 +627,20 @@ void ParallelForSweep(benchmark::Benchmark* b)
 
 }  // namespace
 
-// Names come out as "ThreadPool/<operation>/<Opal|Std>/<args>", so the compare.py that ships with Google Benchmark pairs the sides:
+// Names come out as "ThreadPool/<operation>/<placement>/<Opal|Std>/<args>", so the compare.py that ships with Google Benchmark
+// pairs the sides:
 //   compare.py filters results.json "/Opal/" "/Std/"
-#define POOL_BENCHMARK(fn, name, configure)                                                       \
-    BENCHMARK_TEMPLATE(fn, Opal::ThreadPool)->Name("ThreadPool/" name "/Opal")->Apply(configure); \
-    BENCHMARK_TEMPLATE(fn, Std)->Name("ThreadPool/" name "/Std")->Apply(configure)
+#define POOL_BENCHMARK(fn, name, placement, configure)                                                                                 \
+    BENCHMARK_TEMPLATE(fn, Opal::ThreadPool, Placement::placement)->Name("ThreadPool/" name "/" #placement "/Opal")->Apply(configure); \
+    BENCHMARK_TEMPLATE(fn, Std, Placement::placement)->Name("ThreadPool/" name "/" #placement "/Std")->Apply(configure)
 
-POOL_BENCHMARK(BM_Post, "Post", ThreadSweep);
-POOL_BENCHMARK(BM_Submit, "Submit", ThreadSweep);
-POOL_BENCHMARK(BM_RoundTrip, "RoundTrip", ThreadSweep);
-POOL_BENCHMARK(BM_Spawn, "Spawn", ThreadSweep);
-POOL_BENCHMARK(BM_ParallelFor, "ParallelFor", ParallelForSweep);
+POOL_BENCHMARK(BM_Post, "Post", SameL3, ThreadSweep);
+POOL_BENCHMARK(BM_Post, "Post", CrossL3, ThreadSweep);
+POOL_BENCHMARK(BM_Submit, "Submit", SameL3, ThreadSweep);
+POOL_BENCHMARK(BM_Submit, "Submit", CrossL3, ThreadSweep);
+POOL_BENCHMARK(BM_RoundTrip, "RoundTrip", SameL3, ThreadSweep);
+POOL_BENCHMARK(BM_RoundTrip, "RoundTrip", CrossL3, ThreadSweep);
+POOL_BENCHMARK(BM_Spawn, "Spawn", SameL3, ThreadSweep);
+POOL_BENCHMARK(BM_Spawn, "Spawn", CrossL3, ThreadSweep);
+POOL_BENCHMARK(BM_ParallelFor, "ParallelFor", SameL3, ParallelForSweep);
+POOL_BENCHMARK(BM_ParallelFor, "ParallelFor", CrossL3, ParallelForSweep);

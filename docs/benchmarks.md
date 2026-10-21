@@ -47,9 +47,10 @@ the OS topology, and the console header and JSON context print them as `l3_domai
 Under WSL the topology is the virtual machine's: the guest sees one L3, and its virtual CPUs are not fixed to physical cores, so
 pinning there does not control placement. Take threaded numbers from a native build.
 
-The `ThreadPool` benchmarks cannot pin: neither `ThreadPool` nor the `std::thread` pool they compare it against lets a caller choose
-a worker's core, so the scheduler places the workers and the spread between runs is wider. Read them with
-`--benchmark_repetitions` and the U-test below rather than from a single run.
+The `ThreadPool` benchmarks pin the same way, with the benchmark thread as the producer and the workers as the consumers. Neither
+pool exposes its workers, so each is pinned from inside, by a task that takes the next core and holds its worker until every
+worker holds one. The benchmark thread gets its own cores back afterwards. The topology and pinning code is shared in
+`benchmark/thread-placement.h`.
 
 ## Comparing two runs
 
