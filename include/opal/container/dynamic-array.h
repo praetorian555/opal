@@ -210,7 +210,7 @@ public:
      * Default constructor.
      * @param allocator Allocator to be used for memory allocation. If nullptr, the default allocator will be used.
      */
-    DynamicArray(allocator_type* allocator = nullptr);
+    DynamicArray(allocator_type* allocator = nullptr) noexcept;
 
     /**
      * Construct an array with `count` default constructed elements.
@@ -269,15 +269,18 @@ public:
     /**
      * Create a deep copy of this array. Unlike the copy constructor, Clone allows specifying a different allocator for
      * the new array. The cloned array will have the same capacity and elements as the source array.
-     * @param allocator Allocator to be used for the cloned array. If nullptr, the source array's allocator will be used.
+     * @param allocator Allocator to be used for the cloned array and its cloned elements. If nullptr, the source array's allocator
+     * will be used.
      * @return A new DynamicArray that is a deep copy of this array.
      * @throw OutOfMemoryException when the copy could not be allocated. Use TryClone to get a code instead.
      */
     DynamicArray Clone(AllocatorBase* allocator = nullptr) const;
 
     /**
-     * Create a deep copy of this array, reporting a failed allocation instead of throwing it.
-     * @param allocator Allocator to be used for the cloned array. If nullptr, the source array's allocator will be used.
+     * Create a deep copy of this array, reporting a failed allocation instead of throwing it. Elements are copied with
+     * Opal::TryClone, so an element that fails to copy is reported too.
+     * @param allocator Allocator to be used for the cloned array and its cloned elements. If nullptr, the source array's allocator
+     * will be used.
      * @return The copy, or ErrorCode::OutOfMemory.
      */
     [[nodiscard]] Expected<DynamicArray, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const;
@@ -773,7 +776,7 @@ private:
 #define CLASS_HEADER Opal::DynamicArray<T>
 
 TEMPLATE_HEADER
-CLASS_HEADER::DynamicArray(allocator_type* allocator) : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
+CLASS_HEADER::DynamicArray(allocator_type* allocator) noexcept : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
 
 TEMPLATE_HEADER
 Opal::ErrorCode CLASS_HEADER::Construct(size_type count)
@@ -985,15 +988,20 @@ Opal::Expected<Opal::DynamicArray<T>, Opal::ErrorCode> Opal::DynamicArray<T>::Tr
     using Result = Expected<DynamicArray, ErrorCode>;
     allocator = allocator == nullptr ? m_allocator : allocator;
     DynamicArray clone(allocator);
-    ErrorCode error = clone.Reserve(m_capacity);
+    const ErrorCode error = clone.Reserve(m_capacity);
     if (error != ErrorCode::Success) [[unlikely]]
     {
         return Result(error);
     }
-    error = clone.Append(*this);
-    if (error != ErrorCode::Success) [[unlikely]]
+    for (size_type i = 0; i < m_size; ++i)
     {
-        return Result(error);
+        Expected<T, ErrorCode> element = Opal::TryClone(m_data[i], allocator);
+        if (!element.HasValue()) [[unlikely]]
+        {
+            return Result(element.GetError());
+        }
+        new (&clone.m_data[i]) T(Move(element).GetValue());
+        clone.m_size++;
     }
     return Result(Move(clone));
 }

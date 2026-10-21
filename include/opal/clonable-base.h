@@ -114,11 +114,52 @@ public:
         return result;
     }
 
+    /**
+     * Creates a deep clone of the derived object the way Clone does, reporting a failed allocation instead of throwing it. Fields are
+     * copied with Opal::TryClone, in the order OPAL_CLONE_FIELDS lists them, and the first one that fails stops the copy.
+     * @param allocator Optional allocator to pass to the TryClone call of each non-POD field. When nullptr, the default allocator is
+     *                  used.
+     * @return The clone, or the error the failing field reported.
+     */
+    Expected<Derived, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const
+        requires requires(const Derived& d) { d.GetFields(); }
+    {
+        Derived result;
+        auto src = static_cast<const Derived*>(this)->GetFields();
+        auto dst = result.GetFields();
+        const ErrorCode error = TryCloneFields(src, dst, allocator, std::make_index_sequence<std::tuple_size_v<decltype(src)>>{});
+        if (error != ErrorCode::Success) [[unlikely]]
+        {
+            return Expected<Derived, ErrorCode>(error);
+        }
+        return Expected<Derived, ErrorCode>(Move(result));
+    }
+
 private:
     template <typename SrcTuple, typename DstTuple, size_t... Is>
     static void CloneFields(const SrcTuple& src, DstTuple& dst, AllocatorBase* allocator, std::index_sequence<Is...>)
     {
         ((std::get<Is>(dst) = Opal::Clone(std::get<Is>(src), allocator)), ...);
+    }
+
+    template <typename SrcTuple, typename DstTuple, size_t... Is>
+    static ErrorCode TryCloneFields(const SrcTuple& src, DstTuple& dst, AllocatorBase* allocator, std::index_sequence<Is...>)
+    {
+        ErrorCode error = ErrorCode::Success;
+        ((error = TryCloneField(std::get<Is>(src), std::get<Is>(dst), allocator), error == ErrorCode::Success) && ...);
+        return error;
+    }
+
+    template <typename T>
+    static ErrorCode TryCloneField(const T& src, T& dst, AllocatorBase* allocator)
+    {
+        Expected<T, ErrorCode> copy = Opal::TryClone(src, allocator);
+        if (!copy.HasValue()) [[unlikely]]
+        {
+            return copy.GetError();
+        }
+        dst = Move(copy).GetValue();
+        return ErrorCode::Success;
     }
 };
 

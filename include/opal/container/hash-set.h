@@ -189,7 +189,8 @@ public:
     HashSet Clone(AllocatorBase* allocator = nullptr) const;
 
     /**
-     * Creates a set holding a copy of every key in this one, reporting a failed allocation instead of throwing it.
+     * Creates a set holding a copy of every key in this one, reporting a failed allocation instead of throwing it. Keys are copied with
+     * Opal::TryClone, so one that fails to copy is reported too.
      * @param allocator Allocator the copy should use, or nullptr to use the same one as this set. Copied keys are given the same allocator.
      * @return The copy, or ErrorCode::OutOfMemory.
      */
@@ -524,11 +525,16 @@ Opal::Expected<Opal::HashSet<KeyType>, Opal::ErrorCode> Opal::HashSet<KeyType>::
     }
     else
     {
-        // Each slot is marked as it is filled, so a clone that throws part way still destroys what it holds.
+        // Each slot is marked as it is filled, so a clone that fails part way still destroys what it holds.
         for (const_iterator it = cbegin(); it != cend(); ++it)
         {
             const u64 index = it.GetIndex();
-            new (&clone.m_slots[index]) key_type(Opal::Clone(m_slots[index], allocator));
+            Expected<key_type, ErrorCode> key = Opal::TryClone(m_slots[index], allocator);
+            if (!key.HasValue()) [[unlikely]]
+            {
+                return Result(key.GetError());
+            }
+            new (&clone.m_slots[index]) key_type(Move(key).GetValue());
             Impl::SetControlByte(index, m_control_bytes[index], clone.m_control_bytes, m_capacity);
             clone.m_size++;
         }

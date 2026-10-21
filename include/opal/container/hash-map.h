@@ -32,6 +32,21 @@ struct Pair
     {
         return Pair{Opal::Clone(key, allocator), Opal::Clone(value, allocator)};
     }
+
+    Expected<Pair, ErrorCode> TryClone(AllocatorBase* allocator = nullptr) const
+    {
+        Expected<KeyType, ErrorCode> key_copy = Opal::TryClone(key, allocator);
+        if (!key_copy.HasValue()) [[unlikely]]
+        {
+            return Expected<Pair, ErrorCode>(key_copy.GetError());
+        }
+        Expected<ValueType, ErrorCode> value_copy = Opal::TryClone(value, allocator);
+        if (!value_copy.HasValue()) [[unlikely]]
+        {
+            return Expected<Pair, ErrorCode>(value_copy.GetError());
+        }
+        return Expected<Pair, ErrorCode>(Pair{Move(key_copy).GetValue(), Move(value_copy).GetValue()});
+    }
 };
 
 /**
@@ -223,7 +238,8 @@ public:
     HashMap Clone(AllocatorBase* allocator = nullptr) const;
 
     /**
-     * Creates a map holding a copy of every pair in this one, reporting a failed allocation instead of throwing it.
+     * Creates a map holding a copy of every pair in this one, reporting a failed allocation instead of throwing it. Keys and values are
+     * copied with Opal::TryClone, so one that fails to copy is reported too.
      * @param allocator Allocator the copy should use, or nullptr to use the same one as this map. Copied keys and values are given the
      * same allocator.
      * @return The copy, or ErrorCode::OutOfMemory.
@@ -593,11 +609,16 @@ Opal::Expected<Opal::HashMap<KeyType, ValueType>, Opal::ErrorCode> Opal::HashMap
     }
     else
     {
-        // Each slot is marked as it is filled, so a clone that throws part way still destroys what it holds.
+        // Each slot is marked as it is filled, so a clone that fails part way still destroys what it holds.
         for (const_iterator it = cbegin(); it != cend(); ++it)
         {
             const u64 index = it.GetIndex();
-            new (&clone.m_slots[index]) pair_type(m_slots[index].Clone(allocator));
+            Expected<pair_type, ErrorCode> pair = Opal::TryClone(m_slots[index], allocator);
+            if (!pair.HasValue()) [[unlikely]]
+            {
+                return Result(pair.GetError());
+            }
+            new (&clone.m_slots[index]) pair_type(Move(pair).GetValue());
             Impl::SetControlByte(index, m_control_bytes[index], clone.m_control_bytes, m_capacity);
             clone.m_size++;
         }

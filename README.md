@@ -91,6 +91,9 @@ target_link_libraries(your_target PRIVATE opal::opal)
 
 All public API lives in the `Opal` namespace.
 
+For how Opal reports failure, constructs and copies objects and uses allocators - and how to follow the same rules in a library
+built on it - see the [Design Guide](docs/design-guide.md).
+
 ### Clone API
 
 Many Opal types delete their copy constructor and copy assignment operator. This forces the user to be explicit about whether they want to transfer ownership via `std::move` or create a deep copy via `Clone`. This design prevents accidental expensive copies and makes the intent clear at the call site.
@@ -112,7 +115,19 @@ Opal::DynamicArray<int> cloned = moved.Clone();
 Opal::DynamicArray<int> cloned2 = moved.Clone(&my_allocator);
 ```
 
+`Clone` treats a failed allocation as fatal. `TryClone` returns `Expected<T, ErrorCode>` instead, for code running on a budgeted
+allocator:
+
+```cpp
+auto copy = moved.TryClone(&frame_allocator);
+if (!copy.HasValue())
+{
+    return copy.GetError();  // ErrorCode::OutOfMemory
+}
+```
+
 The free function `Opal::Clone` dispatches based on type: POD types are copied directly, non-POD types call `.Clone(allocator)`.
+`Opal::TryClone` does the same with `.TryClone(allocator)`, falling back to `.Clone` for a type that has no `TryClone`.
 
 ```cpp
 #include "opal/common.h"

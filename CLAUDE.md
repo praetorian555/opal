@@ -249,7 +249,9 @@ DynamicArray& operator=(DynamicArray&&) noexcept;
 DynamicArray Clone(AllocatorBase* allocator = nullptr) const;
 ```
 
-The free function `Opal::Clone()` in `common.h` dispatches: POD types copy directly, non-POD calls `.Clone(allocator)`.
+The free function `Opal::Clone()` in `common.h` dispatches: POD types copy directly, non-POD calls `.Clone(allocator)`. `Opal::TryClone()`
+does the same with `.TryClone(allocator)` and falls back to `.Clone`. Container `TryClone` copies elements through it, so a failed
+element copy is reported too.
 
 For user types, inherit `ClonableBase<Derived>` and use `OPAL_CLONE_FIELDS(field1, field2, ...)`.
 
@@ -271,11 +273,11 @@ Thread-local allocator stacks with RAII guards: `PushDefault`, `PushScratch`, `S
 
 ### Error Handling
 
-A failure the caller can act on is returned. A failure that means the caller broke a contract is thrown.
+A failure the caller can act on is returned. A failure that means the caller broke a contract ends the program or throws.
 
 1. **`ErrorCode`** when the operation has no value to hand back - `Reserve`, `Insert`, `Erase`.
 2. **`Expected<T, ErrorCode>`** when it does - `TryAt`, `Front`, `Back`, an `Insert` that yields an iterator.
-3. **Exceptions** (inheriting from `Opal::Exception`) for contract violations, and for constructors, which have no way to return anything. `GetValue` on a key that is not in the map throws; so does a constructor that cannot allocate.
+3. **Contract violations** are not reported back. `OPAL_VERIFY` sends them to the contract violation handler in every build (`GetValue` on a key that is not in the map, `operator[]` out of bounds); some older checks raise an exception (`InvalidArgumentException`, `OutOfBoundsException`). A constructor or `Clone` that cannot allocate raises `OutOfMemoryException`, since it has no way to return anything.
 
 Owning pointers are the exception to the last rule: they already have an empty state to report through. `ScopePtr`, `SharedPtr`, `MakeScoped` and `MakeShared` come back invalid when an allocation fails, and the caller checks `IsValid()`. `SharedPtr` still throws for a `ThreadSafe` policy given an allocator that is not thread-safe, since that is a broken contract rather than a shortage.
 
@@ -299,6 +301,8 @@ Making an empty object never fails. Only filling it can.
   and `TryClone` beside `Clone`. A new container provides both.
 - A type whose invariants need a resource to exist at all (`ThreadPool`) is built only through `Create`, using a passkey
   constructor. No separate `Init` method: it allows an object that exists but is not ready.
+
+`docs/design-guide.md` explains these rules for libraries built on Opal. Keep it in step when they change.
 
 ### Move Utility
 

@@ -124,7 +124,11 @@ public:
     static_assert(!k_is_reference_value<ValueType>, "Value type must not be a reference");
     static_assert(!k_is_const_value<ValueType>, "Value type must not be const");
 
-    Deque(AllocatorType* allocator = nullptr);
+    /**
+     * Creates an empty deque with no room reserved. Does not allocate, so it cannot fail.
+     * @param allocator Allocator to use, or nullptr to use the default one.
+     */
+    Deque(AllocatorType* allocator = nullptr) noexcept;
     explicit Deque(SizeType count, AllocatorType* allocator = nullptr);
     Deque(SizeType count, const T& value, AllocatorType* allocator = nullptr);
 
@@ -138,7 +142,8 @@ public:
     [[nodiscard]] static Expected<Deque, ErrorCode> Create(SizeType count, const T& value, AllocatorType* allocator = nullptr);
 
     /**
-     * Create a deep copy of this deque, reporting a failed allocation instead of throwing it.
+     * Create a deep copy of this deque, reporting a failed allocation instead of throwing it. Elements are copied with
+     * Opal::TryClone, so an element that fails to copy is reported too.
      * @param allocator Allocator to be used for the copy. If nullptr, the source deque's allocator will be used.
      * @return The copy, or ErrorCode::OutOfMemory.
      */
@@ -412,15 +417,7 @@ private:
 #define CLASS_HEADER Opal::Deque<T>
 
 TEMPLATE_HEADER
-CLASS_HEADER::Deque(AllocatorType* allocator)
-    : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator), m_capacity(k_default_capacity)
-{
-    if (Initialize(T()) != ErrorCode::Success) [[unlikely]]
-    {
-        // A constructor has no way to hand back a code, so allocation failure stays an exception here.
-        OPAL_RAISE(OutOfMemoryException(m_allocator->GetName(), k_default_capacity * sizeof(T)));
-    }
-}
+CLASS_HEADER::Deque(AllocatorType* allocator) noexcept : m_allocator(allocator == nullptr ? GetDefaultAllocator() : allocator) {}
 
 TEMPLATE_HEADER
 CLASS_HEADER::Deque(SizeType count, AllocatorType* allocator)
@@ -449,18 +446,7 @@ CLASS_HEADER::Deque(SizeType count, const T& value, AllocatorType* allocator)
 TEMPLATE_HEADER
 Opal::Expected<CLASS_HEADER, Opal::ErrorCode> CLASS_HEADER::Create(AllocatorType* allocator)
 {
-    using Result = Expected<Deque, ErrorCode>;
-    // Not Create(0, allocator): the count overload rounds up to a power of two, and k_default_capacity is 0, so routing through
-    // it would give an empty deque a slot the matching constructor never allocates.
-    Deque deque{EmptyTag{}};
-    deque.m_allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
-    deque.m_capacity = k_default_capacity;
-    const ErrorCode error = deque.Initialize(T());
-    if (error != ErrorCode::Success) [[unlikely]]
-    {
-        return Result(error);
-    }
-    return Result(Move(deque));
+    return Expected<Deque, ErrorCode>(Deque(allocator));
 }
 
 TEMPLATE_HEADER
@@ -507,11 +493,16 @@ Opal::Expected<CLASS_HEADER, Opal::ErrorCode> Opal::Deque<T>::TryClone(Allocator
     }
     for (SizeType i = m_first, count = 0; count < m_size; count++)
     {
-        new (out.m_data + count) T(Opal::Clone(m_data[i], allocator));
+        Expected<T, ErrorCode> element = Opal::TryClone(m_data[i], allocator);
+        if (!element.HasValue()) [[unlikely]]
+        {
+            return Result(element.GetError());
+        }
+        new (out.m_data + count) T(Move(element).GetValue());
+        out.m_size++;
         ++i;
         i &= (m_capacity - 1);
     }
-    out.m_size = m_size;
     return clone;
 }
 

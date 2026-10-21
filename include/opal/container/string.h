@@ -202,7 +202,7 @@ public:
      * @brief Default constructor.
      * @param allocator Allocator to use for memory management. If nullptr, the default allocator will be used.
      */
-    String(allocator_type* allocator = nullptr);
+    String(allocator_type* allocator = nullptr) noexcept;
 
     /**
      * @brief Construct a string with a specific size and value.
@@ -1391,7 +1391,7 @@ T StringToNumber(const char8* str, i32 base = 0);
 #define CLASS_HEADER Opal::String<CodeUnitType, EncodingType>
 
 TEMPLATE_HEADER
-CLASS_HEADER::String(allocator_type* allocator)
+CLASS_HEADER::String(allocator_type* allocator) noexcept
 {
     allocator = allocator == nullptr ? GetDefaultAllocator() : allocator;
     InitSmall(allocator, 0);
