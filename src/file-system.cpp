@@ -20,25 +20,16 @@
 #endif
 
 #include "opal/container/dynamic-array.h"
+#include "platform-path.h"
 
-namespace
-{
 #if defined(OPAL_PLATFORM_WINDOWS)
-// Build the wide form of a path. The sized String constructors throw on a failed allocation, so the buffer is grown
-// through Resize, which reports one.
-Opal::ErrorCode ToWidePath(const Opal::StringUtf8& path, Opal::StringWide& out_path)
-{
-    const Opal::ErrorCode error = out_path.Resize(path.GetSize() * 2, L'\0');
-    if (error != Opal::ErrorCode::Success) [[unlikely]]
-    {
-        return error;
-    }
-    return Opal::Transcode(path, out_path);
-}
+using Opal::Impl::ToWidePath;
+#elif defined(OPAL_PLATFORM_LINUX)
+using Opal::Impl::NativePath;
+using Opal::Impl::ToNativePath;
 #endif
-}  // namespace
 
-Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool fail_if_already_exists)
+Opal::ErrorCode Opal::CreateFile(StringViewUtf8 path, bool fail_if_already_exists)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide;
@@ -70,8 +61,13 @@ Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool fail_if_already_ex
     }
     return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
+    NativePath native_path;
+    if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
+    {
+        return error;
+    }
     const i32 flags = O_CREAT | O_EXCL;
-    i32 fd = open(path.GetData(), flags, 0644);
+    i32 fd = open(native_path.data, flags, 0644);
     if (fd != -1)
     {
         close(fd);
@@ -91,7 +87,7 @@ Opal::ErrorCode Opal::CreateFile(const StringUtf8& path, bool fail_if_already_ex
 #endif
 }
 
-Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path)
+Opal::ErrorCode Opal::DeleteFile(StringViewUtf8 path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide;
@@ -111,7 +107,12 @@ Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path)
     }
     return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
-    i32 result = remove(path.GetData());
+    NativePath native_path;
+    if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
+    {
+        return error;
+    }
+    i32 result = remove(native_path.data);
     if (result == 0)
     {
         return ErrorCode::Success;
@@ -126,7 +127,7 @@ Opal::ErrorCode Opal::DeleteFile(const StringUtf8& path)
 #endif
 }
 
-Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, bool fail_if_already_exists)
+Opal::ErrorCode Opal::CreateDirectory(StringViewUtf8 path, bool fail_if_already_exists)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide;
@@ -151,7 +152,12 @@ Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, bool fail_if_alrea
     }
     return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
-    if (mkdir(*path, 0777) == 0)
+    NativePath native_path;
+    if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
+    {
+        return error;
+    }
+    if (mkdir(native_path.data, 0777) == 0)
     {
         return ErrorCode::Success;
     }
@@ -169,7 +175,7 @@ Opal::ErrorCode Opal::CreateDirectory(const StringUtf8& path, bool fail_if_alrea
 #endif
 }
 
-Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path)
+Opal::ErrorCode Opal::DeleteDirectory(StringViewUtf8 path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide;
@@ -194,7 +200,12 @@ Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path)
     }
     return ErrorCode::OSFailure;
 #elif defined(OPAL_PLATFORM_LINUX)
-    if (rmdir(*path) == 0)
+    NativePath native_path;
+    if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
+    {
+        return error;
+    }
+    if (rmdir(native_path.data) == 0)
     {
         return ErrorCode::Success;
     }
@@ -212,7 +223,7 @@ Opal::ErrorCode Opal::DeleteDirectory(const StringUtf8& path)
 #endif
 }
 
-bool Opal::Exists(const StringUtf8& path)
+bool Opal::Exists(StringViewUtf8 path)
 {
     if (path.IsEmpty())
     {
@@ -245,7 +256,7 @@ bool Opal::Exists(const StringUtf8& path)
 #endif
 }
 
-bool Opal::IsDirectory(const StringUtf8& path)
+bool Opal::IsDirectory(StringViewUtf8 path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide;
@@ -261,8 +272,13 @@ bool Opal::IsDirectory(const StringUtf8& path)
     }
     return (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
 #elif defined(OPAL_PLATFORM_LINUX)
+    NativePath native_path;
+    if (ToNativePath(path, native_path) != ErrorCode::Success)
+    {
+        return false;
+    }
     struct stat buff;
-    if (stat(*path, &buff) == 0)
+    if (stat(native_path.data, &buff) == 0)
     {
         return S_ISDIR(buff.st_mode) != 0;
     }
@@ -272,7 +288,7 @@ bool Opal::IsDirectory(const StringUtf8& path)
 #endif
 }
 
-bool Opal::IsFile(const StringUtf8& path)
+bool Opal::IsFile(StringViewUtf8 path)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide path_wide;
@@ -288,8 +304,13 @@ bool Opal::IsFile(const StringUtf8& path)
     }
     return (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
 #elif defined(OPAL_PLATFORM_LINUX)
+    NativePath native_path;
+    if (ToNativePath(path, native_path) != ErrorCode::Success)
+    {
+        return false;
+    }
     struct stat buff;
-    if (stat(*path, &buff) == 0)
+    if (stat(native_path.data, &buff) == 0)
     {
         return S_ISREG(buff.st_mode) != 0;
     }
@@ -494,7 +515,7 @@ Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::
 #endif
 }
 
-Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::ReadFileAsString(const StringUtf8& path)
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::ReadFileAsString(StringViewUtf8 path)
 {
     using Result = Expected<StringUtf8, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -544,7 +565,12 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::ReadFileAsString(const S
     CloseHandle(file_handle);
     return Result(Move(result));
 #elif defined(OPAL_PLATFORM_LINUX)
-    FILE* file = fopen(*path, "rb");
+    NativePath native_path;
+    if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
+    {
+        return Result(error);
+    }
+    FILE* file = fopen(native_path.data, "rb");
     if (file == nullptr)
     {
         if (errno == ENOENT)
@@ -587,7 +613,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::ReadFileAsString(const S
 #endif
 }
 
-Opal::Expected<Opal::DynamicArray<Opal::u8>, Opal::ErrorCode> Opal::ReadFileAsBytes(const StringUtf8& path)
+Opal::Expected<Opal::DynamicArray<Opal::u8>, Opal::ErrorCode> Opal::ReadFileAsBytes(StringViewUtf8 path)
 {
     using Result = Expected<DynamicArray<u8>, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -638,7 +664,12 @@ Opal::Expected<Opal::DynamicArray<Opal::u8>, Opal::ErrorCode> Opal::ReadFileAsBy
     CloseHandle(file_handle);
     return Result(Move(result));
 #elif defined(OPAL_PLATFORM_LINUX)
-    FILE* file = fopen(*path, "rb");
+    NativePath native_path;
+    if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
+    {
+        return Result(error);
+    }
+    FILE* file = fopen(native_path.data, "rb");
     if (file == nullptr)
     {
         if (errno == ENOENT)
@@ -685,7 +716,7 @@ namespace
 {
 
 #if defined(OPAL_PLATFORM_WINDOWS)
-Opal::ErrorCode WriteToFileWin32(const Opal::StringUtf8& path, const void* data, Opal::u64 size, DWORD creation_disposition)
+Opal::ErrorCode WriteToFileWin32(Opal::StringViewUtf8 path, const void* data, Opal::u64 size, DWORD creation_disposition)
 {
     using namespace Opal;
 
@@ -732,11 +763,16 @@ Opal::ErrorCode WriteToFileWin32(const Opal::StringUtf8& path, const void* data,
     return ErrorCode::Success;
 }
 #elif defined(OPAL_PLATFORM_LINUX)
-Opal::ErrorCode WriteToFileLinux(const Opal::StringUtf8& path, const void* data, Opal::u64 size, const char* mode)
+Opal::ErrorCode WriteToFileLinux(Opal::StringViewUtf8 path, const void* data, Opal::u64 size, const char* mode)
 {
     using namespace Opal;
 
-    FILE* file = fopen(*path, mode);
+    NativePath native_path;
+    if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
+    {
+        return error;
+    }
+    FILE* file = fopen(native_path.data, mode);
     if (file == nullptr)
     {
         if (errno == ENOENT)
@@ -763,7 +799,7 @@ Opal::ErrorCode WriteToFileLinux(const Opal::StringUtf8& path, const void* data,
 
 }  // namespace
 
-Opal::ErrorCode Opal::WriteStringToFile(const StringUtf8& path, const StringUtf8& content)
+Opal::ErrorCode Opal::WriteStringToFile(StringViewUtf8 path, StringViewUtf8 content)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
@@ -774,7 +810,7 @@ Opal::ErrorCode Opal::WriteStringToFile(const StringUtf8& path, const StringUtf8
 #endif
 }
 
-Opal::ErrorCode Opal::WriteBytesToFile(const StringUtf8& path, ArrayView<const u8> content)
+Opal::ErrorCode Opal::WriteBytesToFile(StringViewUtf8 path, ArrayView<const u8> content)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
@@ -785,7 +821,7 @@ Opal::ErrorCode Opal::WriteBytesToFile(const StringUtf8& path, ArrayView<const u
 #endif
 }
 
-Opal::ErrorCode Opal::AppendStringToFile(const StringUtf8& path, const StringUtf8& content)
+Opal::ErrorCode Opal::AppendStringToFile(StringViewUtf8 path, StringViewUtf8 content)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);
@@ -796,7 +832,7 @@ Opal::ErrorCode Opal::AppendStringToFile(const StringUtf8& path, const StringUtf
 #endif
 }
 
-Opal::ErrorCode Opal::AppendBytesToFile(const StringUtf8& path, ArrayView<const u8> content)
+Opal::ErrorCode Opal::AppendBytesToFile(StringViewUtf8 path, ArrayView<const u8> content)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);

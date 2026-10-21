@@ -358,7 +358,13 @@ public:
      * @return A reader over the parsed document, or where and why the parse stopped. Malformed input is the expected
      *         case for JSON that came from outside the program, so it is reported rather than raised.
      */
-    [[nodiscard]] static Expected<JsonReader, JsonParseError> Parse(const StringUtf8& input, AllocatorBase* allocator = nullptr);
+    [[nodiscard]] static Expected<JsonReader, JsonParseError> Parse(StringViewUtf8 input, AllocatorBase* allocator = nullptr);
+
+    /** Parse JSON from a null-terminated string. Picks the borrowing overload for a literal, which would otherwise be ambiguous. */
+    [[nodiscard]] static Expected<JsonReader, JsonParseError> Parse(const char8* input, AllocatorBase* allocator = nullptr)
+    {
+        return Parse(StringViewUtf8(input), allocator);
+    }
 
     /**
      * Parse JSON and take ownership of the input string.

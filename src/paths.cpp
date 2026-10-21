@@ -1,6 +1,5 @@
 #include "opal/paths.h"
 
-#include "../third-party/catch2/include/catch2/catch2.hpp"
 #include "opal/defines.h"
 
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -9,6 +8,27 @@
 #include <limits.h>
 #include <unistd.h>
 #endif
+
+namespace
+{
+
+// Index of the last separator of either kind, or k_npos when the path has none.
+Opal::StringViewUtf8::size_type FindLastSeparator(Opal::StringViewUtf8 path)
+{
+    const Opal::StringViewUtf8::size_type backslash = Opal::ReverseFind(path, '\\');
+    const Opal::StringViewUtf8::size_type slash = Opal::ReverseFind(path, '/');
+    if (backslash == Opal::StringViewUtf8::k_npos)
+    {
+        return slash;
+    }
+    if (slash == Opal::StringViewUtf8::k_npos)
+    {
+        return backslash;
+    }
+    return backslash > slash ? backslash : slash;
+}
+
+}  // namespace
 
 Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorkingDirectory()
 {
@@ -61,7 +81,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorking
 #endif
 }
 
-Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path)
+Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(StringViewUtf8 path)
 {
     Expected<StringUtf8, ErrorCode> normalized_path = NormalizePath(path);
     if (!normalized_path.HasValue())
@@ -98,7 +118,7 @@ Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(const StringUtf8& path)
 #endif
 }
 
-Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(const StringUtf8& path)
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(StringViewUtf8 path)
 {
     using Result = Expected<StringUtf8, ErrorCode>;
     // Records the first failed append; every later one is skipped and the code is returned at the next checkpoint.
@@ -107,7 +127,14 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
     {
         if (append_error == ErrorCode::Success) [[likely]]
         {
-            append_error = target.Append(value);
+            if constexpr (k_is_same_value<decltype(value), const StringViewUtf8&>)
+            {
+                append_error = target.Append(value.GetData(), value.GetSize());
+            }
+            else
+            {
+                append_error = target.Append(value);
+            }
         }
     };
 
@@ -298,7 +325,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(con
     return Result(Move(root));
 }
 
-bool Opal::Paths::IsPathAbsolute(const StringUtf8& path)
+bool Opal::Paths::IsPathAbsolute(StringViewUtf8 path)
 {
     if (path.IsEmpty())
     {
@@ -324,28 +351,19 @@ bool Opal::Paths::IsPathAbsolute(const StringUtf8& path)
 #error "Platform not supported"
 #endif
 }
-Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetFileName(const StringUtf8& path, AllocatorBase* allocator)
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetFileName(StringViewUtf8 path, AllocatorBase* allocator)
 {
-    StringUtf8::size_type last_separator = ReverseFind(path, '\\');
-    const StringUtf8::size_type other_last_separator = ReverseFind(path, '/');
-    if (last_separator == StringUtf8::k_npos)
+    const StringViewUtf8::size_type last_separator = FindLastSeparator(path);
+    if (last_separator == StringViewUtf8::k_npos)
     {
-        last_separator = other_last_separator;
-    }
-    if (other_last_separator != StringUtf8::k_npos && other_last_separator > last_separator)
-    {
-        last_separator = other_last_separator;
-    }
-    if (last_separator == StringUtf8::k_npos)
-    {
-        return Expected<StringUtf8, ErrorCode>(path.Clone(allocator));
+        return path.TryToString(allocator);
     }
     if (last_separator == path.GetSize() - 1)
     {
         return Expected<StringUtf8, ErrorCode>(StringUtf8(allocator));
     }
     StringUtf8 result(allocator);
-    const ErrorCode err = result.Append(path, last_separator + 1, StringUtf8::k_npos);
+    const ErrorCode err = result.Append(path.GetData() + last_separator + 1, path.GetSize() - last_separator - 1);
     if (err != ErrorCode::Success)
     {
         return Expected<StringUtf8, ErrorCode>(err);
@@ -353,7 +371,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetFileName(const
     return Expected<StringUtf8, ErrorCode>(std::move(result));
 }
 
-Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetStem(const StringUtf8& path, AllocatorBase* allocator)
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetStem(StringViewUtf8 path, AllocatorBase* allocator)
 {
     Expected<StringUtf8, ErrorCode> file_name = GetFileName(path, allocator);
     if (!file_name.HasValue())
@@ -375,7 +393,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetStem(const Str
     return Expected<StringUtf8, ErrorCode>(std::move(result));
 }
 
-Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExtension(const StringUtf8& path, AllocatorBase* allocator)
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExtension(StringViewUtf8 path, AllocatorBase* allocator)
 {
     Expected<StringUtf8, ErrorCode> file_name = GetFileName(path, allocator);
     if (!file_name.HasValue())
@@ -397,32 +415,23 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExtension(cons
     return Expected<StringUtf8, ErrorCode>(std::move(result));
 }
 
-Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(const StringUtf8& path, AllocatorBase* allocator)
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(StringViewUtf8 path, AllocatorBase* allocator)
 {
-    StringUtf8::size_type last_separator = ReverseFind(path, '\\');
-    const StringUtf8::size_type other_last_separator = ReverseFind(path, '/');
-    if (last_separator == StringUtf8::k_npos)
-    {
-        last_separator = other_last_separator;
-    }
-    if (other_last_separator != StringUtf8::k_npos && other_last_separator > last_separator)
-    {
-        last_separator = other_last_separator;
-    }
-    if (last_separator == StringUtf8::k_npos)
+    const StringViewUtf8::size_type last_separator = FindLastSeparator(path);
+    if (last_separator == StringViewUtf8::k_npos)
     {
         return Expected<StringUtf8, ErrorCode>(StringUtf8(allocator));
     }
     if (last_separator == 0)
     {
-        return Expected<StringUtf8, ErrorCode>(path.Clone(allocator));
+        return path.TryToString(allocator);
     }
     if (last_separator == 2 && path[1] == ':')
     {
-        return Expected<StringUtf8, ErrorCode>(path.Clone(allocator));
+        return path.TryToString(allocator);
     }
     StringUtf8 result(allocator);
-    const ErrorCode err = result.Append(path, 0, last_separator);
+    const ErrorCode err = result.Append(path.GetData(), last_separator);
     if (err != ErrorCode::Success)
     {
         return Expected<StringUtf8, ErrorCode>(err);

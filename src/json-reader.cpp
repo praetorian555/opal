@@ -1256,7 +1256,7 @@ private:
 // JsonReader.
 // ------------------------------------------------------------------------------------------------
 
-Expected<JsonReader, JsonParseError> JsonReader::Parse(const StringUtf8& input, AllocatorBase* allocator)
+Expected<JsonReader, JsonParseError> JsonReader::Parse(StringViewUtf8 input, AllocatorBase* allocator)
 {
     using Result = Expected<JsonReader, JsonParseError>;
     if (allocator == nullptr)

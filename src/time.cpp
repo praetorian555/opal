@@ -14,6 +14,7 @@
 #include <time.h>
 
 #include "opal/types.h"
+#include "platform-path.h"
 
 namespace
 {
@@ -299,14 +300,15 @@ u8 GetDaysInMonth(i32 year, u8 month)
     return k_days[month - 1];
 }
 
-Expected<DateTime, ErrorCode> GetLastFileModifiedTime(const StringUtf8& file_path)
+Expected<DateTime, ErrorCode> GetLastFileModifiedTime(StringViewUtf8 file_path)
 {
     using Result = Expected<DateTime, ErrorCode>;
 #if defined(OPAL_PLATFORM_WINDOWS)
-    StringWide wide_file_path(file_path.GetSize() + 1, 0);
-    if (Transcode(file_path, wide_file_path) != ErrorCode::Success)
+    StringWide wide_file_path;
+    const ErrorCode transcode_error = Impl::ToWidePath(file_path, wide_file_path);
+    if (transcode_error != ErrorCode::Success)
     {
-        return Result(ErrorCode::InvalidArgument);
+        return Result(transcode_error == ErrorCode::OutOfMemory ? ErrorCode::OutOfMemory : ErrorCode::InvalidArgument);
     }
 
     WIN32_FILE_ATTRIBUTE_DATA attributes = {};
@@ -322,8 +324,13 @@ Expected<DateTime, ErrorCode> GetLastFileModifiedTime(const StringUtf8& file_pat
     ticks.HighPart = attributes.ftLastWriteTime.dwHighDateTime;
     return Result(DateTime{(static_cast<i64>(ticks.QuadPart) - k_filetime_epoch_offset) * 100});
 #elif defined(OPAL_PLATFORM_LINUX)
+    Impl::NativePath native_path;
+    if (const ErrorCode error = Impl::ToNativePath(file_path, native_path); error != ErrorCode::Success)
+    {
+        return Result(error);
+    }
     struct stat info = {};
-    if (stat(*file_path, &info) != 0)
+    if (stat(native_path.data, &info) != 0)
     {
         return Result(errno == ENOENT || errno == ENOTDIR ? ErrorCode::PathNotFound : ErrorCode::OSFailure);
     }

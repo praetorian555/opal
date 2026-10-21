@@ -3,6 +3,7 @@
 #include <compare>
 
 #include "opal/container/expected.h"
+#include "opal/container/string-view.h"
 #include "opal/container/string.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
@@ -141,8 +142,9 @@ u8 GetDaysInMonth(i32 year, u8 month);
 /**
  * Read the time a file was last written to.
  * @param file_path Path to the file to check.
- * @return The instant, ErrorCode::PathNotFound when no such file exists, or ErrorCode::OSFailure.
+ * @return The instant, ErrorCode::PathNotFound when no such file exists, ErrorCode::InvalidArgument for a path the platform does
+ *         not accept, ErrorCode::OutOfMemory when the path could not be converted, or ErrorCode::OSFailure.
  */
-Expected<DateTime, ErrorCode> GetLastFileModifiedTime(const StringUtf8& file_path);
+Expected<DateTime, ErrorCode> GetLastFileModifiedTime(StringViewUtf8 file_path);
 
 }  // namespace Opal

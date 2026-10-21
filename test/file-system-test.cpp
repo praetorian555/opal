@@ -2,6 +2,10 @@
 
 #include <stdio.h>
 
+#if defined(OPAL_PLATFORM_LINUX)
+#include <limits.h>
+#endif
+
 #include "opal/exceptions.h"
 #include "opal/paths.h"
 #include "opal/container/hash-set.h"
@@ -498,6 +502,25 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
         StringUtf8 file_path = temp.Path(path, "no-such-dir", "file.txt");
         REQUIRE(WriteStringToFile(file_path, StringUtf8("data")) == ErrorCode::PathNotFound);
     }
+    SECTION("Path is read only up to the end of the view")
+    {
+        StringUtf8 file_path = temp.Path(path, "write-view.txt");
+        StringUtf8 padded = file_path.Clone();
+        REQUIRE(padded.Append("-not-part-of-the-path") == ErrorCode::Success);
+        const StringViewUtf8 view(padded.GetData(), file_path.GetSize());
+
+        REQUIRE(WriteStringToFile(view, StringViewUtf8("view")) == ErrorCode::Success);
+        REQUIRE(IsFile(file_path));
+        REQUIRE(ReadStringOrFail(file_path) == "view");
+    }
+#if defined(OPAL_PLATFORM_LINUX)
+    SECTION("Path longer than the platform accepts")
+    {
+        const StringUtf8 too_long(PATH_MAX, 'a');
+        REQUIRE(WriteStringToFile(too_long, StringViewUtf8("data")) == ErrorCode::InvalidArgument);
+        REQUIRE_FALSE(IsFile(too_long));
+    }
+#endif
     SECTION("Write creates new file")
     {
         StringUtf8 file_path = temp.Path(path, "write-new.txt");

@@ -120,19 +120,28 @@ void FromSockaddr(const sockaddr_storage& storage, Opal::SocketEndpoint& out_end
 
 }  // namespace
 
-Opal::Expected<Opal::IpAddress, Opal::ErrorCode> Opal::IpAddress::Parse(const StringUtf8& text)
+Opal::Expected<Opal::IpAddress, Opal::ErrorCode> Opal::IpAddress::Parse(StringViewUtf8 text)
 {
     using Result = Expected<IpAddress, ErrorCode>;
+    // inet_pton reads a null-terminated string, and no numeric address is longer than INET6_ADDRSTRLEN.
+    char8 terminated[INET6_ADDRSTRLEN];
+    if (text.GetSize() >= sizeof(terminated))
+    {
+        return Result(ErrorCode::InvalidArgument);
+    }
+    memcpy(terminated, text.GetData(), text.GetSize());
+    terminated[text.GetSize()] = '\0';
+
     IpAddress address;
     in_addr v4;
-    if (inet_pton(AF_INET, *text, &v4) == 1)
+    if (inet_pton(AF_INET, terminated, &v4) == 1)
     {
         address.family = IpFamily::IpV4;
         memcpy(address.bytes, &v4, 4);
         return Result(address);
     }
     in6_addr v6;
-    if (inet_pton(AF_INET6, *text, &v6) == 1)
+    if (inet_pton(AF_INET6, terminated, &v6) == 1)
     {
         address.family = IpFamily::IpV6;
         memcpy(address.bytes, &v6, 16);

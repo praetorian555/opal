@@ -75,6 +75,7 @@ set(OPAL_FILES
         src/json-writer.cpp
         src/optional.cpp
         src/socket.cpp
+        src/platform-path.h
         include/opal/defines.h
         include/opal/assert.h
         include/opal/type-traits.h

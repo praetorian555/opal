@@ -2,6 +2,7 @@
 
 #include "opal/container/array-view.h"
 #include "opal/container/expected.h"
+#include "opal/container/string-view.h"
 #include "opal/container/string.h"
 #include "opal/error-codes.h"
 #include "opal/types.h"
@@ -29,7 +30,7 @@ struct IpAddress
      * @param text The address in its string form. Host names are not resolved.
      * @return The parsed address, or ErrorCode::InvalidArgument when the text is not a numeric address.
      */
-    [[nodiscard]] static Expected<IpAddress, ErrorCode> Parse(const StringUtf8& text);
+    [[nodiscard]] static Expected<IpAddress, ErrorCode> Parse(StringViewUtf8 text);
 
     /**
      * @brief Format the address in its canonical string form.

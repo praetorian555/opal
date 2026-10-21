@@ -83,6 +83,16 @@ TEST_CASE("Socket address parsing", "[Socket]")
         CHECK(IpAddress::Parse("1.2.3").GetError() == ErrorCode::InvalidArgument);
         CHECK(IpAddress::Parse("").GetError() == ErrorCode::InvalidArgument);
     }
+    SECTION("Reads only the viewed text")
+    {
+        const StringViewUtf8 with_port("127.0.0.1:8080");
+        Expected<IpAddress, ErrorCode> parsed = IpAddress::Parse(StringViewUtf8(with_port.GetData(), 9));
+        REQUIRE(parsed.HasValue());
+        CHECK(parsed.GetValue() == IpAddress::LoopbackV4());
+
+        const StringUtf8 too_long(100, '1');
+        CHECK(IpAddress::Parse(too_long).GetError() == ErrorCode::InvalidArgument);
+    }
     SECTION("Well known addresses")
     {
         CHECK(IpAddress::AnyV4().ToString() == StringUtf8("0.0.0.0"));

@@ -133,7 +133,14 @@ check for that state.
 ### Keep allocations visible at call sites
 
 A function that only reads a string should take `StringViewUtf8`, not `const StringUtf8&`. A literal then converts to a view
-without allocating, and a string is only built where one is actually stored.
+without allocating, and a string is only built where one is actually stored. Opal's file, path, time, socket and JSON functions
+take their strings this way.
+
+A view is not null-terminated. Code that hands one to a C API needing a terminator has to copy it first; Opal's file functions copy
+a path into a stack buffer on Linux, so they still do not allocate.
+
+The exception is a string used to look up a `HashMap<StringUtf8, ...>`: the map looks up by an owned key, so a view would have to
+be turned back into a string for every lookup. Take `const StringUtf8&` there.
 
 ## Copying
 

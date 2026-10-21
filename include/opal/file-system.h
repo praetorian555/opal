@@ -1,8 +1,12 @@
 #pragma once
 
 #include "opal/container/expected.h"
+#include "opal/container/string-view.h"
 #include "opal/container/string.h"
 #include "opal/error-codes.h"
+
+// A function here that takes a path reports one longer than the platform accepts as ErrorCode::InvalidArgument, or false for the
+// ones that return bool.
 
 namespace Opal
 {
@@ -16,7 +20,7 @@ namespace Opal
  *         ErrorCode::AlreadyExists when something is already on the path and fail_if_already_exists is set, or
  *         ErrorCode::OSFailure for any other failure.
  */
-[[nodiscard]] ErrorCode CreateFile(const StringUtf8& path, bool fail_if_already_exists = false);
+[[nodiscard]] ErrorCode CreateFile(StringViewUtf8 path, bool fail_if_already_exists = false);
 
 /**
  * @brief Deletes a file.
@@ -25,7 +29,7 @@ namespace Opal
  * @return ErrorCode::Success, ErrorCode::PathNotFound when the path does not exist, or ErrorCode::OSFailure for any
  *         other failure.
  */
-[[nodiscard]] ErrorCode DeleteFile(const StringUtf8& path);
+[[nodiscard]] ErrorCode DeleteFile(StringViewUtf8 path);
 
 /**
  * @brief Creates a directory at a specified path.
@@ -36,7 +40,7 @@ namespace Opal
  *         ErrorCode::AlreadyExists when something is already on the path and fail_if_already_exists is set, or
  *         ErrorCode::OSFailure for any other failure.
  */
-[[nodiscard]] ErrorCode CreateDirectory(const StringUtf8& path, bool fail_if_already_exists = false);
+[[nodiscard]] ErrorCode CreateDirectory(StringViewUtf8 path, bool fail_if_already_exists = false);
 
 /**
  * @brief Deletes a directory.
@@ -45,7 +49,7 @@ namespace Opal
  * @return ErrorCode::Success, ErrorCode::PathNotFound when the path does not exist, ErrorCode::NotEmpty when the
  *         directory still has contents, or ErrorCode::OSFailure for any other failure.
  */
-[[nodiscard]] ErrorCode DeleteDirectory(const StringUtf8& path);
+[[nodiscard]] ErrorCode DeleteDirectory(StringViewUtf8 path);
 
 /**
  * @brief Check if the path exists.
@@ -53,7 +57,7 @@ namespace Opal
  * @note Might use current scratch allocator on some platforms.
  * @return True if the path exists, otherwise false, including the errors.
  */
-bool Exists(const StringUtf8& path);
+bool Exists(StringViewUtf8 path);
 
 /**
  * @brief Check if specified path is a directory.
@@ -61,7 +65,7 @@ bool Exists(const StringUtf8& path);
  * @note Might use current scratch allocator on some platforms.
  * @return Returns true if path is a directory, false if path does not exist or its not a directory.
  */
-bool IsDirectory(const StringUtf8& path);
+bool IsDirectory(StringViewUtf8 path);
 
 /**
  * @brief Check if specified path is a file.
@@ -69,7 +73,7 @@ bool IsDirectory(const StringUtf8& path);
  * @note Might use current scratch allocator on some platforms.
  * @return Returns true if path is a file, false if path does not exist or it's not a directory.
  */
-bool IsFile(const StringUtf8& path);
+bool IsFile(StringViewUtf8 path);
 
 struct DirectoryContentsDesc
 {
@@ -102,7 +106,7 @@ struct DirectoryEntry
  * @return String containing the file contents, ErrorCode::PathNotFound when the file does not exist, or
  *         ErrorCode::OSFailure for any other failure.
  */
-[[nodiscard]] Expected<StringUtf8, ErrorCode> ReadFileAsString(const StringUtf8& path);
+[[nodiscard]] Expected<StringUtf8, ErrorCode> ReadFileAsString(StringViewUtf8 path);
 
 /**
  * @brief Read the entire contents of a file as a byte array.
@@ -110,7 +114,7 @@ struct DirectoryEntry
  * @return Array of bytes containing the file contents, ErrorCode::PathNotFound when the file does not exist, or
  *         ErrorCode::OSFailure for any other failure.
  */
-[[nodiscard]] Expected<DynamicArray<u8>, ErrorCode> ReadFileAsBytes(const StringUtf8& path);
+[[nodiscard]] Expected<DynamicArray<u8>, ErrorCode> ReadFileAsBytes(StringViewUtf8 path);
 
 /**
  * @brief Write a string to a file, replacing any existing content. Creates the file if it does not exist.
@@ -119,7 +123,7 @@ struct DirectoryEntry
  * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist, or
  *         ErrorCode::OSFailure for any other failure.
  */
-[[nodiscard]] ErrorCode WriteStringToFile(const StringUtf8& path, const StringUtf8& content);
+[[nodiscard]] ErrorCode WriteStringToFile(StringViewUtf8 path, StringViewUtf8 content);
 
 /**
  * @brief Write bytes to a file, replacing any existing content. Creates the file if it does not exist.
@@ -128,7 +132,7 @@ struct DirectoryEntry
  * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist, or
  *         ErrorCode::OSFailure for any other failure.
  */
-[[nodiscard]] ErrorCode WriteBytesToFile(const StringUtf8& path, ArrayView<const u8> content);
+[[nodiscard]] ErrorCode WriteBytesToFile(StringViewUtf8 path, ArrayView<const u8> content);
 
 /**
  * @brief Append a string to a file. Creates the file if it does not exist.
@@ -137,7 +141,7 @@ struct DirectoryEntry
  * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist, or
  *         ErrorCode::OSFailure for any other failure.
  */
-[[nodiscard]] ErrorCode AppendStringToFile(const StringUtf8& path, const StringUtf8& content);
+[[nodiscard]] ErrorCode AppendStringToFile(StringViewUtf8 path, StringViewUtf8 content);
 
 /**
  * @brief Append bytes to a file. Creates the file if it does not exist.
@@ -146,6 +150,6 @@ struct DirectoryEntry
  * @return ErrorCode::Success, ErrorCode::PathNotFound when the parent directory does not exist, or
  *         ErrorCode::OSFailure for any other failure.
  */
-[[nodiscard]] ErrorCode AppendBytesToFile(const StringUtf8& path, ArrayView<const u8> content);
+[[nodiscard]] ErrorCode AppendBytesToFile(StringViewUtf8 path, ArrayView<const u8> content);
 
 }  // namespace Opal

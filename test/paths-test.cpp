@@ -267,6 +267,24 @@ TEST_CASE("Is path absolute", "[Paths]")
 
 TEST_CASE("Get file name", "[Paths]")
 {
+    SECTION("Reads only the viewed text")
+    {
+        const StringViewUtf8 path("dir/file.txt/more");
+        auto file_name = Paths::GetFileName(StringViewUtf8(path.GetData(), 12));
+        REQUIRE(file_name.HasValue());
+        REQUIRE(file_name.GetValue() == "file.txt");
+
+        auto parent = Paths::GetParentPath(StringViewUtf8(path.GetData(), 12));
+        REQUIRE(parent.HasValue());
+        REQUIRE(parent.GetValue() == "dir");
+    }
+    SECTION("No memory for a path without a separator")
+    {
+        NullAllocator allocator;
+        Expected<StringUtf8, ErrorCode> file_name = Paths::GetFileName("bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", &allocator);
+        REQUIRE(!file_name.HasValue());
+        REQUIRE(file_name.GetError() == ErrorCode::OutOfMemory);
+    }
     SECTION("No memory")
     {
         NullAllocator allocator;
