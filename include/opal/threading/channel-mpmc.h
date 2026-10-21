@@ -5,6 +5,7 @@
 #include "opal/threading/atomic.h"
 
 #include "opal/allocator.h"
+#include "opal/assert.h"
 #include "opal/bit.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/expected.h"
@@ -174,33 +175,33 @@ public:
      */
     bool PopUnlessClosed(T& result)
     {
-        while (true)
+        if constexpr (!UseSignaling)
         {
-            u32 push_count = 0;
-            if constexpr (UseSignaling)
+            return PopTicketUnlessClosed(result);
+        }
+        else
+        {
+            while (true)
             {
-                push_count = m_push_count.Load<MemoryOrder::Acquire>();
-            }
-            if (TryPop(result))
-            {
-                return true;
-            }
-            if (IsClosed())
-            {
-                return TryPop(result);
-            }
-            if constexpr (UseSignaling)
-            {
+                const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
+                if (TryPop(result))
+                {
+                    return true;
+                }
+                if (IsClosed())
+                {
+                    return TryPop(result);
+                }
                 m_push_count.Wait<MemoryOrder::Acquire>(push_count);
-            }
-            else
-            {
-                CpuPause();
             }
         }
     }
 
-    /** Mark the queue closed and wake every consumer blocked in PopUnlessClosed. Items already in it can still be popped. */
+    /**
+     * Mark the queue closed and wake every consumer blocked in PopUnlessClosed. Items already in it can still be popped. Without
+     * signaling, nothing may be pushed once Close has been called: such an item may never be popped, and a later push may block
+     * for good.
+     */
     void Close()
     {
         m_is_closed.Store<MemoryOrder::Release>(true);
@@ -223,6 +224,30 @@ private:
             CpuPause();
         }
         pauses = pauses < 64 ? pauses * 2 : pauses;
+    }
+
+    /**
+     * PopUnlessClosed without signaling. Claims the next read index outright, so consumers never race for the same slot, then
+     * waits for that slot to be filled. Gives up once the queue is closed and no producer has claimed the index, which no push
+     * will then do.
+     */
+    bool PopTicketUnlessClosed(T& result)
+    {
+        const size_t read_idx = m_read_idx.FetchAdd<MemoryOrder::Relaxed>(1);
+        auto& slot = m_data[read_idx & (m_capacity - 1)];
+        const size_t filled_turn = 2 * (read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1))) + 1;
+        while (slot.turn.template Load<MemoryOrder::Acquire>() != filled_turn)
+        {
+            // Acquiring m_is_closed makes every push that happened before Close visible in m_write_idx.
+            if (IsClosed() && m_write_idx.Load<MemoryOrder::Acquire>() <= read_idx)
+            {
+                return false;
+            }
+            CpuPause();
+        }
+        result = Move(slot.data);
+        slot.turn.template Store<MemoryOrder::Release>(filled_turn + 1);
+        return true;
     }
 
     /** Wake a consumer waiting in PopUnlessClosed. */
@@ -256,6 +281,7 @@ private:
     template <typename U>
     void PushValue(U&& data)
     {
+        OPAL_ASSERT(UseSignaling || !IsClosed(), "Nothing may be pushed into a closed QueueMPMC without signaling");
         size_t write_idx = m_write_idx.FetchAdd<MemoryOrder::Relaxed>(1);
         size_t slot_idx = write_idx & (m_capacity - 1);
         auto& slot = m_data[slot_idx];
@@ -286,6 +312,7 @@ private:
     template <typename U>
     bool TryPushValue(U&& data)
     {
+        OPAL_ASSERT(UseSignaling || !IsClosed(), "Nothing may be pushed into a closed QueueMPMC without signaling");
         size_t write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
         while (true)
         {

@@ -567,6 +567,11 @@ result = channel.receiver.Receive();
 ```
 
 `Receive()` and `TryReceive()` behave identically to the SPSC channel. `Close()` wakes every receiver blocked in `Receive()`.
+
+With spin wait (`UseSignaling = false`), nothing may be sent once `Close()` has been called. A receiver blocked in `Receive()`
+holds its place in the queue, and gives it up when the channel closes with nothing sent for it, so an item sent after that may
+never be received and a later send may block for good. Debug builds assert on it. The signaling channel accepts sends after
+`Close()` and still delivers them.
 `TryReceive()` returns `ErrorCode::Success`, `ErrorCode::ChannelEmpty`, or `ErrorCode::ChannelClosed`.
 
 ### Channel API Reference

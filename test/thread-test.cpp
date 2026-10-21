@@ -911,37 +911,200 @@ TEST_CASE("A receiver blocked in Receive gets an item sent later", "[Thread]")
     }
 }
 
-TEST_CASE("Close wakes every MPMC receiver blocked in Receive", "[Thread]")
+namespace
 {
-    constexpr i32 k_receiver_count = 4;
-    ChannelMPMC<i32, true> channel(4);
+// Parks receiver_count receivers in Receive, sends item_count items, then closes the channel. Returns how many receivers got an
+// item and how many were told the channel closed; the items received are summed into received_sum. Hangs if one is never woken.
+template <bool UseSignaling>
+void SendThenCloseWhileBlocked(i32 receiver_count, i32 item_count, i32& received_count, i32& closed_count, i32& received_sum)
+{
+    ChannelMPMC<i32, UseSignaling> channel(4);
     std::atomic<i32> started{0};
-    std::atomic<i32> closed_count{0};
+    std::atomic<i32> received{0};
+    std::atomic<i32> closed{0};
+    std::atomic<i32> sum{0};
     DynamicArray<ThreadHandle> threads;
-    for (i32 i = 0; i < k_receiver_count; ++i)
+    for (i32 i = 0; i < receiver_count; ++i)
     {
         threads.PushBack(CreateThreadOrFail(
-            [](ReceiverMPMC<i32, true> receiver, Ref<std::atomic<i32>> in_started, Ref<std::atomic<i32>> in_closed_count)
+            [](ReceiverMPMC<i32, UseSignaling> receiver, Ref<std::atomic<i32>> in_started, Ref<std::atomic<i32>> in_received,
+               Ref<std::atomic<i32>> in_closed, Ref<std::atomic<i32>> in_sum)
             {
                 in_started->fetch_add(1);
                 auto result = receiver.Receive();
-                if (!result.HasValue() && result.GetError() == ErrorCode::ChannelClosed)
+                if (result.HasValue())
                 {
-                    in_closed_count->fetch_add(1);
+                    in_received->fetch_add(1);
+                    in_sum->fetch_add(result.GetValue());
+                }
+                else if (result.GetError() == ErrorCode::ChannelClosed)
+                {
+                    in_closed->fetch_add(1);
                 }
             },
-            channel.receiver.Clone(), Ref(started), Ref(closed_count)));
+            channel.receiver.Clone(), Ref(started), Ref(received), Ref(closed), Ref(sum)));
     }
-    while (started.load() < k_receiver_count)
+    while (started.load() < receiver_count)
     {
     }
     std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    for (i32 i = 1; i <= item_count; ++i)
+    {
+        channel.transmitter.Send(i * 10);
+    }
     channel.transmitter.Close();
     for (const ThreadHandle& t : threads)
     {
         JoinThread(t);
     }
-    REQUIRE(closed_count.load() == k_receiver_count);
+    received_count = received.load();
+    closed_count = closed.load();
+    received_sum = sum.load();
+
+    auto late = channel.receiver.Receive();
+    REQUIRE(!late.HasValue());
+    REQUIRE(late.GetError() == ErrorCode::ChannelClosed);
+    i32 value = 0;
+    REQUIRE(channel.receiver.TryReceive(value) == ErrorCode::ChannelClosed);
+}
+
+// Producers send disjoint ranges and the last to finish closes the channel. Half the receivers drain with Receive and half with
+// TryReceive, so both ways of taking an item run against each other. Every item must arrive exactly once.
+template <bool UseSignaling>
+void TransferThroughMPMC(size_t capacity)
+{
+    constexpr i32 k_producer_count = 4;
+    constexpr i32 k_receiver_count = 4;
+    constexpr i32 k_items_per_producer = 5000;
+    constexpr i32 k_item_count = k_producer_count * k_items_per_producer;
+
+    ChannelMPMC<i32, UseSignaling> channel(capacity);
+    std::atomic<i32> producers_left{k_producer_count};
+    DynamicArray<DynamicArray<i32>> received(k_receiver_count);
+    DynamicArray<ThreadHandle> threads;
+    for (i32 p = 0; p < k_producer_count; ++p)
+    {
+        threads.PushBack(CreateThreadOrFail(
+            [](TransmitterMPMC<i32, UseSignaling> transmitter, i32 first, Ref<std::atomic<i32>> in_producers_left)
+            {
+                for (i32 i = first; i < first + k_items_per_producer; ++i)
+                {
+                    transmitter.Send(i);
+                }
+                if (in_producers_left->fetch_sub(1) == 1)
+                {
+                    transmitter.Close();
+                }
+            },
+            channel.transmitter.Clone(), p * k_items_per_producer, Ref(producers_left)));
+    }
+    for (u64 r = 0; r < k_receiver_count; ++r)
+    {
+        threads.PushBack(CreateThreadOrFail(
+            [](ReceiverMPMC<i32, UseSignaling> receiver, bool use_try, Ref<DynamicArray<i32>> out)
+            {
+                if (use_try)
+                {
+                    i32 value = 0;
+                    ErrorCode err = ErrorCode::Success;
+                    while ((err = receiver.TryReceive(value)) != ErrorCode::ChannelClosed)
+                    {
+                        if (err == ErrorCode::Success)
+                        {
+                            out->PushBack(value);
+                        }
+                    }
+                    return;
+                }
+                for (auto result = receiver.Receive(); result.HasValue(); result = receiver.Receive())
+                {
+                    out->PushBack(result.GetValue());
+                }
+            },
+            channel.receiver.Clone(), r % 2 == 1, Ref(received[r])));
+    }
+    for (const ThreadHandle& t : threads)
+    {
+        JoinThread(t);
+    }
+
+    DynamicArray<i32> seen(k_item_count, 0);
+    i32 out_of_range = 0;
+    for (const DynamicArray<i32>& list : received)
+    {
+        for (const i32 value : list)
+        {
+            if (value < 0 || value >= k_item_count)
+            {
+                out_of_range++;
+                continue;
+            }
+            seen[static_cast<u64>(value)]++;
+        }
+    }
+    i32 not_once = 0;
+    for (const i32 count : seen)
+    {
+        not_once += count == 1 ? 0 : 1;
+    }
+    REQUIRE(out_of_range == 0);
+    REQUIRE(not_once == 0);
+}
+}  // namespace
+
+TEST_CASE("Close wakes every MPMC receiver blocked in Receive", "[Thread]")
+{
+    i32 received = 0;
+    i32 closed = 0;
+    i32 sum = 0;
+    SECTION("With signaling")
+    {
+        SendThenCloseWhileBlocked<true>(4, 0, received, closed, sum);
+    }
+    SECTION("With spin wait")
+    {
+        SendThenCloseWhileBlocked<false>(4, 0, received, closed, sum);
+    }
+    REQUIRE(received == 0);
+    REQUIRE(closed == 4);
+}
+
+TEST_CASE("MPMC receivers blocked in Receive share the items sent before Close", "[Thread]")
+{
+    i32 received = 0;
+    i32 closed = 0;
+    i32 sum = 0;
+    SECTION("With signaling")
+    {
+        SendThenCloseWhileBlocked<true>(4, 2, received, closed, sum);
+    }
+    SECTION("With spin wait")
+    {
+        SendThenCloseWhileBlocked<false>(4, 2, received, closed, sum);
+    }
+    REQUIRE(received == 2);
+    REQUIRE(closed == 2);
+    REQUIRE(sum == 30);
+}
+
+TEST_CASE("MPMC channel delivers every item once to many receivers", "[Thread]")
+{
+    SECTION("With signaling, capacity 4")
+    {
+        TransferThroughMPMC<true>(4);
+    }
+    SECTION("With signaling, capacity 64")
+    {
+        TransferThroughMPMC<true>(64);
+    }
+    SECTION("With spin wait, capacity 4")
+    {
+        TransferThroughMPMC<false>(4);
+    }
+    SECTION("With spin wait, capacity 64")
+    {
+        TransferThroughMPMC<false>(64);
+    }
 }
 
 TEST_CASE("Thread pool", "[Thread]")
