@@ -75,6 +75,19 @@ UBSan finding fails the run rather than being printed into a green log. Every ot
 `-DOPAL_HARDENING=OFF`. Still run the local build for anything touching lifetimes or threading -
 finding it before the push is cheaper than reading it off a CI log.
 
+Data races need ThreadSanitizer, which cannot share a build with ASan. CI's `thread-sanitizer` job runs it on Clang; the same
+build locally:
+
+```bash
+wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&
+  cmake -S . -B build/tsan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DOPAL_HARDENING=OFF \
+    -DCMAKE_C_COMPILER=/bin/clang-20 -DCMAKE_CXX_COMPILER=/bin/clang++-20 "-DCMAKE_CXX_FLAGS=-fsanitize=thread -g" &&
+  cmake --build build/tsan -j "$(nproc)" &&
+  cd build/tsan && ctest --output-on-failure'
+```
+
+The suite is TSan-clean, so any report is new. Keep it that way: see the threading rule under Test Patterns.
+
 The build directories match the CLion profiles of the same name and are gitignored.
 
 Test framework: Catch2 (amalgamated, vendored). Custom `main` in `test/main-test.cpp`. Test helpers in `test/test-helpers.h` (custom Catch matchers for math types). When adding a new test file, it must be added to `OPAL_TEST_FILES` in `CMakeLists.txt`.
@@ -324,6 +337,9 @@ Custom concepts in `type-traits.h`: `IsPOD`, `Integral`, `FloatingPoint`, `Integ
 - Test structure: `TEST_CASE("Description", "[Tag]")` with `SECTION("...")` nesting
 - Tags match the feature name: `[String]`, `[DynamicArray]`, `[JsonReader]`, `[JsonWriter]`
 - Math tests use custom matchers: `CHECK_QUATERNION`, `CHECK_VECTOR3`, `CHECK_POINT3`
+- Catch2 assertions run on the main thread only. Catch2 is not thread-safe, so a `REQUIRE` inside a thread body, a pool task
+  or a continuation is a data race that TSan reports and that can corrupt the test's own bookkeeping. Have the worker record
+  what it saw, an out-value or a mismatch count, and assert on it after `JoinThread` or `WaitForAll`.
 
 ## Platform Abstractions
 

@@ -116,6 +116,32 @@ jobs:
       working-directory: ${{github.workspace}}/build
       run: ctest --output-on-failure
 
+  # ThreadSanitizer cannot share a build with ASan, so data races get a job of their own. The channels, the thread pool and the
+  # asymmetric fence are lock-free, and a missing acquire or release in them passes every other job. TSan prints every report and
+  # then exits with 66, which fails the test. Tests keep their Catch2 assertions on the main thread, since Catch2 is not
+  # thread-safe and an assertion on a worker is itself a race.
+  thread-sanitizer:
+    name: "Clang thread sanitizer"
+    runs-on: ubuntu-latest
+    env:
+      TSAN_OPTIONS: exitcode=66:second_deadlock_stack=1
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Fit the address space to TSan
+      # Recent kernels randomise mmap over more bits than TSan's shadow memory covers, and it aborts at startup when they do.
+      run: sudo sysctl vm.mmap_rnd_bits=28
+
+    - name: Configure CMake
+      run: cmake -B ${{github.workspace}}/build -G "Ninja" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER=clang++ -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=OFF "-DCMAKE_CXX_FLAGS=-fsanitize=thread -g"
+
+    - name: Build
+      run: cmake --build ${{github.workspace}}/build
+
+    - name: Test
+      working-directory: ${{github.workspace}}/build
+      run: ctest --output-on-failure
+
   # OPAL_EXCEPTIONS=OFF turns every throw into a call to the contract violation handler, which is a different compile of every
   # header. Nothing in the job above covers it, so a new throw would break that build without anyone noticing until they tried
   # it. There is no test step: the option forces OPAL_BUILD_TESTS off, since Catch2 needs exceptions.
