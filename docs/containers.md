@@ -1,6 +1,6 @@
 # Containers
 
-Headers: `opal/container/dynamic-array.h`, `opal/container/deque.h`, `opal/container/array-view.h`, `opal/container/in-place-array.h`, `opal/container/string.h`, `opal/container/string-view.h`, `opal/container/hash-map.h`, `opal/container/hash-set.h`, `opal/container/priority-queue.h`, `opal/container/scope-ptr.h`, `opal/container/shared-ptr.h`, `opal/container/ref.h`, `opal/container/expected.h`, `opal/container/iterator.h`
+Headers: `opal/container/dynamic-array.h`, `opal/container/deque.h`, `opal/container/array-view.h`, `opal/container/in-place-array.h`, `opal/container/string.h`, `opal/container/string-view.h`, `opal/container/hash-map.h`, `opal/container/hash-set.h`, `opal/container/scope-ptr.h`, `opal/container/shared-ptr.h`, `opal/container/ref.h`, `opal/container/expected.h`, `opal/container/iterator.h`
 
 Opal provides a complete set of containers designed for game engine and real-time systems. All containers follow these conventions:
 
@@ -598,46 +598,6 @@ specialization rather than being given one that would let two equal keys hash di
 
 ---
 
-## PriorityQueue
-
-Header: `opal/container/priority-queue.h`
-
-Binary heap with configurable comparison function. Two variants: basic and index-based.
-
-### PriorityQueue
-
-```cpp
-Opal::PriorityQueue<int> pq;                              // Min-heap (std::less)
-Opal::PriorityQueue<int, std::greater<int>> max_pq;       // Max-heap
-```
-
-```cpp
-pq.Enqueue(42);                    // O(log N) insert
-pq.GetTop();                       // O(1) peek
-pq.PopTop();                       // O(log N) remove and return top
-pq.IsEmpty();
-pq.GetSize();
-```
-
-### IndexPriorityQueue
-
-Associates an integer index with each value, allowing priority updates by index.
-
-```cpp
-Opal::IndexPriorityQueue<float> ipq;
-
-ipq.Enqueue(0, 3.14f);            // Index 0, priority 3.14
-ipq.Enqueue(1, 1.0f);             // Index 1, priority 1.0
-ipq.ChangeValue(0, 0.5f);         // Update priority for index 0
-ipq.Contains(0);                   // true
-ipq.GetTopIndex();                 // Index of the top element
-ipq.GetValueOf(0);                 // Get priority by index
-ipq.DeleteValue(0);                // Remove by index
-ipq.PopTop();                      // Remove and return top value
-```
-
----
-
 ## ScopePtr
 
 Header: `opal/container/scope-ptr.h`
@@ -879,18 +839,14 @@ Allocation failure is where they used to disagree, and no longer do. `Deque`, `D
 
 `DynamicArray` has `EmplaceBack` for in-place construction, but `HashMap` and `HashSet` have no equivalent. An `Emplace` method would avoid constructing temporaries when inserting non-POD types.
 
-**7. PriorityQueue lacks allocator support.**
-
-`PriorityQueue` and `IndexPriorityQueue` use raw `new`/`delete` internally and don't accept an `AllocatorBase*`, making them the only containers outside the allocator system. They also lack `Clone()` and move semantics.
-
-**8. No reverse iterators.**
+**7. No reverse iterators.**
 
 None of the containers provide reverse iterators. While `Reverse()` exists on `String` as a mutation, there's no way to iterate any container backwards without manual index management.
 
-**9. HashMap and HashSet lack a Merge operation.**
+**8. HashMap and HashSet lack a Merge operation.**
 
 There is no way to merge two hash containers without iterating and inserting element-by-element. A `Merge(HashSet&&)` or `Merge(HashMap&&)` that moves elements from the source would be useful for combining intermediate results.
 
-**10. No find-or-insert on HashMap.**
+**9. No find-or-insert on HashMap.**
 
 `HashMap::Insert` always takes both key and value. A `FindOrInsert(key, default_value)` or `operator[]` that returns a reference (inserting a default on first access) would simplify the common "get or create" pattern.

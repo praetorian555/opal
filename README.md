@@ -230,7 +230,6 @@ See [docs/program-arguments.md](docs/program-arguments.md) for the full guide.
 | `opal/container/string-hash.h` | String hashing utilities |
 | `opal/container/hash-map.h` | Hash map using Swiss tables algorithm |
 | `opal/container/hash-set.h` | Hash set using Swiss tables algorithm |
-| `opal/container/priority-queue.h` | Priority queue |
 | `opal/container/expected.h` | Result type `Expected<T, E>` for error handling |
 | `opal/container/scope-ptr.h` | Unique ownership smart pointer |
 | `opal/container/shared-ptr.h` | Reference-counted smart pointer with thread-safe and single-threaded policies |
