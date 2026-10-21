@@ -5,6 +5,7 @@
 
 #include "opal/container/ref.h"
 #include "opal/threading/atomic.h"
+#include "opal/threading/cpu-pause.h"
 #include "opal/threading/thread.h"
 
 using namespace Opal;
@@ -198,4 +199,78 @@ TEST_CASE("Atomic notify one wakes a waiter", "[Atomic]")
 
     JoinThread(t);
     REQUIRE(thread_woke_up.Load<MemoryOrder::Acquire>());
+}
+
+namespace
+{
+// Store-buffering litmus test: each worker writes its own value, fences, then reads the other's. With no fence both reads can
+// miss, since each write may still sit in its core's store buffer.
+struct StoreBufferLitmus
+{
+    Atomic<u32> light_value{0};
+    Atomic<u32> heavy_value{0};
+    Atomic<u32> round{0};
+    Atomic<u32> finished{0};
+    u32 seen_by_light = 0;
+    u32 seen_by_heavy = 0;
+};
+
+void WaitForRound(const StoreBufferLitmus& litmus, u32 round)
+{
+    while (litmus.round.Load<MemoryOrder::Acquire>() != round)
+    {
+        CpuPause();
+    }
+}
+}  // namespace
+
+TEST_CASE("An asymmetric fence pair lets one of two threads see the other's write", "[Atomic]")
+{
+    constexpr u32 k_rounds = 2000;
+    StoreBufferLitmus litmus;
+    // Until the heavy half has worked once, the light half is a full fence, which would make the test pass trivially.
+    AsymmetricThreadFenceHeavy();
+
+    const ThreadHandle light = CreateThreadOrFail(
+        [](StoreBufferLitmus& state)
+        {
+            for (u32 r = 1; r <= k_rounds; ++r)
+            {
+                WaitForRound(state, r);
+                state.light_value.Store<MemoryOrder::Relaxed>(1);
+                AsymmetricThreadFenceLight();
+                state.seen_by_light = state.heavy_value.Load<MemoryOrder::Relaxed>();
+                state.finished.FetchAdd<MemoryOrder::Release>(1);
+            }
+        },
+        Ref(litmus));
+    const ThreadHandle heavy = CreateThreadOrFail(
+        [](StoreBufferLitmus& state)
+        {
+            for (u32 r = 1; r <= k_rounds; ++r)
+            {
+                WaitForRound(state, r);
+                state.heavy_value.Store<MemoryOrder::Relaxed>(1);
+                AsymmetricThreadFenceHeavy();
+                state.seen_by_heavy = state.light_value.Load<MemoryOrder::Relaxed>();
+                state.finished.FetchAdd<MemoryOrder::Release>(1);
+            }
+        },
+        Ref(litmus));
+
+    u32 both_missed = 0;
+    for (u32 r = 1; r <= k_rounds; ++r)
+    {
+        litmus.light_value.Store<MemoryOrder::Relaxed>(0);
+        litmus.heavy_value.Store<MemoryOrder::Relaxed>(0);
+        litmus.round.Store<MemoryOrder::Release>(r);
+        while (litmus.finished.Load<MemoryOrder::Acquire>() != 2 * r)
+        {
+            CpuPause();
+        }
+        both_missed += litmus.seen_by_light == 0 && litmus.seen_by_heavy == 0 ? 1 : 0;
+    }
+    JoinThread(light);
+    JoinThread(heavy);
+    REQUIRE(both_missed == 0);
 }

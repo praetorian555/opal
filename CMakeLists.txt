@@ -64,6 +64,7 @@ set(OPAL_FILES
         src/program-arguments.cpp
         src/string.cpp
         src/thread.cpp
+        src/atomic.cpp
         src/mutex.cpp
         src/read-write-mutex.cpp
         src/condition-variable.cpp

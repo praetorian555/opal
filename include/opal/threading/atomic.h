@@ -247,4 +247,38 @@ void AtomicThreadFence()
     std::atomic_thread_fence(Impl::ToStdMemoryOrder(k_order));
 }
 
+namespace Impl
+{
+/** Set once AsymmetricThreadFenceHeavy is known to work, after which the light half may skip its hardware fence. */
+extern Atomic<bool> g_asymmetric_fence_ready;
+}  // namespace Impl
+
+/**
+ * The cheap half of an asymmetric fence. Between two threads that each write one value and then read the other, one calling
+ * this and the other AsymmetricThreadFenceHeavy, at least one of them sees the other's write, as with a SeqCst fence on both.
+ * Meant for the side that runs often, paired with a heavy fence on the side that runs rarely.
+ */
+inline void AsymmetricThreadFenceLight()
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    // The heavy half cannot fail on Windows, so there is nothing to fall back from.
+    std::atomic_signal_fence(std::memory_order_seq_cst);
+#else
+    if (Impl::g_asymmetric_fence_ready.Load<MemoryOrder::Relaxed>())
+    {
+        std::atomic_signal_fence(std::memory_order_seq_cst);
+    }
+    else
+    {
+        std::atomic_thread_fence(std::memory_order_seq_cst);
+    }
+#endif
+}
+
+/**
+ * The expensive half of an asymmetric fence, pairing with AsymmetricThreadFenceLight on other threads. Takes microseconds and
+ * briefly interrupts the other threads of the process, so it belongs on a path that is about to block anyway.
+ */
+void AsymmetricThreadFenceHeavy();
+
 }  // namespace Opal
