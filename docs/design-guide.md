@@ -139,8 +139,9 @@ take their strings this way.
 A view is not null-terminated. Code that hands one to a C API needing a terminator has to copy it first; Opal's file functions copy
 a path into a stack buffer on Linux, so they still do not allocate.
 
-The exception is a string used to look up a `HashMap<StringUtf8, ...>`: the map looks up by an owned key, so a view would have to
-be turned back into a string for every lookup. Take `const StringUtf8&` there.
+This holds for map lookups too. A `HashMap` or `HashSet` keyed by `StringUtf8` can be searched with a view or a literal, so a
+function that only looks a key up can take `StringViewUtf8` as well. To give your own key type the same lookups, specialize
+`HashLookupKey` with the cheaper type it can be searched by.
 
 ## Copying
 

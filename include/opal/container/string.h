@@ -13,6 +13,7 @@
 #include "opal/container/dynamic-array.h"
 #include "opal/container/string-encoding.h"
 #include "opal/error-codes.h"
+#include "opal/hash.h"
 #include "opal/type-traits.h"
 #include "opal/types.h"
 
@@ -990,6 +991,13 @@ inline constexpr bool k_is_string_view_value = false;
 
 template <typename CodeUnitType, typename EncodingType>
 inline constexpr bool k_is_string_view_value<StringView<CodeUnitType, EncodingType>> = true;
+
+/** A hash container keyed by strings can be searched with a view, or anything that converts to one, without building a string. */
+template <typename CodeUnitType, typename EncodingType>
+struct HashLookupKey<String<CodeUnitType, EncodingType>>
+{
+    using Type = StringView<CodeUnitType, EncodingType>;
+};
 
 /**
  * @brief Concept that checks if a type is an instantiation of String or StringView.

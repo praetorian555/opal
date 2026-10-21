@@ -274,10 +274,26 @@ public:
     const_iterator Find(const key_type& key) const;
 
     /**
+     * Looks for the pair with the given key without building a key_type from it. Available when HashLookupKey names a lookup type for
+     * KeyType, so a map keyed by strings can be searched with a view or a literal. Contains, GetValue and Erase have the same overload.
+     * @param key Key to look for, of the lookup type or of a type that converts to it.
+     * @return Iterator to the pair, or end() when the map does not hold the key.
+     */
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    iterator Find(const LookupType& key);
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    const_iterator Find(const LookupType& key) const;
+
+    /**
      * @param key Key to look for.
      * @return True when the map holds the key.
      */
     bool Contains(const key_type& key) const;
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    bool Contains(const LookupType& key) const;
 
     /**
      * Reads the value stored under a key. Check with Contains or Find when the key might be absent.
@@ -287,6 +303,12 @@ public:
      */
     value_type& GetValue(const key_type& key);
     const value_type& GetValue(const key_type& key) const;
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    value_type& GetValue(const LookupType& key);
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    const value_type& GetValue(const LookupType& key) const;
 
     /**
      * Stores a value under a key, replacing the pair already stored under an equal key.
@@ -308,6 +330,9 @@ public:
      * @return ErrorCode::Success if the pair was removed, ErrorCode::InvalidArgument if the map does not hold the key.
      */
     ErrorCode Erase(const key_type& key);
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    ErrorCode Erase(const LookupType& key);
 
     /**
      * Removes the pair an iterator refers to.
@@ -370,7 +395,12 @@ private:
         Hasher<key_type> hasher;
         return hasher(key);
     }
-    bool FindIndex(const key_type& key, u64 hash, u64& out_index) const;
+    // Probes for a key_type, or for the lookup type HashLookupKey names along with its Hasher's hash.
+    template <typename ProbeType>
+    bool FindIndex(const ProbeType& key, u64 hash, u64& out_index) const;
+    // Converts a key given as a lookup type through HashLookupKey and probes for it.
+    template <typename LookupType>
+    bool FindLookupIndex(const LookupType& key, u64& out_index) const;
     void OccupySlot(const key_type& key, const value_type& value, u64 hash, u64 index)
         requires(IsPOD<key_type> && IsPOD<value_type>);
     void OccupySlot(key_type&& key, value_type&& value, u64 hash, u64 index);
@@ -710,7 +740,8 @@ Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Grow()
 }
 
 template <typename KeyType, typename ValueType>
-bool Opal::HashMap<KeyType, ValueType>::FindIndex(const key_type& key, u64 hash, u64& out_index) const
+template <typename ProbeType>
+bool Opal::HashMap<KeyType, ValueType>::FindIndex(const ProbeType& key, u64 hash, u64& out_index) const
 {
     if (m_control_bytes == nullptr)
     {
@@ -727,7 +758,7 @@ bool Opal::HashMap<KeyType, ValueType>::FindIndex(const key_type& key, u64 hash,
         for (const u32 i : match_mask)
         {
             const u64 pos = (offset + i) & m_capacity;
-            if (m_slots[pos].key == key)
+            if (Impl::IsKeyMatch(m_slots[pos].key, key))
             {
                 out_index = pos;
                 return true;
@@ -772,6 +803,84 @@ bool Opal::HashMap<KeyType, ValueType>::Contains(const key_type& key) const
 {
     u64 index = 0;
     return FindIndex(key, CalculateHash(key), index);
+}
+
+template <typename KeyType, typename ValueType>
+template <typename LookupType>
+bool Opal::HashMap<KeyType, ValueType>::FindLookupIndex(const LookupType& key, u64& out_index) const
+{
+    using LookupKeyType = typename HashLookupKey<KeyType>::Type;
+    const LookupKeyType lookup_key(key);
+    return FindIndex(lookup_key, Hasher<LookupKeyType>{}(lookup_key), out_index);
+}
+
+template <typename KeyType, typename ValueType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+Opal::HashMap<KeyType, ValueType>::iterator Opal::HashMap<KeyType, ValueType>::Find(const LookupType& key)
+{
+    u64 index = 0;
+    if (FindLookupIndex(key, index))
+    {
+        return iterator(this, index);
+    }
+    return end();
+}
+
+template <typename KeyType, typename ValueType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+Opal::HashMap<KeyType, ValueType>::const_iterator Opal::HashMap<KeyType, ValueType>::Find(const LookupType& key) const
+{
+    u64 index = 0;
+    if (FindLookupIndex(key, index))
+    {
+        return const_iterator(this, index);
+    }
+    return cend();
+}
+
+template <typename KeyType, typename ValueType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+bool Opal::HashMap<KeyType, ValueType>::Contains(const LookupType& key) const
+{
+    u64 index = 0;
+    return FindLookupIndex(key, index);
+}
+
+template <typename KeyType, typename ValueType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(const LookupType& key)
+{
+    u64 index = 0;
+    OPAL_VERIFY(FindLookupIndex(key, index), "Key not found");
+    return m_slots[index].value;
+}
+
+template <typename KeyType, typename ValueType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+const typename Opal::HashMap<KeyType, ValueType>::value_type& Opal::HashMap<KeyType, ValueType>::GetValue(const LookupType& key) const
+{
+    u64 index = 0;
+    OPAL_VERIFY(FindLookupIndex(key, index), "Key not found");
+    return m_slots[index].value;
+}
+
+template <typename KeyType, typename ValueType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+Opal::ErrorCode Opal::HashMap<KeyType, ValueType>::Erase(const LookupType& key)
+{
+    u64 index = 0;
+    if (FindLookupIndex(key, index))
+    {
+        DeleteSlot(index);
+        return ErrorCode::Success;
+    }
+    return ErrorCode::InvalidArgument;
 }
 
 template <typename KeyType, typename ValueType>

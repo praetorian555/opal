@@ -216,10 +216,26 @@ public:
     const_iterator Find(const key_type& key) const;
 
     /**
+     * Looks for a key without building a key_type from it. Available when HashLookupKey names a lookup type for KeyType, so a set of
+     * strings can be searched with a view or a literal. Contains and Erase have the same overload.
+     * @param key Key to look for, of the lookup type or of a type that converts to it.
+     * @return Iterator to the key, or end() when the set does not hold it.
+     */
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    iterator Find(const LookupType& key);
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    const_iterator Find(const LookupType& key) const;
+
+    /**
      * @param key Key to look for.
      * @return True when the set holds the key.
      */
     bool Contains(const key_type& key) const;
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    bool Contains(const LookupType& key) const;
 
     /**
      * Adds a key. A key equal to one already in the set replaces it.
@@ -235,6 +251,9 @@ public:
      * @return ErrorCode::Success if the key was removed, ErrorCode::InvalidArgument if the set does not hold it.
      */
     ErrorCode Erase(const key_type& key);
+    template <typename LookupType>
+        requires HashLookupFor<KeyType, LookupType>
+    ErrorCode Erase(const LookupType& key);
 
     /**
      * Removes the key an iterator refers to.
@@ -288,7 +307,12 @@ private:
         Hasher<key_type> hasher;
         return hasher(key);
     }
-    bool FindIndex(const key_type& key, u64 hash, u64& out_index) const;
+    // Probes for a key_type, or for the lookup type HashLookupKey names along with its Hasher's hash.
+    template <typename ProbeType>
+    bool FindIndex(const ProbeType& key, u64 hash, u64& out_index) const;
+    // Converts a key given as a lookup type through HashLookupKey and probes for it.
+    template <typename LookupType>
+    bool FindLookupIndex(const LookupType& key, u64& out_index) const;
     void OccupySlot(const key_type& key, u64 hash, u64 index) requires IsPOD<KeyType>;
     void OccupySlot(key_type&& key, u64 hash, u64 index);
     void DeleteSlot(u64 index);
@@ -546,7 +570,8 @@ Opal::Expected<Opal::HashSet<KeyType>, Opal::ErrorCode> Opal::HashSet<KeyType>::
 }
 
 template <typename KeyType>
-bool Opal::HashSet<KeyType>::FindIndex(const key_type& key, u64 hash, u64& out_index) const
+template <typename ProbeType>
+bool Opal::HashSet<KeyType>::FindIndex(const ProbeType& key, u64 hash, u64& out_index) const
 {
     if (m_control_bytes == nullptr)
     {
@@ -563,7 +588,7 @@ bool Opal::HashSet<KeyType>::FindIndex(const key_type& key, u64 hash, u64& out_i
         for (const u32 i : match_mask)
         {
             const u64 pos = (offset + i) & m_capacity;
-            if (m_slots[pos] == key)
+            if (Impl::IsKeyMatch(m_slots[pos], key))
             {
                 out_index = pos;
                 return true;
@@ -609,6 +634,64 @@ bool Opal::HashSet<KeyType>::Contains(const key_type& key) const
 {
     u64 index = 0;
     return FindIndex(key, CalculateHash(key), index);
+}
+
+template <typename KeyType>
+template <typename LookupType>
+bool Opal::HashSet<KeyType>::FindLookupIndex(const LookupType& key, u64& out_index) const
+{
+    using LookupKeyType = typename HashLookupKey<KeyType>::Type;
+    const LookupKeyType lookup_key(key);
+    return FindIndex(lookup_key, Hasher<LookupKeyType>{}(lookup_key), out_index);
+}
+
+template <typename KeyType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+typename Opal::HashSet<KeyType>::iterator Opal::HashSet<KeyType>::Find(const LookupType& key)
+{
+    u64 index = 0;
+    if (FindLookupIndex(key, index))
+    {
+        return iterator(this, index);
+    }
+    return end();
+}
+
+template <typename KeyType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+typename Opal::HashSet<KeyType>::const_iterator Opal::HashSet<KeyType>::Find(const LookupType& key) const
+{
+    u64 index = 0;
+    if (FindLookupIndex(key, index))
+    {
+        return const_iterator(this, index);
+    }
+    return cend();
+}
+
+template <typename KeyType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+bool Opal::HashSet<KeyType>::Contains(const LookupType& key) const
+{
+    u64 index = 0;
+    return FindLookupIndex(key, index);
+}
+
+template <typename KeyType>
+template <typename LookupType>
+    requires Opal::HashLookupFor<KeyType, LookupType>
+Opal::ErrorCode Opal::HashSet<KeyType>::Erase(const LookupType& key)
+{
+    u64 index = 0;
+    if (FindLookupIndex(key, index))
+    {
+        DeleteSlot(index);
+        return ErrorCode::Success;
+    }
+    return ErrorCode::InvalidArgument;
 }
 
 template <typename KeyType>

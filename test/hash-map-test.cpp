@@ -7,6 +7,7 @@
 
 #include "opal/clonable-base.h"
 #include "opal/container/string.h"
+#include "opal/container/string-view.h"
 
 using namespace Opal;
 
@@ -903,5 +904,66 @@ TEST_CASE("HashMap Clone after erasures", "[hash-map]")
         map.Clear();
         REQUIRE(clone.GetValue("ab") == "ab");
         REQUIRE_FALSE(clone.Contains("aa"));
+    }
+}
+
+TEST_CASE("Hash map lookup without building a key", "[HashMap]")
+{
+    // Longer than the small string buffer, so building a StringUtf8 from it would allocate.
+    const char* const k_key = "a key long enough to need storage of its own";
+
+    HashMap<StringUtf8, i32> map;
+    REQUIRE(map.Insert(StringUtf8(k_key), 1) == ErrorCode::Success);
+    REQUIRE(map.Insert(StringUtf8("short"), 2) == ErrorCode::Success);
+
+    SECTION("Strings and views hash alike")
+    {
+        const StringUtf8 key(k_key);
+        REQUIRE(Hasher<StringUtf8>{}(key) == Hasher<StringViewUtf8>{}(StringViewUtf8(key)));
+    }
+    SECTION("By literal")
+    {
+        REQUIRE(map.Contains(k_key));
+        REQUIRE(map.GetValue("short") == 2);
+        REQUIRE(map.Find("short") != map.end());
+        REQUIRE_FALSE(map.Contains("missing"));
+    }
+    SECTION("By a view of part of a longer string")
+    {
+        const StringViewUtf8 text("short and more");
+        const StringViewUtf8 prefix(text.GetData(), 5);
+        REQUIRE(map.Contains(prefix));
+        REQUIRE(map.GetValue(prefix) == 2);
+        REQUIRE_FALSE(map.Contains(StringViewUtf8(text.GetData(), 4)));
+    }
+    SECTION("Through a const map")
+    {
+        const HashMap<StringUtf8, i32>& const_map = map;
+        REQUIRE(const_map.Find(StringViewUtf8("short")) != const_map.cend());
+        REQUIRE(const_map.GetValue(StringViewUtf8("short")) == 2);
+    }
+    SECTION("Erase")
+    {
+        REQUIRE(map.Erase("short") == ErrorCode::Success);
+        REQUIRE_FALSE(map.Contains("short"));
+        REQUIRE(map.Erase("short") == ErrorCode::InvalidArgument);
+        REQUIRE(map.GetSize() == 1);
+    }
+    SECTION("Does not allocate")
+    {
+        NullAllocator null_allocator;
+        PushDefault no_allocations(&null_allocator);
+        REQUIRE(map.Contains(k_key));
+        REQUIRE(map.GetValue(k_key) == 1);
+        REQUIRE(map.Erase(k_key) == ErrorCode::Success);
+    }
+    SECTION("Other key types keep their own lookups")
+    {
+        STATIC_REQUIRE_FALSE(HashLookupFor<i32, i64>);
+        STATIC_REQUIRE_FALSE(HashLookupFor<StringUtf8, StringUtf8>);
+        STATIC_REQUIRE(HashLookupFor<StringUtf8, StringViewUtf8>);
+        HashMap<i32, i32> numbers;
+        REQUIRE(numbers.Insert(5, 50) == ErrorCode::Success);
+        REQUIRE(numbers.GetValue(5) == 50);
     }
 }

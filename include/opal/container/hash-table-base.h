@@ -1,6 +1,7 @@
 #pragma once
 
 #include "opal/bit.h"
+#include "opal/type-traits.h"
 #include "opal/types.h"
 
 #if defined(__SSE2__) || defined(_M_X64) || defined(_M_IX86)
@@ -32,6 +33,23 @@ inline constexpr i8 k_control_sentinel = -1;  // 0b11111111
 
 /** Smallest number of elements a table is built for. */
 inline constexpr u64 k_default_capacity = 4;
+
+/**
+ * @return True when a stored key equals the key being probed for. A probe of another type, the lookup type HashLookupKey names, is
+ * compared against the stored key converted to that type.
+ */
+template <typename KeyType, typename ProbeType>
+[[nodiscard]] bool IsKeyMatch(KeyType& stored, const ProbeType& probe)
+{
+    if constexpr (k_is_same_value<ProbeType, KeyType>)
+    {
+        return stored == probe;
+    }
+    else
+    {
+        return ProbeType(stored) == probe;
+    }
+}
 
 /** @return True when the control value belongs to a slot holding an element. */
 [[nodiscard]] inline bool IsControlFull(i8 control)

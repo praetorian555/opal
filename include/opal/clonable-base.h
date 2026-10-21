@@ -146,7 +146,8 @@ private:
     static ErrorCode TryCloneFields(const SrcTuple& src, DstTuple& dst, AllocatorBase* allocator, std::index_sequence<Is...>)
     {
         ErrorCode error = ErrorCode::Success;
-        ((error = TryCloneField(std::get<Is>(src), std::get<Is>(dst), allocator), error == ErrorCode::Success) && ...);
+        // The && fold stops at the first field that fails; its value is read through `error`.
+        static_cast<void>(((error = TryCloneField(std::get<Is>(src), std::get<Is>(dst), allocator), error == ErrorCode::Success) && ...));
         return error;
     }
 

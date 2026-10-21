@@ -112,6 +112,26 @@ struct Hasher<T>
     }
 };
 
+/**
+ * @brief Names a type that a `HashSet<T>` or `HashMap<T, V>` can be searched with without building a `T`, such as a view for an owning
+ * string.
+ *
+ * Specialize with `using Type = ...;`. `Type` has to be constructible from `const T&`, comparable with `==`, and hashed by `Hasher<Type>` to
+ * the same value `Hasher<T>` gives the key it stands for. The primary template names no type, so a key type has no such lookup until it is
+ * given one.
+ *
+ * @tparam T Key type.
+ */
+template <typename T>
+struct HashLookupKey
+{
+};
+
+/** Concept: LookupType is not KeyType itself, and converts to the type HashLookupKey names for KeyType. */
+template <typename KeyType, typename LookupType>
+concept HashLookupFor = requires { typename HashLookupKey<KeyType>::Type; } && !k_is_same_value<LookupType, KeyType> &&
+                        Constructible<const LookupType&, typename HashLookupKey<KeyType>::Type>;
+
 }  // namespace Opal
 
 inline Opal::u64 Opal::Hash::CalcRawArray(const Opal::u8* data, Opal::u64 size, Opal::u64 seed)

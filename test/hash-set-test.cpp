@@ -2,6 +2,7 @@
 
 #include "opal/container/dynamic-array.h"
 #include "opal/container/hash-set.h"
+#include "opal/container/string-view.h"
 #include "opal/container/string.h"
 #include "opal/hash.h"
 
@@ -940,5 +941,37 @@ TEST_CASE("HashSet Clone after erasures", "[hash-set]")
         set.Clear();
         REQUIRE(clone.Contains("ab"));
         REQUIRE_FALSE(clone.Contains("aa"));
+    }
+}
+
+TEST_CASE("HashSet lookup without building a key", "[hash-set]")
+{
+    // Longer than the small string buffer, so building a StringUtf8 from it would allocate.
+    const char* const k_key = "a key long enough to need storage of its own";
+
+    HashSet<StringUtf8> set;
+    REQUIRE(set.Insert(StringUtf8(k_key)) == ErrorCode::Success);
+    REQUIRE(set.Insert(StringUtf8("short")) == ErrorCode::Success);
+
+    SECTION("By literal and by view")
+    {
+        REQUIRE(set.Contains(k_key));
+        REQUIRE(set.Find("short") != set.end());
+        const StringViewUtf8 text("short and more");
+        REQUIRE(set.Contains(StringViewUtf8(text.GetData(), 5)));
+        REQUIRE_FALSE(set.Contains(StringViewUtf8(text.GetData(), 4)));
+    }
+    SECTION("Erase")
+    {
+        REQUIRE(set.Erase("short") == ErrorCode::Success);
+        REQUIRE_FALSE(set.Contains("short"));
+        REQUIRE(set.Erase("short") == ErrorCode::InvalidArgument);
+    }
+    SECTION("Does not allocate")
+    {
+        NullAllocator null_allocator;
+        PushDefault no_allocations(&null_allocator);
+        REQUIRE(set.Contains(k_key));
+        REQUIRE(set.Erase(k_key) == ErrorCode::Success);
     }
 }

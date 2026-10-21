@@ -448,8 +448,20 @@ Opal::HashMap<int, int> map(ArrayView<Pair<int, int>>(pairs)); // From array vie
 ```cpp
 map.Find(key);                     // Returns iterator (end() if not found)
 map.Contains(key);                 // Returns bool
-map.GetValue(key);                 // Returns reference (throws if not found)
+map.GetValue(key);                 // Returns reference (ends the program if not found)
 ```
+
+A map keyed by strings can be searched with a `StringViewUtf8` or a literal without building a `StringUtf8` for the lookup. `Find`,
+`Contains`, `GetValue` and `Erase` all accept one:
+
+```cpp
+Opal::HashMap<Opal::StringUtf8, int> scores;
+scores.Contains("alice");                       // No allocation
+scores.GetValue(Opal::StringViewUtf8(name, 5)); // Part of a longer buffer
+```
+
+This works for any key type that specializes `Opal::HashLookupKey` with the lookup type to accept. The lookup type has to hash to the
+same value as the key it stands for and compare equal to it.
 
 ### Modification
 
@@ -525,6 +537,8 @@ Opal::HashSet<int> set(256, &alloc);      // Explicit allocator
 set.Find(key);                     // Returns iterator (end() if not found)
 set.Contains(key);                 // Returns bool
 ```
+
+Like `HashMap`, a set of strings can be searched and erased from with a `StringViewUtf8` or a literal.
 
 ### Modification
 
