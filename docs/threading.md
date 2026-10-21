@@ -739,6 +739,15 @@ if (sum.HasValue())
 auto work = pool.Submit([] { /* work */ });         // Future<void>
 ```
 
+Tasks, futures and `ParallelFor` state are allocated from the pool's allocator and usually freed on a worker, so with many small
+tasks the allocator is a large share of what a task costs. A `SmallBlockAllocator` (see `docs/memory.md`) keeps a cache per thread
+for exactly this pattern:
+
+```cpp
+Opal::SmallBlockAllocator allocator;                // Must outlive the pool and every future it hands out
+auto created = Opal::ThreadPool::Create(8, 128, &allocator);
+```
+
 `Create` returns `ErrorCode::InvalidArgument` for an allocator that is not thread safe, `ErrorCode::OutOfMemory` when the pool or
 its channel could not be allocated, and what `CreateThread` reported when a worker did not start; workers that did start are
 shut down first. A pool can be neither copied nor moved, so it lives behind the `ScopePtr`.

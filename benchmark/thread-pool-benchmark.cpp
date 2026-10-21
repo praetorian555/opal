@@ -1,5 +1,7 @@
 // Compares Opal::ThreadPool against a pool built on std::thread, a std::deque of std::function guarded by std::mutex, and
 // std::condition_variable, the pool a codebase without one would write. Its Submit wraps the callable in a std::packaged_task.
+// Opal runs twice: on the default allocator, and on an Opal::SmallBlockAllocator, which is what its tasks and futures are
+// allocated from.
 //
 // Five operations, each swept over the number of workers:
 //   Post        - the benchmark thread posts tasks that return nothing, then waits for the pool to drain. The cost of handing a
@@ -35,6 +37,7 @@
 #include <utility>
 #include <vector>
 
+#include "opal/small-block-allocator.h"
 #include "opal/threading/thread-pool.h"
 
 #include "thread-placement.h"
@@ -313,6 +316,38 @@ struct PoolOps<Opal::ThreadPool>
     }
 };
 
+/** Tag for Opal::ThreadPool given a SmallBlockAllocator of its own. */
+struct OpalSmallBlock;
+
+template <>
+struct PoolOps<OpalSmallBlock> : PoolOps<Opal::ThreadPool>
+{
+    /** The pool and the allocator it takes its tasks from, which must outlive it. */
+    struct Handle
+    {
+        std::unique_ptr<Opal::SmallBlockAllocator> allocator;
+        Opal::ScopePtr<Opal::ThreadPool> pool;
+
+        Opal::ThreadPool& operator*() const { return *pool; }
+    };
+
+    using PoolOps<Opal::ThreadPool>::IsValid;
+
+    static Handle Make(size_t thread_count)
+    {
+        Handle handle;
+        handle.allocator = std::make_unique<Opal::SmallBlockAllocator>();
+        auto created = Opal::ThreadPool::Create(thread_count, 128, handle.allocator.get());
+        if (created.HasValue())
+        {
+            handle.pool = std::move(created).GetValue();
+        }
+        return handle;
+    }
+
+    static bool IsValid(const Handle& handle) { return handle.pool.IsValid(); }
+};
+
 template <>
 struct PoolOps<Std>
 {
@@ -434,7 +469,7 @@ public:
         return false;
     }
 
-    Pool& operator*() const { return *m_pool; }
+    auto& operator*() const { return *m_pool; }
 
 private:
     enum class Status
@@ -627,11 +662,14 @@ void ParallelForSweep(benchmark::Benchmark* b)
 
 }  // namespace
 
-// Names come out as "ThreadPool/<operation>/<placement>/<Opal|Std>/<args>", so the compare.py that ships with Google Benchmark
-// pairs the sides:
+// Names come out as "ThreadPool/<operation>/<placement>/<Opal|OpalSmallBlock|Std>/<args>", so the compare.py that ships with
+// Google Benchmark pairs any two sides:
 //   compare.py filters results.json "/Opal/" "/Std/"
 #define POOL_BENCHMARK(fn, name, placement, configure)                                                                                 \
     BENCHMARK_TEMPLATE(fn, Opal::ThreadPool, Placement::placement)->Name("ThreadPool/" name "/" #placement "/Opal")->Apply(configure); \
+    BENCHMARK_TEMPLATE(fn, OpalSmallBlock, Placement::placement)                                                                       \
+        ->Name("ThreadPool/" name "/" #placement "/OpalSmallBlock")                                                                    \
+        ->Apply(configure);                                                                                                            \
     BENCHMARK_TEMPLATE(fn, Std, Placement::placement)->Name("ThreadPool/" name "/" #placement "/Std")->Apply(configure)
 
 POOL_BENCHMARK(BM_Post, "Post", SameL3, ThreadSweep);

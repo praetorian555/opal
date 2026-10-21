@@ -54,6 +54,7 @@ endif ()
 set(OPAL_FILES
         src/assert.cpp
         src/allocator.cpp
+        src/small-block-allocator.cpp
         src/time.cpp
         src/string-encoding.cpp
         src/paths.cpp
@@ -82,6 +83,7 @@ set(OPAL_FILES
         include/opal/type-traits.h
         include/opal/casts.h
         include/opal/allocator.h
+        include/opal/small-block-allocator.h
         include/opal/types.h
         include/opal/exceptions.h
         include/opal/error-codes.h
@@ -234,6 +236,7 @@ if (OPAL_BUILD_TESTS)
             test/main-test.cpp
             test/assert-test.cpp
             test/allocator-test.cpp
+            test/small-block-allocator-test.cpp
             test/dynamic-array-test.cpp
             test/deque-test.cpp
             test/array-view-test.cpp

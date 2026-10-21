@@ -27,6 +27,7 @@ AllocatorBase (pure virtual)
  +-- SystemMemoryAllocator  Reserve/commit via VirtualAlloc/mmap, not thread-safe
  +-- LinearAllocator        Bump allocator backed by SystemMemoryAllocator, not thread-safe
  +-- NullAllocator          Always fails to allocate, not thread-safe
+ +-- SmallBlockAllocator    Per-thread caches of small blocks, thread-safe
 ```
 
 ### MallocAllocator
@@ -79,6 +80,28 @@ arena.Reset();  // All allocations invalidated
 ### NullAllocator
 
 Returns `nullptr` from every `Alloc`. `Free` is a no-op. Not thread-safe. Useful for containers that should never allocate (e.g. moved-from state), and for exercising the out-of-memory path in tests. The debug name is always `"NullAllocator"`.
+
+### SmallBlockAllocator
+
+Header: `opal/small-block-allocator.h`
+
+Thread-safe allocator for small blocks that are often freed on a different thread from the one that allocated them: tasks posted
+to a `ThreadPool`, the state of their futures, messages handed between threads. Each thread allocates from a cache of its own, so
+allocating and freeing on the same thread takes no lock and no atomic operation. A block freed on another thread goes back to the
+cache it came from, in batches, without contending with that thread's allocations.
+
+Blocks of up to `k_max_block_size` (512) bytes aligned to at most `k_max_alignment` (64) are served from the caches. Anything larger
+or more aligned is passed straight to the upstream allocator.
+
+```cpp
+Opal::SmallBlockAllocator allocator;                        // Upstream: the default allocator, which must be thread safe
+auto pool = Opal::ThreadPool::Create(8, 128, &allocator);   // Tasks and futures now come from the caches
+```
+
+Construction does not allocate. Memory is taken from upstream in 64 KiB pages as threads start allocating, and is kept for reuse
+until the allocator is destroyed rather than handed back as soon as it is free, so the footprint follows the peak number of live
+blocks. When a thread exits, its cache passes to the next thread that starts allocating. Every block must be freed before the
+allocator is destroyed, and no thread may use it during destruction. A thread that used an allocator may outlive it.
 
 ## Allocator Stacks
 
@@ -235,5 +258,4 @@ The move assignment in `DynamicArray` unconditionally takes the source allocator
 | Feature | Purpose |
 |---------|---------|
 | Debug allocation counters | Leak detection per allocator |
-| Pool allocator | Fixed-size block allocation for hot paths |
 | Allocator stats/profiling | Track peak usage, allocation count, fragmentation |
