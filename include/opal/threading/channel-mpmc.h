@@ -215,6 +215,16 @@ public:
     [[nodiscard]] bool IsClosed() const { return m_is_closed.Load<MemoryOrder::Acquire>(); }
 
 private:
+    /** Spin for pauses CPU pauses, then double pauses up to a cap, so a waiter polls less the longer it waits. */
+    static void Backoff(u32& pauses)
+    {
+        for (u32 i = 0; i < pauses; i++)
+        {
+            CpuPause();
+        }
+        pauses = pauses < 64 ? pauses * 2 : pauses;
+    }
+
     /** Wake a consumer waiting in PopUnlessClosed. */
     void SignalPushed()
     {
@@ -251,6 +261,7 @@ private:
         auto& slot = m_data[slot_idx];
         size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
         size_t current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
+        u32 pauses = 1;
         while (2 * turn != current_turn)
         {
             if constexpr (UseSignaling)
@@ -259,7 +270,7 @@ private:
             }
             else
             {
-                CpuPause();
+                Backoff(pauses);
             }
             current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
         }
