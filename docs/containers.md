@@ -436,7 +436,7 @@ Header: `opal/container/hash-map.h`
 Open-addressing hash map using the Swiss tables algorithm with SSE SIMD-optimized control byte probing. Stores `Pair<KeyType, ValueType>` entries.
 
 ```cpp
-Opal::HashMap<Opal::StringUtf8, int> map;                     // Default capacity
+Opal::HashMap<Opal::StringUtf8, int> map;                     // Empty, allocates on first insert
 Opal::HashMap<int, int> map(1024);                             // Pre-sized
 Opal::HashMap<int, int> map(1024, &alloc);                     // Explicit allocator
 Opal::HashMap<int, int> map = {{1, 10}, {2, 20}};             // Initializer list
@@ -514,7 +514,7 @@ Header: `opal/container/hash-set.h`
 Open-addressing hash set using the Swiss tables algorithm. Same SIMD-optimized internals as `HashMap`.
 
 ```cpp
-Opal::HashSet<int> set;                   // Default capacity
+Opal::HashSet<int> set;                   // Empty, allocates on first insert
 Opal::HashSet<int> set(256);              // Pre-sized
 Opal::HashSet<int> set(256, &alloc);      // Explicit allocator
 ```

@@ -141,8 +141,14 @@ public:
     using iterator = HashSetIterator<HashSet>;
     using const_iterator = HashSetConstIterator<HashSet>;
 
-    /** Smallest number of keys a set is built for. */
+    /** Smallest number of keys a set makes room for. */
     constexpr static u64 k_default_capacity = Impl::k_default_capacity;
+
+    /**
+     * Creates an empty set with no room reserved. Does not allocate, so it cannot fail. The first insertion makes room.
+     * @param allocator Allocator to use, or nullptr to use the default one.
+     */
+    HashSet(AllocatorBase* allocator = nullptr) noexcept;
 
     /**
      * Creates a set able to hold at least `capacity` keys before it has to grow.
@@ -150,14 +156,14 @@ public:
      * @param allocator Allocator to use, or nullptr to use the default one.
      * @throw OutOfMemoryException when the allocator runs out of memory.
      */
-    explicit HashSet(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
+    explicit HashSet(size_type capacity, AllocatorBase* allocator = nullptr);
 
     /**
      * Build a set the way the matching constructor does, reporting a failed allocation instead of throwing it. Use this when the
      * allocator is budgeted and running out is an outcome to branch on.
      * @return The set, or ErrorCode::OutOfMemory.
      */
-    [[nodiscard]] static Expected<HashSet, ErrorCode> Create(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
+    [[nodiscard]] static Expected<HashSet, ErrorCode> Create(size_type capacity, AllocatorBase* allocator = nullptr);
 
     HashSet(const HashSet& other) = delete;
     HashSet(HashSet&& other) noexcept;
@@ -281,13 +287,6 @@ private:
     void DestroyAllKeys();
     ErrorCode Grow();
 
-    // Builds a set that owns nothing and has not touched an allocator, for the factory to fill in. Reserve(0) is not a
-    // substitute: it still asks the allocator for the smallest table and fails on a budgeted one.
-    struct EmptyTag
-    {
-    };
-    HashSet(EmptyTag, AllocatorBase* allocator) : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator()) {}
-
     AllocatorBase* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
     key_type* m_slots = nullptr;
@@ -299,6 +298,11 @@ private:
 };
 
 }  // namespace Opal
+
+template <typename KeyType>
+Opal::HashSet<KeyType>::HashSet(AllocatorBase* allocator) noexcept : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
+{
+}
 
 template <typename KeyType>
 Opal::HashSet<KeyType>::HashSet(size_type capacity, AllocatorBase* allocator)
@@ -314,7 +318,7 @@ template <typename KeyType>
 Opal::Expected<Opal::HashSet<KeyType>, Opal::ErrorCode> Opal::HashSet<KeyType>::Create(size_type capacity, AllocatorBase* allocator)
 {
     using Result = Expected<HashSet, ErrorCode>;
-    HashSet set{EmptyTag{}, allocator};
+    HashSet set(allocator);
     const ErrorCode error = set.Reserve(capacity);
     if (error != ErrorCode::Success) [[unlikely]]
     {
@@ -481,11 +485,11 @@ template <typename KeyType>
 Opal::HashSet<KeyType> Opal::HashSet<KeyType>::Clone(AllocatorBase* allocator) const
 {
     allocator = allocator == nullptr ? m_allocator : allocator;
-    HashSet clone(m_capacity, allocator);
     if (m_control_bytes == nullptr)
     {
-        return clone;
+        return HashSet(allocator);
     }
+    HashSet clone(m_capacity, allocator);
     clone.m_seed = m_seed;
     // Same capacity and seed, so every key keeps its slot and none is hashed again. The control bytes come over as they are,
     // erased markers included, since a probe that passed over an erased slot on the way in has to pass over it on the way back.

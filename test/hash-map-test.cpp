@@ -241,6 +241,55 @@ TEST_CASE("Hash map reports failures through error codes", "[HashMap]")
     }
 }
 
+TEST_CASE("Hash map default constructor does not allocate", "[HashMap]")
+{
+    static_assert(std::is_nothrow_default_constructible_v<HashMap<StringUtf8, StringUtf8>>);
+
+    SECTION("Constructs on an allocator that has nothing to give")
+    {
+        NullAllocator null_allocator;
+        HashMap<i32, i32> map(&null_allocator);
+        REQUIRE(map.IsEmpty());
+        REQUIRE(map.GetCapacity() == 0);
+        REQUIRE_FALSE(map.Contains(1));
+        REQUIRE(map.Find(1) == map.end());
+        REQUIRE(map.begin() == map.end());
+        REQUIRE(map.Erase(1) == ErrorCode::InvalidArgument);
+        REQUIRE(map.Erase(map.begin()) == ErrorCode::OutOfBounds);
+        map.Clear();
+        REQUIRE(map.Insert(1, 10) == ErrorCode::OutOfMemory);
+        REQUIRE(map.IsEmpty());
+    }
+    SECTION("First insertion makes room")
+    {
+        HashMap<StringUtf8, StringUtf8> map;
+        REQUIRE(map.GetCapacity() == 0);
+        REQUIRE(map.Insert(StringUtf8("key"), StringUtf8("value")) == ErrorCode::Success);
+        REQUIRE(map.GetCapacity() == 7);
+        REQUIRE(map.GetValue(StringUtf8("key")) == StringUtf8("value"));
+    }
+    SECTION("Clone of an empty map does not allocate")
+    {
+        NullAllocator null_allocator;
+        HashMap<i32, i32> map(&null_allocator);
+        HashMap<i32, i32> clone = map.Clone();
+        REQUIRE(clone.IsEmpty());
+        REQUIRE(clone.GetCapacity() == 0);
+    }
+    SECTION("Member of a default constructed struct")
+    {
+        struct Registry
+        {
+            HashMap<i32, i32> ids;
+            HashSet<i32> tags;
+        };
+        static_assert(std::is_nothrow_default_constructible_v<Registry>);
+        Registry registry = {};
+        REQUIRE(registry.ids.Insert(1, 2) == ErrorCode::Success);
+        REQUIRE(registry.tags.Insert(3) == ErrorCode::Success);
+    }
+}
+
 TEST_CASE("Hash map emptiness", "[HashMap]")
 {
     HashMap<i32, i32> map;

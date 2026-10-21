@@ -758,6 +758,42 @@ TEST_CASE("Create a hash set without throwing", "[hash-set]")
     }
 }
 
+TEST_CASE("HashSet default constructor does not allocate", "[hash-set]")
+{
+    static_assert(std::is_nothrow_default_constructible_v<HashSet<StringUtf8>>);
+
+    SECTION("Constructs on an allocator that has nothing to give")
+    {
+        NullAllocator null_allocator;
+        HashSet<i32> set(&null_allocator);
+        REQUIRE(set.IsEmpty());
+        REQUIRE(set.GetCapacity() == 0);
+        REQUIRE_FALSE(set.Contains(1));
+        REQUIRE(set.Find(1) == set.end());
+        REQUIRE(set.begin() == set.end());
+        REQUIRE(set.Erase(1) == ErrorCode::InvalidArgument);
+        set.Clear();
+        REQUIRE(set.Insert(1) == ErrorCode::OutOfMemory);
+        REQUIRE(set.IsEmpty());
+    }
+    SECTION("First insertion makes room")
+    {
+        HashSet<StringUtf8> set;
+        REQUIRE(set.GetCapacity() == 0);
+        REQUIRE(set.Insert(StringUtf8("key")) == ErrorCode::Success);
+        REQUIRE(set.GetCapacity() == 7);
+        REQUIRE(set.Contains(StringUtf8("key")));
+    }
+    SECTION("Clone of an empty set does not allocate")
+    {
+        NullAllocator null_allocator;
+        HashSet<i32> set(&null_allocator);
+        HashSet<i32> clone = set.Clone();
+        REQUIRE(clone.IsEmpty());
+        REQUIRE(clone.GetCapacity() == 0);
+    }
+}
+
 TEST_CASE("HashSet iteration across many groups", "[hash-set]")
 {
     HashSet<i32> set;

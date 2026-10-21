@@ -169,8 +169,14 @@ public:
     using iterator = HashMapIterator<HashMap>;
     using const_iterator = HashMapConstIterator<HashMap>;
 
-    /** Smallest number of pairs a map is built for. */
+    /** Smallest number of pairs a map makes room for. */
     constexpr static u64 k_default_capacity = Impl::k_default_capacity;
+
+    /**
+     * Creates an empty map with no room reserved. Does not allocate, so it cannot fail. The first insertion makes room.
+     * @param allocator Allocator to use, or nullptr to use the default one.
+     */
+    HashMap(AllocatorBase* allocator = nullptr) noexcept;
 
     /**
      * Creates a map able to hold at least `capacity` pairs before it has to grow.
@@ -178,7 +184,7 @@ public:
      * @param allocator Allocator to use, or nullptr to use the default one.
      * @throw OutOfMemoryException when the allocator runs out of memory.
      */
-    explicit HashMap(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
+    explicit HashMap(size_type capacity, AllocatorBase* allocator = nullptr);
 
     /**
      * Creates a map holding a copy of every given pair. Later pairs replace earlier ones with an equal key.
@@ -194,7 +200,7 @@ public:
      * allocator is budgeted and running out is an outcome to branch on.
      * @return The map, or ErrorCode::OutOfMemory.
      */
-    [[nodiscard]] static Expected<HashMap, ErrorCode> Create(size_type capacity = k_default_capacity, AllocatorBase* allocator = nullptr);
+    [[nodiscard]] static Expected<HashMap, ErrorCode> Create(size_type capacity, AllocatorBase* allocator = nullptr);
     [[nodiscard]] static Expected<HashMap, ErrorCode> Create(const ArrayView<Pair<KeyType, ValueType>>& pairs,
                                                              AllocatorBase* allocator = nullptr);
     [[nodiscard]] static Expected<HashMap, ErrorCode> Create(std::initializer_list<pair_type> pairs, AllocatorBase* allocator = nullptr);
@@ -352,13 +358,6 @@ private:
     void DestroyAllPairs();
     ErrorCode Grow();
 
-    // Builds a map that owns nothing and has not touched an allocator, for the factories to fill in. Reserve(0) is not a
-    // substitute: it still asks the allocator for the smallest table and fails on a budgeted one.
-    struct EmptyTag
-    {
-    };
-    HashMap(EmptyTag, AllocatorBase* allocator) : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator()) {}
-
     AllocatorBase* m_allocator = nullptr;
     i8* m_control_bytes = nullptr;
     pair_type* m_slots = nullptr;
@@ -371,10 +370,11 @@ private:
 
 }  // namespace Opal
 
-
-
-
-
+template <typename KeyType, typename ValueType>
+Opal::HashMap<KeyType, ValueType>::HashMap(AllocatorBase* allocator) noexcept
+    : m_allocator(allocator != nullptr ? allocator : GetDefaultAllocator())
+{
+}
 
 template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType>::HashMap(size_type capacity, AllocatorBase* allocator)
@@ -425,7 +425,7 @@ Opal::Expected<Opal::HashMap<KeyType, ValueType>, Opal::ErrorCode> Opal::HashMap
                                                                                                             AllocatorBase* allocator)
 {
     using Result = Expected<HashMap, ErrorCode>;
-    HashMap map{EmptyTag{}, allocator};
+    HashMap map(allocator);
     const ErrorCode error = map.Reserve(capacity);
     if (error != ErrorCode::Success) [[unlikely]]
     {
@@ -439,7 +439,7 @@ Opal::Expected<Opal::HashMap<KeyType, ValueType>, Opal::ErrorCode> Opal::HashMap
     const ArrayView<Pair<KeyType, ValueType>>& pairs, AllocatorBase* allocator)
 {
     using Result = Expected<HashMap, ErrorCode>;
-    HashMap map{EmptyTag{}, allocator};
+    HashMap map(allocator);
     ErrorCode error = map.Reserve(pairs.GetSize());
     if (error != ErrorCode::Success) [[unlikely]]
     {
@@ -461,7 +461,7 @@ Opal::Expected<Opal::HashMap<KeyType, ValueType>, Opal::ErrorCode> Opal::HashMap
     std::initializer_list<pair_type> pairs, AllocatorBase* allocator)
 {
     using Result = Expected<HashMap, ErrorCode>;
-    HashMap map{EmptyTag{}, allocator};
+    HashMap map(allocator);
     ErrorCode error = map.Reserve(pairs.size());
     if (error != ErrorCode::Success) [[unlikely]]
     {
@@ -553,11 +553,11 @@ template <typename KeyType, typename ValueType>
 Opal::HashMap<KeyType, ValueType> Opal::HashMap<KeyType, ValueType>::Clone(AllocatorBase* allocator) const
 {
     allocator = allocator == nullptr ? m_allocator : allocator;
-    HashMap clone(m_capacity, allocator);
     if (m_control_bytes == nullptr)
     {
-        return clone;
+        return HashMap(allocator);
     }
+    HashMap clone(m_capacity, allocator);
     clone.m_seed = m_seed;
     // Same capacity and seed, so every pair keeps its slot and none is hashed again. The control bytes come over as they are,
     // erased markers included, since a probe that passed over an erased slot on the way in has to pass over it on the way back.
