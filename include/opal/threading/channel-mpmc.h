@@ -168,6 +168,11 @@ private:
     // With signaling, how many times the only consumer polls, pausing twice as long each time, before it goes to sleep.
     static constexpr u32 k_single_consumer_spin_rounds = 8;
 
+    // With signaling, how many times a consumer holding a ticket polls its slot, pausing four times as long each time, before it
+    // goes to sleep. The first poll comes quickly, for latency, and later ones are sparse, since every poll pulls the slot's line
+    // away from the producer about to write it.
+    static constexpr u32 k_ticket_spin_rounds = 5;
+
     /** TryPop when several consumers may race for the same slot. */
     bool TryPopShared(T& result)
     {
@@ -327,8 +332,22 @@ private:
         const size_t read_idx = m_read_idx.FetchAdd<MemoryOrder::Relaxed>(1);
         auto& slot = m_data[read_idx & (m_capacity - 1)];
         const size_t filled_turn = 2 * (read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1))) + 1;
+        u32 round = 0;
         while (slot.turn.template Load<MemoryOrder::Acquire>() != filled_turn)
         {
+            if constexpr (UseSignaling)
+            {
+                // Polls only the slot while spinning. m_is_closed shares a line with m_read_idx, which every claim writes.
+                if (round < k_ticket_spin_rounds)
+                {
+                    for (u32 i = 0; i < (1u << (2 * round)); i++)
+                    {
+                        CpuPause();
+                    }
+                    round++;
+                    continue;
+                }
+            }
             // Acquiring m_is_closed makes every push that happened before Close visible in m_write_idx.
             if (IsClosed() && m_write_idx.Load<MemoryOrder::Acquire>() <= read_idx)
             {
@@ -336,7 +355,6 @@ private:
             }
             if constexpr (UseSignaling)
             {
-                // Sleeping at once, unlike the single consumer: with several consumers polling first cost more than it saved.
                 SleepUntilFilled(slot, filled_turn);
             }
             else

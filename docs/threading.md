@@ -450,6 +450,12 @@ process-wide memory barrier first (`FlushProcessWriteBuffers` on Windows, `memba
 briefly interrupts the process's other running threads. That keeps every send and receive free of a hardware fence, and is
 paid only when a thread blocks, which costs more anyway.
 
+A receiver with nothing to take polls for a few microseconds, pausing longer each time, before it goes to sleep. Consumers that
+run ahead of their producers, such as idle `ThreadPool` workers waiting for the next task, would otherwise sleep and be woken for
+every item, and each sleep's barrier slows the producer that has to wake them. The polling costs an MPMC channel a few percent of
+throughput when its consumers keep up anyway, and about a quarter with a single consumer on another CCD, which loses the batching
+that sleeping gave it. A channel with one consumer should be a `ChannelMPSC`.
+
 ```cpp
 #include "opal/threading/channel-spsc.h"
 
