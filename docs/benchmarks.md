@@ -35,6 +35,18 @@ Useful flags:
 A number is only meaningful next to a baseline taken on the same machine in the same session. Rerun the baseline rather
 than comparing against one saved from another day.
 
+## Threaded benchmarks
+
+A queue handoff costs what moving a cache line between two cores costs, and that depends on where the cores are. On a Zen CPU
+with two CCDs, a line moves inside one CCD in about 20 ns and between them in about 80 to 100 ns, so the scheduler's choice of
+cores can move a result further than a code change does. The channel `Transfer` benchmarks therefore pin every thread to a
+physical core of its own, never two SMT siblings, and run each shape under two placements: `SameL3`, all threads on one CCD, and
+`CrossL3`, producers on one and consumers on the other. A placement the machine cannot provide is skipped. The cores come from
+the OS topology, and the console header and JSON context print them as `l3_domains`.
+
+Under WSL the topology is the virtual machine's: the guest sees one L3, and its virtual CPUs are not fixed to physical cores, so
+pinning there does not control placement. Take threaded numbers from a native build.
+
 ## Comparing two runs
 
 Google Benchmark ships a comparison script in the fetched source, at `build/bench/_deps/benchmark-src/tools/compare.py`. It
