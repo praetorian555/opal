@@ -757,6 +757,19 @@ if (sum.HasValue())
 auto work = pool.Submit([] { /* work */ });         // Future<void>
 ```
 
+`ThreadPoolDesc` creates a pool with its workers pinned to chosen logical cores and named for debuggers and profilers. Keeping
+workers and the threads that feed them inside one L3 domain (see CPU Topology) saves the cost of moving every task between
+caches.
+
+```cpp
+const Opal::u32 cores[] = {0, 2, 4, 6};                 // One logical core per worker, here the first of each physical core
+Opal::ThreadPoolDesc desc;
+desc.thread_count = 4;
+desc.worker_cores = Opal::ArrayView<const Opal::u32>(cores);
+desc.name = "jobs";                                     // Workers are named "jobs 0" to "jobs 3"
+auto created = Opal::ThreadPool::Create(desc);
+```
+
 Tasks, futures and `ParallelFor` state are allocated from the pool's allocator and usually freed on a worker, so with many small
 tasks the allocator is a large share of what a task costs. A `SmallBlockAllocator` (see `docs/memory.md`) keeps a cache per thread
 for exactly this pattern:
@@ -834,6 +847,7 @@ so the function must be safe to call concurrently with itself, and it must not t
 | Method | Description |
 |--------|-------------|
 | `Create(size_t thread_count, size_t channel_capacity = 128, AllocatorBase* allocator = nullptr)` | Create a pool with N workers, returns `Expected<ScopePtr<ThreadPool>, ErrorCode>` |
+| `Create(const ThreadPoolDesc& desc)` | Same, also pinning workers to `desc.worker_cores` and naming them after `desc.name`. `ErrorCode::InvalidArgument` if `worker_cores` is not one core below 64 per worker |
 | `Submit(Function)` | Submit a callable taking no arguments, returns `Expected<Future<R>, ErrorCode>` for what it returns |
 | `WaitForAll()` | Block until every submitted task has run, child tasks included. Not safe to call while another thread is closing the pool |
 | `Close()` | Reject later tasks, run every accepted one, then join all threads. Safe to call multiple times |

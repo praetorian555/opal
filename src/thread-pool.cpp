@@ -1,5 +1,8 @@
 #include "opal/threading/thread-pool.h"
 
+#include <string_view>
+
+#include "opal/container/string-format.h"
 #include "opal/threading/cpu-pause.h"
 
 
@@ -40,21 +43,41 @@ void ThreadFunction(ReceiverType receiver, const Opal::ThreadPool* pool, Opal::R
 Opal::Expected<Opal::ScopePtr<Opal::ThreadPool>, Opal::ErrorCode> Opal::ThreadPool::Create(size_t thread_count, size_t channel_capacity,
                                                                                          AllocatorBase* allocator)
 {
+    ThreadPoolDesc desc;
+    desc.thread_count = thread_count;
+    desc.channel_capacity = channel_capacity;
+    desc.allocator = allocator;
+    return Create(desc);
+}
+
+Opal::Expected<Opal::ScopePtr<Opal::ThreadPool>, Opal::ErrorCode> Opal::ThreadPool::Create(const ThreadPoolDesc& desc)
+{
     using Result = Expected<ScopePtr<ThreadPool>, ErrorCode>;
-    if (allocator == nullptr)
-    {
-        allocator = GetDefaultAllocator();
-    }
+    AllocatorBase* allocator = desc.allocator != nullptr ? desc.allocator : GetDefaultAllocator();
     if (!allocator->IsThreadSafe())
     {
         return Result(ErrorCode::InvalidArgument);
     }
-    ScopePtr<ThreadPool> pool = MakeScoped<ThreadPool>(allocator, CreateKey{}, channel_capacity, allocator);
+    if (!desc.worker_cores.IsEmpty())
+    {
+        if (desc.worker_cores.GetSize() != desc.thread_count)
+        {
+            return Result(ErrorCode::InvalidArgument);
+        }
+        for (const u32 core : desc.worker_cores)
+        {
+            if (core >= 64)
+            {
+                return Result(ErrorCode::InvalidArgument);
+            }
+        }
+    }
+    ScopePtr<ThreadPool> pool = MakeScoped<ThreadPool>(allocator, CreateKey{}, desc.channel_capacity, allocator);
     if (!pool.IsValid() || !pool->m_communicator.transmitter.IsValid())
     {
         return Result(ErrorCode::OutOfMemory);
     }
-    const ErrorCode started = pool->StartWorkers(thread_count);
+    const ErrorCode started = pool->StartWorkers(desc);
     if (started != ErrorCode::Success)
     {
         pool->Close();
@@ -68,8 +91,9 @@ Opal::ThreadPool::ThreadPool(CreateKey, size_t channel_capacity, AllocatorBase* 
 {
 }
 
-Opal::ErrorCode Opal::ThreadPool::StartWorkers(size_t thread_count)
+Opal::ErrorCode Opal::ThreadPool::StartWorkers(const ThreadPoolDesc& desc)
 {
+    const size_t thread_count = desc.thread_count;
     // Room for every handle before the first thread starts, so that a started thread can never fail to be recorded and then be left
     // running unjoined.
     const ErrorCode reserved = m_threads.Reserve(thread_count);
@@ -86,7 +110,20 @@ Opal::ErrorCode Opal::ThreadPool::StartWorkers(size_t thread_count)
         {
             return thread_handle.GetError();
         }
+        const ThreadHandle handle = thread_handle.GetValue();
         m_threads.PushBack(std::move(thread_handle).GetValue());
+        if (!desc.worker_cores.IsEmpty())
+        {
+            SetThreadAffinity(handle, desc.worker_cores[i]);
+        }
+        if (!desc.name.IsEmpty())
+        {
+            Expected<StringUtf8, ErrorCode> name = Format("{} {}", std::string_view(desc.name.GetData(), desc.name.GetSize()), i);
+            if (name.HasValue())
+            {
+                SetThreadName(handle, name.GetValue());
+            }
+        }
     }
     return ErrorCode::Success;
 }

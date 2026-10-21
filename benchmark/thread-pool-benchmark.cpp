@@ -267,9 +267,14 @@ struct PoolOps<Opal::ThreadPool>
     using Handle = Opal::ScopePtr<Opal::ThreadPool>;
     using Future = Opal::Future<Item>;
 
-    static Handle Make(size_t thread_count)
+    static constexpr bool k_pins_workers = true;
+
+    static Handle Make(size_t thread_count, const std::vector<Opal::u32>& worker_cores)
     {
-        auto created = Opal::ThreadPool::Create(thread_count);
+        Opal::ThreadPoolDesc desc;
+        desc.thread_count = thread_count;
+        desc.worker_cores = Opal::ArrayView<const Opal::u32>(worker_cores.data(), worker_cores.size());
+        auto created = Opal::ThreadPool::Create(desc);
         return created.HasValue() ? std::move(created).GetValue() : Handle();
     }
 
@@ -333,11 +338,15 @@ struct PoolOps<OpalSmallBlock> : PoolOps<Opal::ThreadPool>
 
     using PoolOps<Opal::ThreadPool>::IsValid;
 
-    static Handle Make(size_t thread_count)
+    static Handle Make(size_t thread_count, const std::vector<Opal::u32>& worker_cores)
     {
         Handle handle;
         handle.allocator = std::make_unique<Opal::SmallBlockAllocator>();
-        auto created = Opal::ThreadPool::Create(thread_count, 128, handle.allocator.get());
+        Opal::ThreadPoolDesc desc;
+        desc.thread_count = thread_count;
+        desc.allocator = handle.allocator.get();
+        desc.worker_cores = Opal::ArrayView<const Opal::u32>(worker_cores.data(), worker_cores.size());
+        auto created = Opal::ThreadPool::Create(desc);
         if (created.HasValue())
         {
             handle.pool = std::move(created).GetValue();
@@ -354,7 +363,10 @@ struct PoolOps<Std>
     using Handle = std::unique_ptr<Std>;
     using Future = std::future<Item>;
 
-    static Handle Make(size_t thread_count) { return std::make_unique<Std>(thread_count); }
+    // The workers are not reachable from outside, so PinnedPool pins them from inside.
+    static constexpr bool k_pins_workers = false;
+
+    static Handle Make(size_t thread_count, const std::vector<Opal::u32>&) { return std::make_unique<Std>(thread_count); }
     static bool IsValid(const Handle& pool) { return pool != nullptr; }
 
     static bool PostEmpty(Std& pool)
@@ -400,9 +412,10 @@ struct PoolOps<Std>
 
 /**
  * The pool under test, with every thread pinned to a core of its own as placement says: the benchmark thread, which submits, as
- * the producer, and the workers as the consumers. Neither pool exposes its workers, so each is pinned from inside by a task that
- * takes the next core and then holds its worker until every worker holds such a task. With as many tasks as workers, that makes
- * every worker run exactly one. The benchmark thread gets its own cores back when this is destroyed, after the pool.
+ * the producer, and the workers as the consumers. Opal::ThreadPool pins its workers through ThreadPoolDesc::worker_cores. The std
+ * pool does not expose its workers, so each is pinned from inside by a task that takes the next core and then holds its worker
+ * until every worker holds such a task. With as many tasks as workers, that makes every worker run exactly one. The benchmark
+ * thread gets its own cores back when this is destroyed, after the pool.
  */
 template <typename Pool>
 class PinnedPool
@@ -418,10 +431,14 @@ public:
             return;
         }
         m_benchmark_thread_pin.emplace(cores[0]);
-        m_pool = Ops::Make(thread_count);
+        m_pool = Ops::Make(thread_count, std::vector<Opal::u32>(cores.begin() + 1, cores.end()));
         if (!Ops::IsValid(m_pool))
         {
             m_status = Status::NoPool;
+            return;
+        }
+        if constexpr (Ops::k_pins_workers)
+        {
             return;
         }
 

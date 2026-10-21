@@ -2172,6 +2172,31 @@ TEST_CASE("SleepCurrentThread sleeps at least as long as asked", "[Thread]")
 
 namespace
 {
+// Reads the calling thread's name back through the OS. Empty if it could not be read.
+StringUtf8 ReadCurrentThreadName()
+{
+    StringUtf8 read_back;
+#if defined(OPAL_PLATFORM_WINDOWS)
+    PWSTR description = nullptr;
+    if (SUCCEEDED(GetThreadDescription(GetCurrentThread(), &description)))
+    {
+        StringWide wide(description);
+        if (Transcode(wide, read_back) != ErrorCode::Success)
+        {
+            read_back = StringUtf8();
+        }
+        LocalFree(description);
+    }
+#else
+    char buffer[16] = {};
+    if (pthread_getname_np(pthread_self(), buffer, sizeof(buffer)) == 0)
+    {
+        read_back = buffer;
+    }
+#endif
+    return read_back;
+}
+
 // Names a new thread and reads the name back through the OS.
 StringUtf8 NameThreadAndReadBack(const char8* name)
 {
@@ -2181,24 +2206,7 @@ StringUtf8 NameThreadAndReadBack(const char8* name)
         [](const char8* in_name, Ref<StringUtf8> in_read_back, Ref<ErrorCode> in_set_result)
         {
             *in_set_result = SetThreadName(GetCurrentThreadHandle(), StringViewUtf8(in_name));
-#if defined(OPAL_PLATFORM_WINDOWS)
-            PWSTR description = nullptr;
-            if (SUCCEEDED(GetThreadDescription(GetCurrentThread(), &description)))
-            {
-                StringWide wide(description);
-                if (Transcode(wide, *in_read_back) != ErrorCode::Success)
-                {
-                    *in_read_back = StringUtf8();
-                }
-                LocalFree(description);
-            }
-#else
-            char buffer[16] = {};
-            if (pthread_getname_np(pthread_self(), buffer, sizeof(buffer)) == 0)
-            {
-                *in_read_back = buffer;
-            }
-#endif
+            *in_read_back = ReadCurrentThreadName();
         },
         name, Ref(read_back), Ref(set_result));
     JoinThread(t);
@@ -2218,6 +2226,63 @@ TEST_CASE("SetThreadName names a thread", "[Thread]")
 #else
     REQUIRE(NameThreadAndReadBack(long_name) == "worker1-\xC5\xBD\xC5\xBD\xC5\xBD");
 #endif
+}
+
+TEST_CASE("Thread pool pins and names its workers", "[Thread]")
+{
+    const Expected<CpuInfo, ErrorCode> cpu_info = GetCpuInfo();
+    REQUIRE(cpu_info.HasValue());
+    const u32 logical_cores = cpu_info.GetValue().logical_cores_count;
+    REQUIRE(logical_cores >= 2);
+    // The last two cores, so that a worker the pool failed to move is unlikely to pass by having started there.
+    const u32 cores[] = {logical_cores - 2, logical_cores - 1};
+
+    ThreadPoolDesc desc;
+    desc.thread_count = 2;
+    desc.worker_cores = ArrayView<const u32>(cores);
+    desc.name = "opal-pool";
+    Expected<ScopePtr<ThreadPool>, ErrorCode> created = ThreadPool::Create(desc);
+    REQUIRE(created.HasValue());
+    ThreadPool& pool = *created.GetValue();
+
+    constexpr i32 k_task_count = 64;
+    std::atomic<i32> off_core{0};
+    std::atomic<i32> unnamed{0};
+    for (i32 i = 0; i < k_task_count; ++i)
+    {
+        auto task = pool.Submit(
+            [&cores, &off_core, &unnamed]
+            {
+                const u32 core = GetCurrentLogicalCore();
+                if (core != cores[0] && core != cores[1])
+                {
+                    off_core.fetch_add(1);
+                }
+                const StringUtf8 name = ReadCurrentThreadName();
+                if (name != "opal-pool 0" && name != "opal-pool 1")
+                {
+                    unnamed.fetch_add(1);
+                }
+            });
+        REQUIRE(task.HasValue());
+    }
+    pool.WaitForAll();
+
+    CHECK(off_core.load() == 0);
+    CHECK(unnamed.load() == 0);
+}
+
+TEST_CASE("Thread pool rejects worker cores that do not fit", "[Thread]")
+{
+    const u32 too_few[] = {0};
+    ThreadPoolDesc desc;
+    desc.thread_count = 2;
+    desc.worker_cores = ArrayView<const u32>(too_few);
+    REQUIRE(ThreadPool::Create(desc).GetError() == ErrorCode::InvalidArgument);
+
+    const u32 out_of_range[] = {0, 64};
+    desc.worker_cores = ArrayView<const u32>(out_of_range);
+    REQUIRE(ThreadPool::Create(desc).GetError() == ErrorCode::InvalidArgument);
 }
 
 TEST_CASE("SetThreadName rejects an empty handle", "[Thread]")

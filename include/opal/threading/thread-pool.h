@@ -3,11 +3,13 @@
 #include <type_traits>
 
 #include "opal/allocator.h"
+#include "opal/container/array-view.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/expected.h"
 #include "opal/container/scope-ptr.h"
 #include "opal/defines.h"
 #include "opal/container/shared-ptr.h"
+#include "opal/container/string-view.h"
 #include "opal/threading/channel-mpmc.h"
 #include "opal/threading/executor.h"
 #include "opal/threading/thread.h"
@@ -15,6 +17,28 @@
 
 namespace Opal
 {
+
+/** How to create a ThreadPool. */
+struct ThreadPoolDesc
+{
+    /** Number of worker threads. */
+    size_t thread_count = 1;
+
+    /** Capacity of the internal task channel, rounded up to a power of two. */
+    size_t channel_capacity = 128;
+
+    /** Allocator for the pool, its channel and the tasks it is given. Must be thread safe. If null, uses the default allocator. */
+    AllocatorBase* allocator = nullptr;
+
+    /**
+     * Logical core for each worker: worker i runs only on worker_cores[i]. Empty leaves the workers to the scheduler. Otherwise it
+     * must hold thread_count entries, each below 64. CpuInfo::l3_domains tells which cores share a cache.
+     */
+    ArrayView<const u32> worker_cores;
+
+    /** If not empty, worker i is named "<name> <i>" for debuggers and profilers. A name the OS refuses is skipped. */
+    StringViewUtf8 name;
+};
 
 /**
  * Executor that runs submitted callables on a fixed number of worker threads and hands back a Future for each.
@@ -35,14 +59,21 @@ class ThreadPool final : public Executor
 public:
     /**
      * Create a thread pool and start its workers.
+     * @param desc Number of workers, channel capacity, allocator, and where the workers run and what they are called.
+     * @return The pool, ErrorCode::InvalidArgument if the allocator is not thread safe or worker_cores does not hold one core below
+     *         64 for every worker, ErrorCode::OutOfMemory if the pool or its channel could not be allocated, or what CreateThread
+     *         reported for a worker that did not start. Workers that did start are shut down before an error is returned.
+     * @note Each worker takes the calling thread's default allocator as its own, which must be thread safe.
+     */
+    [[nodiscard]] static Expected<ScopePtr<ThreadPool>, ErrorCode> Create(const ThreadPoolDesc& desc);
+
+    /**
+     * Create a thread pool and start its workers, leaving them to the scheduler and unnamed.
      * @param thread_count Number of worker threads to start.
      * @param channel_capacity Capacity of the internal task channel, rounded up to a power of two. Defaults to 128.
      * @param allocator Allocator for the pool, its channel and the tasks it is given. Must be thread safe. If null, uses the
      *                  default allocator.
-     * @return The pool, ErrorCode::InvalidArgument if the allocator is not thread safe, ErrorCode::OutOfMemory if the pool or its
-     *         channel could not be allocated, or what CreateThread reported for a worker that did not start. Workers that did
-     *         start are shut down before an error is returned.
-     * @note Each worker takes the calling thread's default allocator as its own, which must be thread safe.
+     * @return What Create(const ThreadPoolDesc&) returns.
      */
     [[nodiscard]] static Expected<ScopePtr<ThreadPool>, ErrorCode> Create(size_t thread_count, size_t channel_capacity = 128,
                                                                           AllocatorBase* allocator = nullptr);
@@ -87,8 +118,8 @@ private:
     /** Blocks until every task the pool has accepted has run, including the ones those tasks submitted. */
     void WaitForAccepted();
 
-    /** Start thread_count workers. On failure the ones that started keep running until Close. */
-    ErrorCode StartWorkers(size_t thread_count);
+    /** Start desc.thread_count workers, pinned and named as desc says. On failure the ones that started keep running until Close. */
+    ErrorCode StartWorkers(const ThreadPoolDesc& desc);
 
     /** @return True if the calling thread is one of this pool's workers. */
     [[nodiscard]] bool IsCurrentThreadWorker() const;
