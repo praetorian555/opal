@@ -96,7 +96,9 @@ When adding a new source/header file, it must be added to `OPAL_FILES` in `CMake
 
 Benchmarks: Google Benchmark, fetched with FetchContent when `OPAL_BUILD_BENCHMARKS=ON`. Sources in `benchmark/*-benchmark.cpp`, target
 `opal_benchmark`. When adding a new benchmark file, it must be added to `OPAL_BENCHMARK_FILES` in `CMakeLists.txt`. Build them Release
-with `OPAL_HARDENING=OFF`; see `docs/benchmarks.md` for running and comparing.
+with `OPAL_HARDENING=OFF`; see `docs/benchmarks.md` for running and comparing. Recorded runs of the full suite, with the machine
+each came from, are in `docs/benchmark-results.md`, and their raw JSON in `benchmark/baselines/`; add a snapshot there when a
+change moves the numbers.
 
 ## Directory Layout
 

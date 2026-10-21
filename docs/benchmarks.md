@@ -76,6 +76,12 @@ benchmarks inside one file can be compared the same way, which is how the `Opal`
 python compare.py filters results.json "/Opal/" "/Std/"
 ```
 
+## Recorded results
+
+`docs/benchmark-results.md` keeps dated runs of the whole suite, each with the machine it ran on, and `benchmark/baselines/`
+holds their raw JSON. `benchmark/summarize.py` turns such a file into the tables that page shows. They are a reference for the
+machine they came from, not a target for any other.
+
 ## Profiling with AMD uProf
 
 A benchmark says how long an operation takes. A profile says what the core was doing meanwhile, which decides whether fewer
