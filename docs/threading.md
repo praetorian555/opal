@@ -148,12 +148,24 @@ if (cpu_info.HasValue())
         // core.id               - Physical core index
         // core.is_hyperthreaded  - true if SMT is enabled on this core
         // core.logical_cores     - BitMask<u64> of assigned logical core indices
+        // core.l3_domain         - Index into info.l3_domains, or k_unknown_l3_domain
+    }
+    for (Opal::u64 i = 0; i < info.l3_domains.GetSize(); ++i)
+    {
+        const Opal::CacheDomainInfo& domain = info.l3_domains[i];
+        // domain.logical_cores   - Logical cores sharing this L3
+        // domain.size_bytes      - Its size, 0 if not reported
     }
 }
 
 // Or print everything to the logger
 Opal::ErrorCode err = Opal::PrintCpuInfo();
 ```
+
+`l3_domains` lists each L3 cache and the logical cores that share it. On a CPU built from several core complexes, such as a Zen CPU
+with two CCDs, each complex has its own L3, and handing data between cores of different complexes costs several times what it
+costs within one, so threads that talk to each other belong in one domain. A virtual machine reports whatever its hypervisor
+presents, often a single domain.
 
 `GetCpuInfo` reports `ErrorCode::OSFailure` when the topology could not be read and `ErrorCode::OutOfMemory` when the result could not
 be grown. `PrintCpuInfo` forwards whatever it reported and prints nothing on failure.

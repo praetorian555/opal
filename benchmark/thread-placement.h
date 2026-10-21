@@ -3,7 +3,6 @@
 #include <benchmark/benchmark.h>
 
 #include <algorithm>
-#include <bit>
 #include <cstddef>
 #include <string>
 #include <utility>
@@ -21,9 +20,6 @@
 #include <windows.h>
 #elif defined(OPAL_PLATFORM_LINUX)
 #include <sched.h>
-
-#include <fstream>
-#include <map>
 #endif
 
 #include "opal/threading/thread.h"
@@ -41,84 +37,27 @@ namespace Bench
  */
 using CacheDomains = std::vector<std::vector<Opal::u32>>;
 
-#if defined(OPAL_PLATFORM_WINDOWS)
 inline CacheDomains ReadCacheDomains()
 {
-    DWORD size = 0;
-    GetLogicalProcessorInformationEx(RelationAll, nullptr, &size);
-    std::vector<char> buffer(size);
-    if (!GetLogicalProcessorInformationEx(RelationAll, reinterpret_cast<SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(buffer.data()), &size))
+    const Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> cpu_info = Opal::GetCpuInfo();
+    if (!cpu_info.HasValue())
     {
         return {};
     }
-
-    // Only processor group 0, which is every logical processor on a machine with 64 or fewer.
-    std::vector<Opal::u32> cores;
-    std::vector<KAFFINITY> l3_masks;
-    for (DWORD offset = 0; offset < size;)
+    const Opal::CpuInfo& info = cpu_info.GetValue();
+    // A machine that reports no L3 lands every core in one domain.
+    CacheDomains domains(info.l3_domains.IsEmpty() ? 1 : info.l3_domains.GetSize());
+    for (const Opal::PhysicalCoreInfo& core : info.physical_processors)
     {
-        const auto* record = reinterpret_cast<const SYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX*>(buffer.data() + offset);
-        if (record->Relationship == RelationProcessorCore && record->Processor.GroupMask[0].Group == 0)
+        const Opal::u32 domain = info.l3_domains.IsEmpty() ? 0 : core.l3_domain;
+        if (core.logical_cores && domain < domains.size())
         {
-            cores.push_back(static_cast<Opal::u32>(std::countr_zero(record->Processor.GroupMask[0].Mask)));
-        }
-        else if (record->Relationship == RelationCache && record->Cache.Level == 3 && record->Cache.GroupMask.Group == 0)
-        {
-            l3_masks.push_back(record->Cache.GroupMask.Mask);
-        }
-        offset += record->Size;
-    }
-
-    CacheDomains domains;
-    for (const KAFFINITY mask : l3_masks)
-    {
-        std::vector<Opal::u32> domain;
-        for (const Opal::u32 core : cores)
-        {
-            if (((mask >> core) & 1) != 0)
-            {
-                domain.push_back(core);
-            }
-        }
-        if (!domain.empty())
-        {
-            domains.push_back(Opal::Move(domain));
+            domains[domain].push_back(core.logical_cores.GetLowestSetBitIndex());
         }
     }
+    std::erase_if(domains, [](const std::vector<Opal::u32>& domain) { return domain.empty(); });
     return domains;
 }
-#elif defined(OPAL_PLATFORM_LINUX)
-inline CacheDomains ReadCacheDomains()
-{
-    std::map<std::string, std::vector<Opal::u32>> by_l3;
-    for (Opal::u32 cpu = 0;; cpu++)
-    {
-        const std::string base = "/sys/devices/system/cpu/cpu" + std::to_string(cpu);
-        std::ifstream siblings(base + "/topology/thread_siblings_list");
-        Opal::u32 first_sibling = 0;
-        if (!(siblings >> first_sibling))
-        {
-            break;
-        }
-        if (first_sibling != cpu)
-        {
-            continue;
-        }
-        // A machine that reports no L3 lands every core in the one domain keyed by the empty string.
-        std::ifstream l3(base + "/cache/index3/shared_cpu_list");
-        std::string key;
-        l3 >> key;
-        by_l3[key].push_back(cpu);
-    }
-
-    CacheDomains domains;
-    for (auto& [key, domain] : by_l3)
-    {
-        domains.push_back(Opal::Move(domain));
-    }
-    return domains;
-}
-#endif
 
 inline const CacheDomains& GetCacheDomains()
 {

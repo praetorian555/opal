@@ -181,6 +181,49 @@ TEST_CASE("Create a thread out of memory", "[Thread]")
     CHECK(handle.GetError() == ErrorCode::OutOfMemory);
 }
 
+TEST_CASE("CPU topology reports the L3 caches the cores share", "[Thread]")
+{
+    const Expected<CpuInfo, ErrorCode> cpu_info = GetCpuInfo();
+    REQUIRE(cpu_info.HasValue());
+    const CpuInfo& info = cpu_info.GetValue();
+
+    u64 seen = 0;
+    for (u64 i = 0; i < info.l3_domains.GetSize(); ++i)
+    {
+        const CacheDomainInfo& domain = info.l3_domains[i];
+        CHECK(domain.id == i);
+        CHECK(domain.logical_cores.GetSetBitCount() > 0);
+        for (const u32 core : domain.logical_cores)
+        {
+            CHECK(((seen >> core) & 1) == 0);
+            seen |= u64{1} << core;
+        }
+        if (i > 0)
+        {
+            CHECK(info.l3_domains[i - 1].logical_cores.GetLowestSetBitIndex() < domain.logical_cores.GetLowestSetBitIndex());
+        }
+    }
+    for (const PhysicalCoreInfo& core : info.physical_processors)
+    {
+        if (info.l3_domains.IsEmpty())
+        {
+            CHECK(core.l3_domain == k_unknown_l3_domain);
+            continue;
+        }
+        REQUIRE(core.l3_domain < info.l3_domains.GetSize());
+        const CacheDomainInfo& domain = info.l3_domains[core.l3_domain];
+        for (const u32 logical : core.logical_cores)
+        {
+            bool is_in_domain = false;
+            for (const u32 member : domain.logical_cores)
+            {
+                is_in_domain = is_in_domain || member == logical;
+            }
+            CHECK(is_in_domain);
+        }
+    }
+}
+
 TEST_CASE("Pin a thread to a logical core", "[Thread]")
 {
     const Expected<CpuInfo, ErrorCode> cpu_info = GetCpuInfo();

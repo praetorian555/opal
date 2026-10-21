@@ -134,19 +134,38 @@ void YieldCurrentThread();
  */
 ErrorCode SetThreadName(ThreadHandle handle, StringViewUtf8 name);
 
+/** Value of PhysicalCoreInfo::l3_domain when the OS reports no L3 cache for the core. */
+inline constexpr u32 k_unknown_l3_domain = ~0u;
+
 struct PhysicalCoreInfo
 {
     u32 id = 0;
     BitMask<u64> logical_cores;
     bool is_hyperthreaded = false;
+    /** Index into CpuInfo::l3_domains of the L3 cache this core uses, or k_unknown_l3_domain. */
+    u32 l3_domain = k_unknown_l3_domain;
 
     [[nodiscard]] bool operator==(const PhysicalCoreInfo& other) const { return id == other.id; }
+};
+
+/**
+ * Logical cores that share one L3 cache. A CPU built from several dies or core complexes, such as a Zen CPU with more than one
+ * CCD, has one per complex, and moving data between cores is several times slower across two of them than within one.
+ */
+struct CacheDomainInfo
+{
+    u32 id = 0;
+    BitMask<u64> logical_cores;
+    /** Size of the cache in bytes, or 0 when the OS does not report it. */
+    u64 size_bytes = 0;
 };
 
 struct CpuInfo
 {
     u32 logical_cores_count = 0;
     DynamicArray<PhysicalCoreInfo> physical_processors;
+    /** One entry per L3 cache, ordered by the lowest logical core each holds. Empty when the OS reports no L3. */
+    DynamicArray<CacheDomainInfo> l3_domains;
 };
 
 /**
@@ -158,8 +177,11 @@ struct CpuInfo
  * SMT relationships. On Linux, this reads per-CPU topology files from sysfs
  * (/sys/devices/system/cpu/cpuN/topology/) and groups logical CPUs by their (package_id, core_id) pair.
  *
- * @return CpuInfo containing the logical core count and an array of PhysicalCoreInfo entries, ErrorCode::OutOfMemory when the result
- *         could not be grown, or ErrorCode::OSFailure when the topology could not be read.
+ * Also reports which logical cores share an L3 cache, from the cache relations on Windows and from
+ * /sys/devices/system/cpu/cpuN/cache/ on Linux.
+ *
+ * @return CpuInfo containing the logical core count, an array of PhysicalCoreInfo entries and the L3 domains,
+ *         ErrorCode::OutOfMemory when the result could not be grown, or ErrorCode::OSFailure when the topology could not be read.
  * @note Limited to 64 logical cores due to BitMask<u64>.
  */
 [[nodiscard]] Expected<CpuInfo, ErrorCode> GetCpuInfo();

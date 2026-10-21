@@ -219,6 +219,124 @@ Opal::ErrorCode Opal::SetThreadName(ThreadHandle handle, StringViewUtf8 name)
 #endif
 }
 
+namespace
+{
+
+/** An L3 cache found while reading the topology, before the domains are numbered. */
+struct L3Domain
+{
+    Opal::u64 logical_cores = 0;
+    Opal::u64 size_bytes = 0;
+};
+
+/** Record an L3 cache unless one covering the same logical cores is already recorded. */
+Opal::ErrorCode AddL3Domain(Opal::DynamicArray<L3Domain>& domains, Opal::u64 logical_cores, Opal::u64 size_bytes)
+{
+    if (logical_cores == 0)
+    {
+        return Opal::ErrorCode::Success;
+    }
+    for (const L3Domain& domain : domains)
+    {
+        if (domain.logical_cores == logical_cores)
+        {
+            return Opal::ErrorCode::Success;
+        }
+    }
+    return domains.PushBack({logical_cores, size_bytes});
+}
+
+/** Number the domains in order of their lowest logical core, and point every physical core at the one it uses. */
+Opal::ErrorCode FinishL3Domains(Opal::CpuInfo& info, Opal::DynamicArray<L3Domain>& domains)
+{
+    while (!domains.IsEmpty())
+    {
+        Opal::u64 lowest = 0;
+        for (Opal::u64 i = 1; i < domains.GetSize(); ++i)
+        {
+            if (Opal::CountTrailingZeros(domains[i].logical_cores) < Opal::CountTrailingZeros(domains[lowest].logical_cores))
+            {
+                lowest = i;
+            }
+        }
+        Opal::CacheDomainInfo domain;
+        domain.id = static_cast<Opal::u32>(info.l3_domains.GetSize());
+        domain.logical_cores = Opal::BitMask<Opal::u64>(domains[lowest].logical_cores);
+        domain.size_bytes = domains[lowest].size_bytes;
+        for (Opal::PhysicalCoreInfo& core : info.physical_processors)
+        {
+            if (core.logical_cores && ((domains[lowest].logical_cores >> core.logical_cores.GetLowestSetBitIndex()) & 1) != 0)
+            {
+                core.l3_domain = domain.id;
+            }
+        }
+        if (info.l3_domains.PushBack(Opal::Move(domain)) != Opal::ErrorCode::Success) [[unlikely]]
+        {
+            return Opal::ErrorCode::OutOfMemory;
+        }
+        domains[lowest] = domains[domains.GetSize() - 1];
+        domains.PopBack();
+    }
+    return Opal::ErrorCode::Success;
+}
+
+#if defined(OPAL_PLATFORM_LINUX)
+/** Read the first line of a sysfs file into buffer. @return False if the file could not be read. */
+bool ReadLine(const char* path, char* buffer, int buffer_size)
+{
+    FILE* file = fopen(path, "r");
+    if (file == nullptr)
+    {
+        return false;
+    }
+    const bool is_read = fgets(buffer, buffer_size, file) != nullptr;
+    fclose(file);
+    return is_read;
+}
+
+/** Parse a CPU list such as "0-7,16-23" into a mask. CPUs from 64 up are left out. */
+Opal::u64 ParseCpuList(const char* text)
+{
+    Opal::u64 mask = 0;
+    while (*text >= '0' && *text <= '9')
+    {
+        char* rest = nullptr;
+        const unsigned long first = strtoul(text, &rest, 10);
+        unsigned long last = first;
+        if (*rest == '-')
+        {
+            last = strtoul(rest + 1, &rest, 10);
+        }
+        for (unsigned long cpu = first; cpu <= last && cpu < 64; ++cpu)
+        {
+            mask |= Opal::u64{1} << cpu;
+        }
+        text = *rest == ',' ? rest + 1 : rest;
+    }
+    return mask;
+}
+
+/** Parse a cache size such as "32768K" into bytes. */
+Opal::u64 ParseCacheSize(const char* text)
+{
+    char* rest = nullptr;
+    const Opal::u64 size = strtoull(text, &rest, 10);
+    switch (*rest)
+    {
+        case 'K':
+            return size * 1024;
+        case 'M':
+            return size * 1024 * 1024;
+        case 'G':
+            return size * 1024 * 1024 * 1024;
+        default:
+            return size;
+    }
+}
+#endif
+
+}  // namespace
+
 Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
 {
     using Result = Expected<CpuInfo, ErrorCode>;
@@ -239,6 +357,7 @@ Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
     }
     BYTE* ptr = reinterpret_cast<BYTE*>(buffer);
     const BYTE* end = ptr + buffer_size;
+    DynamicArray<L3Domain> l3_domains;
 
     while (ptr < end)
     {
@@ -259,6 +378,18 @@ Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
                 }
                 break;
             }
+            case RelationCache:
+            {
+                // Only processor group 0, as for the cores.
+                const CACHE_RELATIONSHIP& cache = lp_info->Cache;
+                if (cache.Level == 3 && cache.GroupMask.Group == 0 &&
+                    AddL3Domain(l3_domains, cache.GroupMask.Mask, cache.CacheSize) != ErrorCode::Success) [[unlikely]]
+                {
+                    GetDefaultAllocator()->Free(buffer);
+                    return Result(ErrorCode::OutOfMemory);
+                }
+                break;
+            }
             default:
             {
                 // Ignore other info
@@ -269,6 +400,10 @@ Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
     }
 
     GetDefaultAllocator()->Free(buffer);
+    if (FinishL3Domains(info, l3_domains) != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfMemory);
+    }
     return Result(Move(info));
 #elif defined(OPAL_PLATFORM_LINUX)
     CpuInfo info;
@@ -286,6 +421,7 @@ Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
         u64 mask;
     };
     DynamicArray<CoreAccum> accums;
+    DynamicArray<L3Domain> l3_domains;
 
     struct dirent* entry;
     while ((entry = readdir(cpu_dir)) != nullptr)
@@ -336,6 +472,38 @@ Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
         fclose(f);
         u32 package_id = static_cast<u32>(atoi(buf));
 
+        // The L3 this logical core uses, if sysfs reports one. The index directories are not numbered by level.
+        for (u32 index = 0; index < 16; ++index)
+        {
+            snprintf(path, sizeof(path), "/sys/devices/system/cpu/%s/cache/index%u/level", entry->d_name, index);
+            if (!ReadLine(path, buf, sizeof(buf)))
+            {
+                break;
+            }
+            if (atoi(buf) != 3)
+            {
+                continue;
+            }
+            char list[512];
+            snprintf(path, sizeof(path), "/sys/devices/system/cpu/%s/cache/index%u/shared_cpu_list", entry->d_name, index);
+            if (!ReadLine(path, list, sizeof(list)))
+            {
+                break;
+            }
+            u64 size_bytes = 0;
+            snprintf(path, sizeof(path), "/sys/devices/system/cpu/%s/cache/index%u/size", entry->d_name, index);
+            if (ReadLine(path, buf, sizeof(buf)))
+            {
+                size_bytes = ParseCacheSize(buf);
+            }
+            if (AddL3Domain(l3_domains, ParseCpuList(list), size_bytes) != ErrorCode::Success) [[unlikely]]
+            {
+                closedir(cpu_dir);
+                return Result(ErrorCode::OutOfMemory);
+            }
+            break;
+        }
+
         bool found = false;
         for (u64 i = 0; i < accums.GetSize(); ++i)
         {
@@ -370,6 +538,10 @@ Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
         }
     }
 
+    if (FinishL3Domains(info, l3_domains) != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfMemory);
+    }
     return Result(Move(info));
 #else
 #error "Platform not supported"
@@ -401,6 +573,17 @@ Opal::ErrorCode Opal::PrintCpuInfo()
             offset += static_cast<u32>(snprintf(logical_cores_str + offset, max_length, "%u ", bit));
         }
         logger.Info("General", "    Logical cores: {}", logical_cores_str);
+    }
+    for (const CacheDomainInfo& domain : info.l3_domains)
+    {
+        char logical_cores_str[300] = {};
+        size_t offset = 0;
+        for (const u32 bit : domain.logical_cores)
+        {
+            const size_t max_length = sizeof(logical_cores_str) - offset;
+            offset += static_cast<u32>(snprintf(logical_cores_str + offset, max_length, "%u ", bit));
+        }
+        logger.Info("General", "  L3 cache {}: {} KB, logical cores: {}", domain.id, domain.size_bytes / 1024, logical_cores_str);
     }
     return ErrorCode::Success;
 }
