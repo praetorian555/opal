@@ -187,7 +187,7 @@ public:
                 // Registering first means a producer that publishes after the fence sees this consumer and wakes it, and one
                 // that published before it is seen by the TryPop below.
                 m_waiting_consumers.FetchAdd<MemoryOrder::Relaxed>(1);
-                AtomicThreadFence();
+                AsymmetricThreadFenceHeavy();
                 const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
                 const bool popped = TryPop(result);
                 if (!popped && !IsClosed())
@@ -260,7 +260,7 @@ private:
     static void WaitForTurn(QueueMPMCSlot<T>& slot, size_t observed_turn)
     {
         slot.waiters.template FetchAdd<MemoryOrder::Relaxed>(1);
-        AtomicThreadFence();
+        AsymmetricThreadFenceHeavy();
         if (slot.turn.template Load<MemoryOrder::Relaxed>() == observed_turn)
         {
             slot.turn.template Wait<MemoryOrder::Relaxed>(observed_turn);
@@ -269,15 +269,15 @@ private:
     }
 
     /**
-     * Publish a slot's next turn and, with signaling, wake the threads waiting for it. Ends with a SeqCst fence when signaling,
-     * which SignalPushed relies on.
+     * Publish a slot's next turn and, with signaling, wake the threads waiting for it. Ends with the light half of an asymmetric
+     * fence when signaling, which SignalPushed relies on; a thread about to sleep pays for the heavy half.
      */
     static void AdvanceTurn(QueueMPMCSlot<T>& slot, size_t next_turn)
     {
         slot.turn.template Store<MemoryOrder::Release>(next_turn);
         if constexpr (UseSignaling)
         {
-            AtomicThreadFence();
+            AsymmetricThreadFenceLight();
             if (slot.waiters.template Load<MemoryOrder::Relaxed>() != 0)
             {
                 slot.turn.NotifyAll();
