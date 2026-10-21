@@ -145,6 +145,7 @@ set(OPAL_FILES
         include/opal/threading/signal.h
         include/opal/threading/channel-spsc.h
         include/opal/threading/channel-mpmc.h
+        include/opal/threading/channel-mpsc.h
         include/opal/threading/thread-pool.h
         include/opal/threading/future.h
         include/opal/threading/executor.h

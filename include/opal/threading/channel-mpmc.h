@@ -36,8 +36,10 @@ struct QueueMPMCSlot
  * @tparam T Type of data stored in the queue. Must be default constructable, and either copy assignable or clonable.
  * @tparam UseSignaling If true, uses Atomic::Wait/Notify to block when waiting for a slot's turn.
  *         If false, busy-waits using a CPU pause instruction. Defaults to false.
+ * @tparam SingleConsumer If true, the caller guarantees that only one thread ever pops, which makes popping cheaper and lets
+ *         items pushed after Close still be popped. Defaults to false.
  */
-template <typename T, bool UseSignaling = false>
+template <typename T, bool UseSignaling = false, bool SingleConsumer = false>
     requires Opal::DefaultConstructable<T> && Opal::MoveAssignable<T>
 class QueueMPMC
 {
@@ -106,7 +108,7 @@ public:
 
     T Pop()
     {
-        size_t read_idx = m_read_idx.FetchAdd<MemoryOrder::Relaxed>(1);
+        size_t read_idx = ClaimReadIndex();
         size_t slot_idx = read_idx & (m_capacity - 1);
         auto& slot = m_data[slot_idx];
         size_t turn = read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
@@ -129,6 +131,48 @@ public:
     }
 
     bool TryPop(T& result)
+    {
+        if constexpr (SingleConsumer)
+        {
+            return TryPopSingleConsumer(result);
+        }
+        else
+        {
+            return TryPopShared(result);
+        }
+    }
+
+    /** @return How many items have ever been pushed. Only grows, so a caller can compare two readings of it. */
+    [[nodiscard]] size_t GetPushCount() const { return m_write_idx.Load<MemoryOrder::Acquire>(); }
+
+    /**
+     * Pop an item, blocking while the queue is empty and open.
+     * @param result Receives the item.
+     * @return True if an item was popped, false if the queue is empty and closed. Items pushed before Close are always popped
+     *         before this reports the queue closed.
+     */
+    bool PopUnlessClosed(T& result)
+    {
+        if constexpr (SingleConsumer)
+        {
+            return PopSingleConsumerUnlessClosed(result);
+        }
+        else if constexpr (!UseSignaling)
+        {
+            return PopTicketUnlessClosed(result);
+        }
+        else
+        {
+            return PopSharedUnlessClosed(result);
+        }
+    }
+
+private:
+    // With signaling, how many times the only consumer polls, pausing twice as long each time, before it goes to sleep.
+    static constexpr u32 k_single_consumer_spin_rounds = 8;
+
+    /** TryPop when several consumers may race for the same slot. */
+    bool TryPopShared(T& result)
     {
         size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         while (true)
@@ -157,56 +201,121 @@ public:
         }
     }
 
-    /** @return How many items have ever been pushed. Only grows, so a caller can compare two readings of it. */
-    [[nodiscard]] size_t GetPushCount() const { return m_write_idx.Load<MemoryOrder::Acquire>(); }
-
-    /**
-     * Pop an item, blocking while the queue is empty and open.
-     * @param result Receives the item.
-     * @return True if an item was popped, false if the queue is empty and closed. Items pushed before Close are always popped
-     *         before this reports the queue closed.
-     */
-    bool PopUnlessClosed(T& result)
+    /** PopUnlessClosed with signaling when several consumers may race for the same slot. */
+    bool PopSharedUnlessClosed(T& result)
     {
-        if constexpr (!UseSignaling)
+        while (true)
         {
-            return PopTicketUnlessClosed(result);
-        }
-        else
-        {
-            while (true)
+            if (TryPopShared(result))
             {
-                if (TryPop(result))
-                {
-                    return true;
-                }
-                if (IsClosed())
-                {
-                    return TryPop(result);
-                }
-                // Registering first means a producer that publishes after the fence sees this consumer and wakes it, and one
-                // that published before it is seen by the TryPop below.
-                m_waiting_consumers.FetchAdd<MemoryOrder::Relaxed>(1);
-                AsymmetricThreadFenceHeavy();
-                const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
-                const bool popped = TryPop(result);
-                if (!popped && !IsClosed())
-                {
-                    m_push_count.Wait<MemoryOrder::Acquire>(push_count);
-                }
-                m_waiting_consumers.FetchSub<MemoryOrder::Relaxed>(1);
-                if (popped)
-                {
-                    return true;
-                }
+                return true;
+            }
+            if (IsClosed())
+            {
+                return TryPopShared(result);
+            }
+            // Registering first means a producer that publishes after the fence sees this consumer and wakes it, and one that
+            // published before it is seen by the TryPopShared below.
+            m_waiting_consumers.FetchAdd<MemoryOrder::Relaxed>(1);
+            AsymmetricThreadFenceHeavy();
+            const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
+            const bool popped = TryPopShared(result);
+            if (!popped && !IsClosed())
+            {
+                m_push_count.Wait<MemoryOrder::Acquire>(push_count);
+            }
+            m_waiting_consumers.FetchSub<MemoryOrder::Relaxed>(1);
+            if (popped)
+            {
+                return true;
             }
         }
     }
 
+    /** Take the next read index. Only the one consumer ever touches it when SingleConsumer is set, so no atomic increment. */
+    size_t ClaimReadIndex()
+    {
+        if constexpr (SingleConsumer)
+        {
+            const size_t read_idx = m_read_idx.Load<MemoryOrder::Relaxed>();
+            m_read_idx.Store<MemoryOrder::Relaxed>(read_idx + 1);
+            return read_idx;
+        }
+        else
+        {
+            return m_read_idx.FetchAdd<MemoryOrder::Relaxed>(1);
+        }
+    }
+
+    /** TryPop for the only consumer: the next slot is the one at m_read_idx, and no one else can take it. */
+    bool TryPopSingleConsumer(T& result)
+    {
+        const size_t read_idx = m_read_idx.Load<MemoryOrder::Relaxed>();
+        auto& slot = m_data[read_idx & (m_capacity - 1)];
+        const size_t filled_turn = 2 * (read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1))) + 1;
+        if (slot.turn.template Load<MemoryOrder::Acquire>() != filled_turn)
+        {
+            return false;
+        }
+        result = Move(slot.data);
+        m_read_idx.Store<MemoryOrder::Relaxed>(read_idx + 1);
+        AdvanceTurn(slot, filled_turn + 1);
+        return true;
+    }
+
     /**
-     * Mark the queue closed and wake every consumer blocked in PopUnlessClosed. Items already in it can still be popped. Without
-     * signaling, nothing may be pushed once Close has been called: such an item may never be popped, and a later push may block
-     * for good.
+     * PopUnlessClosed for the only consumer. Waits for the slot at m_read_idx and advances past it only once it is taken, so
+     * reporting the queue closed gives nothing up: an item pushed after that is popped by the next call.
+     */
+    bool PopSingleConsumerUnlessClosed(T& result)
+    {
+        const size_t read_idx = m_read_idx.Load<MemoryOrder::Relaxed>();
+        auto& slot = m_data[read_idx & (m_capacity - 1)];
+        const size_t filled_turn = 2 * (read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1))) + 1;
+        for (u32 round = 0; slot.turn.template Load<MemoryOrder::Acquire>() != filled_turn; round++)
+        {
+            // Acquiring m_is_closed makes every push that happened before Close visible in m_write_idx.
+            if (IsClosed() && m_write_idx.Load<MemoryOrder::Acquire>() <= read_idx)
+            {
+                return false;
+            }
+            if constexpr (UseSignaling)
+            {
+                if (round < k_single_consumer_spin_rounds)
+                {
+                    for (u32 i = 0; i < (1u << round); i++)
+                    {
+                        CpuPause();
+                    }
+                    continue;
+                }
+                // Registering first means a producer that publishes after the fence sees this consumer and wakes it, and one
+                // that published before it is seen by the check below. Close wakes it through m_push_count too.
+                m_waiting_consumers.FetchAdd<MemoryOrder::Relaxed>(1);
+                AsymmetricThreadFenceHeavy();
+                const u32 push_count = m_push_count.Load<MemoryOrder::Acquire>();
+                if (slot.turn.template Load<MemoryOrder::Acquire>() != filled_turn && !IsClosed())
+                {
+                    m_push_count.Wait<MemoryOrder::Acquire>(push_count);
+                }
+                m_waiting_consumers.FetchSub<MemoryOrder::Relaxed>(1);
+            }
+            else
+            {
+                CpuPause();
+            }
+        }
+        result = Move(slot.data);
+        m_read_idx.Store<MemoryOrder::Relaxed>(read_idx + 1);
+        AdvanceTurn(slot, filled_turn + 1);
+        return true;
+    }
+
+public:
+    /**
+     * Mark the queue closed and wake every consumer blocked in PopUnlessClosed. Items already in it can still be popped. With
+     * more than one consumer and no signaling, nothing may be pushed once Close has been called: such an item may never be
+     * popped, and a later push may block for good. A single-consumer queue pops items pushed after Close too.
      */
     void Close()
     {
@@ -319,7 +428,7 @@ private:
     template <typename U>
     void PushValue(U&& data)
     {
-        OPAL_ASSERT(UseSignaling || !IsClosed(), "Nothing may be pushed into a closed QueueMPMC without signaling");
+        OPAL_ASSERT(UseSignaling || SingleConsumer || !IsClosed(), "Pushed into a closed QueueMPMC with spinning consumers");
         size_t write_idx = m_write_idx.FetchAdd<MemoryOrder::Relaxed>(1);
         size_t slot_idx = write_idx & (m_capacity - 1);
         auto& slot = m_data[slot_idx];
@@ -346,7 +455,7 @@ private:
     template <typename U>
     bool TryPushValue(U&& data)
     {
-        OPAL_ASSERT(UseSignaling || !IsClosed(), "Nothing may be pushed into a closed QueueMPMC without signaling");
+        OPAL_ASSERT(UseSignaling || SingleConsumer || !IsClosed(), "Pushed into a closed QueueMPMC with spinning consumers");
         size_t write_idx = m_write_idx.Load<MemoryOrder::Acquire>();
         while (true)
         {
@@ -400,12 +509,13 @@ private:
  * It can be both copied and moved. Use Clone for copying.
  * @tparam T Type of data that is being sent.
  * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to false.
+ * @tparam SingleConsumer True for the producer end of a ChannelMPSC, which TransmitterMPSC names. Defaults to false.
  */
-template <typename T, bool UseSignaling = false>
+template <typename T, bool UseSignaling = false, bool SingleConsumer = false>
 struct TransmitterMPMC
 {
     TransmitterMPMC() = default;
-    explicit TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling>>&& q) : m_queue(std::move(q)) {}
+    explicit TransmitterMPMC(SharedPtr<Impl::QueueMPMC<T, UseSignaling, SingleConsumer>>&& q) : m_queue(std::move(q)) {}
     ~TransmitterMPMC() = default;
 
     TransmitterMPMC(const TransmitterMPMC& q) = delete;
@@ -448,7 +558,7 @@ struct TransmitterMPMC
     void Close() { m_queue->Close(); }
 
 private:
-    SharedPtr<Impl::QueueMPMC<T, UseSignaling>> m_queue;
+    SharedPtr<Impl::QueueMPMC<T, UseSignaling, SingleConsumer>> m_queue;
 };
 
 /**

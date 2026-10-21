@@ -1,5 +1,5 @@
-// Compares Opal::ChannelSPSC and Opal::ChannelMPMC, in both their signaling and spinning forms, against a bounded queue guarded by
-// std::mutex and std::condition_variable, the queue a codebase without a lock-free one would write.
+// Compares Opal::ChannelSPSC, Opal::ChannelMPMC and Opal::ChannelMPSC, in both their signaling and spinning forms, against a
+// bounded queue guarded by std::mutex and std::condition_variable, the queue a codebase without a lock-free one would write.
 //
 // Two operations:
 //   FillDrain - one thread fills the channel with TrySend, then empties it with TryReceive. No contention, so it is the cost of
@@ -38,6 +38,7 @@
 #endif
 
 #include "opal/threading/channel-mpmc.h"
+#include "opal/threading/channel-mpsc.h"
 #include "opal/threading/channel-spsc.h"
 #include "opal/threading/thread.h"
 
@@ -50,6 +51,8 @@ using SpscSignal = Opal::ChannelSPSC<Item, true>;
 using SpscSpin = Opal::ChannelSPSC<Item, false>;
 using MpmcSignal = Opal::ChannelMPMC<Item, true>;
 using MpmcSpin = Opal::ChannelMPMC<Item, false>;
+using MpscSignal = Opal::ChannelMPSC<Item, true>;
+using MpscSpin = Opal::ChannelMPSC<Item, false>;
 
 // Items handed over per Transfer iteration, split evenly between the producers.
 constexpr size_t k_transfer_items = size_t{1} << 18;
@@ -372,6 +375,34 @@ struct ChannelOps<Opal::ChannelMPMC<Item, UseSignaling>>
     static bool TryReceive(Receiver& rx, Item& item) { return rx.TryReceive(item) == Opal::ErrorCode::Success; }
 };
 
+template <bool UseSignaling>
+struct ChannelOps<Opal::ChannelMPSC<Item, UseSignaling>>
+{
+    using Channel = Opal::ChannelMPSC<Item, UseSignaling>;
+    using Transmitter = Opal::TransmitterMPSC<Item, UseSignaling>;
+    using Receiver = Opal::ReceiverMPSC<Item, UseSignaling>;
+
+    static std::unique_ptr<Channel> Make(size_t capacity) { return std::make_unique<Channel>(capacity); }
+    static Transmitter MakeTransmitter(Channel& channel) { return channel.transmitter.Clone(); }
+    static Receiver MakeReceiver(Channel& channel) { return Opal::Move(channel.receiver); }
+    static void Send(Transmitter& tx, Item item) { tx.Send(item); }
+    static bool TrySend(Transmitter& tx, Item item) { return tx.TrySend(item); }
+    static void Close(Transmitter& tx) { tx.Close(); }
+
+    static bool Receive(Receiver& rx, Item& item)
+    {
+        auto result = rx.Receive();
+        if (!result.HasValue())
+        {
+            return false;
+        }
+        item = result.GetValue();
+        return true;
+    }
+
+    static bool TryReceive(Receiver& rx, Item& item) { return rx.TryReceive(item) == Opal::ErrorCode::Success; }
+};
+
 template <>
 struct ChannelOps<Std>
 {
@@ -570,7 +601,23 @@ void TransferSweepSPSC(benchmark::Benchmark* b)
 }
 
 // Producers and consumers: balanced, fan-in and fan-out.
-constexpr std::pair<int64_t, int64_t> k_thread_shapes[] = {{1, 1}, {2, 2}, {4, 4}, {4, 1}, {1, 4}};
+constexpr std::pair<int64_t, int64_t> k_thread_shapes[] = {{1, 1}, {2, 2}, {4, 4}, {4, 1}, {7, 1}, {1, 4}};
+
+// Producers into the one consumer of an MPSC channel. Seven fills a CCD of eight cores with the consumer.
+constexpr int64_t k_fan_in_producers[] = {1, 2, 4, 7};
+
+void TransferSweepMPSC(benchmark::Benchmark* b)
+{
+    b->ArgNames({"capacity", "producers", "consumers"});
+    for (const int64_t capacity : k_capacities)
+    {
+        for (const int64_t producers : k_fan_in_producers)
+        {
+            b->Args({capacity, producers, 1});
+        }
+    }
+    b->UseManualTime();
+}
 
 void TransferSweepMPMC(benchmark::Benchmark* b)
 {
@@ -606,3 +653,6 @@ TRANSFER_BENCHMARK("ChannelSPSC/Transfer", SpscSignal, SpscSpin, CrossL3, Transf
 CHANNEL_BENCHMARK(BM_FillDrain, "ChannelMPMC/FillDrain", MpmcSignal, MpmcSpin, FillDrainSweep);
 TRANSFER_BENCHMARK("ChannelMPMC/Transfer", MpmcSignal, MpmcSpin, SameL3, TransferSweepMPMC);
 TRANSFER_BENCHMARK("ChannelMPMC/Transfer", MpmcSignal, MpmcSpin, CrossL3, TransferSweepMPMC);
+CHANNEL_BENCHMARK(BM_FillDrain, "ChannelMPSC/FillDrain", MpscSignal, MpscSpin, FillDrainSweep);
+TRANSFER_BENCHMARK("ChannelMPSC/Transfer", MpscSignal, MpscSpin, SameL3, TransferSweepMPSC);
+TRANSFER_BENCHMARK("ChannelMPSC/Transfer", MpscSignal, MpscSpin, CrossL3, TransferSweepMPSC);

@@ -572,12 +572,36 @@ result = channel.receiver.Receive();
 ```
 
 `Receive()` and `TryReceive()` behave identically to the SPSC channel. `Close()` wakes every receiver blocked in `Receive()`.
+`TryReceive()` returns `ErrorCode::Success`, `ErrorCode::ChannelEmpty`, or `ErrorCode::ChannelClosed`.
 
 With spin wait (`UseSignaling = false`), nothing may be sent once `Close()` has been called. A receiver blocked in `Receive()`
 holds its place in the queue, and gives it up when the channel closes with nothing sent for it, so an item sent after that may
 never be received and a later send may block for good. Debug builds assert on it. The signaling channel accepts sends after
 `Close()` and still delivers them.
-`TryReceive()` returns `ErrorCode::Success`, `ErrorCode::ChannelEmpty`, or `ErrorCode::ChannelClosed`.
+
+### MPSC Channel
+
+Multi-producer, single-consumer: the fan-in shape of worker threads reporting to one thread. Transmitters are cloned for each
+producer as with MPMC; the receiver can only be moved, so a second consumer does not compile. Knowing there is one consumer
+makes receiving cheaper than through a `ChannelMPMC`. Defaults to spin wait, like MPMC.
+
+```cpp
+#include "opal/threading/channel-mpsc.h"
+
+Opal::ChannelMPSC<int> channel(256);
+Opal::TransmitterMPSC<int> worker_tx = channel.transmitter.Clone();
+// hand worker_tx to a worker thread, keep channel.receiver on the consuming thread
+
+int value;
+while (channel.receiver.TryReceive(value) == Opal::ErrorCode::Success)
+{
+    // handle value
+}
+```
+
+`Close()` works as for the other channels: items sent before it are received first, then `Receive()` and `TryReceive()` report
+`ErrorCode::ChannelClosed`. Unlike a spinning MPMC channel, an item sent after `Close()` is still received by a later call, with
+either wait mode.
 
 ### Channel API Reference
 
@@ -612,6 +636,21 @@ valid after the `ChannelSPSC` they came from is destroyed.
 
 MPMC transmitters and receivers support `Clone()`. Like the SPSC ends, they stay valid after the `ChannelMPMC` they came from is
 destroyed.
+
+**MPSC**
+
+| Type | Method | Description |
+|------|--------|-------------|
+| `TransmitterMPSC` | `Send(const T&)` / `Send(T&&)` | Blocking send |
+| `TransmitterMPSC` | `TrySend(const T&)` / `TrySend(T&&)` | Non-blocking send, returns `false` if full. A rejected rvalue is left untouched |
+| `TransmitterMPSC` | `Close()` | Mark channel as closed and wake a blocked receiver |
+| `TransmitterMPSC` | `Clone()` | Create a shared copy for another producer |
+| `TransmitterMPSC` | `IsValid()` | Returns `true` if transmitter holds a queue |
+| `ReceiverMPSC` | `Receive()` | Blocking receive, returns `Expected<T, ErrorCode>`. Returns `ChannelClosed` once closed and drained |
+| `ReceiverMPSC` | `TryReceive(T&)` | Non-blocking receive, returns `ErrorCode` (`Success`, `ChannelEmpty`, or `ChannelClosed`) |
+| `ReceiverMPSC` | `IsValid()` | Returns `true` if receiver holds a queue |
+
+The MPSC receiver is move-only. Both ends stay valid after the `ChannelMPSC` they came from is destroyed.
 
 ## Executors
 
@@ -911,6 +950,7 @@ state could not be allocated or the allocator is not thread safe.
 | `Signal` | Yes |
 | `ChannelSPSC` | Yes (one producer, one consumer) |
 | `ChannelMPMC` | Yes (multiple producers, multiple consumers) |
+| `ChannelMPSC` | Yes (multiple producers, one consumer) |
 | `ThreadPool` | `Submit` is thread-safe via internal MPMC channel |
 | `TaskQueue` | `Submit`, `Post`, `WaitFor`, `Close` from any thread. `RunPending` from one thread at a time |
 | `Promise<T>` / `Future<T>` | A promise and its future may be used from different threads. Each one alone is not for sharing |

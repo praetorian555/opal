@@ -10,6 +10,7 @@
 #include "opal/rng.h"
 #include "opal/time.h"
 #include "opal/threading/channel-mpmc.h"
+#include "opal/threading/channel-mpsc.h"
 #include "opal/threading/channel-spsc.h"
 #include "opal/threading/condition-variable.h"
 #include "opal/threading/signal.h"
@@ -939,6 +940,16 @@ TEST_CASE("Close wakes a receiver blocked in Receive", "[Thread]")
         ChannelMPMC<i32, false> channel(4);
         REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), true) == k_received_closed);
     }
+    SECTION("MPSC with signaling")
+    {
+        ChannelMPSC<i32, true> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), true) == k_received_closed);
+    }
+    SECTION("MPSC with spin wait")
+    {
+        ChannelMPSC<i32, false> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), true) == k_received_closed);
+    }
 }
 
 TEST_CASE("A receiver blocked in Receive gets an item sent later", "[Thread]")
@@ -961,6 +972,16 @@ TEST_CASE("A receiver blocked in Receive gets an item sent later", "[Thread]")
     SECTION("MPMC with spin wait")
     {
         ChannelMPMC<i32, false> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), false) == 9);
+    }
+    SECTION("MPSC with signaling")
+    {
+        ChannelMPSC<i32, true> channel(4);
+        REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), false) == 9);
+    }
+    SECTION("MPSC with spin wait")
+    {
+        ChannelMPSC<i32, false> channel(4);
         REQUIRE(ReceiveWhileBlocked(channel, Move(channel.receiver), false) == 9);
     }
 }
@@ -1158,6 +1179,187 @@ TEST_CASE("MPMC channel delivers every item once to many receivers", "[Thread]")
     SECTION("With spin wait, capacity 64")
     {
         TransferThroughMPMC<false>(64);
+    }
+}
+
+namespace
+{
+template <typename Receiver>
+concept ClonableReceiver = requires(const Receiver& receiver) { receiver.Clone(); };
+}  // namespace
+
+static_assert(!std::is_copy_constructible_v<ReceiverMPSC<i32>>, "An MPSC receiver must not be copyable");
+static_assert(!ClonableReceiver<ReceiverMPSC<i32>>, "An MPSC receiver must not be clonable");
+static_assert(ClonableReceiver<ReceiverMPMC<i32>>, "The clonable check must recognise a receiver that can be cloned");
+
+TEST_CASE("MPSC channel", "[Thread]")
+{
+    SECTION("Send and receive")
+    {
+        ChannelMPSC<i32> channel(4);
+        channel.transmitter.Send(5);
+        auto result = channel.receiver.Receive();
+        REQUIRE(result.HasValue());
+        REQUIRE(result.GetValue() == 5);
+        i32 value = 0;
+        REQUIRE(channel.receiver.TryReceive(value) == ErrorCode::ChannelEmpty);
+    }
+    SECTION("A full channel rejects TrySend")
+    {
+        ChannelMPSC<i32> channel(2);
+        REQUIRE(channel.transmitter.TrySend(1));
+        REQUIRE(channel.transmitter.TrySend(2));
+        REQUIRE(!channel.transmitter.TrySend(3));
+        i32 value = 0;
+        REQUIRE(channel.receiver.TryReceive(value) == ErrorCode::Success);
+        REQUIRE(value == 1);
+        REQUIRE(channel.transmitter.TrySend(3));
+    }
+    SECTION("Items sent before Close are received first")
+    {
+        ChannelMPSC<i32> channel(4);
+        TransmitterMPSC<i32> other = channel.transmitter.Clone();
+        channel.transmitter.Send(1);
+        other.Send(2);
+        other.Close();
+        REQUIRE(channel.receiver.Receive().GetValue() == 1);
+        REQUIRE(channel.receiver.Receive().GetValue() == 2);
+        auto closed = channel.receiver.Receive();
+        REQUIRE(!closed.HasValue());
+        REQUIRE(closed.GetError() == ErrorCode::ChannelClosed);
+        i32 value = 0;
+        REQUIRE(channel.receiver.TryReceive(value) == ErrorCode::ChannelClosed);
+    }
+}
+
+namespace
+{
+template <bool UseSignaling>
+void ReceiveAfterCloseThroughMPSC()
+{
+    ChannelMPSC<i32, UseSignaling> channel(4);
+    channel.transmitter.Close();
+    auto closed = channel.receiver.Receive();
+    REQUIRE(!closed.HasValue());
+    REQUIRE(closed.GetError() == ErrorCode::ChannelClosed);
+
+    channel.transmitter.Send(7);
+    auto late = channel.receiver.Receive();
+    REQUIRE(late.HasValue());
+    REQUIRE(late.GetValue() == 7);
+
+    REQUIRE(channel.transmitter.TrySend(8));
+    i32 value = 0;
+    REQUIRE(channel.receiver.TryReceive(value) == ErrorCode::Success);
+    REQUIRE(value == 8);
+    REQUIRE(channel.receiver.TryReceive(value) == ErrorCode::ChannelClosed);
+}
+
+// Producers send disjoint ranges and the last to finish closes the channel. The one receiver alternates between Receive and
+// TryReceive. Each producer's items must arrive exactly once and in the order it sent them.
+template <bool UseSignaling>
+void TransferThroughMPSC(size_t capacity)
+{
+    constexpr i32 k_producer_count = 4;
+    constexpr i32 k_items_per_producer = 5000;
+
+    ChannelMPSC<i32, UseSignaling> channel(capacity);
+    std::atomic<i32> producers_left{k_producer_count};
+    DynamicArray<ThreadHandle> threads;
+    for (i32 p = 0; p < k_producer_count; ++p)
+    {
+        threads.PushBack(CreateThreadOrFail(
+            [](TransmitterMPSC<i32, UseSignaling> transmitter, i32 first, Ref<std::atomic<i32>> in_producers_left)
+            {
+                for (i32 i = first; i < first + k_items_per_producer; ++i)
+                {
+                    transmitter.Send(i);
+                }
+                if (in_producers_left->fetch_sub(1) == 1)
+                {
+                    transmitter.Close();
+                }
+            },
+            channel.transmitter.Clone(), p * k_items_per_producer, Ref(producers_left)));
+    }
+
+    DynamicArray<i32> next(k_producer_count, 0);
+    i32 out_of_order = 0;
+    bool use_try = false;
+    while (true)
+    {
+        i32 value = 0;
+        if (use_try)
+        {
+            const ErrorCode err = channel.receiver.TryReceive(value);
+            if (err == ErrorCode::ChannelClosed)
+            {
+                break;
+            }
+            if (err == ErrorCode::ChannelEmpty)
+            {
+                continue;
+            }
+        }
+        else
+        {
+            auto result = channel.receiver.Receive();
+            if (!result.HasValue())
+            {
+                break;
+            }
+            value = result.GetValue();
+        }
+        use_try = !use_try;
+        const u64 producer = static_cast<u64>(value / k_items_per_producer);
+        if (value < 0 || producer >= k_producer_count || value % k_items_per_producer != next[producer])
+        {
+            out_of_order++;
+            continue;
+        }
+        next[producer]++;
+    }
+    for (const ThreadHandle& t : threads)
+    {
+        JoinThread(t);
+    }
+    REQUIRE(out_of_order == 0);
+    for (const i32 count : next)
+    {
+        REQUIRE(count == k_items_per_producer);
+    }
+}
+}  // namespace
+
+TEST_CASE("MPSC channel receives items sent after Close", "[Thread]")
+{
+    SECTION("With signaling")
+    {
+        ReceiveAfterCloseThroughMPSC<true>();
+    }
+    SECTION("With spin wait")
+    {
+        ReceiveAfterCloseThroughMPSC<false>();
+    }
+}
+
+TEST_CASE("MPSC channel delivers each producer's items once and in order", "[Thread]")
+{
+    SECTION("With signaling, capacity 4")
+    {
+        TransferThroughMPSC<true>(4);
+    }
+    SECTION("With signaling, capacity 64")
+    {
+        TransferThroughMPSC<true>(64);
+    }
+    SECTION("With spin wait, capacity 4")
+    {
+        TransferThroughMPSC<false>(4);
+    }
+    SECTION("With spin wait, capacity 64")
+    {
+        TransferThroughMPSC<false>(64);
     }
 }
 
