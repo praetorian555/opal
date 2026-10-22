@@ -27,7 +27,7 @@ void MarkReady()
 
 void Opal::AsymmetricThreadFenceHeavy()
 {
-    std::atomic_thread_fence(std::memory_order_seq_cst);
+    Opal::CompilerAndHardwareFence();
     FlushProcessWriteBuffers();
     MarkReady();
 }
@@ -68,7 +68,7 @@ Barrier ChooseBarrier()
 void Opal::AsymmetricThreadFenceHeavy()
 {
     static const Barrier s_barrier = ChooseBarrier();
-    std::atomic_thread_fence(std::memory_order_seq_cst);
+    Opal::CompilerAndHardwareFence();
     switch (s_barrier)
     {
         case Barrier::PrivateExpedited:

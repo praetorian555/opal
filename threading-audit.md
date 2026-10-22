@@ -196,7 +196,7 @@ Ordered by how soon a consumer is likely to need it.
 
 - [x] `FetchAnd`, `FetchOr`, `FetchXor`
 - [ ] `FetchAdd` and `FetchSub` on pointers
-- [ ] `AtomicThreadFence` and `AtomicSignalFence`
+- [ ] `CompilerAndHardwareFence` and `CompilerFence`
 - [ ] `Wait` with a timeout
 
 ### Channels

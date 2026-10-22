@@ -299,7 +299,7 @@ public:
             {
                 // Pairs with the heavy fence a consumer takes before it sleeps on its slot: either it sees the queue closed, or
                 // this sees it waiting.
-                AtomicThreadFence();
+                CompilerAndHardwareFence();
                 for (size_t i = 0; i < m_capacity; ++i)
                 {
                     WakeSlot(m_data[i]);

@@ -237,14 +237,27 @@ private:
 };
 
 /**
- * Order the memory accesses on either side of this point without tying them to one atomic value. A SeqCst fence on each of two
- * threads that each write one value and then read the other guarantees that at least one of them sees the other's write.
+ * Order the memory accesses on either side of this point without tying them to one atomic value, both in the compiler and in the
+ * hardware. A SeqCst fence on each of two threads that each write one value and then read the other guarantees that at least
+ * one of them sees the other's write.
  * @tparam k_order How strongly to order. Relaxed orders nothing.
  */
 template <MemoryOrder k_order = MemoryOrder::SeqCst>
-void AtomicThreadFence()
+void CompilerAndHardwareFence()
 {
     std::atomic_thread_fence(Impl::ToStdMemoryOrder(k_order));
+}
+
+/**
+ * Stop the compiler from moving memory accesses across this point. Emits no instruction, so it orders nothing against other
+ * threads by itself, only against code that interrupts this one: a signal handler, or AsymmetricThreadFenceHeavy on another
+ * thread.
+ * @tparam k_order How strongly to order. Relaxed orders nothing.
+ */
+template <MemoryOrder k_order = MemoryOrder::SeqCst>
+void CompilerFence()
+{
+    std::atomic_signal_fence(Impl::ToStdMemoryOrder(k_order));
 }
 
 namespace Impl
@@ -262,15 +275,15 @@ inline void AsymmetricThreadFenceLight()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     // The heavy half cannot fail on Windows, so there is nothing to fall back from.
-    std::atomic_signal_fence(std::memory_order_seq_cst);
+    CompilerFence();
 #else
     if (Impl::g_asymmetric_fence_ready.Load<MemoryOrder::Relaxed>())
     {
-        std::atomic_signal_fence(std::memory_order_seq_cst);
+        CompilerFence();
     }
     else
     {
-        std::atomic_thread_fence(std::memory_order_seq_cst);
+        CompilerAndHardwareFence();
     }
 #endif
 }
