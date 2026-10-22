@@ -27,17 +27,60 @@ template <typename T, bool UseSignaling = true>
     requires Opal::DefaultConstructable<T>
 class QueueSPSC
 {
+    struct CreateKey
+    {
+        explicit CreateKey() = default;
+    };
+
 public:
     static_assert(Atomic<size_t>::k_is_always_lock_free, "Type size_t is not atomic on this platform!");
 
-    explicit QueueSPSC(size_t capacity, AllocatorBase* allocator = nullptr)
-        : m_capacity(GetNextPowerOf2(capacity)), m_data(m_capacity, allocator)
+    /**
+     * Create a queue.
+     * @param capacity Number of items the queue holds, rounded up to the next power of two. Must be greater than zero.
+     * @param allocator Allocator for the queue and its storage. Must be thread safe. If null, uses the default allocator.
+     * @return The queue, or ErrorCode::OutOfMemory if it or its storage could not be allocated.
+     */
+    [[nodiscard]] static Expected<SharedPtr<QueueSPSC>, ErrorCode> Create(size_t capacity, AllocatorBase* allocator = nullptr)
     {
+        using Result = Expected<SharedPtr<QueueSPSC>, ErrorCode>;
         OPAL_VERIFY(capacity > 0, "QueueSPSC capacity must be greater than zero");
-        OPAL_VERIFY(m_data.GetAllocator()->IsThreadSafe(), "QueueSPSC allocator must be thread safe");
-        m_write_idx.Store<MemoryOrder::Relaxed>(0);
-        m_read_idx.Store<MemoryOrder::Relaxed>(0);
+        allocator = allocator != nullptr ? allocator : GetDefaultAllocator();
+        OPAL_VERIFY(allocator->IsThreadSafe(), "QueueSPSC allocator must be thread safe");
+
+        QueueSPSC* queue = New<QueueSPSC>(allocator, CreateKey{});
+        if (queue == nullptr)
+        {
+            return Result(ErrorCode::OutOfMemory);
+        }
+        queue->m_data = Opal::DynamicArray<T>(allocator);
+        queue->m_capacity = GetNextPowerOf2(capacity);
+        queue->m_write_idx.Store<MemoryOrder::Relaxed>(0);
+        queue->m_read_idx.Store<MemoryOrder::Relaxed>(0);
+        SharedPtr<QueueSPSC> queue_ptr(allocator, queue);
+        if (!queue_ptr.IsValid())
+        {
+            return Result(ErrorCode::OutOfMemory);
+        }
+        DynamicArray<T>& data = queue->m_data;
+        const ErrorCode status = data.Reserve(queue->m_capacity);
+        if (status != ErrorCode::Success)
+        {
+            return Result(status);
+        }
+        for (size_t i = 0; i < queue->m_capacity; ++i)
+        {
+            data.EmplaceBack();  // Cannot fail, the storage is already reserved
+        }
+        return Result(Move(queue_ptr));
     }
+
+    /** Used by Create; call Create instead. */
+    explicit QueueSPSC(CreateKey) noexcept {}
+    QueueSPSC(const QueueSPSC&) = delete;
+    QueueSPSC& operator=(const QueueSPSC&) = delete;
+    QueueSPSC(QueueSPSC&&) = delete;
+    QueueSPSC& operator=(QueueSPSC&&) = delete;
 
     void Push(const T& item)
     {
@@ -429,7 +472,8 @@ private:
 
 /**
  * One-way, thread-safe communication channel with one producer and one consumer.
- * Use the transmitter field to send data and the receiver field to receive it.
+ * Use the transmitter field to send data and the receiver field to receive it. If the channel's storage cannot be allocated,
+ * both ends are left invalid; check IsValid before using them.
  * The transmitter and receiver can be moved to separate threads.
  * @tparam T Type of data to be sent over the channel.
  * @tparam UseSignaling If true, blocking operations use OS signaling. If false, busy-waits. Defaults to true.
@@ -442,9 +486,13 @@ struct ChannelSPSC
 
     ChannelSPSC(size_t capacity, AllocatorBase* allocator = nullptr)
     {
-        SharedPtr<Impl::QueueSPSC<T, UseSignaling>> q(allocator, capacity, allocator);
-        transmitter = TransmitterSPSC<T, UseSignaling>(q.Clone());
-        receiver = ReceiverSPSC<T, UseSignaling>(std::move(q));
+        Expected<SharedPtr<Impl::QueueSPSC<T, UseSignaling>>, ErrorCode> q = Impl::QueueSPSC<T, UseSignaling>::Create(capacity, allocator);
+        if (!q.HasValue())
+        {
+            return;
+        }
+        transmitter = TransmitterSPSC<T, UseSignaling>(q.GetValue().Clone());
+        receiver = ReceiverSPSC<T, UseSignaling>(std::move(q.GetValue()));
     }
 };
 

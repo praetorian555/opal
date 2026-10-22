@@ -46,6 +46,14 @@ ScopePtr<ThreadPool> CreatePoolOrFail(size_t thread_count, size_t channel_capaci
     return std::move(pool.GetValue());
 }
 
+template <typename T, bool UseSignaling = true>
+SharedPtr<Impl::QueueSPSC<T, UseSignaling>> CreateQueueOrFail(size_t capacity)
+{
+    Expected<SharedPtr<Impl::QueueSPSC<T, UseSignaling>>, ErrorCode> queue = Impl::QueueSPSC<T, UseSignaling>::Create(capacity);
+    REQUIRE(queue.HasValue());
+    return std::move(queue.GetValue());
+}
+
 // Thread-safe, so it gets past CreateThread's assert, and hands back nothing, so the thread state cannot be allocated.
 struct ThreadSafeNullAllocator final : AllocatorBase
 {
@@ -252,7 +260,8 @@ TEST_CASE("SPSC queue basic Push and Pop", "[Thread]")
         i64 value = static_cast<i64>(rng.RandomI32()) << 32 | rng.RandomI32();
         data.PushBack(value);
     }
-    Impl::QueueSPSC<i64> queue(32);
+    SharedPtr<Impl::QueueSPSC<i64>> queue_ptr = CreateQueueOrFail<i64>(32);
+    Impl::QueueSPSC<i64>& queue = *queue_ptr.Get();
 
     size_t mismatches = 0;
     const ThreadHandle handle = CreateThreadOrFail(
@@ -287,7 +296,8 @@ TEST_CASE("SPSC queue TryPush", "[Thread]")
         i64 value = static_cast<i64>(rng.RandomI32()) << 32 | rng.RandomI32();
         data.PushBack(value);
     }
-    Impl::QueueSPSC<i64> queue(32);
+    SharedPtr<Impl::QueueSPSC<i64>> queue_ptr = CreateQueueOrFail<i64>(32);
+    Impl::QueueSPSC<i64>& queue = *queue_ptr.Get();
 
     size_t mismatches = 0;
     const ThreadHandle handle = CreateThreadOrFail(
@@ -348,7 +358,8 @@ TEST_CASE("SPSC queue Push with move", "[Thread]")
         i64 value = static_cast<i64>(rng.RandomI32()) << 32 | rng.RandomI32();
         data.PushBack(value);
     }
-    Impl::QueueSPSC<Data> queue(32);
+    SharedPtr<Impl::QueueSPSC<Data>> queue_ptr = CreateQueueOrFail<Data>(32);
+    Impl::QueueSPSC<Data>& queue = *queue_ptr.Get();
 
     size_t mismatches = 0;
     const ThreadHandle handle = CreateThreadOrFail(
@@ -385,7 +396,8 @@ TEST_CASE("SPSC queue Push with Emplace", "[Thread]")
         Data(i32 aa, f32 bb) : a(aa), b(bb) {}
     };
 
-    Impl::QueueSPSC<Data> queue(32);
+    SharedPtr<Impl::QueueSPSC<Data>> queue_ptr = CreateQueueOrFail<Data>(32);
+    Impl::QueueSPSC<Data>& queue = *queue_ptr.Get();
     queue.PushWithEmplace(5, 5.0f);
     Data data = queue.Pop();
     REQUIRE(data.a == 5);
@@ -402,7 +414,8 @@ TEST_CASE("SPSC queue Try Push with Emplace", "[Thread]")
         Data(i32 aa, f32 bb) : a(aa), b(bb) {}
     };
 
-    Impl::QueueSPSC<Data> queue(32);
+    SharedPtr<Impl::QueueSPSC<Data>> queue_ptr = CreateQueueOrFail<Data>(32);
+    Impl::QueueSPSC<Data>& queue = *queue_ptr.Get();
     REQUIRE(queue.TryPushWithEmplace(5, 5.0f));
     Data data = queue.Pop();
     REQUIRE(data.a == 5);
@@ -413,7 +426,8 @@ TEST_CASE("SPSC queue emplace destroys what the slot held", "[Thread]")
 {
     LiveCounted::s_live = 0;
     {
-        Impl::QueueSPSC<LiveCounted> queue(4);
+        SharedPtr<Impl::QueueSPSC<LiveCounted>> queue_ptr = CreateQueueOrFail<LiveCounted>(4);
+        Impl::QueueSPSC<LiveCounted>& queue = *queue_ptr.Get();
         for (i32 lap = 0; lap < 3; ++lap)
         {
             queue.PushWithEmplace(1);
@@ -427,6 +441,28 @@ TEST_CASE("SPSC queue emplace destroys what the slot held", "[Thread]")
         }
     }
     REQUIRE(LiveCounted::s_live == 0);
+}
+
+TEST_CASE("SPSC queue out of memory", "[Thread]")
+{
+    // The queue, its reference count and its storage are allocated in that order; fail each one in turn.
+    for (i32 succeed_count = 0; succeed_count < 3; ++succeed_count)
+    {
+        FailFromNthAllocator allocator(succeed_count);
+        const Expected<SharedPtr<Impl::QueueSPSC<i32>>, ErrorCode> queue = Impl::QueueSPSC<i32>::Create(4, &allocator);
+        REQUIRE_FALSE(queue.HasValue());
+        CHECK(queue.GetError() == ErrorCode::OutOfMemory);
+    }
+    FailFromNthAllocator allocator(3);
+    REQUIRE(Impl::QueueSPSC<i32>::Create(4, &allocator).HasValue());
+}
+
+TEST_CASE("SPSC channel out of memory leaves both ends invalid", "[Thread]")
+{
+    FailFromNthAllocator allocator(2);
+    ChannelSPSC<i32> channel(4, &allocator);
+    REQUIRE_FALSE(channel.transmitter.IsValid());
+    REQUIRE_FALSE(channel.receiver.IsValid());
 }
 
 TEST_CASE("Shared pointer", "[Thread]")
@@ -514,7 +550,8 @@ TEST_CASE("SPSC queue basic Push and Pop with spin wait", "[Thread]")
         i64 value = static_cast<i64>(rng.RandomI32()) << 32 | rng.RandomI32();
         data.PushBack(value);
     }
-    Impl::QueueSPSC<i64, false> queue(32);
+    SharedPtr<Impl::QueueSPSC<i64, false>> queue_ptr = CreateQueueOrFail<i64, false>(32);
+    Impl::QueueSPSC<i64, false>& queue = *queue_ptr.Get();
 
     size_t mismatches = 0;
     const ThreadHandle handle = CreateThreadOrFail(
