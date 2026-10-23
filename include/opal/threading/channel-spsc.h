@@ -55,8 +55,8 @@ public:
         }
         queue->m_data = Opal::DynamicArray<T>(allocator);
         queue->m_capacity = GetNextPowerOf2(capacity);
-        queue->m_write_idx.Store<MemoryOrder::Relaxed>(0);
-        queue->m_read_idx.Store<MemoryOrder::Relaxed>(0);
+        queue->m_write_idx.template Store<MemoryOrder::Relaxed>(0);
+        queue->m_read_idx.template Store<MemoryOrder::Relaxed>(0);
         SharedPtr<QueueSPSC> queue_ptr(allocator, queue);
         if (!queue_ptr.IsValid())
         {
