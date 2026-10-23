@@ -77,6 +77,7 @@ set(OPAL_FILES
         src/json-writer.cpp
         src/optional.cpp
         src/socket.cpp
+        src/process.cpp
         src/platform-path.h
         include/opal/defines.h
         include/opal/assert.h
@@ -91,6 +92,7 @@ set(OPAL_FILES
         include/opal/paths.h
         include/opal/file-system.h
         include/opal/socket.h
+        include/opal/process.h
         include/opal/common.h
         include/opal/source-location.h
         include/opal/bit.h
@@ -274,6 +276,7 @@ if (OPAL_BUILD_TESTS)
             test/transform-test.cpp
             test/file-system-test.cpp
             test/socket-test.cpp
+            test/process-test.cpp
             test/program-arguments-test.cpp
             test/shared-ptr-test.cpp
             test/atomic-test.cpp
@@ -301,6 +304,16 @@ if (OPAL_BUILD_TESTS)
     target_compile_definitions(opal_test PRIVATE cxx_std_20)
 
     target_precompile_headers(opal_test PRIVATE test/test-helpers.h)
+
+    # A small program the process tests start: it echoes arguments, writes to its streams, exits with a given code, sleeps and
+    # starts a grandchild, so the tests depend on no shell being installed.
+    add_executable(opal_test_process_helper test/process-test-helper.cpp)
+    target_link_libraries(opal_test_process_helper opal opal_warnings opal_options)
+    if (WIN32)
+        target_link_libraries(opal_test_process_helper shell32)
+    endif ()
+    add_dependencies(opal_test opal_test_process_helper)
+    target_compile_definitions(opal_test PRIVATE OPAL_TEST_PROCESS_HELPER="$<TARGET_FILE:opal_test_process_helper>")
 
     # Catch2's own amalgamated translation unit is not ours and includes what it needs. Force-feeding it our header only makes
     # it recompile whenever the header changes.

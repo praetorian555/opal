@@ -438,3 +438,52 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetParentPath(Str
     }
     return Expected<StringUtf8, ErrorCode>(std::move(result));
 }
+
+Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExecutablePath()
+{
+    using Result = Expected<StringUtf8, ErrorCode>;
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringWide buffer;
+    for (DWORD capacity = MAX_PATH;; capacity *= 2)
+    {
+        ErrorCode err = buffer.Resize(capacity, L'\0');
+        if (err != ErrorCode::Success)
+        {
+            return Result(err);
+        }
+        const DWORD written = GetModuleFileNameW(nullptr, buffer.GetData(), capacity);
+        if (written == 0)
+        {
+            return Result(ErrorCode::OSFailure);
+        }
+        if (written < capacity)
+        {
+            err = buffer.Resize(written);
+            StringUtf8 out_path;
+            if (err == ErrorCode::Success)
+            {
+                err = Transcode(buffer, out_path);
+            }
+            if (err != ErrorCode::Success)
+            {
+                return Result(err == ErrorCode::OutOfMemory ? ErrorCode::OutOfMemory : ErrorCode::OSFailure);
+            }
+            return Result(Move(out_path));
+        }
+        if (capacity >= 32768)
+        {
+            return Result(ErrorCode::OSFailure);
+        }
+    }
+#elif defined(OPAL_PLATFORM_LINUX)
+    char buffer[PATH_MAX];
+    const ssize_t written = readlink("/proc/self/exe", buffer, sizeof(buffer));
+    if (written <= 0 || written >= static_cast<ssize_t>(sizeof(buffer)))
+    {
+        return Result(ErrorCode::OSFailure);
+    }
+    return StringViewUtf8(buffer, static_cast<u64>(written)).TryToString();
+#else
+#error "Platform not supported"
+#endif
+}

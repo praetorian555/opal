@@ -24,6 +24,14 @@ namespace Opal::Paths
 [[nodiscard]] ErrorCode SetCurrentWorkingDirectory(StringViewUtf8 path);
 
 /**
+ * @brief Get the absolute path of the running executable.
+ * @note Uses default allocator for the output path.
+ * @return Path to the executable, ErrorCode::OutOfMemory when the result could not be grown, or ErrorCode::OSFailure when the OS
+ *         would not report it.
+ */
+[[nodiscard]] Expected<StringUtf8, ErrorCode> GetExecutablePath();
+
+/**
  * @brief Normalize the path. This will remove redundant separators, switch separators with preferred separators, resolve relative paths,
  * remove trailing separators, resolve symlinks (..), etc.
  * @param path Path to normalize.

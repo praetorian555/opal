@@ -216,6 +216,22 @@ if (builder.Build(argv, argc) != Opal::ProgramArgumentsResult::Success)
 
 See [docs/program-arguments.md](docs/program-arguments.md) for the full guide.
 
+### Processes
+
+Start a child process, capture its output, wait with a time limit, and kill it together with everything it started.
+
+```cpp
+#include "opal/process.h"
+
+const Opal::StringViewUtf8 arguments[] = {"--version"};
+Opal::ProcessDesc desc;
+desc.executable = "git";
+desc.arguments = arguments;
+Opal::Expected<Opal::ProcessResult, Opal::ErrorCode> result = Opal::RunProcess(desc);
+```
+
+See [docs/process.md](docs/process.md) for the full guide.
+
 ### Containers
 
 | Header | Description |
