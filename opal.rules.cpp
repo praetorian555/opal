@@ -53,6 +53,7 @@ BUILDER_MODULE(Opal, m, t)
     OpalCompileSettings(m, t);
 
     m.test_sources.AddDir("test").Exclude("test/process-test-helper.cpp");
+    m.test_precompiled_header = "test/test-helpers.h";
     m.test_deps = {"Catch2"};
 }
 
