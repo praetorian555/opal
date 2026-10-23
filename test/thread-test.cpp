@@ -510,7 +510,7 @@ TEST_CASE("SPSC channel", "[Thread]")
         auto result = channel.receiver.Receive();
         REQUIRE(result.HasValue());
         REQUIRE(result.GetValue() == 5);
-        i32 val;
+        i32 val = 0;
         REQUIRE(channel.receiver.TryReceive(val) == ErrorCode::Success);
         REQUIRE(val == 10);
     }
@@ -586,7 +586,7 @@ TEST_CASE("SPSC channel with spin wait", "[Thread]")
         auto result = channel.receiver.Receive();
         REQUIRE(result.HasValue());
         REQUIRE(result.GetValue() == 5);
-        i32 val;
+        i32 val = 0;
         REQUIRE(channel.receiver.TryReceive(val) == ErrorCode::Success);
         REQUIRE(val == 10);
     }
