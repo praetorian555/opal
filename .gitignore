@@ -402,3 +402,5 @@ FodyWeavers.xsd
 
 build
 install-dir
+# Build output of builder (opal.rules.cpp)
+out
