@@ -87,13 +87,17 @@ BUILDER_TARGET(Opal, t, c)
     t.modules = {"Opal"};
 }
 
+// Catch2 is built around exceptions, and the suite asserts on thrown types, so a build without them
+// (builder build --no-exceptions) leaves the tests out, as OPAL_EXCEPTIONS=OFF does in CMake.
 BUILDER_TARGET(OpalTests, t, c)
 {
     t.kind = TargetKind::Test;
     t.modules = {"Opal"};
+    t.enabled = c.exceptions;
 }
 
 BUILDER_TARGET(opal_test_process_helper, t, c)
 {
     t.modules = {"OpalTestHelper"};
+    t.enabled = c.exceptions;
 }
