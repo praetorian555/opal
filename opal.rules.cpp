@@ -62,7 +62,7 @@ BUILDER_MODULE(Opal, m, t)
 BUILDER_MODULE(Catch2, m, t)
 {
     m.private_deps = {"Opal"};
-    m.public_includes = {"third-party/catch2/include", "third-party/catch2/include/catch2"};
+    m.public_system_includes = {"third-party/catch2/include", "third-party/catch2/include/catch2"};
     m.public_defines = {"CATCH_AMALGAMATED_CUSTOM_MAIN"};
     m.sources.Add("third-party/catch2/src/catch_amalgamated.cpp");
     m.private_compile_flags = {t.toolchain.name == "msvc" ? "/w" : "-w"};
