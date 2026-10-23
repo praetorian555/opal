@@ -1,42 +1,15 @@
 #include "builder/rules.hpp"
 
-// Warnings and options mirror cmake/compiler-warnings.cmake and cmake/compiler-options.cmake. The
-// helper's name is unique across rules files, since rules files may share a translation unit.
+// Warnings and options mirror cmake/compiler-warnings.cmake and cmake/compiler-options.cmake, which
+// treat warnings as errors on MSVC only. The helper's name is unique across rules files, since rules
+// files may share a translation unit.
 static void OpalCompileSettings(Builder::Rules::ModuleRules& m, const Builder::Rules::TargetInfo& t)
 {
+    m.warnings = Builder::Rules::Warnings::Strict;
+    m.warnings_as_errors = t.toolchain.Is(Builder::Rules::Compiler::Msvc);
     if (t.toolchain.Is(Builder::Rules::Compiler::Msvc))
     {
-        m.private_compile_flags = {"/W4",     "/w14242", "/w14254", "/w14263", "/w14265", "/w14287", "/we4289",
-                                   "/w14296", "/w14311", "/w14545", "/w14546", "/w14547", "/w14549", "/w14555",
-                                   "/w14640", "/w14826", "/w14905", "/w14906", "/w14928", "/wd4201", "/WX"};
         m.private_defines = {"UNICODE", "_UNICODE"};
-        return;
-    }
-    m.private_compile_flags = {"-Wall",
-                               "-Wextra",
-                               "-Wshadow",
-                               "-Wnon-virtual-dtor",
-                               "-Wold-style-cast",
-                               "-Wcast-align",
-                               "-Wunused",
-                               "-Woverloaded-virtual",
-                               "-Wpedantic",
-                               "-Wconversion",
-                               "-Wsign-conversion",
-                               "-Wnull-dereference",
-                               "-Wdouble-promotion",
-                               "-Wformat=2",
-                               "-Wimplicit-fallthrough"};
-    if (t.toolchain.Is(Builder::Rules::Compiler::Clang))
-    {
-        m.private_compile_flags.insert(m.private_compile_flags.end(),
-                                       {"-Wno-gnu-anonymous-struct", "-Wno-nested-anon-types", "-Wno-dtor-name"});
-    }
-    else
-    {
-        m.private_compile_flags.insert(m.private_compile_flags.end(),
-                                       {"-Wmisleading-indentation", "-Wduplicated-cond", "-Wduplicated-branches", "-Wlogical-op",
-                                        "-Wuseless-cast", "-Wsuggest-override"});
     }
 }
 
@@ -65,7 +38,7 @@ BUILDER_MODULE(Catch2, m, t)
     m.public_system_includes = {"third-party/catch2/include", "third-party/catch2/include/catch2"};
     m.public_defines = {"CATCH_AMALGAMATED_CUSTOM_MAIN"};
     m.sources.Add("third-party/catch2/src/catch_amalgamated.cpp");
-    m.private_compile_flags = {t.toolchain.Is(Compiler::Msvc) ? "/w" : "-w"};
+    m.warnings = Warnings::Off;
 }
 
 // A small program the process tests start. They look for it next to their own executable, so the
