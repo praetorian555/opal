@@ -319,8 +319,11 @@ if (OPAL_BUILD_TESTS)
     # it recompile whenever the header changes.
     set_source_files_properties(third-party/catch2/src/catch_amalgamated.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
+    # One CTest test per test case, each with a timeout, so a hang fails in minutes and names its test case instead of
+    # stalling the whole binary until the CI job times out.
     enable_testing()
-    add_test(NAME opal_test COMMAND opal_test)
+    include(third-party/catch2/extras/Catch.cmake)
+    catch_discover_tests(opal_test PROPERTIES TIMEOUT 300)
 endif ()
 
 # Google Benchmark is not vendored: it is a full CMake project rather than a file or two, and nothing in the default build needs

@@ -63,6 +63,8 @@ jobs:
           generators: "Ninja"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
+    # Backstop: ctest already times out each test case, but a job that stalls elsewhere should not hold a runner for six hours.
+    timeout-minutes: 30
     steps:
     - uses: actions/checkout@v7
 
@@ -100,6 +102,7 @@ jobs:
           cxx: "clang++"
     name: ${{matrix.config.name}}
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       # UBSan only prints and keeps going by default, which would let a finding pass as a green run. ASan aborts on its own.
       UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
@@ -123,6 +126,7 @@ jobs:
   thread-sanitizer:
     name: "Clang thread sanitizer"
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       TSAN_OPTIONS: exitcode=66:second_deadlock_stack=1
     steps:
@@ -161,6 +165,7 @@ jobs:
           cxx: "clang++"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
+    timeout-minutes: 30
     steps:
     - uses: actions/checkout@v7
 
@@ -195,6 +200,7 @@ jobs:
           cxx: "clang++"
     name: ${{matrix.config.name}}
     runs-on: ${{matrix.config.os}}
+    timeout-minutes: 30
     steps:
     - uses: actions/checkout@v7
 
