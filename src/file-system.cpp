@@ -1,6 +1,7 @@
 #include "opal/file-system.h"
 
 #include <stdio.h>
+#include <string.h>
 
 #include "opal/exceptions.h"
 #include "opal/paths.h"
@@ -20,6 +21,7 @@
 #endif
 
 #include "opal/container/dynamic-array.h"
+#include "opal/threading/atomic.h"
 #include "platform-path.h"
 
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -28,6 +30,36 @@ using Opal::Impl::ToWidePath;
 using Opal::Impl::NativePath;
 using Opal::Impl::ToNativePath;
 #endif
+
+namespace
+{
+
+#if defined(OPAL_PLATFORM_WINDOWS)
+// 100-nanosecond intervals between the FILETIME epoch (1601-01-01) and the Unix epoch.
+constexpr Opal::i64 k_filetime_epoch_offset = 116'444'736'000'000'000;
+
+Opal::FileStatus ToFileStatus(const FILETIME& last_write, DWORD size_high, DWORD size_low, DWORD attributes)
+{
+    ULARGE_INTEGER ticks;
+    ticks.LowPart = last_write.dwLowDateTime;
+    ticks.HighPart = last_write.dwHighDateTime;
+    const bool is_directory = (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+    return Opal::FileStatus{.modified = Opal::DateTime{(static_cast<Opal::i64>(ticks.QuadPart) - k_filetime_epoch_offset) * 100},
+                            .size = is_directory ? 0 : (static_cast<Opal::u64>(size_high) << 32) | size_low,
+                            .is_directory = is_directory};
+}
+#elif defined(OPAL_PLATFORM_LINUX)
+Opal::FileStatus ToFileStatus(const struct stat& info)
+{
+    const bool is_directory = S_ISDIR(info.st_mode);
+    return Opal::FileStatus{
+        .modified = Opal::DateTime{static_cast<Opal::i64>(info.st_mtim.tv_sec) * 1'000'000'000 + static_cast<Opal::i64>(info.st_mtim.tv_nsec)},
+        .size = is_directory ? 0 : static_cast<Opal::u64>(info.st_size),
+        .is_directory = is_directory};
+}
+#endif
+
+}  // namespace
 
 Opal::ErrorCode Opal::CreateFile(StringViewUtf8 path, bool fail_if_already_exists)
 {
@@ -395,9 +427,12 @@ Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::
                 break;
             }
             const bool is_directory = (find_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
+            const FileStatus status =
+                ToFileStatus(find_data.ftLastWriteTime, find_data.nFileSizeHigh, find_data.nFileSizeLow, find_data.dwFileAttributes);
             if (is_directory && desc.include_directories)
             {
-                if (out_contents.PushBack({.path = std::move(child_path), .is_directory = true}) != ErrorCode::Success) [[unlikely]]
+                if (out_contents.PushBack({.path = std::move(child_path), .is_directory = true, .status = status}) != ErrorCode::Success)
+                    [[unlikely]]
                 {
                     walk_err = ErrorCode::OutOfMemory;
                     break;
@@ -405,7 +440,8 @@ Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::
             }
             if (!is_directory)
             {
-                if (out_contents.PushBack({.path = std::move(child_path), .is_directory = false}) != ErrorCode::Success) [[unlikely]]
+                if (out_contents.PushBack({.path = std::move(child_path), .is_directory = false, .status = status}) != ErrorCode::Success)
+                    [[unlikely]]
                 {
                     walk_err = ErrorCode::OutOfMemory;
                     break;
@@ -476,7 +512,8 @@ Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::
             {
                 if (S_ISREG(statbuf.st_mode))
                 {
-                    if (out_contents.PushBack({.path = std::move(entry_path), .is_directory = false}) != ErrorCode::Success) [[unlikely]]
+                    if (out_contents.PushBack({.path = std::move(entry_path), .is_directory = false, .status = ToFileStatus(statbuf)}) !=
+                        ErrorCode::Success) [[unlikely]]
                     {
                         walk_err = ErrorCode::OutOfMemory;
                         break;
@@ -486,7 +523,8 @@ Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::
                 {
                     if (desc.include_directories)
                     {
-                        if (out_contents.PushBack({.path = entry_path.Clone(), .is_directory = true}) != ErrorCode::Success) [[unlikely]]
+                        if (out_contents.PushBack({.path = entry_path.Clone(), .is_directory = true, .status = ToFileStatus(statbuf)}) !=
+                            ErrorCode::Success) [[unlikely]]
                         {
                             walk_err = ErrorCode::OutOfMemory;
                             break;
@@ -841,4 +879,174 @@ Opal::ErrorCode Opal::AppendBytesToFile(StringViewUtf8 path, ArrayView<const u8>
 #else
 #error "Platform not supported"
 #endif
+}
+
+Opal::Expected<Opal::FileStatus, Opal::ErrorCode> Opal::GetFileStatus(StringViewUtf8 path)
+{
+    using Result = Expected<FileStatus, ErrorCode>;
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringWide path_wide;
+    const ErrorCode transcode_err = ToWidePath(path, path_wide);
+    if (transcode_err != ErrorCode::Success)
+    {
+        return Result(transcode_err == ErrorCode::OutOfMemory ? ErrorCode::OutOfMemory : ErrorCode::InvalidArgument);
+    }
+    WIN32_FILE_ATTRIBUTE_DATA attributes = {};
+    if (GetFileAttributesExW(path_wide.GetData(), GetFileExInfoStandard, &attributes) == 0)
+    {
+        const DWORD win32_err = GetLastError();
+        const bool missing = win32_err == ERROR_FILE_NOT_FOUND || win32_err == ERROR_PATH_NOT_FOUND;
+        return Result(missing ? ErrorCode::PathNotFound : ErrorCode::OSFailure);
+    }
+    return Result(ToFileStatus(attributes.ftLastWriteTime, attributes.nFileSizeHigh, attributes.nFileSizeLow, attributes.dwFileAttributes));
+#elif defined(OPAL_PLATFORM_LINUX)
+    NativePath native_path;
+    if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
+    {
+        return Result(error);
+    }
+    struct stat info = {};
+    if (stat(native_path.data, &info) != 0)
+    {
+        return Result(errno == ENOENT || errno == ENOTDIR ? ErrorCode::PathNotFound : ErrorCode::OSFailure);
+    }
+    return Result(ToFileStatus(info));
+#else
+#error "Platform not supported"
+#endif
+}
+
+Opal::ErrorCode Opal::CreateDirectories(StringViewUtf8 path)
+{
+    if (IsDirectory(path))
+    {
+        return ErrorCode::Success;
+    }
+    if (Exists(path))
+    {
+        return ErrorCode::AlreadyExists;
+    }
+    // Intermediate failures are ignored: a root, drive or share prefix cannot be created but exists, and a prefix that truly
+    // could not be made shows up as PathNotFound on the next level.
+    for (u64 i = 1; i < path.GetSize(); ++i)
+    {
+        const char8 c = path[i];
+        if (c != '/' && c != '\\')
+        {
+            continue;
+        }
+        if (i == 2 && path[1] == ':')
+        {
+            continue;
+        }
+        const StringViewUtf8 prefix(path.GetData(), i);
+        if (!IsDirectory(prefix))
+        {
+            [[maybe_unused]] const ErrorCode ignored = CreateDirectory(prefix);
+        }
+    }
+    const ErrorCode err = CreateDirectory(path, false);
+    if (err == ErrorCode::Success && !IsDirectory(path))
+    {
+        return ErrorCode::AlreadyExists;
+    }
+    return err;
+}
+
+Opal::ErrorCode Opal::RenameFile(StringViewUtf8 from, StringViewUtf8 to)
+{
+#if defined(OPAL_PLATFORM_WINDOWS)
+    StringWide from_wide;
+    StringWide to_wide;
+    ErrorCode err = ToWidePath(from, from_wide);
+    if (err == ErrorCode::Success)
+    {
+        err = ToWidePath(to, to_wide);
+    }
+    if (err != ErrorCode::Success)
+    {
+        return err;
+    }
+    if (MoveFileExW(from_wide.GetData(), to_wide.GetData(), MOVEFILE_REPLACE_EXISTING) != 0)
+    {
+        return ErrorCode::Success;
+    }
+    const DWORD win32_err = GetLastError();
+    if (win32_err == ERROR_FILE_NOT_FOUND || win32_err == ERROR_PATH_NOT_FOUND)
+    {
+        return ErrorCode::PathNotFound;
+    }
+    return ErrorCode::OSFailure;
+#elif defined(OPAL_PLATFORM_LINUX)
+    NativePath from_native;
+    NativePath to_native;
+    ErrorCode err = ToNativePath(from, from_native);
+    if (err == ErrorCode::Success)
+    {
+        err = ToNativePath(to, to_native);
+    }
+    if (err != ErrorCode::Success)
+    {
+        return err;
+    }
+    if (rename(from_native.data, to_native.data) == 0)
+    {
+        return ErrorCode::Success;
+    }
+    return errno == ENOENT ? ErrorCode::PathNotFound : ErrorCode::OSFailure;
+#else
+#error "Platform not supported"
+#endif
+}
+
+Opal::Expected<bool, Opal::ErrorCode> Opal::WriteStringToFileIfChanged(StringViewUtf8 path, StringViewUtf8 content)
+{
+    using Result = Expected<bool, ErrorCode>;
+    {
+        Expected<StringUtf8, ErrorCode> existing = ReadFileAsString(path);
+        if (existing.HasValue())
+        {
+            const StringUtf8& current = existing.GetValue();
+            if (current.GetSize() == content.GetSize() && (content.GetSize() == 0 || memcmp(current.GetData(), content.GetData(), content.GetSize()) == 0))
+            {
+                return Result(false);
+            }
+        }
+        else if (existing.GetError() == ErrorCode::OutOfMemory)
+        {
+            return Result(ErrorCode::OutOfMemory);
+        }
+    }
+
+    static Atomic<u64> s_temp_counter{0};
+#if defined(OPAL_PLATFORM_WINDOWS)
+    const u64 process_id = GetCurrentProcessId();
+#elif defined(OPAL_PLATFORM_LINUX)
+    const u64 process_id = static_cast<u64>(getpid());
+#endif
+    char8 suffix[64] = {};
+    snprintf(suffix, sizeof(suffix), ".tmp.%llu.%llu", process_id, s_temp_counter.FetchAdd(1));
+    StringUtf8 temp_path;
+    ErrorCode err = temp_path.Append(path);
+    if (err == ErrorCode::Success)
+    {
+        err = temp_path.Append(StringViewUtf8(suffix));
+    }
+    if (err != ErrorCode::Success)
+    {
+        return Result(err);
+    }
+
+    err = WriteStringToFile(temp_path, content);
+    if (err != ErrorCode::Success)
+    {
+        return Result(err);
+    }
+    err = RenameFile(temp_path, path);
+    if (err != ErrorCode::Success)
+    {
+        [[maybe_unused]] const ErrorCode ignored = DeleteFile(temp_path);
+        return Result(err);
+    }
+    return Result(true);
 }

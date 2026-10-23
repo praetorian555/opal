@@ -770,3 +770,125 @@ TEST_CASE("File system reports a failed allocation", "[FileSystem]")
 
     REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
 }
+
+TEST_CASE("GetFileStatus", "[FileSystem]")
+{
+    const StringUtf8 file_path = CombineOrFail(CwdOrFail(), "file-status-test.txt");
+    REQUIRE(WriteStringToFile(file_path, "twelve bytes") == ErrorCode::Success);
+
+    Expected<FileStatus, ErrorCode> file_status = GetFileStatus(file_path);
+    REQUIRE(file_status.HasValue());
+    REQUIRE(file_status.GetValue().size == 12);
+    REQUIRE_FALSE(file_status.GetValue().is_directory);
+    Expected<DateTime, ErrorCode> modified = GetLastFileModifiedTime(file_path);
+    REQUIRE(modified.HasValue());
+    REQUIRE(file_status.GetValue().modified == modified.GetValue());
+
+    Expected<FileStatus, ErrorCode> directory_status = GetFileStatus(CwdOrFail());
+    REQUIRE(directory_status.HasValue());
+    REQUIRE(directory_status.GetValue().is_directory);
+    REQUIRE(directory_status.GetValue().size == 0);
+
+    Expected<FileStatus, ErrorCode> missing = GetFileStatus(CombineOrFail(CwdOrFail(), "file-status-missing.txt"));
+    REQUIRE_FALSE(missing.HasValue());
+    REQUIRE(missing.GetError() == ErrorCode::PathNotFound);
+
+    REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
+}
+
+TEST_CASE("CollectDirectoryContents reports entry status", "[FileSystem]")
+{
+    const StringUtf8 root = CombineOrFail(CwdOrFail(), "status-listing-test");
+    REQUIRE(CreateDirectories(CombineOrFail(root, "nested")) == ErrorCode::Success);
+    const StringUtf8 file_path = CombineOrFail(root, "five.txt");
+    REQUIRE(WriteStringToFile(file_path, "12345") == ErrorCode::Success);
+
+    const DynamicArray<DirectoryEntry> entries = CollectOrFail(root.Clone());
+    REQUIRE(entries.GetSize() == 2);
+    for (const DirectoryEntry& entry : entries)
+    {
+        Expected<FileStatus, ErrorCode> status = GetFileStatus(entry.path);
+        REQUIRE(status.HasValue());
+        REQUIRE(entry.status.is_directory == entry.is_directory);
+        REQUIRE(entry.status.size == (entry.is_directory ? 0 : 5));
+        REQUIRE(entry.status.modified == status.GetValue().modified);
+    }
+
+    REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
+    REQUIRE(DeleteDirectory(CombineOrFail(root, "nested")) == ErrorCode::Success);
+    REQUIRE(DeleteDirectory(root) == ErrorCode::Success);
+}
+
+TEST_CASE("CreateDirectories", "[FileSystem]")
+{
+    const StringUtf8 root = CombineOrFail(CwdOrFail(), "create-directories-test");
+    const StringUtf8 deepest = CombineOrFail(root, "a", "b", "c");
+    REQUIRE(CreateDirectories(deepest) == ErrorCode::Success);
+    REQUIRE(IsDirectory(deepest));
+    REQUIRE(CreateDirectories(deepest) == ErrorCode::Success);
+
+    const StringUtf8 file_path = CombineOrFail(root, "a", "file.txt");
+    REQUIRE(WriteStringToFile(file_path, "x") == ErrorCode::Success);
+    REQUIRE(CreateDirectories(file_path) == ErrorCode::AlreadyExists);
+    REQUIRE(CreateDirectories(CombineOrFail(file_path, "below")) != ErrorCode::Success);
+
+    REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
+    REQUIRE(DeleteDirectory(deepest) == ErrorCode::Success);
+    REQUIRE(DeleteDirectory(CombineOrFail(root, "a", "b")) == ErrorCode::Success);
+    REQUIRE(DeleteDirectory(CombineOrFail(root, "a")) == ErrorCode::Success);
+    REQUIRE(DeleteDirectory(root) == ErrorCode::Success);
+}
+
+TEST_CASE("RenameFile", "[FileSystem]")
+{
+    const StringUtf8 from = CombineOrFail(CwdOrFail(), "rename-from.txt");
+    const StringUtf8 to = CombineOrFail(CwdOrFail(), "rename-to.txt");
+    REQUIRE(WriteStringToFile(from, "new") == ErrorCode::Success);
+    REQUIRE(WriteStringToFile(to, "old") == ErrorCode::Success);
+
+    REQUIRE(RenameFile(from, to) == ErrorCode::Success);
+    REQUIRE_FALSE(Exists(from));
+    REQUIRE(ReadStringOrFail(to) == "new");
+    REQUIRE(RenameFile(from, to) == ErrorCode::PathNotFound);
+
+    REQUIRE(DeleteFile(to) == ErrorCode::Success);
+}
+
+TEST_CASE("WriteStringToFileIfChanged", "[FileSystem]")
+{
+    const StringUtf8 file_path = CombineOrFail(CwdOrFail(), "write-if-changed.txt");
+    [[maybe_unused]] const ErrorCode removed = DeleteFile(file_path);
+
+    Expected<bool, ErrorCode> written = WriteStringToFileIfChanged(file_path, "first");
+    REQUIRE(written.HasValue());
+    REQUIRE(written.GetValue());
+    REQUIRE(ReadStringOrFail(file_path) == "first");
+
+    Expected<DateTime, ErrorCode> before = GetLastFileModifiedTime(file_path);
+    REQUIRE(before.HasValue());
+    Expected<bool, ErrorCode> same = WriteStringToFileIfChanged(file_path, "first");
+    REQUIRE(same.HasValue());
+    REQUIRE_FALSE(same.GetValue());
+    Expected<DateTime, ErrorCode> after = GetLastFileModifiedTime(file_path);
+    REQUIRE(after.HasValue());
+    REQUIRE(after.GetValue() == before.GetValue());
+
+    Expected<bool, ErrorCode> changed = WriteStringToFileIfChanged(file_path, "second, longer");
+    REQUIRE(changed.HasValue());
+    REQUIRE(changed.GetValue());
+    REQUIRE(ReadStringOrFail(file_path) == "second, longer");
+
+    // No temporary file is left next to the target.
+    const DynamicArray<DirectoryEntry> entries = CollectOrFail(CwdOrFail());
+    for (const DirectoryEntry& entry : entries)
+    {
+        REQUIRE(Find(entry.path, "write-if-changed.txt.tmp") == StringUtf8::k_npos);
+    }
+
+    Expected<bool, ErrorCode> missing_parent =
+        WriteStringToFileIfChanged(CombineOrFail(CwdOrFail(), "no-such-directory", "file.txt"), "x");
+    REQUIRE_FALSE(missing_parent.HasValue());
+    REQUIRE(missing_parent.GetError() == ErrorCode::PathNotFound);
+
+    REQUIRE(DeleteFile(file_path) == ErrorCode::Success);
+}
