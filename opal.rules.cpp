@@ -4,7 +4,7 @@
 // helper's name is unique across rules files, since rules files may share a translation unit.
 static void OpalCompileSettings(Builder::Rules::ModuleRules& m, const Builder::Rules::TargetInfo& t)
 {
-    if (t.toolchain.name == "msvc")
+    if (t.toolchain.Is(Builder::Rules::Compiler::Msvc))
     {
         m.private_compile_flags = {"/W4",     "/w14242", "/w14254", "/w14263", "/w14265", "/w14287", "/we4289",
                                    "/w14296", "/w14311", "/w14545", "/w14546", "/w14547", "/w14549", "/w14555",
@@ -27,7 +27,7 @@ static void OpalCompileSettings(Builder::Rules::ModuleRules& m, const Builder::R
                                "-Wdouble-promotion",
                                "-Wformat=2",
                                "-Wimplicit-fallthrough"};
-    if (t.toolchain.name == "clang")
+    if (t.toolchain.Is(Builder::Rules::Compiler::Clang))
     {
         m.private_compile_flags.insert(m.private_compile_flags.end(),
                                        {"-Wno-gnu-anonymous-struct", "-Wno-nested-anon-types", "-Wno-dtor-name"});
@@ -46,7 +46,7 @@ BUILDER_MODULE(Opal, m, t)
     m.public_includes = {"include", "third-party/rapidhash/include"};
     m.sources.AddDir("src");
     m.headers.AddDir("include", Recurse::Yes);
-    if (t.platform.Is("Windows"))
+    if (t.platform.Is(Platform::Windows))
     {
         m.libs = {"synchronization.lib", "ws2_32.lib"};
     }
@@ -65,7 +65,7 @@ BUILDER_MODULE(Catch2, m, t)
     m.public_system_includes = {"third-party/catch2/include", "third-party/catch2/include/catch2"};
     m.public_defines = {"CATCH_AMALGAMATED_CUSTOM_MAIN"};
     m.sources.Add("third-party/catch2/src/catch_amalgamated.cpp");
-    m.private_compile_flags = {t.toolchain.name == "msvc" ? "/w" : "-w"};
+    m.private_compile_flags = {t.toolchain.Is(Compiler::Msvc) ? "/w" : "-w"};
 }
 
 // A small program the process tests start. They look for it next to their own executable, so the
@@ -74,7 +74,7 @@ BUILDER_MODULE(OpalTestHelper, m, t)
 {
     m.private_deps = {"Opal"};
     m.sources.Add("test/process-test-helper.cpp");
-    if (t.platform.Is("Windows"))
+    if (t.platform.Is(Platform::Windows))
     {
         m.libs = {"shell32.lib"};
     }
