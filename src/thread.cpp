@@ -80,9 +80,10 @@ Opal::Expected<Opal::ThreadHandle, Opal::ErrorCode> Opal::Impl::CreateThread(Thr
     // Spin until the thread has stored its kernel thread id, and keep what it stored. Reading it a second time afterwards is not an
     // option: the thread may have finished and freed its data by then, and `launch` is only alive for as long as this loop.
     u64 thread_id = 0;
+    SpinBackoff backoff;
     while ((thread_id = launch.thread_id.Load<MemoryOrder::Acquire>()) == 0)
     {
-        CpuPause();
+        backoff.Wait();
     }
     return Result(ThreadHandle{.native_handle = reinterpret_cast<void*>(native_handle), .id = thread_id});
 #else
