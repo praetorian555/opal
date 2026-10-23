@@ -5,6 +5,8 @@
 #include <string.h>
 
 #if defined(OPAL_PLATFORM_WINDOWS)
+// Catch2 is included after this header, and its std::min and std::max calls break on the min and max macros.
+#define NOMINMAX
 #include <Windows.h>
 #undef GetEnvironmentVariable
 #undef CreateFile
@@ -24,12 +26,37 @@ using namespace Opal;
 namespace
 {
 
-constexpr const char* k_helper = OPAL_TEST_PROCESS_HELPER;
+#if defined(OPAL_TEST_PROCESS_HELPER)
+const StringUtf8 g_helper(OPAL_TEST_PROCESS_HELPER);
+#else
+// A build that cannot name the helper's path at compile time puts it next to the test executable.
+StringUtf8 FindHelperNextToTests()
+{
+    Expected<StringUtf8, ErrorCode> executable = Paths::GetExecutablePath();
+    if (!executable.HasValue())
+    {
+        return {};
+    }
+    Expected<StringUtf8, ErrorCode> directory = Paths::GetParentPath(executable.GetValue());
+    if (!directory.HasValue())
+    {
+        return {};
+    }
+#if defined(OPAL_PLATFORM_WINDOWS)
+    Expected<StringUtf8, ErrorCode> path = Paths::Combine(directory.GetValue(), "opal_test_process_helper.exe");
+#else
+    Expected<StringUtf8, ErrorCode> path = Paths::Combine(directory.GetValue(), "opal_test_process_helper");
+#endif
+    return path.HasValue() ? Move(path).GetValue() : StringUtf8();
+}
+
+const StringUtf8 g_helper = FindHelperNextToTests();
+#endif
 
 ProcessDesc HelperDesc(ArrayView<const StringViewUtf8> arguments)
 {
     ProcessDesc desc;
-    desc.executable = k_helper;
+    desc.executable = g_helper;
     desc.arguments = arguments;
     return desc;
 }
@@ -381,11 +408,11 @@ TEST_CASE("Process executable lookup", "[Process]")
     }
     SECTION("LocateExecutable with a path and with a search path")
     {
-        Expected<StringUtf8, ErrorCode> direct = LocateExecutable(k_helper);
+        Expected<StringUtf8, ErrorCode> direct = LocateExecutable(g_helper);
         REQUIRE(direct.HasValue());
 
-        Expected<StringUtf8, ErrorCode> directory = Paths::GetParentPath(k_helper);
-        Expected<StringUtf8, ErrorCode> file_name = Paths::GetStem(k_helper);
+        Expected<StringUtf8, ErrorCode> directory = Paths::GetParentPath(g_helper);
+        Expected<StringUtf8, ErrorCode> file_name = Paths::GetStem(g_helper);
         REQUIRE(directory.HasValue());
         REQUIRE(file_name.HasValue());
         Expected<StringUtf8, ErrorCode> found = LocateExecutable(file_name.GetValue(), directory.GetValue());
@@ -394,8 +421,8 @@ TEST_CASE("Process executable lookup", "[Process]")
     }
     SECTION("the child's PATH is searched")
     {
-        Expected<StringUtf8, ErrorCode> directory = Paths::GetParentPath(k_helper);
-        Expected<StringUtf8, ErrorCode> file_name = Paths::GetStem(k_helper);
+        Expected<StringUtf8, ErrorCode> directory = Paths::GetParentPath(g_helper);
+        Expected<StringUtf8, ErrorCode> file_name = Paths::GetStem(g_helper);
         REQUIRE(directory.HasValue());
         REQUIRE(file_name.HasValue());
         StringUtf8 path_entry("PATH=");
