@@ -60,6 +60,7 @@ set(OPAL_FILES
         src/paths.cpp
         src/bit.cpp
         src/hash.cpp
+        src/sha256.cpp
         src/rng.cpp
         src/file-system.cpp
         src/program-arguments.cpp
@@ -97,6 +98,7 @@ set(OPAL_FILES
         include/opal/source-location.h
         include/opal/bit.h
         include/opal/hash.h
+        include/opal/sha256.h
         include/opal/rng.h
         include/opal/program-arguments.h
         include/opal/math-base.h
@@ -256,6 +258,7 @@ if (OPAL_BUILD_TESTS)
             test/hash-set-test.cpp
             test/hash-map-test.cpp
             test/bit-test.cpp
+            test/sha256-test.cpp
             test/rng-test.cpp
             test/math-base-test.cpp
             test/fixed-point-test.cpp
