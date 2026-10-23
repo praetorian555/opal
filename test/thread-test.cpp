@@ -1188,13 +1188,21 @@ void TransferThroughMPMC(size_t capacity)
             {
                 if (use_try)
                 {
+                    // Backs off between empty polls, so on a machine with fewer cores than threads it does not hold its core
+                    // for whole time slices while the producers wait to run.
                     i32 value = 0;
                     ErrorCode err = ErrorCode::Success;
+                    SpinBackoff backoff;
                     while ((err = receiver.TryReceive(value)) != ErrorCode::ChannelClosed)
                     {
                         if (err == ErrorCode::Success)
                         {
                             out->PushBack(value);
+                            backoff = SpinBackoff();
+                        }
+                        else
+                        {
+                            backoff.Wait();
                         }
                     }
                     return;
