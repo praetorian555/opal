@@ -204,8 +204,8 @@ template <typename T>
 Opal::Matrix4x4<T> Opal::RotateX(T angle_degrees)
 {
     const T angle_radians = Radians(angle_degrees);
-    const T cos_angle = cos(angle_radians);
-    const T sin_angle = sin(angle_radians);
+    const T cos_angle = Cos(angle_radians);
+    const T sin_angle = Sin(angle_radians);
 
     Matrix4x4<T> result = Identity<T>();
     result.elements[1][1] = cos_angle;
@@ -219,8 +219,8 @@ template <typename T>
 Opal::Matrix4x4<T> Opal::RotateY(T angle_degrees)
 {
     const T angle_radians = Radians(angle_degrees);
-    const T cos_angle = cos(angle_radians);
-    const T sin_angle = sin(angle_radians);
+    const T cos_angle = Cos(angle_radians);
+    const T sin_angle = Sin(angle_radians);
 
     Matrix4x4<T> result = Identity<T>();
     result.elements[0][0] = cos_angle;
@@ -234,8 +234,8 @@ template <typename T>
 Opal::Matrix4x4<T> Opal::RotateZ(T angle_degrees)
 {
     const T angle_radians = Radians(angle_degrees);
-    const T cos_angle = cos(angle_radians);
-    const T sin_angle = sin(angle_radians);
+    const T cos_angle = Cos(angle_radians);
+    const T sin_angle = Sin(angle_radians);
 
     Matrix4x4<T> result = Identity<T>();
     result.elements[0][0] = cos_angle;
@@ -249,8 +249,8 @@ template <typename T>
 Opal::Matrix4x4<T> Opal::Rotate(T angle_degrees, const Vector3<T>& axis)
 {
     const T angle_radians = Radians(angle_degrees);
-    const T cos_angle = cos(angle_radians);
-    const T sin_angle = sin(angle_radians);
+    const T cos_angle = Cos(angle_radians);
+    const T sin_angle = Sin(angle_radians);
     const T one_minus_cos = 1 - cos_angle;
 
     const Vector3<T> norm_axis = Normalize(axis);
