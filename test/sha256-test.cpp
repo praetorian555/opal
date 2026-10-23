@@ -54,6 +54,30 @@ TEST_CASE("SHA-256 pads messages around the block boundary", "[Sha256]")
     REQUIRE(Hex(Hash::CalcSha256(block, 119)) == "31eba51c313a5c08226adf18d4a359cfdfd8d2e816b13f4af952f7ea6584dcfb");
 }
 
+TEST_CASE("SHA-256 hashes every byte value", "[Sha256]")
+{
+    // Reference digests from GNU sha256sum. The ASCII examples above never set a byte's top bit.
+    u8 all_values[4 * 256 + 61];
+    for (u64 i = 0; i < 4 * 256; ++i)
+    {
+        all_values[i] = static_cast<u8>(i);
+    }
+    std::memset(all_values + 4 * 256, 0xff, 61);
+    REQUIRE(Hex(Hash::CalcSha256(all_values, 256)) == "40aff2e9d2d8922e47afd4648e6967497158785fbd1da870e7110266bf944880");
+    REQUIRE(Hex(Hash::CalcSha256(all_values, sizeof(all_values))) == "97af4a6e7cd3ec72fc0300cf2646fbf48b90801e6c744e0f35bb5ec14784ed3d");
+
+    // Bytes from a linear congruential generator, x = x * 1103515245 + 12345, taking the top byte.
+    u8 noise[4097];
+    u32 state = 1;
+    for (u8& byte : noise)
+    {
+        state = state * 1103515245u + 12345u;
+        byte = static_cast<u8>(state >> 24);
+    }
+    REQUIRE(Hex(Hash::CalcSha256(noise, 1000)) == "dd8c914beb8d49a6b6f3eb6302c9175821c2225fe45d6ff66260cc72d61da26c");
+    REQUIRE(Hex(Hash::CalcSha256(noise, sizeof(noise))) == "8697e32e92863e7040bd316487c9de01a011e979e60753309661322e2e3f1e42");
+}
+
 TEST_CASE("SHA-256 gives the same digest however the message is split", "[Sha256]")
 {
     u8 message[200];
