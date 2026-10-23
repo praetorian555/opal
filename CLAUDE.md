@@ -37,7 +37,7 @@ included: the parser reports a failed parse by recording it on itself and return
 configuration automatically, so build it by hand after touching a `throw`:
 
 ```bash
-wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&
+wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/v/Dev/opal &&
   cmake -S . -B build/noexcept-wsl-gcc -DCMAKE_BUILD_TYPE=Debug -DOPAL_HARDENING=OFF -DOPAL_EXCEPTIONS=OFF &&
   cmake --build build/noexcept-wsl-gcc -j "$(nproc)"'
 ```
@@ -56,13 +56,13 @@ before pushing anything that touches templates, overloads or raw bytes:
 
 ```bash
 # GCC. CLion generates this directory with Makefiles, so do not pass -G Ninja.
-wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&
+wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/v/Dev/opal &&
   cmake -S . -B build/debug-wsl-gcc -DCMAKE_BUILD_TYPE=Debug -DOPAL_HARDENING=ON &&
   cmake --build build/debug-wsl-gcc -j "$(nproc)" &&
   cd build/debug-wsl-gcc && ctest --output-on-failure'
 
 # Clang.
-wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&
+wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/v/Dev/opal &&
   cmake -S . -B build/debug-wsl-clang -G Ninja -DCMAKE_BUILD_TYPE=Debug -DOPAL_HARDENING=ON \
     -DCMAKE_C_COMPILER=/bin/clang-20 -DCMAKE_CXX_COMPILER=/bin/clang++-20 &&
   cmake --build build/debug-wsl-clang -j "$(nproc)" &&
@@ -79,7 +79,7 @@ Data races need ThreadSanitizer, which cannot share a build with ASan. CI's `thr
 build locally:
 
 ```bash
-wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/d/Dev/opal &&
+wsl.exe -d Ubuntu-24.04 -e bash -lc 'cd /mnt/v/Dev/opal &&
   cmake -S . -B build/tsan -G Ninja -DCMAKE_BUILD_TYPE=Debug -DOPAL_HARDENING=OFF \
     -DCMAKE_C_COMPILER=/bin/clang-20 -DCMAKE_CXX_COMPILER=/bin/clang++-20 "-DCMAKE_CXX_FLAGS=-fsanitize=thread -g" &&
   cmake --build build/tsan -j "$(nproc)" &&
