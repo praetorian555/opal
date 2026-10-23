@@ -215,11 +215,13 @@ struct StoreBufferLitmus
     u32 seen_by_heavy = 0;
 };
 
+// Waits back off rather than only pause, so with fewer cores than the three threads a round does not cost a whole time slice.
 void WaitForRound(const StoreBufferLitmus& litmus, u32 round)
 {
+    SpinBackoff backoff;
     while (litmus.round.Load<MemoryOrder::Acquire>() != round)
     {
-        CpuPause();
+        backoff.Wait();
     }
 }
 }  // namespace
@@ -264,9 +266,10 @@ TEST_CASE("An asymmetric fence pair lets one of two threads see the other's writ
         litmus.light_value.Store<MemoryOrder::Relaxed>(0);
         litmus.heavy_value.Store<MemoryOrder::Relaxed>(0);
         litmus.round.Store<MemoryOrder::Release>(r);
+        SpinBackoff backoff;
         while (litmus.finished.Load<MemoryOrder::Acquire>() != 2 * r)
         {
-            CpuPause();
+            backoff.Wait();
         }
         both_missed += litmus.seen_by_light == 0 && litmus.seen_by_heavy == 0 ? 1 : 0;
     }
