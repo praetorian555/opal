@@ -3859,13 +3859,20 @@ Opal::u64 Opal::GetStringLength(const CodeUnitType* str)
     {
         return 0;
     }
-    u64 length = 0;
-    while (*str != 0)
+    if constexpr (k_is_same_value<CodeUnitType, char>)
     {
-        ++str;
-        ++length;
+        return strlen(str);
     }
-    return length;
+    else
+    {
+        u64 length = 0;
+        while (*str != 0)
+        {
+            ++str;
+            ++length;
+        }
+        return length;
+    }
 }
 
 template <Opal::StringLike StringClass>
