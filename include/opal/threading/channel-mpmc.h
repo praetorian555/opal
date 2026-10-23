@@ -36,7 +36,7 @@ struct QueueMPMCSlot
  * Lock-free multiple-producer multiple-consumer bounded queue.
  * @tparam T Type of data stored in the queue. Must be default constructable, and either copy assignable or clonable.
  * @tparam UseSignaling If true, uses Atomic::Wait/Notify to block when waiting for a slot's turn.
- *         If false, busy-waits using a CPU pause instruction. Defaults to true.
+ *         If false, busy-waits: CPU pauses with backoff, then yields of the time slice. Defaults to true.
  * @tparam SingleConsumer If true, the caller guarantees that only one thread ever pops, which makes popping cheaper and lets
  *         items pushed after Close still be popped. Defaults to false.
  */
@@ -114,6 +114,7 @@ public:
         auto& slot = m_data[slot_idx];
         size_t turn = read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
         size_t current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
+        [[maybe_unused]] SpinBackoff backoff;
         while (2 * turn + 1 != current_turn)
         {
             if constexpr (UseSignaling)
@@ -122,7 +123,7 @@ public:
             }
             else
             {
-                CpuPause();
+                backoff.Wait();
             }
             current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
         }
@@ -243,6 +244,7 @@ private:
         const size_t read_idx = m_read_idx.Load<MemoryOrder::Relaxed>();
         auto& slot = m_data[read_idx & (m_capacity - 1)];
         const size_t filled_turn = 2 * (read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1))) + 1;
+        [[maybe_unused]] SpinBackoff backoff;
         for (u32 round = 0; slot.turn.template Load<MemoryOrder::Acquire>() != filled_turn; round++)
         {
             // Acquiring m_is_closed makes every push that happened before Close visible in m_write_idx.
@@ -273,7 +275,7 @@ private:
             }
             else
             {
-                CpuPause();
+                backoff.Wait();
             }
         }
         result = Move(slot.data);
@@ -312,16 +314,6 @@ public:
     [[nodiscard]] bool IsClosed() const { return m_is_closed.Load<MemoryOrder::Acquire>(); }
 
 private:
-    /** Spin for pauses CPU pauses, then double pauses up to a cap, so a waiter polls less the longer it waits. */
-    static void Backoff(u32& pauses)
-    {
-        for (u32 i = 0; i < pauses; i++)
-        {
-            CpuPause();
-        }
-        pauses = pauses < 64 ? pauses * 2 : pauses;
-    }
-
     /**
      * PopUnlessClosed with more than one consumer. Claims the next read index outright, so consumers never race for the same
      * slot, then waits for that slot to be filled. Gives up once the queue is closed and no producer has claimed the index, which
@@ -333,6 +325,7 @@ private:
         auto& slot = m_data[read_idx & (m_capacity - 1)];
         const size_t filled_turn = 2 * (read_idx >> CountSetBits(static_cast<u64>(m_capacity - 1))) + 1;
         u32 round = 0;
+        [[maybe_unused]] SpinBackoff backoff;
         while (slot.turn.template Load<MemoryOrder::Acquire>() != filled_turn)
         {
             if constexpr (UseSignaling)
@@ -359,7 +352,7 @@ private:
             }
             else
             {
-                CpuPause();
+                backoff.Wait();
             }
         }
         result = Move(slot.data);
@@ -461,7 +454,7 @@ private:
         auto& slot = m_data[slot_idx];
         size_t turn = write_idx >> CountSetBits(static_cast<u64>(m_capacity - 1));
         size_t current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
-        u32 pauses = 1;
+        [[maybe_unused]] SpinBackoff backoff;
         while (2 * turn != current_turn)
         {
             if constexpr (UseSignaling)
@@ -470,7 +463,7 @@ private:
             }
             else
             {
-                Backoff(pauses);
+                backoff.Wait();
             }
             current_turn = slot.turn.template Load<MemoryOrder::Acquire>();
         }

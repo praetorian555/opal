@@ -452,7 +452,9 @@ Single-producer, single-consumer. The transmitter and receiver are move-only. Lo
 Both SPSC and MPMC channels accept a `bool UseSignaling` template parameter:
 
 - **`true`** — blocking operations use `std::atomic::wait/notify` (WaitOnAddress/futex), freeing the CPU while waiting.
-- **`false`** — blocking operations busy-wait using a CPU pause instruction, lowest latency but consumes CPU.
+- **`false`** — blocking operations busy-wait, lowest latency but consumes CPU. A waiter pauses with backoff (`SpinBackoff`),
+  then yields its time slice on every further poll, so a thread it waits for that shares its core still gets to run. Pausing
+  alone would leave that thread waiting for the spinner's whole time slice on every handoff.
 
 All three channels default to `true` (signaling), so a receiver that has nothing to do does not hold a core. Choose spin
 wait where consumers have cores of their own and the wakeup latency of a few microseconds matters more.

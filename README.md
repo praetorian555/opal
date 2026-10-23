@@ -306,14 +306,14 @@ Cross-platform threading primitives and concurrency utilities.
 | `opal/threading/future.h` | Future and promise for a value produced on another thread |
 | `opal/threading/executor.h` | Interface for anything that runs submitted work |
 | `opal/threading/task-queue.h` | Executor drained by its owner thread, such as a UI thread |
-| `opal/threading/cpu-pause.h` | CPU pause/yield hint for spin-wait loops |
+| `opal/threading/cpu-pause.h` | CPU pause/yield hint and `SpinBackoff` for spin-wait loops |
 
 Channels split into a `Transmitter` (producer) and `Receiver` (consumer) that can be moved to separate threads. Both SPSC and MPMC channels accept a `bool UseSignaling` template parameter that controls how blocking operations wait:
 
 - **`true`** — blocks via `std::atomic::wait/notify` (WaitOnAddress/futex), freeing the CPU while waiting.
-- **`false`** — busy-waits using a CPU pause instruction, lowest latency but consumes CPU.
+- **`false`** — busy-waits, pausing with backoff and then yielding the time slice, lowest latency but consumes CPU.
 
-SPSC defaults to `true` (signaling). MPMC defaults to `false` (spin).
+Both default to `true` (signaling).
 
 ```cpp
 #include "opal/threading/channel-spsc.h"

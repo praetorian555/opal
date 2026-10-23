@@ -1,6 +1,7 @@
 #pragma once
 
 #include "opal/defines.h"
+#include "opal/types.h"
 
 #if defined(OPAL_COMPILER_MSVC)
 #include <intrin.h>
@@ -26,5 +27,35 @@ inline void CpuPause()
 #endif
 #endif
 }
+
+/** Give up the rest of the calling thread's time slice to another thread that is ready to run, if there is one. */
+void YieldCurrentThread();
+
+/**
+ * Backoff for a spin-wait loop, one step per failed poll. Pauses double each step up to a cap, then every further step yields
+ * the time slice. Pausing keeps latency low while the awaited thread runs on another core; yielding lets it run when it shares
+ * this core, where pausing alone would leave it waiting for the spinner's whole time slice.
+ */
+class SpinBackoff
+{
+public:
+    void Wait()
+    {
+        if (m_pauses > k_max_pauses)
+        {
+            YieldCurrentThread();
+            return;
+        }
+        for (u32 i = 0; i < m_pauses; i++)
+        {
+            CpuPause();
+        }
+        m_pauses *= 2;
+    }
+
+private:
+    static constexpr u32 k_max_pauses = 64;
+    u32 m_pauses = 1;
+};
 
 }  // namespace Opal

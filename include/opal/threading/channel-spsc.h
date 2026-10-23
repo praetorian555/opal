@@ -21,7 +21,7 @@ namespace Impl
  * Capacity is rounded up to the next power of two.
  * @tparam T Type of data stored in the queue. Must be default constructable.
  * @tparam UseSignaling If true, uses Atomic::Wait/Notify to block when the queue is full/empty.
- *         If false, busy-waits using a CPU pause instruction. Defaults to true.
+ *         If false, busy-waits: CPU pauses with backoff, then yields of the time slice. Defaults to true.
  */
 template <typename T, bool UseSignaling = true>
     requires Opal::DefaultConstructable<T>
@@ -89,9 +89,10 @@ public:
         // release of m_read_idx is what orders that read before this write.
         size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
 
+        [[maybe_unused]] SpinBackoff backoff;
         while (write_idx - read_idx == m_capacity)
         {
-            WaitForPop(read_idx);
+            WaitForPop(read_idx, backoff);
             read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         }
 
@@ -127,9 +128,10 @@ public:
         // release of m_read_idx is what orders that read before this write.
         size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
 
+        [[maybe_unused]] SpinBackoff backoff;
         while (write_idx - read_idx == m_capacity)
         {
-            WaitForPop(read_idx);
+            WaitForPop(read_idx, backoff);
             read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         }
 
@@ -148,9 +150,10 @@ public:
         // release of m_read_idx is what orders that read before this write.
         size_t read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
 
+        [[maybe_unused]] SpinBackoff backoff;
         while (write_idx - read_idx == m_capacity)
         {
-            WaitForPop(read_idx);
+            WaitForPop(read_idx, backoff);
             read_idx = m_read_idx.Load<MemoryOrder::Acquire>();
         }
 
@@ -183,9 +186,10 @@ public:
     T Pop()
     {
         T result;
+        [[maybe_unused]] SpinBackoff backoff;
         for (u32 round = 0; !TryPop(result); round++)
         {
-            WaitForPush(round);
+            WaitForPush(round, backoff);
         }
         return result;
     }
@@ -198,6 +202,7 @@ public:
      */
     bool PopUnlessClosed(T& result)
     {
+        [[maybe_unused]] SpinBackoff backoff;
         for (u32 round = 0;; round++)
         {
             if (TryPop(result))
@@ -208,7 +213,7 @@ public:
             {
                 return TryPop(result);
             }
-            WaitForPush(round);
+            WaitForPush(round, backoff);
         }
     }
 
@@ -279,8 +284,9 @@ private:
     /**
      * Block until something may have been pushed or the queue closed. Returns at once if the queue is no longer empty.
      * @param round How many times the caller has already waited for this item. With signaling, the first few rounds spin.
+     * @param backoff The caller's backoff for this item, which paces the wait without signaling.
      */
-    void WaitForPush(u32 round)
+    void WaitForPush(u32 round, [[maybe_unused]] SpinBackoff& backoff)
     {
         if constexpr (UseSignaling)
         {
@@ -303,12 +309,15 @@ private:
         }
         else
         {
-            CpuPause();
+            backoff.Wait();
         }
     }
 
-    /** Block until the consumer may have popped since read_idx was read. */
-    void WaitForPop(size_t read_idx)
+    /**
+     * Block until the consumer may have popped since read_idx was read.
+     * @param backoff The caller's backoff for this item, which paces the wait without signaling.
+     */
+    void WaitForPop(size_t read_idx, [[maybe_unused]] SpinBackoff& backoff)
     {
         if constexpr (UseSignaling)
         {
@@ -322,7 +331,7 @@ private:
         }
         else
         {
-            CpuPause();
+            backoff.Wait();
         }
     }
 
