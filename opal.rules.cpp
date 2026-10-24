@@ -51,6 +51,13 @@ BUILDER_MODULE(OpalTestHelper, m, t)
     }
 }
 
+// Google Benchmark is fetched only with -Dbenchmarks=true, as OPAL_BUILD_BENCHMARKS fetches it in CMake.
+BUILDER_MODULE(OpalBenchmark, m, t)
+{
+    m.private_deps = {"Opal", "benchmark::Benchmark"};
+    m.sources.AddDir("benchmark");
+}
+
 BUILDER_TARGET(Opal, t, c)
 {
     t.kind = TargetKind::StaticLibrary;
@@ -72,4 +79,10 @@ BUILDER_TARGET(opal_test_process_helper, t, c)
 {
     t.modules = {"OpalTestHelper"};
     t.enabled = c.exceptions;
+}
+
+BUILDER_TARGET(opal_benchmark, t, c)
+{
+    t.modules = {"OpalBenchmark"};
+    t.enabled = c.GetBool("benchmarks");
 }
