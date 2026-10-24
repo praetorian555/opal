@@ -1,0 +1,77 @@
+name: Builder
+
+# Builds and tests opal with builder, from opal.rules.cpp, beside the CMake jobs in ci.yml. Builder
+# runs every action with a clean environment and finds MSVC through vswhere, so no developer
+# environment is set up first.
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: "MSVC Debug"
+          os: windows-2022
+          build_type: Debug
+        - name: "MSVC Release"
+          os: windows-2022
+          build_type: Release
+        - name: "GCC Debug"
+          os: ubuntu-24.04
+          build_type: Debug
+          toolchain: gcc
+        - name: "GCC Release"
+          os: ubuntu-24.04
+          build_type: Release
+          toolchain: gcc
+        - name: "Clang Debug"
+          os: ubuntu-24.04
+          build_type: Debug
+          toolchain: clang
+        - name: "Clang Release"
+          os: ubuntu-24.04
+          build_type: Release
+          toolchain: clang
+        # ASan and UBSan, as OPAL_HARDENING=ON turns on for the CMake sanitizer jobs.
+        - name: "Clang sanitizers"
+          os: ubuntu-24.04
+          build_type: Debug
+          toolchain: clang
+          sanitize: address,undefined
+    name: ${{ matrix.config.name }} (builder)
+    runs-on: ${{ matrix.config.os }}
+    timeout-minutes: 30
+    env:
+      # UBSan only prints and keeps going by default, which would let a finding pass as a green run.
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+    - uses: actions/checkout@v7
+
+    # Tracks setup-builder's main until it has a v1 tag.
+    - uses: praetorian555/setup-builder@main
+      with:
+        version: 0.1.0
+
+    - name: Choose the build
+      shell: bash
+      run: |
+        args="--config=${{ matrix.config.build_type }}"
+        if [ -n "${{ matrix.config.toolchain }}" ]; then args="$args --toolchain=${{ matrix.config.toolchain }}"; fi
+        if [ -n "${{ matrix.config.sanitize }}" ]; then args="$args --sanitize=${{ matrix.config.sanitize }}"; fi
+        echo "BUILD_ARGS=$args" >> "$GITHUB_ENV"
+
+    # Catch2 needs exceptions, so the tests build with them, as the CMake jobs do.
+    - name: Test
+      shell: bash
+      run: builder test --exceptions $BUILD_ARGS
+
+    # The default build has no exceptions: only the library, as the CMake no-exceptions jobs build it.
+    - name: Build without exceptions
+      shell: bash
+      run: builder build $BUILD_ARGS
