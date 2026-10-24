@@ -69,7 +69,7 @@ jobs:
     # Catch2 needs exceptions, so the tests build with them, as the CMake jobs do.
     - name: Test
       shell: bash
-      run: builder test --exceptions $BUILD_ARGS
+      run: builder test --exceptions --timings $BUILD_ARGS
 
     # The default build has no exceptions: only the library, as the CMake no-exceptions jobs build it.
     - name: Build without exceptions
