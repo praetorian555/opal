@@ -85,7 +85,7 @@ jobs:
     # Tracks setup-builder's main until it has a v1 tag.
     - uses: praetorian555/setup-builder@main
       with:
-        version: 0.1.0
+        version: 0.2.0
 
     - name: Choose the build
       shell: bash
@@ -104,3 +104,37 @@ jobs:
     - name: Build without exceptions
       shell: bash
       run: builder build $BUILD_ARGS
+
+  # The benchmarks need Google Benchmark, which builder.json fetches only with -Dbenchmarks=true. This
+  # job keeps them compiling and runs the smallest size of every benchmark once, so a crash shows up
+  # here rather than at the start of a measurement session. The timings it prints mean nothing on a
+  # shared runner.
+  benchmarks:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: "MSVC benchmarks"
+          os: windows-2022
+        - name: "GCC benchmarks"
+          os: ubuntu-24.04
+          toolchain: gcc
+        - name: "Clang benchmarks"
+          os: ubuntu-24.04
+          toolchain: clang
+    name: ${{ matrix.config.name }} (builder)
+    runs-on: ${{ matrix.config.os }}
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: praetorian555/setup-builder@main
+      with:
+        version: 0.2.0
+
+    - name: Smoke run
+      shell: bash
+      run: |
+        args="-Dbenchmarks=true --config=Release"
+        if [ -n "${{ matrix.config.toolchain }}" ]; then args="$args --toolchain=${{ matrix.config.toolchain }}"; fi
+        builder run opal_benchmark $args -- --benchmark_filter=1024 --benchmark_min_time=1x
