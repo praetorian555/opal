@@ -795,3 +795,33 @@ TEST_CASE("The help text lists every kind of argument", "[ProgramArguments]")
     REQUIRE(Find(help, "-D...") != StringUtf8::k_npos);
     REQUIRE(Find(help, "-- <argument>...") != StringUtf8::k_npos);
 }
+
+TEST_CASE("Integer arguments take whole numbers only", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    u32 jobs = 0;
+    i32 offset = 0;
+    DynamicArray<u32> ids;
+    ProgramArgumentsBuilder builder;
+    builder.SetSilent(true)
+        .AddArgument("jobs", "Jobs", Ref{jobs}, true)
+        .AddArgument("offset", "Offset", Ref{offset}, true)
+        .AddArgument("ids", "Ids", Ref{ids}, true);
+
+    const char* good[] = {"program-name", "jobs=0x10", "offset=-3", "ids=1,2"};
+    REQUIRE(builder.Build(good, 4) == ProgramArgumentsResult::Success);
+    REQUIRE(jobs == 16);
+    REQUIRE(offset == -3);
+    REQUIRE(ids.GetSize() == 2);
+
+    for (const char* bad : {"jobs=lots", "jobs=4x", "jobs=", "jobs=-1", "jobs=99999999999", "offset=1.5", "ids=1,two"})
+    {
+        CAPTURE(bad);
+        const char* arguments[] = {"program-name", bad};
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
+    }
+
+    SetLogger(nullptr);
+}

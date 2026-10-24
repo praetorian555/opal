@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cerrno>
+#include <cstdlib>
+#include <limits>
+
 #include "container/scope-ptr.h"
 #include "opal/common.h"
 #include "opal/container/dynamic-array.h"
@@ -239,7 +243,47 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
 };
 
 /**
- * @brief Specialization for integral types. Parses the string to a number using StringToNumber.
+ * @return True when all of @p str is one number that fits T, in decimal, hexadecimal with 0x or octal with 0; an
+ *         unsigned type takes no sign. Anything else, "lots" or "4x", is not a value.
+ */
+template <Integral T>
+bool ParseWholeNumber(const StringUtf8& str, T& out)
+{
+    const char* text = *str;
+    if (str.IsEmpty() || text == nullptr || text[0] == ' ')
+    {
+        return false;
+    }
+    char* end = nullptr;
+    errno = 0;
+    if constexpr (SignedIntegral<T>)
+    {
+        const long long parsed = strtoll(text, &end, 0);
+        if (errno != 0 || end != text + str.GetSize() || parsed < static_cast<long long>(std::numeric_limits<T>::min()) ||
+            parsed > static_cast<long long>(std::numeric_limits<T>::max()))
+        {
+            return false;
+        }
+        out = static_cast<T>(parsed);
+    }
+    else
+    {
+        if (text[0] == '-' || text[0] == '+')
+        {
+            return false;
+        }
+        const unsigned long long parsed = strtoull(text, &end, 0);
+        if (errno != 0 || end != text + str.GetSize() || parsed > static_cast<unsigned long long>(std::numeric_limits<T>::max()))
+        {
+            return false;
+        }
+        out = static_cast<T>(parsed);
+    }
+    return true;
+}
+
+/**
+ * @brief Specialization for integral types. Parses the string as a whole number with ParseWholeNumber.
  *        Optionally validates against possible values or mappings.
  * @tparam T Integral type (i32, u64, etc.).
  */
@@ -256,7 +300,7 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
         if (Super::HasPossibleValues() && Super::HasPossibleValueMappings())
         {
             OPAL_RAISE(InvalidArgumentException(__FUNCTION__,
-                                           "Integer program argument can't have both possible values and possible value mappings"));
+                                                "Integer program argument can't have both possible values and possible value mappings"));
         }
     }
 
@@ -272,8 +316,8 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
             Super::SetDestinationValue(*mapping);
             return ErrorCode::Success;
         }
-        const T value = StringToNumber<T>(str);
-        if (!Super::IsPossibleValue(value))
+        T value{};
+        if (!ParseWholeNumber(str, value) || !Super::IsPossibleValue(value))
         {
             return ErrorCode::InvalidArgument;
         }
@@ -516,8 +560,8 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
             }
             else if constexpr (Integral<E>)
             {
-                const E value = StringToNumber<E>(element);
-                if (!IsPossibleValue(value))
+                E value{};
+                if (!ParseWholeNumber(element, value) || !IsPossibleValue(value))
                 {
                     return ErrorCode::InvalidArgument;
                 }

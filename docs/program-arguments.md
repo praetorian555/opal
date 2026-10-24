@@ -71,6 +71,9 @@ my_app name=value flag "quoted_arg=\"hello world\""
 | `DynamicArray<StringUtf8>` | `name=a,b,c` | `tags=fast,safe,new` |
 | `DynamicArray<Enum>` | `name=a,b,c` | `colors=red,blue` |
 
+An integer value must be one whole number that fits its type, in decimal, `0x` hexadecimal or `0` octal; an unsigned
+type takes no sign. `port=lots`, `port=80x` and `port=-1` are invalid values, not 0, 80 and a wrapped-around number.
+
 String values can be quoted to include spaces:
 
 ```
