@@ -1,13 +1,12 @@
 #include "builder/rules.hpp"
 
-// Warnings and options mirror cmake/compiler-warnings.cmake and cmake/compiler-options.cmake, except
-// that warnings are errors on every compiler, not on MSVC only. The helper's name is unique across
-// rules files, since rules files may share a translation unit.
-static void OpalCompileSettings(Builder::Rules::ModuleRules& m, const Builder::Rules::TargetInfo& t)
+// Every module starts from what cmake/compiler-warnings.cmake and cmake/compiler-options.cmake set,
+// except that warnings are errors on every compiler, not on MSVC only; vendored code opts out.
+BUILDER_MODULE_DEFAULTS(m, t)
 {
-    m.warnings = Builder::Rules::Warnings::Strict;
+    m.warnings = Warnings::Strict;
     m.warnings_as_errors = true;
-    if (t.toolchain.Is(Builder::Rules::Compiler::Msvc))
+    if (t.toolchain.Is(Compiler::Msvc))
     {
         m.private_defines = {"UNICODE", "_UNICODE"};
     }
@@ -23,7 +22,6 @@ BUILDER_MODULE(Opal, m, t)
     {
         m.libs = {"synchronization.lib", "ws2_32.lib"};
     }
-    OpalCompileSettings(m, t);
 
     m.test_sources.AddDir("test").Exclude("test/process-test-helper.cpp");
     m.test_precompiled_header = "test/test-helpers.h";
@@ -51,7 +49,6 @@ BUILDER_MODULE(OpalTestHelper, m, t)
     {
         m.libs = {"shell32.lib"};
     }
-    OpalCompileSettings(m, t);
 }
 
 BUILDER_TARGET(Opal, t, c)
