@@ -6,8 +6,10 @@
 
 #include "container/scope-ptr.h"
 #include "opal/common.h"
+#include "opal/container/array-view.h"
 #include "opal/container/dynamic-array.h"
 #include "opal/container/hash-map.h"
+#include "opal/container/string-view.h"
 #include "opal/container/string.h"
 
 namespace Opal
@@ -586,11 +588,13 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
  *
  * Beyond named arguments, a parser may collect positional arguments, everything after "--", and arguments recognized
  * by a prefix such as "-D". An argument that matches none of these is an error unless AllowUnknownArguments is set.
+ * A program with commands, such as "tool build", parses up to the command and leaves the rest to the command's parser.
  *
  * Built-in arguments:
  *  - "help" / "--help": prints help text and returns ProgramArgumentsResult::HelpRequested.
  *  - "version" / "--version": prints version info and returns ProgramArgumentsResult::VersionRequested.
- *  With a positional argument defined, only the "--" forms are reserved.
+ *  With a positional argument defined, only the "--" forms are reserved. With commands, only the ones before the
+ *  command are the program's.
  *
  * Defining an argument badly - an empty name, an enum without a mapping - is a programmer error and still throws.
  * Anything the user can type is reported through ProgramArgumentsResult.
@@ -683,6 +687,17 @@ struct ProgramArgumentsBuilder
     ProgramArgumentsBuilder& AddPrefixArgument(StringUtf8 prefix, StringUtf8 desc, Ref<DynamicArray<StringUtf8>> destination);
 
     /**
+     * @brief Add a command the program runs, such as "build" in "tool build --jobs=4". With commands added, the first
+     *        argument that is not a named one must name one of them. Build stops there and leaves the arguments after
+     *        it to the command's own parser, from GetCommandIndex on, so a "--help" after the command is the
+     *        command's. A program with commands has no positional argument.
+     * @param name The command's name on the command line.
+     * @param desc Human-readable description shown in help output.
+     * @return Reference to this builder for chaining.
+     */
+    ProgramArgumentsBuilder& AddCommand(StringUtf8 name, StringUtf8 desc);
+
+    /**
      * @param name A named argument's name, a positional's name, or a prefix argument's prefix.
      * @return True when the last Build was given the argument, so a caller can tell a value given from a default.
      */
@@ -694,7 +709,16 @@ struct ProgramArgumentsBuilder
      */
     [[nodiscard]] const StringUtf8& GetError() const;
 
-    /** @return The help text "--help" prints: the description, usage examples and every argument. */
+    /** @return The command the last Build found, or empty when no commands were added. */
+    [[nodiscard]] const StringUtf8& GetCommand() const;
+
+    /**
+     * @return Where the last Build found the command in the arguments it was given; the command's own arguments
+     *         follow it.
+     */
+    [[nodiscard]] u32 GetCommandIndex() const;
+
+    /** @return The help text "--help" prints: the description, usage examples, every command and every argument. */
     [[nodiscard]] StringUtf8 GetHelpText() const;
 
     /**
@@ -797,6 +821,15 @@ struct ProgramArgumentsBuilder
      */
     [[nodiscard]] ProgramArgumentsResult Build(const char** arguments, u32 count);
 
+    /**
+     * @brief Parse arguments that do not come from main, such as the ones after a command, the same way as
+     *        Build(const char**, u32).
+     * @param program_name Name "--version" prints, e.g. "tool build".
+     * @param arguments The arguments, without the program's name.
+     * @return How the parse ended, as Build(const char**, u32) returns it.
+     */
+    [[nodiscard]] ProgramArgumentsResult Build(const char* program_name, ArrayView<const StringViewUtf8> arguments);
+
 private:
     void ShowHelp();
     void ShowVersion(const char* program_name);
@@ -828,6 +861,15 @@ private:
     StringUtf8 m_passthrough_description;
     DynamicArray<StringUtf8>* m_passthrough_destination = nullptr;
     DynamicArray<PrefixArgument> m_prefix_arguments;
+    /** A command the first argument that is not a named one may name. */
+    struct Command
+    {
+        StringUtf8 name;
+        StringUtf8 description;
+    };
+    DynamicArray<Command> m_commands;
+    StringUtf8 m_command;
+    u32 m_command_index = 0;
     /** Names of the arguments the last Build was given. */
     DynamicArray<StringUtf8> m_provided;
     StringUtf8 m_error;

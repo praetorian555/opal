@@ -303,6 +303,52 @@ builder.AddPrefixArgument("-D", "Option values", Opal::Ref{settings});
 my_app -Dforge=true -Drndr::profile=fast    # settings == {"forge=true", "rndr::profile=fast"}
 ```
 
+## Commands
+
+A program that does several things, such as `git commit` and `git log`, adds each with `AddCommand`. The first argument
+that is not a named one must then be one of them. `Build` parses the arguments before it, stops at the command and
+leaves the ones after it to a parser of the command's own, so each command declares only what it takes and prints its
+own help:
+
+```cpp
+Opal::ProgramArgumentsBuilder program;
+program.AddCommand("build", "Build the targets").AddCommand("clean", "Remove what was built");
+if (program.Build(argv, argc) != Opal::ProgramArgumentsResult::Success)
+{
+    return 2;
+}
+const Opal::u32 index = program.GetCommandIndex();
+if (program.GetCommand() == "build")
+{
+    Opal::u32 jobs = 1;
+    Opal::ProgramArgumentsBuilder build;
+    build.AddArgument("--jobs", "Jobs at once", Opal::Ref{jobs}, true);
+    // The command's name stands where main's program name would.
+    const Opal::ProgramArgumentsResult result = build.Build(argv + index, argc - index);
+}
+```
+
+```
+my_app build --jobs=4       # GetCommand() == "build", GetCommandIndex() == 1
+my_app --help               # the program's help, which lists the commands
+my_app build --help         # the build command's help
+my_app biuld                # unknown command 'biuld'
+my_app                      # no command given
+```
+
+A program with commands has no positional argument.
+
+## Arguments Not From main
+
+`Build(program_name, arguments)` takes the arguments as an `ArrayView<const StringViewUtf8>` without the program's name,
+which goes separately and is what `--version` prints. It suits arguments that come from somewhere other than `main`,
+such as the ones after a command:
+
+```cpp
+const Opal::ArrayView<const Opal::StringViewUtf8> after(arguments.GetData() + index + 1, arguments.GetSize() - index - 1);
+const Opal::ProgramArgumentsResult result = build.Build("my_app build", after);
+```
+
 ## Reporting Errors Yourself
 
 By default `Build` prints the error and the help text through the logger. `SetSilent(true)` keeps it quiet, for a
@@ -310,7 +356,8 @@ program that prints in its own format or to its own stream:
 
 - `GetError()` gives the reason for the last `InvalidArgument`: `unknown argument '...'`,
   `value '...' is not valid for argument '...'` with the allowed values when there are some, or
-  `required argument '...' not provided`.
+  `required argument '...' not provided`, and for a program with commands `unknown command '...'` or
+  `no command given`.
 - `GetHelpText()` gives the help text as a string.
 - `IsProvided(name)` tells whether the last `Build` was given an argument, by its name, a positional's name or a
   prefix, so a value given can be told from a default.
@@ -405,9 +452,13 @@ an exception. Defining an argument badly is a programmer error and still throws,
 | `AddPositional(name, desc, Ref{dest}, is_optional)` | Collect arguments that are not named ones, in order |
 | `AddPassthrough(desc, Ref{dest})` | Collect every argument after `--`, unparsed |
 | `AddPrefixArgument(prefix, desc, Ref{dest})` | Collect arguments that start with `prefix`, without it |
+| `AddCommand(name, desc)` | Add a command; the parse stops at it |
 | `AllowUnknownArguments()` | Ignore arguments that match no definition instead of failing |
 | `SetSilent(silent)` | Keep `Build` from printing help, version and errors |
 | `Build(arguments, count)` | Parse command-line arguments and populate bound variables, returns `ProgramArgumentsResult` |
+| `Build(program_name, arguments)` | Parse arguments given as string views, without the program's name |
+| `GetCommand()` | The command the last `Build` found |
+| `GetCommandIndex()` | Where the last `Build` found the command in its arguments |
 | `GetError()` | Why the last `Build` returned `InvalidArgument` |
 | `GetHelpText()` | The help text, as a string |
 | `IsProvided(name)` | Whether the last `Build` was given the argument |

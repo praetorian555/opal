@@ -747,6 +747,85 @@ TEST_CASE("Prefix arguments collect what follows the prefix", "[ProgramArguments
     SetLogger(nullptr);
 }
 
+TEST_CASE("A command stops the parse and leaves its arguments to its own parser", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    bool verbose = false;
+    ProgramArgumentsBuilder builder;
+    builder.SetSilent(true)
+        .AddArgument("--verbose", "Talk more", Ref{verbose}, true)
+        .AddCommand("build", "Build things")
+        .AddCommand("clean", "Remove what was built");
+
+    SECTION("The program's arguments come before the command, the command's after it")
+    {
+        const char* arguments[] = {"tool", "--verbose", "build", "--jobs=4", "--help"};
+        REQUIRE(builder.Build(arguments, 5) == ProgramArgumentsResult::Success);
+        REQUIRE(verbose);
+        REQUIRE(builder.GetCommand() == "build");
+        REQUIRE(builder.GetCommandIndex() == 2);
+
+        u32 jobs = 0;
+        ProgramArgumentsBuilder command;
+        command.SetSilent(true).AddArgument("--jobs", "Jobs at once", Ref{jobs}, true);
+        const u32 index = builder.GetCommandIndex();
+        REQUIRE(command.Build(arguments + index, 5 - index) == ProgramArgumentsResult::HelpRequested);
+        REQUIRE(command.Build(arguments + index, 4 - index) == ProgramArgumentsResult::Success);
+        REQUIRE(jobs == 4);
+    }
+    SECTION("Help before the command is the program's")
+    {
+        const char* dashed[] = {"tool", "--help", "build"};
+        REQUIRE(builder.Build(dashed, 3) == ProgramArgumentsResult::HelpRequested);
+        const char* bare[] = {"tool", "help"};
+        REQUIRE(builder.Build(bare, 2) == ProgramArgumentsResult::HelpRequested);
+    }
+    SECTION("A command must be given, and be one of those added")
+    {
+        const char* misspelt[] = {"tool", "biuld"};
+        REQUIRE(builder.Build(misspelt, 2) == ProgramArgumentsResult::InvalidArgument);
+        REQUIRE(builder.GetError() == "unknown command 'biuld'");
+        const char* missing[] = {"tool", "--verbose"};
+        REQUIRE(builder.Build(missing, 2) == ProgramArgumentsResult::InvalidArgument);
+        REQUIRE(builder.GetError() == "no command given");
+        REQUIRE(builder.GetCommand().IsEmpty());
+    }
+    SECTION("The help text lists the commands")
+    {
+        const StringUtf8 help = builder.GetHelpText();
+        REQUIRE(Find(help, "Commands:") != StringUtf8::k_npos);
+        REQUIRE(Find(help, "Remove what was built") != StringUtf8::k_npos);
+    }
+
+    SetLogger(nullptr);
+}
+
+TEST_CASE("Arguments that do not come from main parse the same way", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    bool clean = false;
+    DynamicArray<StringUtf8> targets;
+    ProgramArgumentsBuilder builder;
+    builder.SetSilent(true).AddArgument("--clean", "Clean first", Ref{clean}, true).AddPositional("target", "Targets", Ref{targets}, true);
+    const StringViewUtf8 arguments[] = {"--clean", "Game"};
+    REQUIRE(builder.Build("tool build", ArrayView<const StringViewUtf8>(arguments)) == ProgramArgumentsResult::Success);
+    REQUIRE(clean);
+    REQUIRE(targets.GetSize() == 1);
+    REQUIRE(targets[0] == "Game");
+
+    ProgramArgumentsBuilder commands;
+    commands.SetSilent(true).AddCommand("build", "Build things");
+    const StringViewUtf8 command[] = {"build", "--clean"};
+    REQUIRE(commands.Build("tool", ArrayView<const StringViewUtf8>(command)) == ProgramArgumentsResult::Success);
+    REQUIRE(commands.GetCommandIndex() == 0);
+
+    SetLogger(nullptr);
+}
+
 TEST_CASE("Flags take true or false, and a value error names the allowed values", "[ProgramArguments]")
 {
     Logger logger;

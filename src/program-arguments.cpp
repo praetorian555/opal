@@ -49,6 +49,10 @@ Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddPositional(Stri
     {
         OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "a positional argument needs a name and a description"));
     }
+    if (!m_commands.IsEmpty())
+    {
+        OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "a program with commands can't have a positional argument"));
+    }
     m_positional_name = std::move(name);
     m_positional_description = std::move(desc);
     m_positional_destination = destination.GetPtr();
@@ -82,6 +86,20 @@ Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddPrefixArgument(
     return *this;
 }
 
+Opal::ProgramArgumentsBuilder& Opal::ProgramArgumentsBuilder::AddCommand(StringUtf8 name, StringUtf8 desc)
+{
+    if (name.IsEmpty() || desc.IsEmpty())
+    {
+        OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "a command needs a name and a description"));
+    }
+    if (m_positional_destination != nullptr)
+    {
+        OPAL_RAISE(InvalidArgumentException(__FUNCTION__, "a program with commands can't have a positional argument"));
+    }
+    m_commands.PushBack(Command{std::move(name), std::move(desc)});
+    return *this;
+}
+
 bool Opal::ProgramArgumentsBuilder::IsProvided(const StringUtf8& name) const
 {
     for (const StringUtf8& provided : m_provided)
@@ -99,17 +117,61 @@ const Opal::StringUtf8& Opal::ProgramArgumentsBuilder::GetError() const
     return m_error;
 }
 
+const Opal::StringUtf8& Opal::ProgramArgumentsBuilder::GetCommand() const
+{
+    return m_command;
+}
+
+Opal::u32 Opal::ProgramArgumentsBuilder::GetCommandIndex() const
+{
+    return m_command_index;
+}
+
 Opal::ProgramArgumentsResult Opal::ProgramArgumentsBuilder::Build(const char** arguments, u32 count)
+{
+    DynamicArray<StringViewUtf8> views;
+    for (u32 i = 1; i < count; ++i)
+    {
+        if (views.PushBack(StringViewUtf8(arguments[i])) != ErrorCode::Success) [[unlikely]]
+        {
+            return ProgramArgumentsResult::OutOfMemory;
+        }
+    }
+    const ProgramArgumentsResult result =
+        Build(count > 0 ? arguments[0] : "", ArrayView<const StringViewUtf8>(views.GetData(), views.GetSize()));
+    // The program's name comes first in main's arguments.
+    if (!m_command.IsEmpty())
+    {
+        ++m_command_index;
+    }
+    return result;
+}
+
+Opal::ProgramArgumentsResult Opal::ProgramArgumentsBuilder::Build(const char* program_name, ArrayView<const StringViewUtf8> arguments)
 {
     m_error.Clear();
     m_provided.Clear();
+    m_command.Clear();
+    m_command_index = 0;
     GetLogger().RegisterCategory("ProgramArguments", LogLevel::Info);
 
-    // With a positional argument, a bare "help" or "version" may be a value, so only the dashed forms are reserved.
-    for (u32 i = 1; i < count; ++i)
+    const auto is_command = [this](const StringUtf8& argument)
     {
-        const StringUtf8 argument(arguments[i]);
-        if (m_passthrough_destination != nullptr && argument == "--")
+        for (const Command& command : m_commands)
+        {
+            if (command.name == argument)
+            {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // With a positional argument, a bare "help" or "version" may be a value, so only the dashed forms are reserved.
+    for (const StringViewUtf8& view : arguments)
+    {
+        const StringUtf8 argument(view.GetData(), view.GetSize());
+        if ((m_passthrough_destination != nullptr && argument == "--") || is_command(argument))
         {
             break;
         }
@@ -126,7 +188,7 @@ Opal::ProgramArgumentsResult Opal::ProgramArgumentsBuilder::Build(const char** a
         {
             if (!m_silent)
             {
-                ShowVersion(arguments[0]);
+                ShowVersion(program_name);
             }
             return ProgramArgumentsResult::VersionRequested;
         }
@@ -145,14 +207,15 @@ Opal::ProgramArgumentsResult Opal::ProgramArgumentsBuilder::Build(const char** a
     const auto provide = [this](const StringUtf8& name)
     { return IsProvided(name) ? ErrorCode::Success : m_provided.PushBack(name.Clone()); };
 
-    for (u32 i = 1; i < count; ++i)
+    for (u64 i = 0; i < arguments.GetSize(); ++i)
     {
-        const StringUtf8 argument(arguments[i]);
+        const StringUtf8 argument(arguments[i].GetData(), arguments[i].GetSize());
         if (m_passthrough_destination != nullptr && argument == "--")
         {
-            for (u32 j = i + 1; j < count; ++j)
+            for (u64 j = i + 1; j < arguments.GetSize(); ++j)
             {
-                if (m_passthrough_destination->PushBack(StringUtf8(arguments[j])) != ErrorCode::Success) [[unlikely]]
+                if (m_passthrough_destination->PushBack(StringUtf8(arguments[j].GetData(), arguments[j].GetSize())) != ErrorCode::Success)
+                    [[unlikely]]
                 {
                     return ProgramArgumentsResult::OutOfMemory;
                 }
@@ -219,6 +282,18 @@ Opal::ProgramArgumentsResult Opal::ProgramArgumentsBuilder::Build(const char** a
             continue;
         }
 
+        if (!m_commands.IsEmpty() && !StartsWith(argument, '-'))
+        {
+            if (!is_command(argument))
+            {
+                StringUtf8 message;
+                (void)AppendFormat(message, "unknown command '{}'", SafeCStr(argument));
+                return fail(std::move(message));
+            }
+            m_command = argument.Clone();
+            m_command_index = static_cast<u32>(i);
+            break;
+        }
         if (m_positional_destination != nullptr && !StartsWith(argument, '-'))
         {
             if (m_positional_destination->PushBack(argument.Clone()) != ErrorCode::Success ||
@@ -251,6 +326,10 @@ Opal::ProgramArgumentsResult Opal::ProgramArgumentsBuilder::Build(const char** a
         (void)AppendFormat(message, "required argument '{}' not provided", SafeCStr(m_positional_name));
         return fail(std::move(message));
     }
+    if (!m_commands.IsEmpty() && m_command.IsEmpty())
+    {
+        return fail(StringUtf8("no command given"));
+    }
     return ProgramArgumentsResult::Success;
 }
 
@@ -275,6 +354,15 @@ Opal::StringUtf8 Opal::ProgramArgumentsBuilder::GetHelpText() const
         }
         (void)AppendFormat(text, "{}\n", allowed.IsEmpty() ? "" : ")");
     };
+    if (!m_commands.IsEmpty())
+    {
+        (void)AppendFormat(text, "Commands:\n");
+        for (const Command& command : m_commands)
+        {
+            line(command.name, command.description, {});
+        }
+        (void)AppendFormat(text, "\n");
+    }
     StringUtf8 positional_label;
     if (m_positional_destination != nullptr)
     {
