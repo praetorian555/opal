@@ -1,8 +1,8 @@
 name: Builder
 
-# Builds and tests opal with builder, from opal.rules.cpp, beside the CMake jobs in ci.yml. Builder
-# runs every action with a clean environment and finds MSVC through vswhere, so no developer
-# environment is set up first.
+# Builds and tests opal with builder, from builder.json and opal.rules.cpp. Builder runs every action
+# with a clean environment and finds MSVC through vswhere, so no developer environment is set up
+# first. CMakeLists.txt stays for projects that consume opal through CMake, but no job builds it.
 
 on:
   push:
