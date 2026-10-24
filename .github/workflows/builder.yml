@@ -19,12 +19,19 @@ jobs:
         - name: "MSVC Debug"
           os: windows-2022
           build_type: Debug
+        - name: "MSVC Test"
+          os: windows-2022
+          build_type: RelWithDebInfo
         - name: "MSVC Release"
           os: windows-2022
           build_type: Release
         - name: "GCC Debug"
           os: ubuntu-24.04
           build_type: Debug
+          toolchain: gcc
+        - name: "GCC Test"
+          os: ubuntu-24.04
+          build_type: RelWithDebInfo
           toolchain: gcc
         - name: "GCC Release"
           os: ubuntu-24.04
@@ -34,24 +41,46 @@ jobs:
           os: ubuntu-24.04
           build_type: Debug
           toolchain: clang
+        - name: "Clang Test"
+          os: ubuntu-24.04
+          build_type: RelWithDebInfo
+          toolchain: clang
         - name: "Clang Release"
           os: ubuntu-24.04
           build_type: Release
           toolchain: clang
         # ASan and UBSan, as OPAL_HARDENING=ON turns on for the CMake sanitizer jobs.
+        - name: "GCC sanitizers"
+          os: ubuntu-24.04
+          build_type: Debug
+          toolchain: gcc
+          sanitize: address,undefined
         - name: "Clang sanitizers"
           os: ubuntu-24.04
           build_type: Debug
           toolchain: clang
           sanitize: address,undefined
+        # ThreadSanitizer cannot share a build with ASan, so data races get a job of their own.
+        - name: "Clang thread sanitizer"
+          os: ubuntu-24.04
+          build_type: Debug
+          toolchain: clang
+          sanitize: thread
     name: ${{ matrix.config.name }} (builder)
     runs-on: ${{ matrix.config.os }}
     timeout-minutes: 30
     env:
       # UBSan only prints and keeps going by default, which would let a finding pass as a green run.
       UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+      # TSan prints every report and then exits with 66, which fails the test.
+      TSAN_OPTIONS: exitcode=66:second_deadlock_stack=1
     steps:
     - uses: actions/checkout@v7
+
+    - name: Fit the address space to TSan
+      # Recent kernels randomise mmap over more bits than TSan's shadow memory covers, and it aborts at startup when they do.
+      if: matrix.config.sanitize == 'thread'
+      run: sudo sysctl vm.mmap_rnd_bits=28
 
     # Tracks setup-builder's main until it has a v1 tag.
     - uses: praetorian555/setup-builder@main
