@@ -53,7 +53,7 @@ my_app name=value flag "quoted_arg=\"hello world\""
 ```
 
 - `name=value` - assigns `value` to the argument named `name`
-- `flag` - sets a `bool` argument to `true`
+- `flag` - sets a `bool` argument to `true`; `flag=true` and `flag=false` set it explicitly, and any other value is invalid
 - Values containing spaces must be wrapped in quotes: `arg="hello world"`
 - Array values use comma separation: `ids=1,2,3`
 
@@ -243,9 +243,78 @@ my_app colors=red,blue
 
 An argument cannot have both `possible_values` and `possible_value_mappings`. Attempting to provide both throws `InvalidArgumentException`.
 
+## Unknown Arguments
+
+An argument that matches no definition makes `Build` return `ProgramArgumentsResult::InvalidArgument`, with
+`GetError()` naming it, so a misspelt option is never silently dropped:
+
+```
+my_app verbsoe          # unknown argument 'verbsoe'
+```
+
+`AllowUnknownArguments()` ignores such arguments instead.
+
+## Positional Arguments
+
+`AddPositional` collects, in order, every argument that is neither a named one nor starts with `-`, such as file or
+target names. An argument containing `=` is positional too when no definition has the name before it, so a URL with a
+query string is taken whole.
+
+```cpp
+Opal::DynamicArray<Opal::StringUtf8> files;
+builder.AddPositional("file", "Files to process", Opal::Ref{files}, false);
+```
+
+```
+my_app verbose a.txt b.txt      # files == {"a.txt", "b.txt"}
+```
+
+The last parameter makes at least one positional value required (`false`) or not (`true`). With a positional argument
+defined, only `--help` and `--version` are reserved, so a file may be called `help`.
+
+## Passthrough Arguments
+
+`AddPassthrough` collects every argument after `--` as it is, unparsed, for a program the caller runs on the user's
+behalf. Without it, `--` is an unknown argument.
+
+```cpp
+Opal::DynamicArray<Opal::StringUtf8> program_arguments;
+builder.AddPassthrough("Arguments for the program", Opal::Ref{program_arguments});
+```
+
+```
+my_app run=game -- --level 1 --help     # program_arguments == {"--level", "1", "--help"}
+```
+
+## Prefix Arguments
+
+`AddPrefixArgument` collects every argument that starts with a prefix, without it, and may be repeated. It suits
+settings whose name is part of the argument, as `-D` does for compilers:
+
+```cpp
+Opal::DynamicArray<Opal::StringUtf8> settings;
+builder.AddPrefixArgument("-D", "Option values", Opal::Ref{settings});
+```
+
+```
+my_app -Dforge=true -Drndr::profile=fast    # settings == {"forge=true", "rndr::profile=fast"}
+```
+
+## Reporting Errors Yourself
+
+By default `Build` prints the error and the help text through the logger. `SetSilent(true)` keeps it quiet, for a
+program that prints in its own format or to its own stream:
+
+- `GetError()` gives the reason for the last `InvalidArgument`: `unknown argument '...'`,
+  `value '...' is not valid for argument '...'` with the allowed values when there are some, or
+  `required argument '...' not provided`.
+- `GetHelpText()` gives the help text as a string.
+- `IsProvided(name)` tells whether the last `Build` was given an argument, by its name, a positional's name or a
+  prefix, so a value given can be told from a default.
+
 ## Version
 
-Set a version number with `SetVersion`. Passing `version` or `--version` as any argument prints version info and returns `ProgramArgumentsResult::VersionRequested`.
+Set a version number with `SetVersion`. Passing `version` or `--version` as any argument prints version info and returns `ProgramArgumentsResult::VersionRequested`. With a positional argument defined, only `--version` is reserved.
 
 ```cpp
 builder.SetVersion(1, 2, 3);
@@ -258,7 +327,7 @@ my_app --version
 
 ## Help Output
 
-Passing `help` or `--help` as any argument prints the help text and returns `ProgramArgumentsResult::HelpRequested`.
+Passing `help` or `--help` as any argument prints the help text and returns `ProgramArgumentsResult::HelpRequested`. With a positional argument defined, only `--help` is reserved.
 
 ```
 my_app help
@@ -304,6 +373,8 @@ an exception. Defining an argument badly is a programmer error and still throws,
 | `help` or `--help` passed | `ProgramArgumentsResult::HelpRequested` (help already printed) |
 | `version` or `--version` passed | `ProgramArgumentsResult::VersionRequested` (version already printed) |
 | Required argument missing | `ProgramArgumentsResult::InvalidArgument` (help printed first) |
+| Argument that matches no definition | `ProgramArgumentsResult::InvalidArgument`, unless `AllowUnknownArguments()` |
+| Flag given a value other than `true` or `false` | `ProgramArgumentsResult::InvalidArgument` |
 | Value not in `possible_values` | `ProgramArgumentsResult::InvalidArgument` |
 | Mapping key not found | `ProgramArgumentsResult::InvalidArgument` |
 | Out of memory while parsing | `ProgramArgumentsResult::OutOfMemory` |
@@ -328,6 +399,14 @@ an exception. Defining an argument badly is a programmer error and still throws,
 | `AddArgument(name, desc, Ref{dest}, is_optional)` | Register a typed argument bound to `dest` |
 | `AddArgument(name, desc, Ref{dest}, is_optional, possible_values)` | Register a typed argument with allowed values |
 | `AddArgument(name, desc, Ref{dest}, is_optional, possible_value_mappings)` | Register a typed argument with string-to-value mappings |
+| `AddPositional(name, desc, Ref{dest}, is_optional)` | Collect arguments that are not named ones, in order |
+| `AddPassthrough(desc, Ref{dest})` | Collect every argument after `--`, unparsed |
+| `AddPrefixArgument(prefix, desc, Ref{dest})` | Collect arguments that start with `prefix`, without it |
+| `AllowUnknownArguments()` | Ignore arguments that match no definition instead of failing |
+| `SetSilent(silent)` | Keep `Build` from printing help, version and errors |
 | `Build(arguments, count)` | Parse command-line arguments and populate bound variables, returns `ProgramArgumentsResult` |
+| `GetError()` | Why the last `Build` returned `InvalidArgument` |
+| `GetHelpText()` | The help text, as a string |
+| `IsProvided(name)` | Whether the last `Build` was given the argument |
 
-All `AddArgument` overloads return a reference to the builder for method chaining.
+Every `Add` and `Set` method returns a reference to the builder for method chaining.

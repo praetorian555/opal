@@ -625,3 +625,173 @@ TEST_CASE("Required DynamicArray argument not provided", "[ProgramArguments]")
 
     SetLogger(nullptr);
 }
+
+TEST_CASE("Unknown arguments are rejected unless allowed", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    bool clean = false;
+    const char* arguments[] = {"program-name", "--clean", "--claen"};
+    {
+        ProgramArgumentsBuilder builder;
+        builder.SetSilent(true).AddArgument("--clean", "Clean first", Ref{clean}, true);
+        REQUIRE(builder.Build(arguments, 3) == ProgramArgumentsResult::InvalidArgument);
+        REQUIRE(builder.GetError() == "unknown argument '--claen'");
+    }
+    {
+        ProgramArgumentsBuilder builder;
+        builder.SetSilent(true).AllowUnknownArguments().AddArgument("--clean", "Clean first", Ref{clean}, true);
+        REQUIRE(builder.Build(arguments, 3) == ProgramArgumentsResult::Success);
+        REQUIRE(builder.GetError().IsEmpty());
+        REQUIRE(clean);
+    }
+
+    SetLogger(nullptr);
+}
+
+TEST_CASE("Positional arguments are collected in order", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    StringUtf8 root;
+    DynamicArray<StringUtf8> targets;
+    ProgramArgumentsBuilder builder;
+    builder.SetSilent(true)
+        .AddArgument("--root", "Project root", Ref{root}, true)
+        .AddPositional("target", "Targets to build", Ref{targets}, false);
+
+    SECTION("Values between named arguments, a bare help and one with an '=' included")
+    {
+        const char* arguments[] = {"program-name", "Game", "--root=/work", "help", "https://example.com/a?b=c"};
+        REQUIRE(builder.Build(arguments, 5) == ProgramArgumentsResult::Success);
+        REQUIRE(targets.GetSize() == 3);
+        REQUIRE(targets[0] == "Game");
+        REQUIRE(targets[1] == "help");
+        REQUIRE(targets[2] == "https://example.com/a?b=c");
+        REQUIRE(root == "/work");
+        REQUIRE(builder.IsProvided("target"));
+    }
+    SECTION("The dashed help is still reserved")
+    {
+        const char* arguments[] = {"program-name", "Game", "--help"};
+        REQUIRE(builder.Build(arguments, 3) == ProgramArgumentsResult::HelpRequested);
+    }
+    SECTION("A dashed word is never a positional")
+    {
+        const char* arguments[] = {"program-name", "-x"};
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
+        REQUIRE(builder.GetError() == "unknown argument '-x'");
+    }
+    SECTION("A required positional must be given")
+    {
+        const char* arguments[] = {"program-name", "--root=/work"};
+        REQUIRE(builder.Build(arguments, 2) == ProgramArgumentsResult::InvalidArgument);
+        REQUIRE(builder.GetError() == "required argument 'target' not provided");
+    }
+
+    SetLogger(nullptr);
+}
+
+TEST_CASE("Arguments after -- pass through untouched", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    bool verbose = false;
+    DynamicArray<StringUtf8> rest;
+    const char* arguments[] = {"program-name", "--verbose", "--", "--help", "--verbose", "x=y"};
+    {
+        ProgramArgumentsBuilder builder;
+        builder.SetSilent(true).AddArgument("--verbose", "Talk more", Ref{verbose}, true).AddPassthrough("Program arguments", Ref{rest});
+        REQUIRE(builder.Build(arguments, 6) == ProgramArgumentsResult::Success);
+        REQUIRE(verbose);
+        REQUIRE(rest.GetSize() == 3);
+        REQUIRE(rest[0] == "--help");
+        REQUIRE(rest[1] == "--verbose");
+        REQUIRE(rest[2] == "x=y");
+    }
+    {
+        // Without a passthrough, "--" is an argument like any other.
+        ProgramArgumentsBuilder builder;
+        builder.SetSilent(true).AddArgument("--verbose", "Talk more", Ref{verbose}, true);
+        const char* plain[] = {"program-name", "--"};
+        REQUIRE(builder.Build(plain, 2) == ProgramArgumentsResult::InvalidArgument);
+        REQUIRE(builder.GetError() == "unknown argument '--'");
+    }
+
+    SetLogger(nullptr);
+}
+
+TEST_CASE("Prefix arguments collect what follows the prefix", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    DynamicArray<StringUtf8> settings;
+    ProgramArgumentsBuilder builder;
+    builder.SetSilent(true).AddPrefixArgument("-D", "Option values", Ref{settings});
+
+    const char* arguments[] = {"program-name", "-Dforge=true", "-Drndr::profile=fast"};
+    REQUIRE(builder.Build(arguments, 3) == ProgramArgumentsResult::Success);
+    REQUIRE(settings.GetSize() == 2);
+    REQUIRE(settings[0] == "forge=true");
+    REQUIRE(settings[1] == "rndr::profile=fast");
+    REQUIRE(builder.IsProvided("-D"));
+
+    const char* bare[] = {"program-name", "-D"};
+    REQUIRE(builder.Build(bare, 2) == ProgramArgumentsResult::InvalidArgument);
+    REQUIRE(builder.GetError() == "unknown argument '-D'");
+
+    SetLogger(nullptr);
+}
+
+TEST_CASE("Flags take true or false, and a value error names the allowed values", "[ProgramArguments]")
+{
+    Logger logger;
+    SetLogger(&logger);
+
+    bool clean = true;
+    StringUtf8 config;
+    ProgramArgumentsBuilder builder;
+    builder.SetSilent(true)
+        .AddArgument("--clean", "Clean first", Ref{clean}, true)
+        .AddArgument("--config", "Build type", Ref{config}, true, DynamicArray<StringUtf8>{"Debug", "Release"});
+
+    const char* off[] = {"program-name", "--clean=false"};
+    REQUIRE(builder.Build(off, 2) == ProgramArgumentsResult::Success);
+    REQUIRE_FALSE(clean);
+    REQUIRE(builder.IsProvided("--clean"));
+    REQUIRE_FALSE(builder.IsProvided("--config"));
+
+    const char* garbled[] = {"program-name", "--clean=no"};
+    REQUIRE(builder.Build(garbled, 2) == ProgramArgumentsResult::InvalidArgument);
+    REQUIRE(builder.GetError() == "value 'no' is not valid for argument '--clean'");
+
+    const char* unknown_config[] = {"program-name", "--config=Profile"};
+    REQUIRE(builder.Build(unknown_config, 2) == ProgramArgumentsResult::InvalidArgument);
+    REQUIRE(builder.GetError() == "value 'Profile' is not valid for argument '--config'; allowed values: Debug, Release");
+
+    SetLogger(nullptr);
+}
+
+TEST_CASE("The help text lists every kind of argument", "[ProgramArguments]")
+{
+    bool clean = false;
+    DynamicArray<StringUtf8> targets;
+    DynamicArray<StringUtf8> settings;
+    DynamicArray<StringUtf8> rest;
+    ProgramArgumentsBuilder builder;
+    builder.AddProgramDescription("Builds things")
+        .AddArgument("--clean", "Clean first", Ref{clean}, true)
+        .AddPositional("target", "Targets to build", Ref{targets}, true)
+        .AddPrefixArgument("-D", "Option values", Ref{settings})
+        .AddPassthrough("Program arguments", Ref{rest});
+    const StringUtf8 help = builder.GetHelpText();
+    REQUIRE(Find(help, "Builds things") != StringUtf8::k_npos);
+    REQUIRE(Find(help, "--clean") != StringUtf8::k_npos);
+    REQUIRE(Find(help, "<target>...") != StringUtf8::k_npos);
+    REQUIRE(Find(help, "-D...") != StringUtf8::k_npos);
+    REQUIRE(Find(help, "-- <argument>...") != StringUtf8::k_npos);
+}

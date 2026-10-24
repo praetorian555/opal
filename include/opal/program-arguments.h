@@ -283,8 +283,8 @@ struct TypedProgramArgumentDefinition<T> final : TypedProgramArgumentDefinitionB
 };
 
 /**
- * @brief Specialization for bool. Acts as a flag: presence of the argument sets the value to true.
- *        Ignores possible values and mappings.
+ * @brief Specialization for bool. Acts as a flag: presence of the argument sets the value to true. A value may be
+ *        given as "true" or "false"; any other value is invalid. Ignores possible values and mappings.
  */
 template <>
 struct TypedProgramArgumentDefinition<bool> final : TypedProgramArgumentDefinitionBase<bool>
@@ -296,10 +296,19 @@ struct TypedProgramArgumentDefinition<bool> final : TypedProgramArgumentDefiniti
     {
     }
 
-    ErrorCode SetValue(const StringUtf8&) override
+    ErrorCode SetValue(const StringUtf8& str) override
     {
-        SetDestinationValue(true);
-        return ErrorCode::Success;
+        if (str.IsEmpty() || str == "true")
+        {
+            SetDestinationValue(true);
+            return ErrorCode::Success;
+        }
+        if (str == "false")
+        {
+            SetDestinationValue(false);
+            return ErrorCode::Success;
+        }
+        return ErrorCode::InvalidArgument;
     }
 };
 
@@ -531,9 +540,13 @@ struct TypedProgramArgumentDefinition<DynamicArray<E>> final : ProgramArgumentDe
  * Supports scalar types (bool, integers, strings, enums) and array types (DynamicArray of integers, strings, or enums).
  * Arguments can be required or optional, and can be constrained to a set of possible values or string-to-value mappings.
  *
+ * Beyond named arguments, a parser may collect positional arguments, everything after "--", and arguments recognized
+ * by a prefix such as "-D". An argument that matches none of these is an error unless AllowUnknownArguments is set.
+ *
  * Built-in arguments:
  *  - "help" / "--help": prints help text and returns ProgramArgumentsResult::HelpRequested.
  *  - "version" / "--version": prints version info and returns ProgramArgumentsResult::VersionRequested.
+ *  With a positional argument defined, only the "--" forms are reserved.
  *
  * Defining an argument badly - an empty name, an enum without a mapping - is a programmer error and still throws.
  * Anything the user can type is reported through ProgramArgumentsResult.
@@ -578,6 +591,67 @@ struct ProgramArgumentsBuilder
      * @return Reference to this builder for chaining.
      */
     ProgramArgumentsBuilder& SetVersion(u32 major, u32 minor, u32 patch);
+
+    /**
+     * @brief Ignore arguments that match no definition. By default such an argument makes Build return
+     *        ProgramArgumentsResult::InvalidArgument, so a misspelt option is not silently dropped.
+     * @return Reference to this builder for chaining.
+     */
+    ProgramArgumentsBuilder& AllowUnknownArguments();
+
+    /**
+     * @brief Keep Build from printing anything: no help, version or error text. The caller reads GetError and
+     *        GetHelpText instead, and prints them where it wants.
+     * @param silent True to print nothing.
+     * @return Reference to this builder for chaining.
+     */
+    ProgramArgumentsBuilder& SetSilent(bool silent);
+
+    /**
+     * @brief Collect, in order, every argument that is not a named one, such as file or target names. An argument is
+     *        positional when no definition has its name and it does not start with '-'. A parser with a positional
+     *        argument reserves only "--help" and "--version", so a positional value may be "help" or "version".
+     * @param name Name shown in help output, e.g. "target".
+     * @param desc Human-readable description shown in help output.
+     * @param destination Array the positional values are appended to.
+     * @param is_optional If false, at least one positional value is required.
+     * @return Reference to this builder for chaining.
+     */
+    ProgramArgumentsBuilder& AddPositional(StringUtf8 name, StringUtf8 desc, Ref<DynamicArray<StringUtf8>> destination, bool is_optional);
+
+    /**
+     * @brief Collect every argument after "--", as given, without parsing it, for a program run on the caller's
+     *        behalf. Without one, "--" is an unknown argument.
+     * @param desc Human-readable description shown in help output.
+     * @param destination Array the arguments are appended to.
+     * @return Reference to this builder for chaining.
+     */
+    ProgramArgumentsBuilder& AddPassthrough(StringUtf8 desc, Ref<DynamicArray<StringUtf8>> destination);
+
+    /**
+     * @brief Collect every argument that starts with @p prefix, without the prefix, such as "-D" for "-Dname=value",
+     *        which appends "name=value". The rest is taken as it is, '=' included. A prefix argument may be repeated.
+     * @param prefix What the argument starts with, e.g. "-D".
+     * @param desc Human-readable description shown in help output.
+     * @param destination Array the arguments, without the prefix, are appended to.
+     * @return Reference to this builder for chaining.
+     */
+    ProgramArgumentsBuilder& AddPrefixArgument(StringUtf8 prefix, StringUtf8 desc, Ref<DynamicArray<StringUtf8>> destination);
+
+    /**
+     * @param name A named argument's name, a positional's name, or a prefix argument's prefix.
+     * @return True when the last Build was given the argument, so a caller can tell a value given from a default.
+     */
+    [[nodiscard]] bool IsProvided(const StringUtf8& name) const;
+
+    /**
+     * @return Why the last Build returned ProgramArgumentsResult::InvalidArgument, e.g. "unknown argument '--jbos=4'";
+     *         empty otherwise.
+     */
+    [[nodiscard]] const StringUtf8& GetError() const;
+
+    /** @return The help text "--help" prints: the description, usage examples and every argument. */
+    [[nodiscard]] StringUtf8 GetHelpText() const;
 
     /**
      * @brief Add a scalar argument with no value constraints.
@@ -673,8 +747,9 @@ struct ProgramArgumentsBuilder
      * @param arguments Array of C-strings from main (argv).
      * @param count Number of elements in the arguments array (argc).
      * @return How the parse ended. HelpRequested and VersionRequested mean the corresponding text has already been
-     *         printed and nothing was parsed. InvalidArgument means a required argument was missing or a value was not
-     *         valid, and the help text has been printed.
+     *         printed, unless SetSilent was set, and nothing was parsed. InvalidArgument means a required argument was
+     *         missing, a value was not valid or an argument was unknown; GetError says which, and the error and help
+     *         text have been printed unless SetSilent was set.
      */
     [[nodiscard]] ProgramArgumentsResult Build(const char** arguments, u32 count);
 
@@ -686,11 +761,32 @@ private:
     u32 m_minor_version = 0;
     u32 m_patch_version = 0;
 
+    /** An argument recognized by the start of its text rather than by its name. */
+    struct PrefixArgument
+    {
+        StringUtf8 prefix;
+        StringUtf8 description;
+        DynamicArray<StringUtf8>* destination = nullptr;
+    };
+
     StringUtf8 m_program_description;
     DynamicArray<StringUtf8> m_usage_examples;
     DynamicArray<ScopePtr<Impl::ProgramArgumentDefinition>> m_argument_definitions;
     bool m_has_required_argument = false;
     bool m_has_optional_argument = false;
+
+    bool m_allow_unknown_arguments = false;
+    bool m_silent = false;
+    StringUtf8 m_positional_name;
+    StringUtf8 m_positional_description;
+    DynamicArray<StringUtf8>* m_positional_destination = nullptr;
+    bool m_positional_is_optional = true;
+    StringUtf8 m_passthrough_description;
+    DynamicArray<StringUtf8>* m_passthrough_destination = nullptr;
+    DynamicArray<PrefixArgument> m_prefix_arguments;
+    /** Names of the arguments the last Build was given. */
+    DynamicArray<StringUtf8> m_provided;
+    StringUtf8 m_error;
 };
 
 template <typename T>
