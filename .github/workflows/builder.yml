@@ -85,7 +85,7 @@ jobs:
     # Tracks setup-builder's main until it has a v1 tag.
     - uses: praetorian555/setup-builder@main
       with:
-        version: 0.2.0
+        version: 0.3.0
 
     - name: Choose the build
       shell: bash
@@ -130,7 +130,7 @@ jobs:
 
     - uses: praetorian555/setup-builder@main
       with:
-        version: 0.2.0
+        version: 0.3.0
 
     - name: Smoke run
       shell: bash
