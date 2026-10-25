@@ -94,12 +94,12 @@ Output:
 
 ```json
 {
-    "name": "Alice",
     "items": [
         1,
         2,
         3
-    ]
+    ],
+    "name": "Alice"
 }
 ```
 
@@ -110,6 +110,7 @@ Output:
 | `pretty` | `bool` | `false` | Enable pretty printing with newlines and indentation |
 | `indent_width` | `u32` | `4` | Number of spaces per indent level (ignored when `use_tabs` is true) |
 | `use_tabs` | `bool` | `false` | Use tabs instead of spaces for indentation |
+| `sort_keys` | `bool` | `true` | Write each object's keys in byte order |
 
 Empty arrays and objects stay compact even in pretty mode:
 
@@ -124,6 +125,20 @@ Empty arrays and objects stay compact even in pretty mode:
 Opal::JsonWriteOptions options;
 options.pretty = true;
 options.use_tabs = true;
+
+auto json = Opal::JsonWriter::Serialize(value, options);
+```
+
+## Key Order
+
+An object's keys are written in byte order of their UTF-8 text by default, so the same value always
+serializes to the same text, whatever order its keys were inserted in. That makes the output safe to
+compare or to write only when it changed. Set `sort_keys = false` to write keys in the object's own
+iteration order instead, which skips the sort but can differ from one run of the program to the next:
+
+```cpp
+Opal::JsonWriteOptions options;
+options.sort_keys = false;
 
 auto json = Opal::JsonWriter::Serialize(value, options);
 ```

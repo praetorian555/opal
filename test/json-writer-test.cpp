@@ -285,6 +285,46 @@ TEST_CASE("Pretty print empty object", "[JsonWriter]")
 }
 
 // ------------------------------------------------------------------------------------------------
+// Key order.
+// ------------------------------------------------------------------------------------------------
+
+TEST_CASE("Serialize writes object keys in byte order", "[JsonWriter]")
+{
+    // A prefix first, upper case before lower case, and a multi-byte UTF-8 key after every ASCII one.
+    JsonReader reader = ParseOrFail("{\"b\":1,\"\xc3\xa9\":2,\"aa\":3,\"a\":4,\"Z\":5}");
+    StringUtf8 result = SerializeOrFail(reader.GetRoot());
+    REQUIRE(StringViewUtf8(result) == StringViewUtf8("{\"Z\":5,\"a\":4,\"aa\":3,\"b\":1,\"\xc3\xa9\":2}"));
+}
+
+TEST_CASE("Serialize writes the same text for objects inserted in different orders", "[JsonWriter]")
+{
+    JsonReader first = ParseOrFail(R"({"files":[{"source":"a.hpp","generated":"a.refl.hpp"}],"tool_version":"1.0","umbrella":"r.hpp"})");
+    JsonReader second = ParseOrFail(R"({"umbrella":"r.hpp","tool_version":"1.0","files":[{"generated":"a.refl.hpp","source":"a.hpp"}]})");
+    JsonWriteOptions options;
+    options.pretty = true;
+    StringUtf8 first_text = SerializeOrFail(first.GetRoot(), options);
+    REQUIRE(StringViewUtf8(first_text) == StringViewUtf8(SerializeOrFail(second.GetRoot(), options)));
+    REQUIRE(StringViewUtf8(SerializeOrFail(first.GetRoot())) ==
+            StringViewUtf8(R"({"files":[{"generated":"a.refl.hpp","source":"a.hpp"}],"tool_version":"1.0","umbrella":"r.hpp"})"));
+}
+
+TEST_CASE("Serialize without sorted keys writes every key", "[JsonWriter]")
+{
+    JsonReader reader = ParseOrFail(R"({"c":{"y":1,"x":2},"a":[3],"b":"text"})");
+    JsonWriteOptions options;
+    options.sort_keys = false;
+    StringUtf8 serialized = SerializeOrFail(reader.GetRoot(), options);
+    JsonReader round_trip = ParseOrFail(serialized);
+
+    const JsonValue& root = round_trip.GetRoot();
+    REQUIRE(root.GetSize() == 3);
+    REQUIRE(root["c"]["y"].GetNumberAs<i32>() == 1);
+    REQUIRE(root["c"]["x"].GetNumberAs<i32>() == 2);
+    REQUIRE(root["a"][0].GetNumberAs<i32>() == 3);
+    REQUIRE(root["b"].GetString() == StringViewUtf8("text"));
+}
+
+// ------------------------------------------------------------------------------------------------
 // Round-trip.
 // ------------------------------------------------------------------------------------------------
 

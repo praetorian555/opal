@@ -17,6 +17,8 @@ struct JsonWriteOptions
     bool pretty = false;
     u32 indent_width = 4;
     bool use_tabs = false;
+    /** Write each object's keys in byte order, so equal values always serialize to the same text. */
+    bool sort_keys = true;
 };
 
 // ------------------------------------------------------------------------------------------------
@@ -38,7 +40,7 @@ public:
     /**
      * Serialize a JsonValue to a JSON string with formatting options.
      * @param value    The JSON value to serialize.
-     * @param options  Formatting options (pretty print, indent width, tabs vs spaces).
+     * @param options  Formatting options (pretty print, indent width, tabs vs spaces, key order).
      * @param allocator Allocator for the output string. If nullptr, the default allocator is used.
      * @return The JSON text, ErrorCode::InvalidArgument when the value holds a NaN or an infinity, which JSON cannot
      *         spell, or ErrorCode::OutOfMemory when the output could not be grown.

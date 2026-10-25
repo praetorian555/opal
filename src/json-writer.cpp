@@ -1,9 +1,11 @@
 #include "opal/container/json-writer.h"
 
 #include <math.h>
+#include <string.h>
 
 #include "opal/container/dynamic-array.h"
 #include "opal/container/string-format.h"
+#include "opal/sort/quick-sort.h"
 
 namespace Opal
 {
@@ -23,6 +25,23 @@ struct Frame
     u64 size;
     u64 index;
     bool is_object;
+    /** Where an object written in key order keeps its entries in JsonSerializer::m_sorted; k_unsorted otherwise. */
+    u64 sorted_begin;
+};
+
+constexpr u64 k_unsorted = ~0ull;
+
+struct SortedEntry
+{
+    StringViewUtf8 key;
+    const JsonValue* value = nullptr;
+
+    bool operator<(const SortedEntry& other) const
+    {
+        const u64 common = key.GetSize() < other.key.GetSize() ? key.GetSize() : other.key.GetSize();
+        const int order = memcmp(key.GetData(), other.key.GetData(), common);
+        return order != 0 ? order < 0 : key.GetSize() < other.key.GetSize();
+    }
 };
 
 class JsonSerializer
@@ -44,6 +63,10 @@ public:
             if (frame.index >= frame.size)
             {
                 const bool is_object = frame.is_object;
+                if (frame.sorted_begin != k_unsorted)
+                {
+                    (void)m_sorted.Resize(frame.sorted_begin);
+                }
                 m_stack.PopBack();
                 CloseContainer(is_object);
                 continue;
@@ -57,8 +80,21 @@ public:
             // stack causing a reallocation that invalidates the frame reference.
             if (frame.is_object)
             {
-                auto [key, val] = *frame.obj_it;
-                ++frame.obj_it;
+                StringViewUtf8 key;
+                const JsonValue* val = nullptr;
+                if (frame.sorted_begin != k_unsorted)
+                {
+                    const SortedEntry& entry = m_sorted[frame.sorted_begin + frame.index];
+                    key = entry.key;
+                    val = entry.value;
+                }
+                else
+                {
+                    auto [entry_key, entry_value] = *frame.obj_it;
+                    key = entry_key;
+                    val = &entry_value.Get();
+                    ++frame.obj_it;
+                }
                 ++frame.index;
                 WriteString(key);
                 Append(':');
@@ -66,7 +102,7 @@ public:
                 {
                     Append(' ');
                 }
-                WriteValue(val);
+                WriteValue(*val);
             }
             else
             {
@@ -265,7 +301,7 @@ private:
 
         using ObjIt = JsonValue::ObjectIterator;
         using Inner = ObjIt::InnerIterator;
-        if (!(m_stack.EmplaceBack(&value, ObjIt(Inner{}), ObjIt(Inner{}), size, 0ull, false)).HasValue()) [[unlikely]]
+        if (!(m_stack.EmplaceBack(&value, ObjIt(Inner{}), ObjIt(Inner{}), size, 0ull, false, k_unsorted)).HasValue()) [[unlikely]]
         {
             m_error = ErrorCode::OutOfMemory;
         }
@@ -289,7 +325,22 @@ private:
         }
 
         const auto range = value.Items();
-        if (!(m_stack.EmplaceBack(&value, range.begin(), range.end(), size, 0ull, true)).HasValue()) [[unlikely]]
+        u64 sorted_begin = k_unsorted;
+        if (m_options->sort_keys)
+        {
+            sorted_begin = m_sorted.GetSize();
+            for (auto [key, val] : range)
+            {
+                if (m_sorted.PushBack(SortedEntry{key, &val.Get()}) != ErrorCode::Success) [[unlikely]]
+                {
+                    m_error = ErrorCode::OutOfMemory;
+                    return;
+                }
+            }
+            ArrayView<SortedEntry> entries(m_sorted.GetData() + sorted_begin, size);
+            QuickSortImproved(entries);
+        }
+        if (!(m_stack.EmplaceBack(&value, range.begin(), range.end(), size, 0ull, true, sorted_begin)).HasValue()) [[unlikely]]
         {
             m_error = ErrorCode::OutOfMemory;
         }
@@ -340,6 +391,8 @@ private:
     Ref<StringUtf8> m_output;
     Ref<const JsonWriteOptions> m_options;
     DynamicArray<Frame> m_stack;
+    /** The entries of every open object written in key order, each object's sorted, innermost last. */
+    DynamicArray<SortedEntry> m_sorted;
     u32 m_depth = 0;
     ErrorCode m_error = ErrorCode::Success;
 };
