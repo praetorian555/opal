@@ -580,7 +580,7 @@ Opal::HashMap<KeyType, ValueType>& Opal::HashMap<KeyType, ValueType>::operator=(
 }
 
 template <typename KeyType, typename ValueType>
-Opal::HashMap<KeyType, ValueType>::~HashMap()
+Opal::HashMap<KeyType, ValueType>::HashMap::~HashMap()
 {
     DestroyAllPairs();
     m_allocator->Free(m_control_bytes);

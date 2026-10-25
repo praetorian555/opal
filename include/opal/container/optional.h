@@ -245,7 +245,7 @@ Opal::Optional<T>& Opal::Optional<T>::operator=(NullOptTag)
 }
 
 template <typename T>
-Opal::Optional<T>::~Optional()
+Opal::Optional<T>::Optional::~Optional()
 {
     if (m_has_value)
     {

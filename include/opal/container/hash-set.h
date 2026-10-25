@@ -407,7 +407,7 @@ Opal::HashSet<KeyType>& Opal::HashSet<KeyType>::operator=(HashSet&& other) noexc
 }
 
 template <typename KeyType>
-Opal::HashSet<KeyType>::~HashSet()
+Opal::HashSet<KeyType>::HashSet::~HashSet()
 {
     DestroyAllKeys();
     m_allocator->Free(m_control_bytes);
