@@ -4209,7 +4209,7 @@ Opal::StringUtf8 Opal::NumberToString(T value, NumberSystemBase base, bool add_l
 #else
         OPAL_START_DISABLE_WARNINGS
         OPAL_DISABLE_WARNING("-Wformat-nonliteral")
-        sprintf(*str, *format, value);
+        snprintf(*str, str.GetSize(), *format, value);
         OPAL_END_DISABLE_WARNINGS
 #endif
     }
@@ -4243,7 +4243,7 @@ Opal::StringUtf8 Opal::NumberToString(T value, i32 decimal_points)
     OPAL_START_DISABLE_WARNINGS
     OPAL_DISABLE_WARNING("-Wformat-nonliteral")
     OPAL_DISABLE_WARNING("-Wdouble-promotion")
-    sprintf(*str, *format, value);
+    snprintf(*str, str.GetSize(), *format, value);
     OPAL_END_DISABLE_WARNINGS
 #endif
     str.Trim();

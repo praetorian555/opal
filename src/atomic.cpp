@@ -10,6 +10,7 @@
 
 Opal::Atomic<bool> Opal::Impl::g_asymmetric_fence_ready = false;
 
+#if !defined(OPAL_PLATFORM_MACOS)
 namespace
 {
 // Every light fence reads the flag, so it is written once rather than on every heavy fence, which would keep pulling its cache
@@ -22,6 +23,7 @@ void MarkReady()
     }
 }
 }  // namespace
+#endif
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 

@@ -152,6 +152,11 @@ void* Opal::MallocAllocator::Alloc(u64 size, u64 alignment)
 #if defined(OPAL_PLATFORM_WINDOWS)
     return _aligned_malloc(size, alignment);
 #elif defined(OPAL_PLATFORM_POSIX)
+    // macOS's aligned_alloc rejects an alignment below that of a pointer.
+    if (alignment < sizeof(void*))
+    {
+        alignment = sizeof(void*);
+    }
     // aligned_alloc requires size to be a multiple of alignment.
     u64 aligned_size = size;
     if (aligned_size % alignment != 0)
