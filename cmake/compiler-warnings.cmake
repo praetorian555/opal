@@ -62,7 +62,7 @@ function(setup_compiler_warnings target)
     list(APPEND MSVC_WARNINGS /WX)
 
     target_compile_options(${target} INTERFACE "$<$<CXX_COMPILER_ID:MSVC>:${MSVC_WARNINGS}>")
-    target_compile_options(${target} INTERFACE "$<$<CXX_COMPILER_ID:Clang>:${CLANG_WARNINGS}>")
+    target_compile_options(${target} INTERFACE "$<$<CXX_COMPILER_ID:Clang,AppleClang>:${CLANG_WARNINGS}>")
     target_compile_options(${target} INTERFACE "$<$<CXX_COMPILER_ID:GNU>:${GCC_WARNINGS}>")
 
 endfunction()

@@ -9,11 +9,15 @@
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 #include <pthread.h>
 #include <sched.h>
-#include <sys/syscall.h>
 #include <unistd.h>
+#if defined(OPAL_PLATFORM_MACOS)
+#include <sys/sysctl.h>
+#else
+#include <sys/syscall.h>
+#endif
 
 #include <dirent.h>
 #include <errno.h>
@@ -32,7 +36,18 @@ DWORD WINAPI WindowsThread(LPVOID param)
     Delete(data->allocator, data);
     return 0;
 }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
+Opal::u64 GetCurrentOsThreadId()
+{
+#if defined(OPAL_PLATFORM_MACOS)
+    Opal::u64 id = 0;
+    pthread_threadid_np(nullptr, &id);
+    return id;
+#else
+    return static_cast<Opal::u64>(syscall(SYS_gettid));
+#endif
+}
+
 // Handed to a new thread so it can report its kernel id back. Lives on the frame of the launcher rather than in the thread's own data,
 // which the thread frees as it finishes and which the launcher would otherwise still be reading.
 struct ThreadLaunch
@@ -46,7 +61,7 @@ void* ThreadFunction(void* param)
     ThreadLaunch* launch = static_cast<ThreadLaunch*>(param);
     Opal::Impl::ThreadDataBase* data = launch->data;
     // Everything needed from `launch` is read above, because publishing the id releases the launcher, and its frame goes with it.
-    launch->thread_id.Store<Opal::MemoryOrder::Release>(static_cast<Opal::u64>(syscall(SYS_gettid)));
+    launch->thread_id.Store<Opal::MemoryOrder::Release>(GetCurrentOsThreadId());
     launch = nullptr;
     Opal::PushDefaultAllocator(data->allocator);
     data->Invoke();
@@ -68,7 +83,7 @@ Opal::Expected<Opal::ThreadHandle, Opal::ErrorCode> Opal::Impl::CreateThread(Thr
         return Result(ErrorCode::OSFailure);
     }
     return Result(ThreadHandle{.native_handle = thread_handle, .id = static_cast<u64>(thread_id)});
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     ThreadLaunch launch;
     launch.data = data;
     pthread_t native_handle;
@@ -108,7 +123,7 @@ void Opal::JoinThread(ThreadHandle handle)
 #if defined(OPAL_PLATFORM_WINDOWS)
         ::WaitForSingleObject(handle.native_handle, INFINITE);
         ::CloseHandle(handle.native_handle);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
         pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
         pthread_join(native_handle, nullptr);
 #else
@@ -123,7 +138,7 @@ void Opal::DetachThread(ThreadHandle handle)
     {
 #if defined(OPAL_PLATFORM_WINDOWS)
         ::CloseHandle(handle.native_handle);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
         pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
         pthread_detach(native_handle);
 #else
@@ -137,9 +152,9 @@ Opal::ThreadHandle Opal::GetCurrentThreadHandle()
 #if defined(OPAL_PLATFORM_WINDOWS)
     const DWORD thread_id = ::GetCurrentThreadId();
     return {.native_handle = ::GetCurrentThread(), .id = static_cast<u64>(thread_id)};
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     pthread_t thread_handle = pthread_self();
-    const u64 tid = static_cast<u64>(syscall(SYS_gettid));
+    const u64 tid = GetCurrentOsThreadId();
     return {.native_handle = reinterpret_cast<void*>(thread_handle), .id = tid};
 #else
 #error "Platform not supported"
@@ -156,7 +171,7 @@ void Opal::SleepCurrentThread(u64 milliseconds)
         ::Sleep(static_cast<DWORD>(sleep_ms));
         milliseconds -= sleep_ms;
     } while (milliseconds > 0);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     if (milliseconds == 0)
     {
         sched_yield();
@@ -177,7 +192,7 @@ void Opal::YieldCurrentThread()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     ::SwitchToThread();
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     sched_yield();
 #else
 #error "Platform not supported"
@@ -198,14 +213,24 @@ Opal::ErrorCode Opal::SetThreadName(ThreadHandle handle, StringViewUtf8 name)
         return transcode_result;
     }
     return SUCCEEDED(::SetThreadDescription(handle.native_handle, wide_name.GetData())) ? ErrorCode::Success : ErrorCode::OSFailure;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     StringUtf8 valid_name;
     const ErrorCode transcode_result = Transcode(name, valid_name, InvalidSequencePolicy::Replace);
     if (transcode_result != ErrorCode::Success)
     {
         return transcode_result;
     }
+#if defined(OPAL_PLATFORM_MACOS)
+    // macOS names only the calling thread.
+    pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
+    if (pthread_equal(native_handle, pthread_self()) == 0)
+    {
+        return ErrorCode::OSFailure;
+    }
+    constexpr size_t k_longest_name = 63;
+#else
     constexpr size_t k_longest_name = 15;
+#endif
     size_t size = valid_name.GetSize() < k_longest_name ? valid_name.GetSize() : k_longest_name;
     while (size > 0 && size < valid_name.GetSize() && (static_cast<u8>(valid_name[size]) & 0xC0) == 0x80)
     {
@@ -213,8 +238,12 @@ Opal::ErrorCode Opal::SetThreadName(ThreadHandle handle, StringViewUtf8 name)
     }
     char buffer[k_longest_name + 1] = {};
     memcpy(buffer, valid_name.GetData(), size);
+#if defined(OPAL_PLATFORM_MACOS)
+    return pthread_setname_np(buffer) == 0 ? ErrorCode::Success : ErrorCode::OSFailure;
+#else
     pthread_t native_handle = reinterpret_cast<pthread_t>(handle.native_handle);
     return pthread_setname_np(native_handle, buffer) == 0 ? ErrorCode::Success : ErrorCode::OSFailure;
+#endif
 #else
 #error "Platform not supported"
 #endif
@@ -281,7 +310,20 @@ Opal::ErrorCode FinishL3Domains(Opal::CpuInfo& info, Opal::DynamicArray<L3Domain
     return Opal::ErrorCode::Success;
 }
 
-#if defined(OPAL_PLATFORM_LINUX)
+#if defined(OPAL_PLATFORM_MACOS)
+/** Read an integer sysctl. @return 0 if it could not be read. */
+Opal::u64 ReadSysctl(const char* name)
+{
+    Opal::u64 value = 0;
+    size_t size = sizeof(value);
+    // A 32-bit value fills the low bytes, which on a little-endian machine leaves it read correctly.
+    if (sysctlbyname(name, &value, &size, nullptr, 0) != 0)
+    {
+        return 0;
+    }
+    return value;
+}
+#elif defined(OPAL_PLATFORM_LINUX)
 /** Read the first line of a sysfs file into buffer. @return False if the file could not be read. */
 bool ReadLine(const char* path, char* buffer, int buffer_size)
 {
@@ -401,6 +443,45 @@ Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
     }
 
     GetDefaultAllocator()->Free(buffer);
+    if (FinishL3Domains(info, l3_domains) != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfMemory);
+    }
+    return Result(Move(info));
+#elif defined(OPAL_PLATFORM_MACOS)
+    // macOS reports counts, not which logical cores share a physical one, so they are numbered in order: each physical core takes
+    // the next logical_count / physical_count logical cores.
+    CpuInfo info;
+    u64 logical_count = ReadSysctl("hw.logicalcpu");
+    const u64 physical_count = ReadSysctl("hw.physicalcpu");
+    if (logical_count == 0 || physical_count == 0)
+    {
+        return Result(ErrorCode::OSFailure);
+    }
+    logical_count = logical_count < 64 ? logical_count : 64;
+    const u64 per_core = logical_count / physical_count > 0 ? logical_count / physical_count : 1;
+    u64 all_cores = 0;
+    for (u64 first = 0; first + per_core <= logical_count; first += per_core)
+    {
+        PhysicalCoreInfo pp_info;
+        pp_info.id = static_cast<u32>(info.physical_processors.GetSize());
+        const u64 mask = (per_core == 64 ? ~u64{0} : ((u64{1} << per_core) - 1)) << first;
+        pp_info.logical_cores = BitMask<u64>(mask);
+        pp_info.is_hyperthreaded = per_core > 1;
+        info.logical_cores_count += static_cast<u32>(per_core);
+        all_cores |= mask;
+        if (info.physical_processors.PushBack(std::move(pp_info)) != ErrorCode::Success) [[unlikely]]
+        {
+            return Result(ErrorCode::OutOfMemory);
+        }
+    }
+    // Apple silicon has no L3; an Intel Mac has one, shared by every core.
+    DynamicArray<L3Domain> l3_domains;
+    const u64 l3_size = ReadSysctl("hw.l3cachesize");
+    if (l3_size > 0 && AddL3Domain(l3_domains, all_cores, l3_size) != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfMemory);
+    }
     if (FinishL3Domains(info, l3_domains) != ErrorCode::Success) [[unlikely]]
     {
         return Result(ErrorCode::OutOfMemory);
@@ -596,6 +677,9 @@ void Opal::SetThreadAffinity(ThreadHandle handle, u32 logical_core_id)
 #if defined(OPAL_PLATFORM_WINDOWS)
         const DWORD_PTR mask = 1ULL << logical_core_id;
         SetThreadAffinityMask(handle.native_handle, mask);
+#elif defined(OPAL_PLATFORM_MACOS)
+        // macOS does not let a thread be pinned to a core.
+        (void)logical_core_id;
 #elif defined(OPAL_PLATFORM_LINUX)
         cpu_set_t cpu_set;
         CPU_ZERO(&cpu_set);

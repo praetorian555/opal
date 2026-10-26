@@ -1,0 +1,62 @@
+name: macOS
+
+# Builds and tests opal on macOS with AppleClang through CMake. Builder does not run on macOS yet, so
+# these jobs use CMakeLists.txt rather than builder.json, as the CMake jobs did before builder.yml
+# replaced them on Windows and Linux.
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: "AppleClang Debug"
+          build_type: Debug
+          hardening: "OFF"
+        - name: "AppleClang Release"
+          build_type: Release
+          hardening: "OFF"
+        # ASan and UBSan, which OPAL_HARDENING=ON turns on.
+        - name: "AppleClang sanitizers"
+          build_type: Debug
+          hardening: "ON"
+    name: ${{ matrix.config.name }}
+    runs-on: macos-15
+    # Backstop: ctest already times out each test case, but a job that stalls elsewhere should not hold a runner for six hours.
+    timeout-minutes: 30
+    env:
+      # UBSan only prints and keeps going by default, which would let a finding pass as a green run.
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Configure
+      run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=${{ matrix.config.hardening }}
+
+    - name: Build
+      run: cmake --build build -j "$(sysctl -n hw.ncpu)"
+
+    - name: Test
+      working-directory: build
+      run: ctest --output-on-failure
+
+  # The library alone, without exceptions, which the tests cannot be built with.
+  no-exceptions:
+    name: "AppleClang without exceptions"
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v7
+
+    - name: Configure
+      run: cmake -B build -DCMAKE_BUILD_TYPE=Debug -DOPAL_HARDENING=OFF -DOPAL_EXCEPTIONS=OFF
+
+    - name: Build
+      run: cmake --build build -j "$(sysctl -n hw.ncpu)"

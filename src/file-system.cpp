@@ -11,7 +11,7 @@
 #undef CreateFile
 #undef DeleteFile
 #undef CreateDirectory
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -26,7 +26,7 @@
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 using Opal::Impl::ToWidePath;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 using Opal::Impl::NativePath;
 using Opal::Impl::ToNativePath;
 #endif
@@ -48,12 +48,17 @@ Opal::FileStatus ToFileStatus(const FILETIME& last_write, DWORD size_high, DWORD
                             .size = is_directory ? 0 : (static_cast<Opal::u64>(size_high) << 32) | size_low,
                             .is_directory = is_directory};
 }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 Opal::FileStatus ToFileStatus(const struct stat& info)
 {
     const bool is_directory = S_ISDIR(info.st_mode);
+#if defined(OPAL_PLATFORM_MACOS)
+    const struct timespec& modified = info.st_mtimespec;
+#else
+    const struct timespec& modified = info.st_mtim;
+#endif
     return Opal::FileStatus{
-        .modified = Opal::DateTime{static_cast<Opal::i64>(info.st_mtim.tv_sec) * 1'000'000'000 + static_cast<Opal::i64>(info.st_mtim.tv_nsec)},
+        .modified = Opal::DateTime{static_cast<Opal::i64>(modified.tv_sec) * 1'000'000'000 + static_cast<Opal::i64>(modified.tv_nsec)},
         .size = is_directory ? 0 : static_cast<Opal::u64>(info.st_size),
         .is_directory = is_directory};
 }
@@ -92,7 +97,7 @@ Opal::ErrorCode Opal::CreateFile(StringViewUtf8 path, bool fail_if_already_exist
         return fail_if_already_exists ? ErrorCode::AlreadyExists : ErrorCode::Success;
     }
     return ErrorCode::OSFailure;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath native_path;
     if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
     {
@@ -138,7 +143,7 @@ Opal::ErrorCode Opal::DeleteFile(StringViewUtf8 path)
         return ErrorCode::PathNotFound;
     }
     return ErrorCode::OSFailure;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath native_path;
     if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
     {
@@ -183,7 +188,7 @@ Opal::ErrorCode Opal::CreateDirectory(StringViewUtf8 path, bool fail_if_already_
         return ErrorCode::PathNotFound;
     }
     return ErrorCode::OSFailure;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath native_path;
     if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
     {
@@ -231,7 +236,7 @@ Opal::ErrorCode Opal::DeleteDirectory(StringViewUtf8 path)
         return ErrorCode::NotEmpty;
     }
     return ErrorCode::OSFailure;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath native_path;
     if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
     {
@@ -277,7 +282,7 @@ bool Opal::Exists(StringViewUtf8 path)
     }
     const DWORD attributes = GetFileAttributesW(path_wide.GetData());
     return (attributes != INVALID_FILE_ATTRIBUTES);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     if (access(*result, F_OK) == 0)
     {
         return true;
@@ -303,7 +308,7 @@ bool Opal::IsDirectory(StringViewUtf8 path)
         return false;
     }
     return (attributes & FILE_ATTRIBUTE_DIRECTORY) != 0;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath native_path;
     if (ToNativePath(path, native_path) != ErrorCode::Success)
     {
@@ -335,7 +340,7 @@ bool Opal::IsFile(StringViewUtf8 path)
         return false;
     }
     return (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath native_path;
     if (ToNativePath(path, native_path) != ErrorCode::Success)
     {
@@ -463,7 +468,7 @@ Opal::Expected<Opal::DynamicArray<Opal::DirectoryEntry>, Opal::ErrorCode> Opal::
         }
     }
     return Result(Move(out_contents));
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     DynamicArray<StringUtf8> directories;
     if (directories.PushBack(std::move(path)) != ErrorCode::Success) [[unlikely]]
     {
@@ -602,7 +607,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::ReadFileAsString(StringV
 
     CloseHandle(file_handle);
     return Result(Move(result));
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath native_path;
     if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
     {
@@ -701,7 +706,7 @@ Opal::Expected<Opal::DynamicArray<Opal::u8>, Opal::ErrorCode> Opal::ReadFileAsBy
 
     CloseHandle(file_handle);
     return Result(Move(result));
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath native_path;
     if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
     {
@@ -800,7 +805,7 @@ Opal::ErrorCode WriteToFileWin32(Opal::StringViewUtf8 path, const void* data, Op
     CloseHandle(file_handle);
     return ErrorCode::Success;
 }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 Opal::ErrorCode WriteToFileLinux(Opal::StringViewUtf8 path, const void* data, Opal::u64 size, const char* mode)
 {
     using namespace Opal;
@@ -841,7 +846,7 @@ Opal::ErrorCode Opal::WriteStringToFile(StringViewUtf8 path, StringViewUtf8 cont
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     return WriteToFileLinux(path, content.GetData(), content.GetSize(), "wb");
 #else
 #error "Platform not supported"
@@ -852,7 +857,7 @@ Opal::ErrorCode Opal::WriteBytesToFile(StringViewUtf8 path, ArrayView<const u8> 
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return WriteToFileWin32(path, content.GetData(), content.GetSize(), CREATE_ALWAYS);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     return WriteToFileLinux(path, content.GetData(), content.GetSize(), "wb");
 #else
 #error "Platform not supported"
@@ -863,7 +868,7 @@ Opal::ErrorCode Opal::AppendStringToFile(StringViewUtf8 path, StringViewUtf8 con
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     return WriteToFileLinux(path, content.GetData(), content.GetSize(), "ab");
 #else
 #error "Platform not supported"
@@ -874,7 +879,7 @@ Opal::ErrorCode Opal::AppendBytesToFile(StringViewUtf8 path, ArrayView<const u8>
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return WriteToFileWin32(path, content.GetData(), content.GetSize(), OPEN_ALWAYS);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     return WriteToFileLinux(path, content.GetData(), content.GetSize(), "ab");
 #else
 #error "Platform not supported"
@@ -899,7 +904,7 @@ Opal::Expected<Opal::FileStatus, Opal::ErrorCode> Opal::GetFileStatus(StringView
         return Result(missing ? ErrorCode::PathNotFound : ErrorCode::OSFailure);
     }
     return Result(ToFileStatus(attributes.ftLastWriteTime, attributes.nFileSizeHigh, attributes.nFileSizeLow, attributes.dwFileAttributes));
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath native_path;
     if (const ErrorCode error = ToNativePath(path, native_path); error != ErrorCode::Success)
     {
@@ -977,7 +982,7 @@ Opal::ErrorCode Opal::RenameFile(StringViewUtf8 from, StringViewUtf8 to)
         return ErrorCode::PathNotFound;
     }
     return ErrorCode::OSFailure;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     NativePath from_native;
     NativePath to_native;
     ErrorCode err = ToNativePath(from, from_native);
@@ -1021,7 +1026,7 @@ Opal::Expected<bool, Opal::ErrorCode> Opal::WriteStringToFileIfChanged(StringVie
     static Atomic<u64> s_temp_counter{0};
 #if defined(OPAL_PLATFORM_WINDOWS)
     const u64 process_id = GetCurrentProcessId();
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     const u64 process_id = static_cast<u64>(getpid());
 #endif
     char8 suffix[64] = {};

@@ -6,6 +6,8 @@
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
+#elif defined(OPAL_PLATFORM_MACOS)
+#include <os/os_sync_wait_on_address.h>
 #elif defined(OPAL_PLATFORM_LINUX)
 #include <errno.h>
 #include <limits.h>
@@ -30,6 +32,8 @@ void Opal::Signal::Wait(u32 expected_state)
 #if defined(OPAL_PLATFORM_WINDOWS)
         u32 compare_value = expected_state;
         WaitOnAddress(m_state.GetStorageAddress(), &compare_value, sizeof(u32), INFINITE);
+#elif defined(OPAL_PLATFORM_MACOS)
+        os_sync_wait_on_address(m_state.GetStorageAddress(), expected_state, sizeof(u32), OS_SYNC_WAIT_ON_ADDRESS_NONE);
 #elif defined(OPAL_PLATFORM_LINUX)
         syscall(SYS_futex, m_state.GetStorageAddress(), FUTEX_WAIT | FUTEX_PRIVATE_FLAG, expected_state, nullptr, nullptr, 0);
 #else
@@ -53,6 +57,10 @@ bool Opal::Signal::WaitFor(u32 expected_state, u64 timeout_ms)
         const f64 wait_ms = std::ceil(remaining_ms < k_longest_wait_ms ? remaining_ms : k_longest_wait_ms);
         u32 compare_value = expected_state;
         WaitOnAddress(m_state.GetStorageAddress(), &compare_value, sizeof(u32), static_cast<DWORD>(wait_ms));
+#elif defined(OPAL_PLATFORM_MACOS)
+        const u64 wait_ns = static_cast<u64>(std::ceil(remaining_ms * 1'000'000.0));
+        os_sync_wait_on_address_with_timeout(m_state.GetStorageAddress(), expected_state, sizeof(u32), OS_SYNC_WAIT_ON_ADDRESS_NONE,
+                                             OS_CLOCK_MACH_ABSOLUTE_TIME, wait_ns);
 #elif defined(OPAL_PLATFORM_LINUX)
         const f64 remaining_ns = remaining_ms * 1'000'000.0;
         struct timespec ts;
@@ -71,6 +79,8 @@ void Opal::Signal::NotifyOne()
     m_state.FetchAdd<MemoryOrder::Release>(1);
 #if defined(OPAL_PLATFORM_WINDOWS)
     WakeByAddressSingle(m_state.GetStorageAddress());
+#elif defined(OPAL_PLATFORM_MACOS)
+    os_sync_wake_by_address_any(m_state.GetStorageAddress(), sizeof(u32), OS_SYNC_WAKE_BY_ADDRESS_NONE);
 #elif defined(OPAL_PLATFORM_LINUX)
     syscall(SYS_futex, m_state.GetStorageAddress(), FUTEX_WAKE | FUTEX_PRIVATE_FLAG, 1, nullptr, nullptr, 0);
 #else
@@ -83,6 +93,8 @@ void Opal::Signal::NotifyAll()
     m_state.FetchAdd<MemoryOrder::Release>(1);
 #if defined(OPAL_PLATFORM_WINDOWS)
     WakeByAddressAll(m_state.GetStorageAddress());
+#elif defined(OPAL_PLATFORM_MACOS)
+    os_sync_wake_by_address_all(m_state.GetStorageAddress(), sizeof(u32), OS_SYNC_WAKE_BY_ADDRESS_NONE);
 #elif defined(OPAL_PLATFORM_LINUX)
     syscall(SYS_futex, m_state.GetStorageAddress(), FUTEX_WAKE | FUTEX_PRIVATE_FLAG, INT_MAX, nullptr, nullptr, 0);
 #else

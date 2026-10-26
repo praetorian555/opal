@@ -12,6 +12,8 @@
 #undef CreateFile
 #undef DeleteFile
 #undef CreateDirectory
+#elif defined(OPAL_PLATFORM_MACOS)
+#include <sys/sysctl.h>
 #endif
 
 #include "opal/file-system.h"
@@ -139,6 +141,20 @@ bool ProcessEnds(u32 id)
     const bool ended = WaitForSingleObject(handle, 5000) == WAIT_OBJECT_0;
     CloseHandle(handle);
     return ended;
+#elif defined(OPAL_PLATFORM_MACOS)
+    // A killed process stays a zombie until its new parent reaps it, which counts as ended here.
+    int request[] = {CTL_KERN, KERN_PROC, KERN_PROC_PID, static_cast<int>(id)};
+    for (int attempt = 0; attempt < 500; ++attempt)
+    {
+        kinfo_proc info = {};
+        size_t size = sizeof(info);
+        if (sysctl(request, 4, &info, &size, nullptr, 0) != 0 || size == 0 || info.kp_proc.p_stat == SZOMB)
+        {
+            return true;
+        }
+        SleepCurrentThread(10);
+    }
+    return false;
 #else
     // A killed process stays a zombie until its new parent reaps it, which counts as ended here.
     char path[64] = {};

@@ -2,7 +2,7 @@
 
 #include <stdio.h>
 
-#if defined(OPAL_PLATFORM_LINUX)
+#if defined(OPAL_PLATFORM_POSIX)
 #include <limits.h>
 #endif
 
@@ -513,7 +513,7 @@ TEST_CASE("WriteStringToFile", "[FileSystem]")
         REQUIRE(IsFile(file_path));
         REQUIRE(ReadStringOrFail(file_path) == "view");
     }
-#if defined(OPAL_PLATFORM_LINUX)
+#if defined(OPAL_PLATFORM_POSIX)
     SECTION("Path longer than the platform accepts")
     {
         const StringUtf8 too_long(PATH_MAX, 'a');

@@ -126,11 +126,11 @@ void YieldCurrentThread();
 
 /**
  * Name a thread, for debuggers, profilers and crash dumps.
- * @param handle Thread to name. GetCurrentThreadHandle names the calling thread.
- * @param name Name to give it. Code units that are not valid UTF-8 are replaced. On Linux and Android the OS keeps only the
- *             first 15 bytes, so a longer name is cut to the last whole code point that fits.
+ * @param handle Thread to name. GetCurrentThreadHandle names the calling thread. On macOS it must be the calling thread.
+ * @param name Name to give it. Code units that are not valid UTF-8 are replaced. The OS keeps only the first 15 bytes on Linux
+ *             and Android and the first 63 on macOS, so a longer name is cut to the last whole code point that fits.
  * @return ErrorCode::Success, ErrorCode::OutOfMemory when the name could not be converted for the OS, or ErrorCode::OSFailure
- *         when the OS refused it.
+ *         when the OS refused it or, on macOS, when the handle is not the calling thread's.
  */
 ErrorCode SetThreadName(ThreadHandle handle, StringViewUtf8 name);
 
@@ -197,6 +197,7 @@ ErrorCode PrintCpuInfo();
  * @param handle Handle to a thread to pin.
  * @param logical_core_id Logical core id. Values always start from 0 and go to number of logical
  * cores minus one.
+ * macOS does not let a thread be pinned, so there this does nothing.
  */
 void SetThreadAffinity(ThreadHandle handle, u32 logical_core_id);
 

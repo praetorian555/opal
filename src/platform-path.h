@@ -5,7 +5,7 @@
 #include "opal/defines.h"
 #include "opal/error-codes.h"
 
-#if defined(OPAL_PLATFORM_LINUX)
+#if defined(OPAL_PLATFORM_POSIX)
 #include <limits.h>
 #include <string.h>
 #endif
@@ -28,7 +28,7 @@ inline ErrorCode ToWidePath(StringViewUtf8 path, StringWide& out_path)
     return Transcode(path, out_path);
 }
 
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 
 /** A path with a null terminator, for the POSIX calls that need one. Held on the stack, so making one does not allocate. */
 struct NativePath

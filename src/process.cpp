@@ -11,7 +11,7 @@
 #undef CreateFile
 #undef DeleteFile
 #undef CreateDirectory
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -19,9 +19,13 @@
 #include <signal.h>
 #include <spawn.h>
 #include <stdlib.h>
-#include <sys/syscall.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#if defined(OPAL_PLATFORM_MACOS)
+#include <sys/sysctl.h>
+#else
+#include <sys/syscall.h>
+#endif
 #endif
 
 #include "opal/allocator.h"
@@ -31,7 +35,7 @@
 #include "opal/threading/atomic.h"
 #include "opal/time.h"
 
-#if defined(OPAL_PLATFORM_LINUX)
+#if defined(OPAL_PLATFORM_POSIX)
 extern char** environ;
 #endif
 
@@ -92,7 +96,7 @@ bool IsExecutableFile(StringViewUtf8 path)
     {
         return false;
     }
-#if defined(OPAL_PLATFORM_LINUX)
+#if defined(OPAL_PLATFORM_POSIX)
     Expected<StringUtf8, ErrorCode> terminated = path.TryToString();
     return terminated.HasValue() && access(terminated.GetValue().GetData(), X_OK) == 0;
 #else
@@ -435,7 +439,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::GetEnvironmentVariable(S
         return Result(err == ErrorCode::OutOfMemory ? ErrorCode::OutOfMemory : ErrorCode::OSFailure);
     }
     return Result(Move(value));
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     Expected<StringUtf8, ErrorCode> name_terminated = name.TryToString();
     if (!name_terminated.HasValue())
     {
@@ -1072,7 +1076,7 @@ void Opal::Process::Release()
     m_stderr_text = StringUtf8();
 }
 
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 
 /*************************************************************************************************/
 /** Linux ****************************************************************************************/
@@ -1098,11 +1102,48 @@ bool Contains(const DynamicArray<pid_t>& pids, pid_t pid)
     return false;
 }
 
-/** Add to tree every process whose parent is already in it, following the parent links in /proc. */
-void CollectDescendants(DynamicArray<pid_t>& tree)
+#if defined(OPAL_PLATFORM_MACOS)
+/** Every running process and its parent, from the kernel's process table. */
+void ListProcesses(DynamicArray<pid_t>& pids, DynamicArray<pid_t>& parents)
 {
-    DynamicArray<pid_t> pids;
-    DynamicArray<pid_t> parents;
+    int request[] = {CTL_KERN, KERN_PROC, KERN_PROC_ALL};
+    DynamicArray<kinfo_proc> processes;
+    size_t size = 0;
+    // The table can grow between asking for its size and reading it, so there is room for a few more and a retry.
+    for (int attempt = 0; attempt < 4; ++attempt)
+    {
+        if (sysctl(request, 3, nullptr, &size, nullptr, 0) != 0)
+        {
+            return;
+        }
+        if (processes.Resize(size / sizeof(kinfo_proc) + 16) != ErrorCode::Success)
+        {
+            return;
+        }
+        size = processes.GetSize() * sizeof(kinfo_proc);
+        if (sysctl(request, 3, processes.GetData(), &size, nullptr, 0) == 0)
+        {
+            break;
+        }
+        if (errno != ENOMEM)
+        {
+            return;
+        }
+        size = 0;
+    }
+    for (u64 i = 0; i < size / sizeof(kinfo_proc); ++i)
+    {
+        if (pids.PushBack(processes[i].kp_proc.p_pid) != ErrorCode::Success ||
+            parents.PushBack(processes[i].kp_eproc.e_ppid) != ErrorCode::Success)
+        {
+            return;
+        }
+    }
+}
+#else
+/** Every running process and its parent, following the parent links in /proc. */
+void ListProcesses(DynamicArray<pid_t>& pids, DynamicArray<pid_t>& parents)
+{
     DIR* proc = opendir("/proc");
     if (proc == nullptr)
     {
@@ -1140,6 +1181,15 @@ void CollectDescendants(DynamicArray<pid_t>& tree)
         }
     }
     closedir(proc);
+}
+#endif
+
+/** Add to tree every process whose parent is already in it. */
+void CollectDescendants(DynamicArray<pid_t>& tree)
+{
+    DynamicArray<pid_t> pids;
+    DynamicArray<pid_t> parents;
+    ListProcesses(pids, parents);
 
     for (bool grew = true; grew;)
     {
@@ -1252,6 +1302,23 @@ struct CStringArray
     }
 };
 
+/** Open a pipe whose ends are closed on exec. @return 0, or -1 with errno set. */
+int OpenPipe(i32 (&fds)[2])
+{
+#if defined(OPAL_PLATFORM_MACOS)
+    // macOS has no pipe2. A child spawned meanwhile does not inherit the ends, since StartChild closes what it does not hand on.
+    if (pipe(fds) != 0)
+    {
+        return -1;
+    }
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    fcntl(fds[1], F_SETFD, FD_CLOEXEC);
+    return 0;
+#else
+    return pipe2(fds, O_CLOEXEC);
+#endif
+}
+
 /** What a child sets up before it runs: the descriptors it takes as stdin, stdout and stderr, -1 to keep its parent's, and where it runs. */
 struct ChildSetup
 {
@@ -1279,7 +1346,7 @@ int StartChild(pid_t& pid, const char* path, const ChildSetup& setup, char* cons
     // Bionic has posix_spawn_file_actions_addchdir_np from API 34 only, so below it the child is forked and does what
     // posix_spawn would. A pipe closed on exec tells the parent whether the exec happened, and if not, why.
     i32 status_pipe[2] = {-1, -1};
-    if (pipe2(status_pipe, O_CLOEXEC) != 0)
+    if (OpenPipe(status_pipe) != 0)
     {
         return errno;
     }
@@ -1345,6 +1412,12 @@ int StartChild(pid_t& pid, const char* path, const ChildSetup& setup, char* cons
         {
             posix_spawn_file_actions_adddup2(&actions, setup.streams[fd], fd);
         }
+#if defined(OPAL_PLATFORM_MACOS)
+        else
+        {
+            posix_spawn_file_actions_addinherit_np(&actions, fd);
+        }
+#endif
     }
     if (setup.working_directory != nullptr)
     {
@@ -1353,7 +1426,12 @@ int StartChild(pid_t& pid, const char* path, const ChildSetup& setup, char* cons
 
     posix_spawnattr_t attributes;
     posix_spawnattr_init(&attributes);
-    posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF);
+    int flags = POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF;
+#if defined(OPAL_PLATFORM_MACOS)
+    // Only the three streams reach the child, so a descriptor another thread has not yet marked close-on-exec stays behind.
+    flags |= POSIX_SPAWN_CLOEXEC_DEFAULT;
+#endif
+    posix_spawnattr_setflags(&attributes, static_cast<short>(flags));
     posix_spawnattr_setpgroup(&attributes, 0);
     sigset_t signals;
     sigemptyset(&signals);
@@ -1438,8 +1516,8 @@ Opal::Expected<Opal::Process, Opal::ErrorCode> Opal::Process::Spawn(const Proces
             }
         }
     };
-    if ((desc.stdout_mode == ProcessOutput::Capture && pipe2(stdout_pipe, O_CLOEXEC) != 0) ||
-        (desc.stderr_mode == ProcessOutput::Capture && pipe2(stderr_pipe, O_CLOEXEC) != 0))
+    if ((desc.stdout_mode == ProcessOutput::Capture && OpenPipe(stdout_pipe) != 0) ||
+        (desc.stderr_mode == ProcessOutput::Capture && OpenPipe(stderr_pipe) != 0))
     {
         close_all();
         return Result(ErrorCode::OSFailure);

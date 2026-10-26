@@ -6,7 +6,7 @@
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <WinSock2.h>
 #include <WS2tcpip.h>
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 #include <arpa/inet.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -23,15 +23,33 @@ namespace
 using OsSocket = SOCKET;
 using OsSockLen = int;
 constexpr OsSocket k_os_invalid_socket = INVALID_SOCKET;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 using OsSocket = int;
 using OsSockLen = socklen_t;
 constexpr OsSocket k_os_invalid_socket = -1;
 #endif
 
+#if defined(OPAL_PLATFORM_MACOS)
+// macOS has no MSG_NOSIGNAL; the socket is told once instead, through SO_NOSIGPIPE.
+constexpr int k_send_flags = 0;
+#elif defined(OPAL_PLATFORM_LINUX)
+constexpr int k_send_flags = MSG_NOSIGNAL;
+#endif
+
 OsSocket ToOs(Opal::u64 handle)
 {
     return static_cast<OsSocket>(handle);
+}
+
+/** Keep a write to a socket whose peer has gone from raising SIGPIPE, where the platform needs that set on the socket. */
+void SuppressSigPipe(OsSocket handle)
+{
+#if defined(OPAL_PLATFORM_MACOS)
+    const int value = 1;
+    setsockopt(handle, SOL_SOCKET, SO_NOSIGPIPE, &value, sizeof(value));
+#else
+    (void)handle;
+#endif
 }
 
 Opal::ErrorCode MapLastError([[maybe_unused]] bool is_non_blocking)
@@ -53,7 +71,7 @@ Opal::ErrorCode MapLastError([[maybe_unused]] bool is_non_blocking)
         default:
             return Opal::ErrorCode::OSFailure;
     }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     const int error = errno;
     // A blocking socket only sees EAGAIN - the same value as EWOULDBLOCK on Linux - when a timeout set through
     // SO_RCVTIMEO or SO_SNDTIMEO ran out.
@@ -204,7 +222,7 @@ Opal::ErrorCode Opal::InitializeNetworking()
 #if defined(OPAL_PLATFORM_WINDOWS)
     WSADATA wsa_data;
     return WSAStartup(MAKEWORD(2, 2), &wsa_data) == 0 ? ErrorCode::Success : ErrorCode::OSFailure;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     return ErrorCode::Success;
 #endif
 }
@@ -225,6 +243,7 @@ Opal::Expected<Opal::Socket, Opal::ErrorCode> Opal::Socket::CreateTcp(IpFamily f
     {
         return Result(MapLastError(false));
     }
+    SuppressSigPipe(handle);
     return Result(Socket(static_cast<u64>(handle)));
 }
 
@@ -237,6 +256,7 @@ Opal::Expected<Opal::Socket, Opal::ErrorCode> Opal::Socket::CreateUdp(IpFamily f
     {
         return Result(MapLastError(false));
     }
+    SuppressSigPipe(handle);
     return Result(Socket(static_cast<u64>(handle)));
 }
 
@@ -277,7 +297,7 @@ void Opal::Socket::Close()
     }
 #if defined(OPAL_PLATFORM_WINDOWS)
     closesocket(ToOs(m_handle));
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     close(ToOs(m_handle));
 #endif
     m_handle = k_invalid_handle;
@@ -326,6 +346,7 @@ Opal::Expected<Opal::Socket, Opal::ErrorCode> Opal::Socket::Accept(SocketEndpoin
     {
         return Result(MapLastError(m_is_non_blocking));
     }
+    SuppressSigPipe(accepted);
     if (out_remote != nullptr)
     {
         FromSockaddr(storage, *out_remote);
@@ -362,8 +383,8 @@ Opal::Expected<Opal::u64, Opal::ErrorCode> Opal::Socket::Send(ArrayView<const u8
     {
         return Result(MapLastError(m_is_non_blocking));
     }
-#elif defined(OPAL_PLATFORM_LINUX)
-    const ssize_t sent = send(ToOs(m_handle), data.GetData(), data.GetSize(), MSG_NOSIGNAL);
+#elif defined(OPAL_PLATFORM_POSIX)
+    const ssize_t sent = send(ToOs(m_handle), data.GetData(), data.GetSize(), k_send_flags);
     if (sent < 0)
     {
         return Result(MapLastError(m_is_non_blocking));
@@ -386,7 +407,7 @@ Opal::Expected<Opal::u64, Opal::ErrorCode> Opal::Socket::Receive(ArrayView<u8> b
     {
         return Result(MapLastError(m_is_non_blocking));
     }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     const ssize_t received = recv(ToOs(m_handle), buffer.GetData(), buffer.GetSize(), 0);
     if (received < 0)
     {
@@ -417,8 +438,8 @@ Opal::Expected<Opal::u64, Opal::ErrorCode> Opal::Socket::SendTo(ArrayView<const 
     {
         return Result(MapLastError(m_is_non_blocking));
     }
-#elif defined(OPAL_PLATFORM_LINUX)
-    const ssize_t sent = sendto(ToOs(m_handle), data.GetData(), data.GetSize(), MSG_NOSIGNAL, address, address_length);
+#elif defined(OPAL_PLATFORM_POSIX)
+    const ssize_t sent = sendto(ToOs(m_handle), data.GetData(), data.GetSize(), k_send_flags, address, address_length);
     if (sent < 0)
     {
         return Result(MapLastError(m_is_non_blocking));
@@ -444,7 +465,7 @@ Opal::Expected<Opal::u64, Opal::ErrorCode> Opal::Socket::ReceiveFrom(ArrayView<u
     {
         return Result(MapLastError(m_is_non_blocking));
     }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     const ssize_t received = recvfrom(ToOs(m_handle), buffer.GetData(), buffer.GetSize(), 0, address, &address_length);
     if (received < 0)
     {
@@ -470,7 +491,7 @@ Opal::ErrorCode Opal::Socket::SetNonBlocking(bool enable)
     {
         return MapLastError(m_is_non_blocking);
     }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     const int flags = fcntl(ToOs(m_handle), F_GETFL, 0);
     if (flags < 0)
     {
@@ -526,7 +547,7 @@ Opal::ErrorCode Opal::Socket::SetReceiveTimeoutMs(u32 milliseconds)
     {
         return MapLastError(m_is_non_blocking);
     }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     timeval value;
     value.tv_sec = static_cast<time_t>(milliseconds / 1000);
     value.tv_usec = static_cast<suseconds_t>((milliseconds % 1000) * 1000);
@@ -550,7 +571,7 @@ Opal::ErrorCode Opal::Socket::SetSendTimeoutMs(u32 milliseconds)
     {
         return MapLastError(m_is_non_blocking);
     }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     timeval value;
     value.tv_sec = static_cast<time_t>(milliseconds / 1000);
     value.tv_usec = static_cast<suseconds_t>((milliseconds % 1000) * 1000);

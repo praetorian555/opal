@@ -7,7 +7,7 @@
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
@@ -56,7 +56,7 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const
     {
         OPAL_RAISE(OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!"));
     }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     const i64 page_size = sysconf(_SC_PAGESIZE);
     m_page_size = Narrow<u64>(page_size);
     m_allocation_granularity = Narrow<u64>(page_size);
@@ -86,7 +86,7 @@ Opal::SystemMemoryAllocator::~SystemMemoryAllocator()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     VirtualFree(m_memory, 0, MEM_RELEASE);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     munmap(m_memory, m_reserved_size);
 #else
 #error "Platform not supported"
@@ -130,7 +130,7 @@ Opal::ErrorCode Opal::SystemMemoryAllocator::Commit(u64 size)
 #if defined(OPAL_PLATFORM_WINDOWS)
     void* commited_memory = VirtualAlloc(commit_addr, size, MEM_COMMIT, PAGE_READWRITE);
     if (commited_memory == nullptr)
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     if (mprotect(commit_addr, size, PROT_READ | PROT_WRITE) != 0)
 #else
 #error "Platform not supported"
@@ -150,7 +150,7 @@ void* Opal::MallocAllocator::Alloc(u64 size, u64 alignment)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     return _aligned_malloc(size, alignment);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     // aligned_alloc requires size to be a multiple of alignment.
     u64 aligned_size = size;
     if (aligned_size % alignment != 0)
@@ -165,7 +165,7 @@ void Opal::MallocAllocator::Free(void* ptr)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     _aligned_free(ptr);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     free(ptr);
 #endif
 }

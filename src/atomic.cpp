@@ -32,6 +32,14 @@ void Opal::AsymmetricThreadFenceHeavy()
     MarkReady();
 }
 
+#elif defined(OPAL_PLATFORM_MACOS)
+
+// macOS has no public call that interrupts the other threads of a process, so the light half keeps its hardware fence.
+void Opal::AsymmetricThreadFenceHeavy()
+{
+    Opal::CompilerAndHardwareFence();
+}
+
 #elif defined(OPAL_PLATFORM_LINUX)
 
 namespace

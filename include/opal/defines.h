@@ -4,6 +4,13 @@
 #define OPAL_PLATFORM_WINDOWS
 #elif __linux__
 #define OPAL_PLATFORM_LINUX
+#elif __APPLE__
+#define OPAL_PLATFORM_MACOS
+#endif
+
+// Linux and macOS, for what they share through POSIX. Each keeps its own define for what they do not share.
+#if defined(OPAL_PLATFORM_LINUX) || defined(OPAL_PLATFORM_MACOS)
+#define OPAL_PLATFORM_POSIX
 #endif
 
 #if _MSC_VER

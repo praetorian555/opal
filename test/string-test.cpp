@@ -1909,7 +1909,7 @@ TEST_CASE("From native wide to UTF32", "[String]")
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide utf_wide(L"での日本語文字コードを扱うために使用されている従来の");
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     const StringWide utf_wide(u"での日本語文字コードを扱うために使用されている従来の");
 #endif
     StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
@@ -1925,7 +1925,7 @@ TEST_CASE("From UTF32 to native wide", "[String]")
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide wide(L"での日本語文字コードを扱うために使用されている従来の");
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     const StringWide wide(u"での日本語文字コードを扱うために使用されている従来の");
 #endif
     const StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");
@@ -1965,7 +1965,7 @@ TEST_CASE("From wide to locale", "[String]")
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     StringWide wide(L"での日本語文字コードを扱うために使用されている従来の");
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     const StringWide wide(u"での日本語文字コードを扱うために使用されている従来の");
 #endif
     StringLocale str_locale("での日本語文字コードを扱うために使用されている従来の");
@@ -2054,7 +2054,7 @@ TEST_CASE("Transcode with empty destination", "[String]")
     {
 #if defined(OPAL_PLATFORM_WINDOWS)
         const StringWide wide(L"での日本語文字コードを扱うために使用されている従来の");
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
         const StringWide wide(u"での日本語文字コードを扱うために使用されている従来の");
 #endif
         const StringUtf32 utf32(U"での日本語文字コードを扱うために使用されている従来の");

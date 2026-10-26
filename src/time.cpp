@@ -3,7 +3,7 @@
 #if defined(OPAL_PLATFORM_WINDOWS)
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 #include <errno.h>
 #include <sys/stat.h>
 #else
@@ -140,7 +140,7 @@ f64 GetSeconds()
     QueryPerformanceCounter(&number_of_ticks);
     const f64 seconds = static_cast<f64>(number_of_ticks.QuadPart) / static_cast<f64>(PrivateTime::g_frequency.QuadPart);
     return seconds;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return static_cast<f64>(ts.tv_sec) + (static_cast<f64>(ts.tv_nsec) / 1'000'000'000);
@@ -166,7 +166,7 @@ DateTime GetCurrentDateTime()
     ticks.LowPart = file_time.dwLowDateTime;
     ticks.HighPart = file_time.dwHighDateTime;
     return DateTime{(static_cast<i64>(ticks.QuadPart) - k_filetime_epoch_offset) * 100};
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     struct timespec now = {};
     if (clock_gettime(CLOCK_REALTIME, &now) != 0)
     {
@@ -211,7 +211,7 @@ Expected<CalendarDate, ErrorCode> ToLocal(DateTime date_time)
     {
         return Result(ErrorCode::OSFailure);
     }
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     if (localtime_r(&as_time_t, &fields) == nullptr)
     {
         return Result(ErrorCode::OSFailure);
@@ -323,7 +323,7 @@ Expected<DateTime, ErrorCode> GetLastFileModifiedTime(StringViewUtf8 file_path)
     ticks.LowPart = attributes.ftLastWriteTime.dwLowDateTime;
     ticks.HighPart = attributes.ftLastWriteTime.dwHighDateTime;
     return Result(DateTime{(static_cast<i64>(ticks.QuadPart) - k_filetime_epoch_offset) * 100});
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     Impl::NativePath native_path;
     if (const ErrorCode error = Impl::ToNativePath(file_path, native_path); error != ErrorCode::Success)
     {
@@ -334,7 +334,12 @@ Expected<DateTime, ErrorCode> GetLastFileModifiedTime(StringViewUtf8 file_path)
     {
         return Result(errno == ENOENT || errno == ENOTDIR ? ErrorCode::PathNotFound : ErrorCode::OSFailure);
     }
-    return Result(DateTime{static_cast<i64>(info.st_mtim.tv_sec) * k_nanoseconds_per_second + static_cast<i64>(info.st_mtim.tv_nsec)});
+#if defined(OPAL_PLATFORM_MACOS)
+    const struct timespec& modified = info.st_mtimespec;
+#else
+    const struct timespec& modified = info.st_mtim;
+#endif
+    return Result(DateTime{static_cast<i64>(modified.tv_sec) * k_nanoseconds_per_second + static_cast<i64>(modified.tv_nsec)});
 #endif
 }
 

@@ -4,9 +4,13 @@
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 #include <limits.h>
+#include <stdlib.h>
 #include <unistd.h>
+#if defined(OPAL_PLATFORM_MACOS)
+#include <mach-o/dyld.h>
+#endif
 #endif
 
 namespace
@@ -63,7 +67,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetCurrentWorking
         return Result(err);
     }
     return Result(Move(out_path));
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     StringUtf8 out_path(GetDefaultAllocator());
     const ErrorCode err = out_path.Resize(PATH_MAX, '\0');
     if (err != ErrorCode::Success)
@@ -107,7 +111,7 @@ Opal::ErrorCode Opal::Paths::SetCurrentWorkingDirectory(StringViewUtf8 path)
         return ErrorCode::OSFailure;
     }
     return ErrorCode::Success;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     if (chdir(*normalized_path.GetValue()) == -1)
     {
         return ErrorCode::OSFailure;
@@ -141,7 +145,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(Str
     Opal::AllocatorBase* default_allocator = GetDefaultAllocator();
 #if defined(OPAL_PLATFORM_WINDOWS)
     constexpr StringUtf8::value_type k_preferred_separator = '\\';
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     constexpr StringUtf8::value_type k_preferred_separator = '/';
 #else
 #error "Platform not supported"
@@ -196,7 +200,7 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::NormalizePath(Str
     }
 #endif
 
-#if defined(OPAL_PLATFORM_LINUX) || defined(OPAL_PLATFORM_WINDOWS)
+#if defined(OPAL_PLATFORM_POSIX) || defined(OPAL_PLATFORM_WINDOWS)
     // Figure out what is the root of the path and where does the relative part starts if the path starts with a separator
     if (original_path.GetSize() >= 1 && (original_path[0] == '\\' || original_path[0] == '/'))
     {
@@ -341,7 +345,7 @@ bool Opal::Paths::IsPathAbsolute(StringViewUtf8 path)
         return true;
     }
     return false;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     if (path.GetSize() >= 1 && (path[0] == '\\' || path[0] == '/'))
     {
         return true;
@@ -475,6 +479,20 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExecutablePath
             return Result(ErrorCode::OSFailure);
         }
     }
+#elif defined(OPAL_PLATFORM_MACOS)
+    char path[PATH_MAX];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) != 0)
+    {
+        return Result(ErrorCode::OSFailure);
+    }
+    // The path may go through symbolic links or hold "..", which /proc/self/exe on Linux never does.
+    char buffer[PATH_MAX];
+    if (realpath(path, buffer) == nullptr)
+    {
+        return Result(ErrorCode::OSFailure);
+    }
+    return StringViewUtf8(buffer).TryToString();
 #elif defined(OPAL_PLATFORM_LINUX)
     char buffer[PATH_MAX];
     const ssize_t written = readlink("/proc/self/exe", buffer, sizeof(buffer));

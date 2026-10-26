@@ -6,7 +6,11 @@ C++20 utility library for game engines and real-time systems. Pluggable memory a
 
 **Namespace:** All public API lives in `Opal`.
 
-**Platforms:** Windows, Linux. Cross-platform via `#if defined(OPAL_PLATFORM_WINDOWS)` / `#elif defined(OPAL_PLATFORM_LINUX)`.
+**Platforms:** Windows, Linux, macOS 14.4 or newer. Cross-platform via `#if defined(OPAL_PLATFORM_WINDOWS)` / `#elif defined(OPAL_PLATFORM_POSIX)`,
+where `OPAL_PLATFORM_POSIX` covers both `OPAL_PLATFORM_LINUX` and `OPAL_PLATFORM_MACOS`; a branch for what the two do not share
+nests one of those inside it. macOS 14.4 is where `os_sync_wait_on_address`, which `Signal` waits on, first shipped. Builder does
+not run on macOS, so `.github/workflows/macos.yml` builds and tests it through CMake with AppleClang. On macOS `SetThreadAffinity`
+does nothing and `SetThreadName` names only the calling thread, so the thread pool's workers are neither pinned nor named there.
 Android builds as Linux, since `__linux__` is defined there; a bionic call newer than API 29, the level builder targets, goes behind
 `__ANDROID_API__`. `builder build --platform=android --exceptions` builds the tests for it: push `OpalTests` with
 `opal_test_process_helper` beside it and run it from `adb shell`.
@@ -352,8 +356,8 @@ Platform-specific code uses preprocessor:
 ```cpp
 #if defined(OPAL_PLATFORM_WINDOWS)
     // Windows implementation (VirtualAlloc, _aligned_malloc, etc.)
-#elif defined(OPAL_PLATFORM_LINUX)
-    // Linux implementation (mmap, aligned_alloc, etc.)
+#elif defined(OPAL_PLATFORM_POSIX)
+    // Linux and macOS implementation (mmap, aligned_alloc, etc.)
 #endif
 ```
 

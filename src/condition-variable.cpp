@@ -4,7 +4,7 @@
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include "Windows.h"
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 #include "pthread.h"
 #include <time.h>
 #endif
@@ -14,7 +14,7 @@ namespace
 #if defined(OPAL_PLATFORM_WINDOWS)
 using NativeConditionVariable = CONDITION_VARIABLE;
 using NativeMutex = SRWLOCK;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 using NativeConditionVariable = pthread_cond_t;
 using NativeMutex = pthread_mutex_t;
 #else
@@ -33,6 +33,9 @@ Opal::ConditionVariable::ConditionVariable()
     static_assert(alignof(NativeConditionVariable) <= k_storage_alignment, "Native condition variable is underaligned in its storage");
 #if defined(OPAL_PLATFORM_WINDOWS)
     InitializeConditionVariable(new (m_storage) CONDITION_VARIABLE);
+#elif defined(OPAL_PLATFORM_MACOS)
+    // WaitFor waits for a relative time, so there is no clock to choose.
+    pthread_cond_init(new (m_storage) pthread_cond_t, nullptr);
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_condattr_t attributes;
     pthread_condattr_init(&attributes);
@@ -44,7 +47,7 @@ Opal::ConditionVariable::ConditionVariable()
 
 Opal::ConditionVariable::~ConditionVariable()
 {
-#if defined(OPAL_PLATFORM_LINUX)
+#if defined(OPAL_PLATFORM_POSIX)
     pthread_cond_destroy(GetNative(m_storage));
 #endif
 }
@@ -53,7 +56,7 @@ void Opal::ConditionVariable::NotifyOne()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     WakeConditionVariable(GetNative(m_storage));
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     pthread_cond_signal(GetNative(m_storage));
 #endif
 }
@@ -62,7 +65,7 @@ void Opal::ConditionVariable::NotifyAll()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     WakeAllConditionVariable(GetNative(m_storage));
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     pthread_cond_broadcast(GetNative(m_storage));
 #endif
 }
@@ -71,7 +74,7 @@ void Opal::ConditionVariable::Wait(void* native_mutex_handle)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     SleepConditionVariableSRW(GetNative(m_storage), static_cast<NativeMutex*>(native_mutex_handle), INFINITE, 0);
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
     pthread_cond_wait(GetNative(m_storage), static_cast<NativeMutex*>(native_mutex_handle));
 #endif
 }
@@ -95,6 +98,11 @@ bool Opal::ConditionVariable::WaitFor(void* native_mutex_handle, u64 timeout_ms)
             return false;
         }
     }
+#elif defined(OPAL_PLATFORM_MACOS)
+    struct timespec ts;
+    ts.tv_sec = static_cast<time_t>(timeout_ms / 1000);
+    ts.tv_nsec = static_cast<long>((timeout_ms % 1000) * 1000000);
+    return pthread_cond_timedwait_relative_np(GetNative(m_storage), static_cast<NativeMutex*>(native_mutex_handle), &ts) == 0;
 #elif defined(OPAL_PLATFORM_LINUX)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);

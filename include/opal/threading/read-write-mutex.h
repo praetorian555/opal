@@ -36,7 +36,11 @@ public:
     bool TryLockWrite();
     void UnlockWrite();
 
+#if defined(OPAL_PLATFORM_MACOS)
+    static constexpr size_t k_storage_size = 200;
+#else
     static constexpr size_t k_storage_size = 64;
+#endif
     static constexpr size_t k_storage_alignment = 8;
 
 private:

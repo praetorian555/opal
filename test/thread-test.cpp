@@ -135,6 +135,8 @@ struct MoveOnly
     }
 };
 
+// macOS can neither pin a thread nor say which core it runs on, so the tests that need either are left out there.
+#if !defined(OPAL_PLATFORM_MACOS)
 u32 GetCurrentLogicalCore()
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
@@ -143,6 +145,7 @@ u32 GetCurrentLogicalCore()
     return static_cast<u32>(sched_getcpu());
 #endif
 }
+#endif
 }  // namespace
 
 TEST_CASE("Create a thread", "[Thread]")
@@ -232,6 +235,7 @@ TEST_CASE("CPU topology reports the L3 caches the cores share", "[Thread]")
     }
 }
 
+#if !defined(OPAL_PLATFORM_MACOS)
 TEST_CASE("Pin a thread to a logical core", "[Thread]")
 {
     const Expected<CpuInfo, ErrorCode> cpu_info = GetCpuInfo();
@@ -249,6 +253,7 @@ TEST_CASE("Pin a thread to a logical core", "[Thread]")
     JoinThread(handle);
     CHECK(ran_on == core);
 }
+#endif
 
 TEST_CASE("SPSC queue basic Push and Pop", "[Thread]")
 {
@@ -2288,7 +2293,7 @@ StringUtf8 ReadCurrentThreadName()
         LocalFree(description);
     }
 #else
-    char buffer[16] = {};
+    char buffer[64] = {};
     if (pthread_getname_np(pthread_self(), buffer, sizeof(buffer)) == 0)
     {
         read_back = buffer;
@@ -2321,13 +2326,14 @@ TEST_CASE("SetThreadName names a thread", "[Thread]")
 
     // Eight ASCII bytes and four two-byte code points: sixteen bytes, one over Linux's limit.
     const char8* long_name = "worker1-\xC5\xBD\xC5\xBD\xC5\xBD\xC5\xBD";
-#if defined(OPAL_PLATFORM_WINDOWS)
+#if defined(OPAL_PLATFORM_WINDOWS) || defined(OPAL_PLATFORM_MACOS)
     REQUIRE(NameThreadAndReadBack(long_name) == long_name);
 #else
     REQUIRE(NameThreadAndReadBack(long_name) == "worker1-\xC5\xBD\xC5\xBD\xC5\xBD");
 #endif
 }
 
+#if !defined(OPAL_PLATFORM_MACOS)
 TEST_CASE("Thread pool pins and names its workers", "[Thread]")
 {
     const Expected<CpuInfo, ErrorCode> cpu_info = GetCpuInfo();
@@ -2371,6 +2377,7 @@ TEST_CASE("Thread pool pins and names its workers", "[Thread]")
     CHECK(off_core.load() == 0);
     CHECK(unnamed.load() == 0);
 }
+#endif
 
 TEST_CASE("Thread pool rejects worker cores that do not fit", "[Thread]")
 {

@@ -23,7 +23,7 @@ using uchar32 = char32_t;
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 using char16 = wchar_t;
-#elif defined(OPAL_PLATFORM_LINUX)
+#elif defined(OPAL_PLATFORM_POSIX)
 using char16 = char16_t;
 #endif
 
