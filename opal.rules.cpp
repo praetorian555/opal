@@ -37,6 +37,11 @@ BUILDER_MODULE(Catch2, m, t)
     m.public_defines = {"CATCH_AMALGAMATED_CUSTOM_MAIN"};
     m.sources.Add("third-party/catch2/src/catch_amalgamated.cpp");
     m.warnings = Warnings::Off;
+    // On Android Catch2 also writes what it reports to the system log.
+    if (t.platform.Is(Platform::Android))
+    {
+        m.libs = {"log"};
+    }
 }
 
 // A small program the process tests start. They look for it next to their own executable, so the

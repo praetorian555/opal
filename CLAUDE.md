@@ -7,6 +7,9 @@ C++20 utility library for game engines and real-time systems. Pluggable memory a
 **Namespace:** All public API lives in `Opal`.
 
 **Platforms:** Windows, Linux. Cross-platform via `#if defined(OPAL_PLATFORM_WINDOWS)` / `#elif defined(OPAL_PLATFORM_LINUX)`.
+Android builds as Linux, since `__linux__` is defined there; a bionic call newer than API 29, the level builder targets, goes behind
+`__ANDROID_API__`. `builder build --platform=android --exceptions` builds the tests for it: push `OpalTests` with
+`opal_test_process_helper` beside it and run it from `adb shell`.
 
 ## Build & Test
 

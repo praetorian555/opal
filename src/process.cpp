@@ -1252,6 +1252,124 @@ struct CStringArray
     }
 };
 
+/** What a child sets up before it runs: the descriptors it takes as stdin, stdout and stderr, -1 to keep its parent's, and where it runs. */
+struct ChildSetup
+{
+    i32 streams[3] = {-1, -1, -1};
+    const char* working_directory = nullptr;
+};
+
+#if defined(__ANDROID__) && __ANDROID_API__ < 34
+/** Report errno to the parent through @p status_fd and end the child. */
+[[noreturn]] void FailChild(i32 status_fd)
+{
+    const int error = errno;
+    (void)write(status_fd, &error, sizeof(error));
+    _exit(127);
+}
+#endif
+
+/**
+ * Start @p path as the leader of its own process group, with default signal handling and no signal blocked, after @p setup.
+ * @return 0, or the errno that kept the child from starting.
+ */
+int StartChild(pid_t& pid, const char* path, const ChildSetup& setup, char* const* argv, char* const* envp)
+{
+#if defined(__ANDROID__) && __ANDROID_API__ < 34
+    // Bionic has posix_spawn_file_actions_addchdir_np from API 34 only, so below it the child is forked and does what
+    // posix_spawn would. A pipe closed on exec tells the parent whether the exec happened, and if not, why.
+    i32 status_pipe[2] = {-1, -1};
+    if (pipe2(status_pipe, O_CLOEXEC) != 0)
+    {
+        return errno;
+    }
+    pid = fork();
+    if (pid < 0)
+    {
+        const int error = errno;
+        close(status_pipe[0]);
+        close(status_pipe[1]);
+        return error;
+    }
+    if (pid == 0)
+    {
+        // Only async-signal-safe calls from here on: the parent may have other threads.
+        close(status_pipe[0]);
+        setpgid(0, 0);
+        struct sigaction default_action = {};
+        default_action.sa_handler = SIG_DFL;
+        for (int signal = 1; signal < NSIG; ++signal)
+        {
+            if (signal != SIGKILL && signal != SIGSTOP)
+            {
+                sigaction(signal, &default_action, nullptr);
+            }
+        }
+        sigset_t none;
+        sigemptyset(&none);
+        sigprocmask(SIG_SETMASK, &none, nullptr);
+        for (i32 fd = 0; fd < 3; ++fd)
+        {
+            if (setup.streams[fd] >= 0 && dup2(setup.streams[fd], fd) < 0)
+            {
+                FailChild(status_pipe[1]);
+            }
+        }
+        if (setup.working_directory != nullptr && chdir(setup.working_directory) != 0)
+        {
+            FailChild(status_pipe[1]);
+        }
+        execve(path, argv, envp);
+        FailChild(status_pipe[1]);
+    }
+    close(status_pipe[1]);
+    int error = 0;
+    ssize_t count = 0;
+    do
+    {
+        count = read(status_pipe[0], &error, sizeof(error));
+    } while (count < 0 && errno == EINTR);
+    close(status_pipe[0]);
+    if (count == static_cast<ssize_t>(sizeof(error)))
+    {
+        waitpid(pid, nullptr, 0);
+        return error;
+    }
+    return 0;
+#else
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    for (i32 fd = 0; fd < 3; ++fd)
+    {
+        if (setup.streams[fd] >= 0)
+        {
+            posix_spawn_file_actions_adddup2(&actions, setup.streams[fd], fd);
+        }
+    }
+    if (setup.working_directory != nullptr)
+    {
+        posix_spawn_file_actions_addchdir_np(&actions, setup.working_directory);
+    }
+
+    posix_spawnattr_t attributes;
+    posix_spawnattr_init(&attributes);
+    posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF);
+    posix_spawnattr_setpgroup(&attributes, 0);
+    sigset_t signals;
+    sigemptyset(&signals);
+    posix_spawnattr_setsigmask(&attributes, &signals);
+    sigfillset(&signals);
+    sigdelset(&signals, SIGKILL);
+    sigdelset(&signals, SIGSTOP);
+    posix_spawnattr_setsigdefault(&attributes, &signals);
+
+    const int error = posix_spawn(&pid, path, &actions, &attributes, argv, envp);
+    posix_spawn_file_actions_destroy(&actions);
+    posix_spawnattr_destroy(&attributes);
+    return error;
+#endif
+}
+
 }  // namespace
 
 Opal::Expected<Opal::Process, Opal::ErrorCode> Opal::Process::Spawn(const ProcessDesc& desc)
@@ -1327,16 +1445,15 @@ Opal::Expected<Opal::Process, Opal::ErrorCode> Opal::Process::Spawn(const Proces
         return Result(ErrorCode::OSFailure);
     }
 
-    posix_spawn_file_actions_t actions;
-    posix_spawn_file_actions_init(&actions);
-    posix_spawn_file_actions_adddup2(&actions, null_fd, 0);
+    ChildSetup setup;
+    setup.streams[0] = null_fd;
     switch (desc.stdout_mode)
     {
         case ProcessOutput::Capture:
-            posix_spawn_file_actions_adddup2(&actions, stdout_pipe[1], 1);
+            setup.streams[1] = stdout_pipe[1];
             break;
         case ProcessOutput::Discard:
-            posix_spawn_file_actions_adddup2(&actions, null_fd, 1);
+            setup.streams[1] = null_fd;
             break;
         default:
             break;
@@ -1344,40 +1461,25 @@ Opal::Expected<Opal::Process, Opal::ErrorCode> Opal::Process::Spawn(const Proces
     switch (desc.stderr_mode)
     {
         case ProcessOutput::Capture:
-            posix_spawn_file_actions_adddup2(&actions, stderr_pipe[1], 2);
+            setup.streams[2] = stderr_pipe[1];
             break;
         case ProcessOutput::Discard:
-            posix_spawn_file_actions_adddup2(&actions, null_fd, 2);
+            setup.streams[2] = null_fd;
             break;
         case ProcessOutput::MergeWithStdout:
-            posix_spawn_file_actions_adddup2(&actions, 1, 2);
+            setup.streams[2] = 1;
             break;
         default:
             break;
     }
     if (!working_directory.IsEmpty())
     {
-        posix_spawn_file_actions_addchdir_np(&actions, working_directory.GetData());
+        setup.working_directory = working_directory.GetData();
     }
 
     // The child leads its own process group, so Kill reaches everything it starts, and starts with default signal handling.
-    posix_spawnattr_t attributes;
-    posix_spawnattr_init(&attributes);
-    posix_spawnattr_setflags(&attributes, POSIX_SPAWN_SETPGROUP | POSIX_SPAWN_SETSIGMASK | POSIX_SPAWN_SETSIGDEF);
-    posix_spawnattr_setpgroup(&attributes, 0);
-    sigset_t signals;
-    sigemptyset(&signals);
-    posix_spawnattr_setsigmask(&attributes, &signals);
-    sigfillset(&signals);
-    sigdelset(&signals, SIGKILL);
-    sigdelset(&signals, SIGSTOP);
-    posix_spawnattr_setsigdefault(&attributes, &signals);
-
     pid_t pid = 0;
-    const int spawn_error =
-        posix_spawn(&pid, executable.GetValue().GetData(), &actions, &attributes, argv.pointers.GetData(), envp.pointers.GetData());
-    posix_spawn_file_actions_destroy(&actions);
-    posix_spawnattr_destroy(&attributes);
+    const int spawn_error = StartChild(pid, executable.GetValue().GetData(), setup, argv.pointers.GetData(), envp.pointers.GetData());
     if (spawn_error != 0)
     {
         close_all();

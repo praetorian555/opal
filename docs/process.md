@@ -104,6 +104,11 @@ complete once every writer is done.
 Waiting blocks the calling thread. To run many processes at once, run each `Spawn` and `Wait` on a worker, for example a
 `ThreadPool` task per process.
 
+On Linux the child starts through `posix_spawn`. Android has `posix_spawn_file_actions_addchdir_np`, which sets the working
+directory, from API level 34 only, so a build for an older level forks the child and has it do what `posix_spawn` would: lead a
+process group, reset signal handling, take its streams and working directory, then exec. A pipe closed on exec carries back why a
+child did not start, so `Spawn` reports the same errors either way.
+
 ## Killing
 
 `Kill` ends the child and every process it started, and does not wait; a wait afterwards returns the result with `was_killed` set.
