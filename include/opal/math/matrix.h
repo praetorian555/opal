@@ -146,7 +146,9 @@ template <typename MatrixType>
 /**
  * Invert the matrix. Only defined for square matrices.
  * @param m The matrix to invert.
- * @return The inverted matrix, or ErrorCode::InvalidArgument when it is singular.
+ * @return The inverted matrix, or ErrorCode::InvalidArgument when it is singular. A floating point matrix also counts as singular
+ * when a row cancels to within rounding of zero, which it does rather than to an exact zero wherever the compiler fuses a multiply
+ * and an add.
  * @note A fixed point element type needs the width. Accuracy falls off as the elements move away from the scale of one,
  * and a 32 bit storage type is already a thousandth out on a transform holding a translation of ten. Use a 64 bit one,
  * and keep the matrix to a rotation with a modest scale and translation.
@@ -554,6 +556,22 @@ Opal::Expected<MatrixType, Opal::ErrorCode> Opal::Inverse(const MatrixType& m)
     u32 ipiv[MatrixType::k_row_count_value] = {};
     value_type mat_inv[MatrixType::k_row_count_value][MatrixType::k_row_count_value] = {};
     memcpy(mat_inv, m.elements, sizeof(MatrixType));
+    // The smallest pivot each row can give, which moves with the row when rows are swapped.
+    value_type row_tolerance[MatrixType::k_row_count_value] = {};
+    if constexpr (FloatingPoint<value_type>)
+    {
+        constexpr value_type k_epsilon = sizeof(value_type) == sizeof(f32) ? static_cast<value_type>(k_machine_epsilon_float)
+                                                                            : static_cast<value_type>(k_machine_epsilon_double);
+        for (u32 row = 0; row < MatrixType::k_row_count_value; row++)
+        {
+            value_type largest = 0;
+            for (u32 column = 0; column < MatrixType::k_col_count_value; column++)
+            {
+                largest = Opal::Abs(mat_inv[row][column]) > largest ? Opal::Abs(mat_inv[row][column]) : largest;
+            }
+            row_tolerance[row] = largest * static_cast<value_type>(MatrixType::k_row_count_value) * k_epsilon;
+        }
+    }
     for (u32 it = 0; it < MatrixType::k_row_count_value; it++)
     {
         u32 index_row = 0;
@@ -591,10 +609,11 @@ Opal::Expected<MatrixType, Opal::ErrorCode> Opal::Inverse(const MatrixType& m)
             {
                 Swap(mat_inv[index_row][column], mat_inv[index_column][column]);
             }
+            Swap(row_tolerance[index_row], row_tolerance[index_column]);
         }
         indxr[it] = index_row;
         indxc[it] = index_column;
-        if (mat_inv[index_column][index_column] == 0)
+        if (Opal::Abs(mat_inv[index_column][index_column]) <= row_tolerance[index_column])
         {
             return Result(ErrorCode::InvalidArgument);
         }

@@ -941,6 +941,14 @@ TEST_CASE("Matrix 4x4 inverse operator", "[math][matrix]")
         REQUIRE_FALSE(inverted.HasValue());
         CHECK(inverted.GetError() == ErrorCode::InvalidArgument);
     }
+    SECTION("row far smaller than the others still inverts")
+    {
+        const Matrix4x4f scale = Matrix4x4f::FromRows({0x1p-24f, 0, 0, 0}, {0, 1, 0, 0}, {0, 0, 0x1p20f, 0}, {0, 0, 0, 1});
+        const auto inverted = Inverse(scale);
+        REQUIRE(inverted.HasValue());
+        CHECK(inverted.GetValue().elements[0][0] == 0x1p24f);
+        CHECK(inverted.GetValue().elements[2][2] == 0x1p-20f);
+    }
 }
 
 TEST_CASE("To Matrix3x3 and Matrix4x4", "[math][matrix]")
