@@ -146,6 +146,9 @@ public:
 #elif defined(OPAL_PLATFORM_LINUX)
         m_has_previous = sched_getaffinity(0, sizeof(m_previous), &m_previous) == 0;
         PinCurrentThread(core);
+#else
+        // macOS does not let a thread be pinned.
+        (void)core;
 #endif
     }
 

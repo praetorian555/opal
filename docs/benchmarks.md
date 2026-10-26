@@ -50,7 +50,8 @@ pinning there does not control placement. Take threaded numbers from a native bu
 The `ThreadPool` benchmarks pin the same way, with the benchmark thread as the producer and the workers as the consumers. Neither
 pool exposes its workers, so each is pinned from inside, by a task that takes the next core and holds its worker until every
 worker holds one. The benchmark thread gets its own cores back afterwards. The topology and pinning code is shared in
-`benchmark/thread-placement.h`.
+`benchmark/thread-placement.h`. macOS does not let a thread be pinned, so there the threads go where the scheduler puts them and
+a threaded result moves more between runs than it does on Windows or Linux.
 
 ## Comparing two runs
 
