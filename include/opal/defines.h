@@ -43,10 +43,10 @@
 
 // Keep in step with the version passed to project() in CMakeLists.txt.
 #define OPAL_VERSION_MAJOR 0
-#define OPAL_VERSION_MINOR 10
-#define OPAL_VERSION_PATCH 1
+#define OPAL_VERSION_MINOR 11
+#define OPAL_VERSION_PATCH 0
 
-#define OPAL_VERSION_STRING "0.10.1"
+#define OPAL_VERSION_STRING "0.11.0"
 
 #if defined(OPAL_COMPILER_MSVC)
 #define OPAL_DISABLE_OPTIMIZATION __pragma(optimize("", off))
