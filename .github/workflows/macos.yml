@@ -41,7 +41,8 @@ jobs:
       run: cmake -B build -DCMAKE_BUILD_TYPE=${{ matrix.config.build_type }} -DOPAL_BUILD_TESTS=ON -DOPAL_HARDENING=${{ matrix.config.hardening }}
 
     - name: Build
-      run: cmake --build build -j "$(sysctl -n hw.ncpu)"
+      # -k so that one run reports every file that does not compile, not just the first.
+      run: cmake --build build -j "$(sysctl -n hw.ncpu)" -- -k
 
     - name: Test
       working-directory: build

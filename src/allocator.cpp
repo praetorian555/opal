@@ -1,12 +1,13 @@
 #include "opal/allocator.h"
 
-#include <malloc.h>
+#include <stdlib.h>
 
 #include "opal/casts.h"
 #include "opal/math-base.h"
 
 #if defined(OPAL_PLATFORM_WINDOWS)
 #include <Windows.h>
+#include <malloc.h>
 #elif defined(OPAL_PLATFORM_POSIX)
 #include <sys/mman.h>
 #include <unistd.h>
