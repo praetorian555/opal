@@ -77,6 +77,38 @@ Opal::ErrorCode Opal::Impl::DecodeSingleByte(const HighHalfTable& table, ArrayVi
     return ErrorCode::Success;
 }
 
+namespace
+{
+#if defined(OPAL_PLATFORM_MACOS)
+// macOS has no c32rtomb or mbrtoc32, but its wchar_t holds a UTF-32 code point in every locale, which the wide calls take.
+size_t CodePointToMultiByte(char* output, char32_t code_point, mbstate_t* state)
+{
+    return wcrtomb(output, static_cast<wchar_t>(code_point), state);
+}
+
+size_t MultiByteToCodePoint(char32_t* output, const char* input, size_t size, mbstate_t* state)
+{
+    wchar_t wide = 0;
+    const size_t count = mbrtowc(&wide, input, size, state);
+    if (count <= size)
+    {
+        *output = static_cast<char32_t>(wide);
+    }
+    return count;
+}
+#else
+size_t CodePointToMultiByte(char* output, char32_t code_point, mbstate_t* state)
+{
+    return c32rtomb(output, code_point, state);
+}
+
+size_t MultiByteToCodePoint(char32_t* output, const char* input, size_t size, mbstate_t* state)
+{
+    return mbrtoc32(output, input, size, state);
+}
+#endif
+}  // namespace
+
 Opal::EncodingLocale::EncodingLocale() : m_encoding_state(), m_decoding_state()
 {
     OPAL_ASSERT(mbsinit(&m_encoding_state) != 0, "Encoding state is not initialized!");
@@ -87,7 +119,7 @@ Opal::ErrorCode Opal::EncodingLocale::EncodeOne(CodePointType in_code_point, Arr
 {
     CodeUnitType buffer[MB_LEN_MAX];
     const mbstate_t saved_state = m_encoding_state;
-    const size_t count = c32rtomb(buffer, in_code_point, &m_encoding_state);
+    const size_t count = CodePointToMultiByte(buffer, in_code_point, &m_encoding_state);
     if (count == static_cast<size_t>(-1))
     {
         m_encoding_state = saved_state;
@@ -112,7 +144,7 @@ Opal::ErrorCode Opal::EncodingLocale::DecodeOne(ArrayView<const CodeUnitType>& i
     {
         return ErrorCode::EndOfString;
     }
-    const size_t count = mbrtoc32(&out_code_point, input.GetData(), input.GetSize(), &m_decoding_state);
+    const size_t count = MultiByteToCodePoint(&out_code_point, input.GetData(), input.GetSize(), &m_decoding_state);
     if (count == 0)
     {
         // We've just written null character
