@@ -6,7 +6,7 @@ name: Builder
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "web" ]
   pull_request:
     branches: [ "main" ]
 
@@ -122,6 +122,43 @@ jobs:
     - name: Build without exceptions
       shell: bash
       run: builder build $BUILD_ARGS
+
+  # The web as wasm64, with the tests under the emsdk's Node. On Linux, where the working directory is one POSIX paths can read, so
+  # no test skips over it as on a Windows host. Builder takes the emsdk from EMSDK alone, and --toolchain is for the rules runner,
+  # which builds for the host.
+  web:
+    strategy:
+      fail-fast: false
+      matrix:
+        build_type: [ Debug, Release ]
+    name: Web ${{ matrix.build_type }} (builder)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EMSDK_VERSION: 6.0.13
+    steps:
+    - uses: actions/checkout@v7
+
+    - uses: praetorian555/setup-builder@main
+      with:
+        version: 0.5.0
+
+    - name: Install the emsdk
+      shell: bash
+      run: |
+        git clone --depth 1 --branch "$EMSDK_VERSION" https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+        "$RUNNER_TEMP/emsdk/emsdk" install "$EMSDK_VERSION"
+        "$RUNNER_TEMP/emsdk/emsdk" activate "$EMSDK_VERSION"
+        echo "EMSDK=$RUNNER_TEMP/emsdk" >> "$GITHUB_ENV"
+
+    - name: Test
+      shell: bash
+      run: builder test --platform=web --exceptions --timings --toolchain=gcc --config=${{ matrix.build_type }}
+
+    # How rndr takes the library.
+    - name: Build without exceptions
+      shell: bash
+      run: builder build --platform=web --toolchain=gcc --config=${{ matrix.build_type }}
 
   # The benchmarks need Google Benchmark, which builder.json fetches only with -Dbenchmarks=true. This
   # job keeps them compiling and runs the smallest size of every benchmark once, so a crash shows up
