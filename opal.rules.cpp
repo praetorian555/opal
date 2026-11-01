@@ -16,7 +16,15 @@ BUILDER_MODULE(Opal, m, t)
 {
     m.cxx_standard = 20;
     m.public_includes = {"include", "third-party/rapidhash/include"};
-    m.sources.AddDir("src");
+    // A browser has no process to start and no socket to open.
+    if (t.platform.Is(Platform::Web))
+    {
+        m.sources.AddDir("src").Exclude("src/process.cpp").Exclude("src/socket.cpp");
+    }
+    else
+    {
+        m.sources.AddDir("src");
+    }
     m.headers.AddDir("include", Recurse::Yes);
     if (t.platform.Is(Platform::Windows))
     {

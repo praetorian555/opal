@@ -6,10 +6,12 @@
 #define OPAL_PLATFORM_LINUX
 #elif __APPLE__
 #define OPAL_PLATFORM_MACOS
+#elif __EMSCRIPTEN__
+#define OPAL_PLATFORM_WEB
 #endif
 
-// Linux and macOS, for what they share through POSIX. Each keeps its own define for what they do not share.
-#if defined(OPAL_PLATFORM_LINUX) || defined(OPAL_PLATFORM_MACOS)
+// Linux, macOS and the web, for what they share through POSIX. Each keeps its own define for what they do not share.
+#if defined(OPAL_PLATFORM_LINUX) || defined(OPAL_PLATFORM_MACOS) || defined(OPAL_PLATFORM_WEB)
 #define OPAL_PLATFORM_POSIX
 #endif
 

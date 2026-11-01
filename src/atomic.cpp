@@ -10,7 +10,7 @@
 
 Opal::Atomic<bool> Opal::Impl::g_asymmetric_fence_ready = false;
 
-#if !defined(OPAL_PLATFORM_MACOS)
+#if defined(OPAL_PLATFORM_WINDOWS) || defined(OPAL_PLATFORM_LINUX)
 namespace
 {
 // Every light fence reads the flag, so it is written once rather than on every heavy fence, which would keep pulling its cache
@@ -34,9 +34,10 @@ void Opal::AsymmetricThreadFenceHeavy()
     MarkReady();
 }
 
-#elif defined(OPAL_PLATFORM_MACOS)
+#elif defined(OPAL_PLATFORM_MACOS) || defined(OPAL_PLATFORM_WEB)
 
-// macOS has no public call that interrupts the other threads of a process, so the light half keeps its hardware fence.
+// macOS has no public call that interrupts the other threads of a process, and the web has no other threads, so the light half keeps
+// its hardware fence.
 void Opal::AsymmetricThreadFenceHeavy()
 {
     Opal::CompilerAndHardwareFence();

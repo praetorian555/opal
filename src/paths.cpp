@@ -501,6 +501,9 @@ Opal::Expected<Opal::StringUtf8, Opal::ErrorCode> Opal::Paths::GetExecutablePath
         return Result(ErrorCode::OSFailure);
     }
     return StringViewUtf8(buffer, static_cast<u64>(written)).TryToString();
+#elif defined(OPAL_PLATFORM_WEB)
+    // A page has no executable on any file system it can see.
+    return Result(ErrorCode::NotImplemented);
 #else
 #error "Platform not supported"
 #endif

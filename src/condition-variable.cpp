@@ -33,8 +33,8 @@ Opal::ConditionVariable::ConditionVariable()
     static_assert(alignof(NativeConditionVariable) <= k_storage_alignment, "Native condition variable is underaligned in its storage");
 #if defined(OPAL_PLATFORM_WINDOWS)
     InitializeConditionVariable(new (m_storage) CONDITION_VARIABLE);
-#elif defined(OPAL_PLATFORM_MACOS)
-    // WaitFor waits for a relative time, so there is no clock to choose.
+#elif defined(OPAL_PLATFORM_MACOS) || defined(OPAL_PLATFORM_WEB)
+    // WaitFor waits for a relative time, or not at all, so there is no clock to choose.
     pthread_cond_init(new (m_storage) pthread_cond_t, nullptr);
 #elif defined(OPAL_PLATFORM_LINUX)
     pthread_condattr_t attributes;
@@ -74,6 +74,9 @@ void Opal::ConditionVariable::Wait(void* native_mutex_handle)
 {
 #if defined(OPAL_PLATFORM_WINDOWS)
     SleepConditionVariableSRW(GetNative(m_storage), static_cast<NativeMutex*>(native_mutex_handle), INFINITE, 0);
+#elif defined(OPAL_PLATFORM_WEB)
+    (void)native_mutex_handle;
+    HandleContractViolation("Waiting on a condition variable on the web, where no other thread can notify it");
 #elif defined(OPAL_PLATFORM_POSIX)
     pthread_cond_wait(GetNative(m_storage), static_cast<NativeMutex*>(native_mutex_handle));
 #endif
@@ -98,6 +101,11 @@ bool Opal::ConditionVariable::WaitFor(void* native_mutex_handle, u64 timeout_ms)
             return false;
         }
     }
+#elif defined(OPAL_PLATFORM_WEB)
+    // No other thread can notify it, and blocking the page for the timeout would gain nothing.
+    (void)native_mutex_handle;
+    (void)timeout_ms;
+    return false;
 #elif defined(OPAL_PLATFORM_MACOS)
     struct timespec ts;
     ts.tv_sec = static_cast<time_t>(timeout_ms / 1000);

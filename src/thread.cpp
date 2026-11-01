@@ -15,7 +15,7 @@
 #include <unistd.h>
 #if defined(OPAL_PLATFORM_MACOS)
 #include <sys/sysctl.h>
-#else
+#elif defined(OPAL_PLATFORM_LINUX)
 #include <sys/syscall.h>
 #endif
 
@@ -43,6 +43,9 @@ Opal::u64 GetCurrentOsThreadId()
     Opal::u64 id = 0;
     pthread_threadid_np(nullptr, &id);
     return id;
+#elif defined(OPAL_PLATFORM_WEB)
+    // The only thread there is. Not 0, which CreateThread reads as no id yet.
+    return 1;
 #else
     return static_cast<Opal::u64>(syscall(SYS_gettid));
 #endif
@@ -252,6 +255,7 @@ Opal::ErrorCode Opal::SetThreadName(ThreadHandle handle, StringViewUtf8 name)
 namespace
 {
 
+#if !defined(OPAL_PLATFORM_WEB)
 /** An L3 cache found while reading the topology, before the domains are numbered. */
 struct L3Domain
 {
@@ -309,6 +313,7 @@ Opal::ErrorCode FinishL3Domains(Opal::CpuInfo& info, Opal::DynamicArray<L3Domain
     }
     return Opal::ErrorCode::Success;
 }
+#endif
 
 #if defined(OPAL_PLATFORM_MACOS)
 /** Read an integer sysctl. @return 0 if it could not be read. */
@@ -625,6 +630,19 @@ Opal::Expected<Opal::CpuInfo, Opal::ErrorCode> Opal::GetCpuInfo()
         return Result(ErrorCode::OutOfMemory);
     }
     return Result(Move(info));
+#elif defined(OPAL_PLATFORM_WEB)
+    // The page runs on one thread, however many cores the machine has.
+    CpuInfo info;
+    PhysicalCoreInfo pp_info;
+    pp_info.id = 0;
+    pp_info.logical_cores = BitMask<u64>(u64{1});
+    pp_info.is_hyperthreaded = false;
+    info.logical_cores_count = 1;
+    if (info.physical_processors.PushBack(std::move(pp_info)) != ErrorCode::Success) [[unlikely]]
+    {
+        return Result(ErrorCode::OutOfMemory);
+    }
+    return Result(Move(info));
 #else
 #error "Platform not supported"
 #endif
@@ -679,6 +697,9 @@ void Opal::SetThreadAffinity(ThreadHandle handle, u32 logical_core_id)
         SetThreadAffinityMask(handle.native_handle, mask);
 #elif defined(OPAL_PLATFORM_MACOS)
         // macOS does not let a thread be pinned to a core.
+        (void)logical_core_id;
+#elif defined(OPAL_PLATFORM_WEB)
+        // No thread gets this far, since none can be started.
         (void)logical_core_id;
 #elif defined(OPAL_PLATFORM_LINUX)
         cpu_set_t cpu_set;

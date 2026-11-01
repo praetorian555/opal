@@ -140,8 +140,8 @@ struct LinearAllocator final : public AllocatorBase
     void Free(void* ptr) override;
 
     u64 Mark() const { return m_offset; }
-    virtual void Reset();
-    virtual void Reset(u64 position);
+    void Reset();
+    void Reset(u64 position);
 
     [[nodiscard]] bool IsThreadSafe() const override { return false; }
 

@@ -36,6 +36,8 @@ void Opal::Signal::Wait(u32 expected_state)
         os_sync_wait_on_address(m_state.GetStorageAddress(), expected_state, sizeof(u32), OS_SYNC_WAIT_ON_ADDRESS_NONE);
 #elif defined(OPAL_PLATFORM_LINUX)
         syscall(SYS_futex, m_state.GetStorageAddress(), FUTEX_WAIT | FUTEX_PRIVATE_FLAG, expected_state, nullptr, nullptr, 0);
+#elif defined(OPAL_PLATFORM_WEB)
+        HandleContractViolation("Waiting on a signal on the web, where no other thread can notify it");
 #else
 #error "Platform not supported"
 #endif
@@ -67,6 +69,9 @@ bool Opal::Signal::WaitFor(u32 expected_state, u64 timeout_ms)
         ts.tv_sec = static_cast<time_t>(remaining_ns / 1'000'000'000.0);
         ts.tv_nsec = static_cast<long>(remaining_ns - static_cast<f64>(ts.tv_sec) * 1'000'000'000.0);
         syscall(SYS_futex, m_state.GetStorageAddress(), FUTEX_WAIT | FUTEX_PRIVATE_FLAG, expected_state, &ts, nullptr, 0);
+#elif defined(OPAL_PLATFORM_WEB)
+        // No other thread can notify it, and blocking the page for the timeout would gain nothing.
+        return false;
 #else
 #error "Platform not supported"
 #endif
@@ -83,7 +88,7 @@ void Opal::Signal::NotifyOne()
     os_sync_wake_by_address_any(m_state.GetStorageAddress(), sizeof(u32), OS_SYNC_WAKE_BY_ADDRESS_NONE);
 #elif defined(OPAL_PLATFORM_LINUX)
     syscall(SYS_futex, m_state.GetStorageAddress(), FUTEX_WAKE | FUTEX_PRIVATE_FLAG, 1, nullptr, nullptr, 0);
-#else
+#elif !defined(OPAL_PLATFORM_WEB)
 #error "Platform not supported"
 #endif
 }
@@ -97,7 +102,7 @@ void Opal::Signal::NotifyAll()
     os_sync_wake_by_address_all(m_state.GetStorageAddress(), sizeof(u32), OS_SYNC_WAKE_BY_ADDRESS_NONE);
 #elif defined(OPAL_PLATFORM_LINUX)
     syscall(SYS_futex, m_state.GetStorageAddress(), FUTEX_WAKE | FUTEX_PRIVATE_FLAG, INT_MAX, nullptr, nullptr, 0);
-#else
+#elif !defined(OPAL_PLATFORM_WEB)
 #error "Platform not supported"
 #endif
 }
