@@ -66,7 +66,7 @@ Opal::SystemMemoryAllocator::SystemMemoryAllocator(const char* debug_name, const
         m_reserved_size += m_allocation_granularity - (m_reserved_size % m_allocation_granularity);
     }
     m_memory = mmap(nullptr, m_reserved_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE, -1, 0);
-    if (m_memory == nullptr)
+    if (m_memory == MAP_FAILED)
     {
         OPAL_RAISE(OutOfMemoryException("Failed to reserve memory for the page allocator in the OS!"));
     }

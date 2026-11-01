@@ -130,6 +130,19 @@ TEST_CASE("System memory allocator", "[Allocator]")
 
         delete allocator;
     }
+    SECTION("Failed reservation")
+    {
+        // More than the address space holds. On the web a size past 2^53 does not fail: heap growth cannot take it as a number.
+#if defined(OPAL_PLATFORM_WEB)
+        constexpr Opal::u64 k_too_much = Opal::u64{1} << 40;
+#else
+        constexpr Opal::u64 k_too_much = Opal::u64{1} << 62;
+#endif
+        Opal::SystemMemoryAllocatorDesc desc{.bytes_to_reserve = k_too_much, .bytes_to_initially_alloc = 0, .commit_step_size = OPAL_MB(1)};
+        Opal::SystemMemoryAllocator* allocator = nullptr;
+        REQUIRE_THROWS_AS(allocator = new Opal::SystemMemoryAllocator("System Memory Allocator", desc), Opal::OutOfMemoryException);
+        REQUIRE(allocator == nullptr);
+    }
 }
 
 TEST_CASE("Linear allocator", "[Allocator]")
