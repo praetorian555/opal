@@ -8,6 +8,13 @@
 #include "opal/math/point2.h"
 #include "opal/math/quaternion.h"
 
+// The web runs on one thread, so a test that needs a second one skips from here.
+#if defined(OPAL_PLATFORM_WEB)
+#define OPAL_SKIP_WITHOUT_THREADS() SKIP("The web has no threads")
+#else
+#define OPAL_SKIP_WITHOUT_THREADS()
+#endif
+
 template <Opal::FixedPointStorage T, Opal::u32 k_frac_bits>
 std::ostream& operator<<(std::ostream& os, const Opal::FixedPoint<T, k_frac_bits>& value)
 {

@@ -34,9 +34,15 @@ void WriteDataToFile(const StringUtf8& path, const void* data, Opal::u64 size)
 // Unwrap the success case so the tests that are not about failure stay about what they read back.
 StringUtf8 CwdOrFail()
 {
+#if defined(OPAL_PLATFORM_WEB)
+    // Under Node on Windows the working directory is a C:\ path, which POSIX path handling does not read as absolute, and these tests
+    // only want a directory to write in. A browser's working directory is "/".
+    return StringUtf8(".");
+#else
     Expected<StringUtf8, ErrorCode> result = Paths::GetCurrentWorkingDirectory();
     REQUIRE(result.HasValue());
     return std::move(result).GetValue();
+#endif
 }
 
 template <typename... Args>

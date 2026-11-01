@@ -22,6 +22,17 @@ StringUtf8 CwdOrFail()
     return std::move(result).GetValue();
 }
 
+// Under Node on Windows the working directory is a C:\ path, which POSIX path handling does not read as absolute.
+void SkipOnWindowsHost([[maybe_unused]] const StringUtf8& cwd)
+{
+#if defined(OPAL_PLATFORM_WEB)
+    if (cwd.GetSize() >= 2 && cwd[1] == ':')
+    {
+        SKIP("Running under Node on Windows");
+    }
+#endif
+}
+
 StringUtf8 NormalizeOrFail(const StringUtf8& path)
 {
     Expected<StringUtf8, ErrorCode> result = Paths::NormalizePath(path);
@@ -67,6 +78,7 @@ TEST_CASE("Set current working directory", "[Paths]")
         StringUtf8 cwd;
         cwd = CwdOrFail();
         REQUIRE(cwd.GetSize() > 0);
+        SkipOnWindowsHost(cwd);
 
         auto new_path = std::move(cwd);
         new_path.Append("\\..");
@@ -158,6 +170,7 @@ TEST_CASE("Normalize path", "[Paths]")
     {
         StringUtf8 cwd;
         cwd = CwdOrFail();
+        SkipOnWindowsHost(cwd);
 
         StringUtf8 normalized;
         normalized = NormalizeOrFail("test//");

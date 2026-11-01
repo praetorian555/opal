@@ -303,6 +303,7 @@ namespace
 template <typename Function, typename... Args>
 Opal::ThreadHandle CreateThreadOrFail(Function&& function, Args&&... args)
 {
+    OPAL_SKIP_WITHOUT_THREADS();
     Opal::Expected<Opal::ThreadHandle, Opal::ErrorCode> handle =
         Opal::CreateThread(std::forward<Function>(function), std::forward<Args>(args)...);
     REQUIRE(handle.HasValue());
@@ -390,6 +391,7 @@ TEST_CASE("Thread-local allocator stacks", "[Allocator]")
     }
     SECTION("Push is allowed to be the first stack touch on a thread")
     {
+        OPAL_SKIP_WITHOUT_THREADS();
         // std::thread on purpose: Opal::CreateThread reads the default allocator while starting the thread, which hides
         // the case where a push is the very first thing that touches the stack.
         Opal::MallocAllocator child_allocator;

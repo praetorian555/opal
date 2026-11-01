@@ -129,13 +129,17 @@ Opal::ErrorCode Opal::SystemMemoryAllocator::Commit(u64 size)
     }
     void* commit_addr = reinterpret_cast<void*>(reinterpret_cast<u64>(m_memory) + m_commited_size);
 #if defined(OPAL_PLATFORM_WINDOWS)
-    void* commited_memory = VirtualAlloc(commit_addr, size, MEM_COMMIT, PAGE_READWRITE);
-    if (commited_memory == nullptr)
+    const bool is_commited = VirtualAlloc(commit_addr, size, MEM_COMMIT, PAGE_READWRITE) != nullptr;
+#elif defined(OPAL_PLATFORM_WEB)
+    // mmap already backed the whole reservation, and mprotect is a stub that warns on every call.
+    (void)commit_addr;
+    const bool is_commited = true;
 #elif defined(OPAL_PLATFORM_POSIX)
-    if (mprotect(commit_addr, size, PROT_READ | PROT_WRITE) != 0)
+    const bool is_commited = mprotect(commit_addr, size, PROT_READ | PROT_WRITE) == 0;
 #else
 #error "Platform not supported"
 #endif
+    if (!is_commited)
     {
         return ErrorCode::OutOfMemory;
     }

@@ -216,6 +216,10 @@ Opal::ErrorCode Opal::SetThreadName(ThreadHandle handle, StringViewUtf8 name)
         return transcode_result;
     }
     return SUCCEEDED(::SetThreadDescription(handle.native_handle, wide_name.GetData())) ? ErrorCode::Success : ErrorCode::OSFailure;
+#elif defined(OPAL_PLATFORM_WEB)
+    // Nothing on the web shows a thread's name, or has a call to set one.
+    (void)name;
+    return ErrorCode::Success;
 #elif defined(OPAL_PLATFORM_POSIX)
     StringUtf8 valid_name;
     const ErrorCode transcode_result = Transcode(name, valid_name, InvalidSequencePolicy::Replace);

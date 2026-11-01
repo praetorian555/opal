@@ -56,6 +56,7 @@ private:
 template <typename Function>
 ThreadHandle CreateThreadOrFail(Function&& function)
 {
+    OPAL_SKIP_WITHOUT_THREADS();
     Expected<ThreadHandle, ErrorCode> handle = CreateThread(std::forward<Function>(function));
     REQUIRE(handle.HasValue());
     return handle.GetValue();
@@ -379,6 +380,7 @@ TEST_CASE("Blocks handed between threads keep their contents", "[SmallBlockAlloc
 
 TEST_CASE("Serves the tasks of a ThreadPool", "[SmallBlockAllocator]")
 {
+    OPAL_SKIP_WITHOUT_THREADS();
     SmallBlockAllocator allocator;
     {
         Expected<ScopePtr<ThreadPool>, ErrorCode> created = ThreadPool::Create(4, 128, &allocator);

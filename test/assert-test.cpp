@@ -7,17 +7,15 @@ using namespace Opal;
 namespace
 {
 bool g_handler_called = false;
-const char* g_handler_message = nullptr;
 
 // Not const, so the comparison below is not a constant expression. MSVC reports one as C4127, which this build treats as an error.
 u64 g_size = 4;
 
 // Long-jumping out of a contract handler is not something the library promises. This one records and returns, which
 // HandleContractViolation is documented to treat as a handler that did not do its job.
-void RecordViolation(const char* message)
+void RecordViolation(const char*)
 {
     g_handler_called = true;
-    g_handler_message = message;
 }
 
 struct ScopedContractHandler

@@ -31,7 +31,16 @@ BUILDER_MODULE(Opal, m, t)
         m.libs = {"synchronization.lib", "ws2_32.lib"};
     }
 
-    m.test_sources.AddDir("test").Exclude("test/process-test-helper.cpp");
+    // The web runs on one thread with no processes or sockets, which is all these files test.
+    if (t.platform.Is(Platform::Web))
+    {
+        m.test_sources.AddDir("test").Exclude({"test/process-test-helper.cpp", "test/process-test.cpp", "test/socket-test.cpp",
+                                               "test/thread-test.cpp", "test/executor-test.cpp", "test/future-test.cpp"});
+    }
+    else
+    {
+        m.test_sources.AddDir("test").Exclude("test/process-test-helper.cpp");
+    }
     m.test_precompiled_header = "test/test-helpers.h";
     m.test_deps = {"Catch2"};
 }
@@ -91,7 +100,7 @@ BUILDER_TARGET(OpalTests, t, c)
 BUILDER_TARGET(opal_test_process_helper, t, c)
 {
     t.modules = {"OpalTestHelper"};
-    t.enabled = c.exceptions;
+    t.enabled = c.exceptions && !c.platform.Is(Platform::Web);
 }
 
 BUILDER_TARGET(opal_benchmark, t, c)

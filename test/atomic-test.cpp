@@ -16,6 +16,7 @@ namespace
 template <typename Function, typename... Args>
 ThreadHandle CreateThreadOrFail(Function&& function, Args&&... args)
 {
+    OPAL_SKIP_WITHOUT_THREADS();
     Expected<ThreadHandle, ErrorCode> handle = CreateThread(Forward<Function>(function), Forward<Args>(args)...);
     REQUIRE(handle.HasValue());
     return handle.GetValue();

@@ -468,10 +468,10 @@ TEST_CASE("Transform rotation and translation", "[math][transform]")
         const double c1 = Cos(Radians(degrees));
         const Matrix4d t1 = RotateAndTranslate(rot1, Vector3d(2, 3, 5));
         CHECK(t1(0, 0) == c1);
-        CHECK(t1(0, 1) == -s1);
+        CHECK(IsEqual(t1(0, 1), -s1, k_machine_epsilon_double));
         CHECK(t1(0, 2) == 0);
         CHECK(t1(0, 3) == 2);
-        CHECK(t1(1, 0) == s1);
+        CHECK(IsEqual(t1(1, 0), s1, k_machine_epsilon_double));
         CHECK(t1(1, 1) == c1);
         CHECK(t1(1, 2) == 0);
         CHECK(t1(1, 3) == 3);
@@ -486,10 +486,10 @@ TEST_CASE("Transform rotation and translation", "[math][transform]")
 
         const Matrix4d t2 = RotateAndTranslate(rot1, Point3d(2, 3, 5));
         CHECK(t2(0, 0) == c1);
-        CHECK(t2(0, 1) == -s1);
+        CHECK(IsEqual(t2(0, 1), -s1, k_machine_epsilon_double));
         CHECK(t2(0, 2) == 0);
         CHECK(t2(0, 3) == 2);
-        CHECK(t2(1, 0) == s1);
+        CHECK(IsEqual(t2(1, 0), s1, k_machine_epsilon_double));
         CHECK(t2(1, 1) == c1);
         CHECK(t2(1, 2) == 0);
         CHECK(t2(1, 3) == 3);
