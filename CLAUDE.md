@@ -6,14 +6,28 @@ C++20 utility library for game engines and real-time systems. Pluggable memory a
 
 **Namespace:** All public API lives in `Opal`.
 
-**Platforms:** Windows, Linux, macOS 14.4 or newer. Cross-platform via `#if defined(OPAL_PLATFORM_WINDOWS)` / `#elif defined(OPAL_PLATFORM_POSIX)`,
-where `OPAL_PLATFORM_POSIX` covers both `OPAL_PLATFORM_LINUX` and `OPAL_PLATFORM_MACOS`; a branch for what the two do not share
+**Platforms:** Windows, Linux, macOS 14.4 or newer, and the web. Cross-platform via `#if defined(OPAL_PLATFORM_WINDOWS)` / `#elif defined(OPAL_PLATFORM_POSIX)`,
+where `OPAL_PLATFORM_POSIX` covers `OPAL_PLATFORM_LINUX`, `OPAL_PLATFORM_MACOS` and `OPAL_PLATFORM_WEB`; a branch for what they do not share
 nests one of those inside it. macOS 14.4 is where `os_sync_wait_on_address`, which `Signal` waits on, first shipped. CI builds and
 tests it with builder and Apple's clang on `macos-15`, beside Windows and Linux in `.github/workflows/builder.yml`. On macOS `SetThreadAffinity`
 does nothing and `SetThreadName` names only the calling thread, so the thread pool's workers are neither pinned nor named there.
 Android builds as Linux, since `__linux__` is defined there; a bionic call newer than API 29, the level builder targets, goes behind
 `__ANDROID_API__`. `builder build --platform=android --exceptions` builds the tests for it: push `OpalTests` with
 `opal_test_process_helper` beside it and run it from `adb shell`.
+
+The web is emscripten as wasm64, wasm32 being out because `String` assumes eight-byte pointers. `builder build --platform=web` builds
+it and `builder test --platform=web --exceptions` runs the tests under the emsdk's Node, with `EMSDK` naming the emsdk; a CI job does
+both on Linux. It is single threaded, so `CreateThread` and `ThreadPool::Create` return `OSFailure`, `GetCpuInfo` reports one core, a
+`Signal` or `ConditionVariable` wait that would block is a contract violation since nothing could end it, and their timed waits
+return at once. `process.cpp` and `socket.cpp` are left out, since a browser can do neither, and `GetExecutablePath` returns
+`NotImplemented`. `SystemMemoryAllocator` has no reserve and commit split there: `mmap` backs and zeroes the whole reservation up
+front and the heap never shrinks, so size a reservation for what it will use. Heap growth stops at emscripten's default 2 GiB.
+
+The tests of what the web lacks are out of that build (`process-test.cpp`, `socket-test.cpp`, `thread-test.cpp`, `executor-test.cpp`,
+`future-test.cpp`), a test that needs a second thread skips through `OPAL_SKIP_WITHOUT_THREADS`, and `web-test.cpp` covers the
+single-threaded behaviour. They link with `NODERAWFS`, so they see the real disk where a browser has MEMFS. On a Windows host `getcwd`
+then returns a `C:\` path, which POSIX path handling reads as relative, so two `paths-test.cpp` cases skip there and not on Linux.
+A run that fails before its cleanup can leave files in the output directory, which the next run reports as failures of its own.
 
 ## Build & Test
 

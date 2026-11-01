@@ -6,7 +6,7 @@ A modern C++20 utility library providing data structures, math primitives, threa
 
 - **C++20** compiler (MSVC, Clang, or GCC)
 - **CMake 3.28+**
-- **Platforms:** Windows, Linux
+- **Platforms:** Windows, Linux, macOS, web
 
 No external dependencies. Third-party libraries (Catch2, rapidhash) are vendored.
 
