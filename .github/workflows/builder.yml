@@ -103,7 +103,7 @@ jobs:
     # Tracks setup-builder's main until it has a v1 tag.
     - uses: praetorian555/setup-builder@main
       with:
-        version: 0.5.0
+        version: 0.6.1
 
     - name: Choose the build
       shell: bash
@@ -141,7 +141,7 @@ jobs:
 
     - uses: praetorian555/setup-builder@main
       with:
-        version: 0.5.0
+        version: 0.6.1
 
     - name: Install the emsdk
       shell: bash
@@ -187,7 +187,7 @@ jobs:
 
     - uses: praetorian555/setup-builder@main
       with:
-        version: 0.5.0
+        version: 0.6.1
 
     - name: Smoke run
       shell: bash
